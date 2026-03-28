@@ -210,6 +210,11 @@
             background: #FFF8E1;
         }
         .approval-node.procurement .name { color: #E65100; }
+        .approval-node.factory {
+            border-color: #6D4C41;
+            background: #EFEBE9;
+        }
+        .approval-node.factory .name { color: #4E342E; }
 
         /* ========== DOCUMENT CARDS ========== */
         .doc-grid {
@@ -479,8 +484,6 @@
 <!-- ==================== NAVIGATION ==================== -->
 <nav>
     <div class="logo">GREEN <span>Dii</span></div>
-    <a href="demo.html" class="nav-link" style="margin-left:auto;margin-right:0.5rem;">🚀 Live Demo</a>
-    <a href="technical.html" class="nav-link" style="margin-left:0;">📘 Technical Docs</a>
     <ul>
         <li><a href="#overview" class="active">ภาพรวม</a></li>
         <li><a href="#workflow">ขั้นตอนงาน</a></li>
@@ -689,12 +692,17 @@
                     <div class="name">7. จัดซื้อ (คุณพนิดา)</div>
                     <div class="title">Procurement</div>
                 </div>
+                <span class="approval-arrow">→</span>
+                <div class="approval-node factory">
+                    <div class="name">8. ทีมโรงงาน</div>
+                    <div class="title">Factory Team</div>
+                </div>
             </div>
 
             <ul style="margin-top:1rem;">
                 <li>จัดซื้อดึงเอกสารที่มีตัวเลขขายออก (ตัดหน้าที่มีราคาขายจาก PO, Quotation, Min)</li>
                 <li>สแกนเอกสารส่งเมล์ให้ทีมโรงงาน</li>
-                <li>ส่งเมล์ให้เจ้าของเซลล์นั้นๆ เพื่อทำงานต่อ</li>
+                <li>ทีมโรงงานรับงานและปิด Work Order เมื่อเสร็จสิ้น</li>
                 <li>โรงงานสามารถปริ้นเอกสารเพื่อให้ช่างทำงาน</li>
             </ul>
         </div>
