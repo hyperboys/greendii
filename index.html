@@ -699,122 +699,6 @@
     </div>
 </section>
 
-<!-- ==================== DOCUMENTS DETAIL ==================== -->
-<section id="documents">
-    <h2>รายละเอียดเอกสาร (Document Specifications)</h2>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="openTab(event, 'tab-quo')">Quotation</button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-wo')">Work Order</button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-ho')">Hand Over Job</button>
-        <button class="tab-btn" onclick="openTab(event, 'tab-pr')">Purchase Request</button>
-    </div>
-
-    <!-- Quotation Tab -->
-    <div id="tab-quo" class="tab-content active">
-        <div class="system-card">
-            <h3><span class="icon">📋</span> Quotation (ใบเสนอราคา)</h3>
-            <table class="api-table" style="margin-top:0.5rem;">
-                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
-                <tbody>
-                    <tr><td>Quo.No</td><td>เลขใบเสนอราคา (Auto: QGD-MMYY-XX###)</td><td>String</td></tr>
-                    <tr><td>Date</td><td>วันที่ออกเอกสาร</td><td>Date</td></tr>
-                    <tr><td>To</td><td>ชื่อบริษัทลูกค้า</td><td>String</td></tr>
-                    <tr><td>Attn</td><td>ชื่อผู้ติดต่อ</td><td>String</td></tr>
-                    <tr><td>Address</td><td>ที่อยู่ลูกค้า</td><td>String</td></tr>
-                    <tr><td>Tel / Fax</td><td>เบอร์โทร / แฟกซ์</td><td>String</td></tr>
-                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
-                    <tr><td>HP</td><td>มือถือ</td><td>String</td></tr>
-                    <tr><td>Items[]</td><td>รายการสินค้า (Description, Q'ty, Unit, Material Price, Labour Price, Total)</td><td>Array</td></tr>
-                    <tr><td>Special Discount</td><td>ส่วนลดพิเศษ</td><td>Decimal</td></tr>
-                    <tr><td>VAT 7%</td><td>ภาษีมูลค่าเพิ่ม</td><td>Decimal</td></tr>
-                    <tr><td>Grand Total</td><td>ยอดรวมสุทธิ</td><td>Decimal</td></tr>
-                    <tr><td>Condition Term</td><td>เงื่อนไข เช่น Local Price</td><td>String</td></tr>
-                    <tr><td>Validity Period</td><td>ระยะเวลาเสนอราคา (30 Days)</td><td>Integer</td></tr>
-                    <tr><td>Lead Time</td><td>ระยะเวลาจัดส่ง</td><td>String</td></tr>
-                    <tr><td>Term of Payment</td><td>เงื่อนไขชำระเงิน (Credit 30 Days)</td><td>String</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Work Order Tab -->
-    <div id="tab-wo" class="tab-content">
-        <div class="system-card">
-            <h3><span class="icon">🔧</span> Work Order (Project Work Form)</h3>
-            <table class="api-table" style="margin-top:0.5rem;">
-                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
-                <tbody>
-                    <tr><td>W/O No.</td><td>เลข Work Order (Auto: WO#####)</td><td>String</td></tr>
-                    <tr><td>Date</td><td>วันที่</td><td>Date</td></tr>
-                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
-                    <tr><td>Location</td><td>สถานที่</td><td>String</td></tr>
-                    <tr><td>Products</td><td>ชื่อสินค้า</td><td>String</td></tr>
-                    <tr><td>ผู้รับผิดชอบ</td><td>ผู้รับผิดชอบโครงการ</td><td>String</td></tr>
-                    <tr><td>Customer</td><td>ชื่อลูกค้า</td><td>String</td></tr>
-                    <tr><td>Contact / Tel</td><td>ผู้ติดต่อ / เบอร์โทร</td><td>String</td></tr>
-                    <tr><td>Sales</td><td>ชื่อพนักงานขาย</td><td>String</td></tr>
-                    <tr><td>Details of Work[]</td><td>รายการงาน (Item, Qty, Unit)</td><td>Array</td></tr>
-                    <tr><td>Team Assignment</td><td>ส่งของอย่างเดียว/ทีมพื้น/ทีมโรงงาน 2/ทีมติดตั้ง/ทีมประตู/ผู้รับเหมา</td><td>Enum[]</td></tr>
-                    <tr><td>QC Date</td><td>วันที่ต้องการ QC</td><td>Date</td></tr>
-                    <tr><td>Installation Date</td><td>วันติดตั้ง</td><td>Date</td></tr>
-                    <tr><td>Remark</td><td>หมายเหตุ</td><td>String</td></tr>
-                    <tr><td>Document Checklist</td><td>PO, PR, Quotation, Min, Drawing Confirm, Waiting Confirm, Hand Over Job, Check List</td><td>Boolean[]</td></tr>
-                </tbody>
-            </table>
-            <p style="margin-top:1rem;font-size:0.9rem;"><strong>ผู้เซ็น:</strong> เซลล์คนที่ 1 (ผู้สร้าง) → เซลล์คนที่ 2 (ตรวจสอบ) → Sales Manager (Sindhorn J.) → Admin Manager (Sirawit A.) → Project Manager (Sarayut Y.) → Managing Director (Sirin J.)</p>
-        </div>
-    </div>
-
-    <!-- Hand Over Job Tab -->
-    <div id="tab-ho" class="tab-content">
-        <div class="system-card">
-            <h3><span class="icon">🤝</span> Hand Over Job (ใบส่งมอบงาน)</h3>
-            <table class="api-table" style="margin-top:0.5rem;">
-                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
-                <tbody>
-                    <tr><td>Hand Over Job No.</td><td>เลขใบส่งมอบ (Auto: HO#####)</td><td>String</td></tr>
-                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
-                    <tr><td>Contractor</td><td>ผู้รับเหมา</td><td>String</td></tr>
-                    <tr><td>Location</td><td>สถานที่</td><td>String</td></tr>
-                    <tr><td>Contract Name</td><td>ชื่อผู้ติดต่อ</td><td>String</td></tr>
-                    <tr><td>Customer HP</td><td>เบอร์มือถือลูกค้า</td><td>String</td></tr>
-                    <tr><td>Product</td><td>สินค้า</td><td>String</td></tr>
-                    <tr><td>Responsibility</td><td>ผู้รับผิดชอบ</td><td>String</td></tr>
-                    <tr><td>Quotation No.</td><td>อ้างอิงเลขใบเสนอราคา</td><td>String (FK)</td></tr>
-                    <tr><td>Work Order No.</td><td>อ้างอิงเลข Work Order</td><td>String (FK)</td></tr>
-                    <tr><td>Date of Service</td><td>วันที่ให้บริการ</td><td>Date</td></tr>
-                    <tr><td>Items[]</td><td>รายการ (QTY, Unit, Remark)</td><td>Array</td></tr>
-                    <tr><td>Quality Rating</td><td>ประเมินคุณภาพ: ผลิตภัณฑ์(1-5), ฝ่ายขาย(1-5), ฝ่ายช่าง(1-5)</td><td>Object</td></tr>
-                    <tr><td>Comment</td><td>ความคิดเห็น</td><td>String</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- PR Tab -->
-    <div id="tab-pr" class="tab-content">
-        <div class="system-card">
-            <h3><span class="icon">🛒</span> Purchase Request (ใบขอซื้อ)</h3>
-            <table class="api-table" style="margin-top:0.5rem;">
-                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
-                <tbody>
-                    <tr><td>PR No.</td><td>เลขใบขอซื้อ (Auto: PR#####)</td><td>String</td></tr>
-                    <tr><td>Date of Issue</td><td>วันที่ออก</td><td>Date</td></tr>
-                    <tr><td>Date of Required</td><td>วันที่ต้องการ</td><td>Date</td></tr>
-                    <tr><td>Customer</td><td>ลูกค้า</td><td>String</td></tr>
-                    <tr><td>Project Ref</td><td>อ้างอิงโครงการ</td><td>String</td></tr>
-                    <tr><td>Remarks</td><td>หมายเหตุ</td><td>String</td></tr>
-                    <tr><td>Items[]</td><td>รายการ (Detail, Unit, QTY, Unit Price, Amount, หมายเหตุ)</td><td>Array</td></tr>
-                    <tr><td>Sub Total</td><td>รวมเงิน</td><td>Decimal</td></tr>
-                    <tr><td>VAT 7%</td><td>ภาษีมูลค่าเพิ่ม</td><td>Decimal</td></tr>
-                    <tr><td>Net Total</td><td>ยอดเงินสุทธิ</td><td>Decimal</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-</section>
-
 <!-- ==================== FLOW DIAGRAM ==================== -->
 <section id="flow-diagram">
     <h2>Flow Diagram</h2>
@@ -964,6 +848,124 @@
         </div>
     </div>
 </section>
+
+
+<!-- ==================== DOCUMENTS DETAIL ==================== -->
+<section id="documents">
+    <h2>รายละเอียดเอกสาร (Document Specifications)</h2>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-quo')">Quotation</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-wo')">Work Order</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-ho')">Hand Over Job</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-pr')">Purchase Request</button>
+    </div>
+
+    <!-- Quotation Tab -->
+    <div id="tab-quo" class="tab-content active">
+        <div class="system-card">
+            <h3><span class="icon">📋</span> Quotation (ใบเสนอราคา)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
+                <tbody>
+                    <tr><td>Quo.No</td><td>เลขใบเสนอราคา (Auto: QGD-MMYY-XX###)</td><td>String</td></tr>
+                    <tr><td>Date</td><td>วันที่ออกเอกสาร</td><td>Date</td></tr>
+                    <tr><td>To</td><td>ชื่อบริษัทลูกค้า</td><td>String</td></tr>
+                    <tr><td>Attn</td><td>ชื่อผู้ติดต่อ</td><td>String</td></tr>
+                    <tr><td>Address</td><td>ที่อยู่ลูกค้า</td><td>String</td></tr>
+                    <tr><td>Tel / Fax</td><td>เบอร์โทร / แฟกซ์</td><td>String</td></tr>
+                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
+                    <tr><td>HP</td><td>มือถือ</td><td>String</td></tr>
+                    <tr><td>Items[]</td><td>รายการสินค้า (Description, Q'ty, Unit, Material Price, Labour Price, Total)</td><td>Array</td></tr>
+                    <tr><td>Special Discount</td><td>ส่วนลดพิเศษ</td><td>Decimal</td></tr>
+                    <tr><td>VAT 7%</td><td>ภาษีมูลค่าเพิ่ม</td><td>Decimal</td></tr>
+                    <tr><td>Grand Total</td><td>ยอดรวมสุทธิ</td><td>Decimal</td></tr>
+                    <tr><td>Condition Term</td><td>เงื่อนไข เช่น Local Price</td><td>String</td></tr>
+                    <tr><td>Validity Period</td><td>ระยะเวลาเสนอราคา (30 Days)</td><td>Integer</td></tr>
+                    <tr><td>Lead Time</td><td>ระยะเวลาจัดส่ง</td><td>String</td></tr>
+                    <tr><td>Term of Payment</td><td>เงื่อนไขชำระเงิน (Credit 30 Days)</td><td>String</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Work Order Tab -->
+    <div id="tab-wo" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🔧</span> Work Order (Project Work Form)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
+                <tbody>
+                    <tr><td>W/O No.</td><td>เลข Work Order (Auto: WO#####)</td><td>String</td></tr>
+                    <tr><td>Date</td><td>วันที่</td><td>Date</td></tr>
+                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
+                    <tr><td>Location</td><td>สถานที่</td><td>String</td></tr>
+                    <tr><td>Products</td><td>ชื่อสินค้า</td><td>String</td></tr>
+                    <tr><td>ผู้รับผิดชอบ</td><td>ผู้รับผิดชอบโครงการ</td><td>String</td></tr>
+                    <tr><td>Customer</td><td>ชื่อลูกค้า</td><td>String</td></tr>
+                    <tr><td>Contact / Tel</td><td>ผู้ติดต่อ / เบอร์โทร</td><td>String</td></tr>
+                    <tr><td>Sales</td><td>ชื่อพนักงานขาย</td><td>String</td></tr>
+                    <tr><td>Details of Work[]</td><td>รายการงาน (Item, Qty, Unit)</td><td>Array</td></tr>
+                    <tr><td>Team Assignment</td><td>ส่งของอย่างเดียว/ทีมพื้น/ทีมโรงงาน 2/ทีมติดตั้ง/ทีมประตู/ผู้รับเหมา</td><td>Enum[]</td></tr>
+                    <tr><td>QC Date</td><td>วันที่ต้องการ QC</td><td>Date</td></tr>
+                    <tr><td>Installation Date</td><td>วันติดตั้ง</td><td>Date</td></tr>
+                    <tr><td>Remark</td><td>หมายเหตุ</td><td>String</td></tr>
+                    <tr><td>Document Checklist</td><td>PO, PR, Quotation, Min, Drawing Confirm, Waiting Confirm, Hand Over Job, Check List</td><td>Boolean[]</td></tr>
+                </tbody>
+            </table>
+            <p style="margin-top:1rem;font-size:0.9rem;"><strong>ผู้เซ็น:</strong> เซลล์คนที่ 1 (ผู้สร้าง) → เซลล์คนที่ 2 (ตรวจสอบ) → Sales Manager (Sindhorn J.) → Admin Manager (Sirawit A.) → Project Manager (Sarayut Y.) → Managing Director (Sirin J.)</p>
+        </div>
+    </div>
+
+    <!-- Hand Over Job Tab -->
+    <div id="tab-ho" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🤝</span> Hand Over Job (ใบส่งมอบงาน)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
+                <tbody>
+                    <tr><td>Hand Over Job No.</td><td>เลขใบส่งมอบ (Auto: HO#####)</td><td>String</td></tr>
+                    <tr><td>Project</td><td>ชื่อโครงการ</td><td>String</td></tr>
+                    <tr><td>Contractor</td><td>ผู้รับเหมา</td><td>String</td></tr>
+                    <tr><td>Location</td><td>สถานที่</td><td>String</td></tr>
+                    <tr><td>Contract Name</td><td>ชื่อผู้ติดต่อ</td><td>String</td></tr>
+                    <tr><td>Customer HP</td><td>เบอร์มือถือลูกค้า</td><td>String</td></tr>
+                    <tr><td>Product</td><td>สินค้า</td><td>String</td></tr>
+                    <tr><td>Responsibility</td><td>ผู้รับผิดชอบ</td><td>String</td></tr>
+                    <tr><td>Quotation No.</td><td>อ้างอิงเลขใบเสนอราคา</td><td>String (FK)</td></tr>
+                    <tr><td>Work Order No.</td><td>อ้างอิงเลข Work Order</td><td>String (FK)</td></tr>
+                    <tr><td>Date of Service</td><td>วันที่ให้บริการ</td><td>Date</td></tr>
+                    <tr><td>Items[]</td><td>รายการ (QTY, Unit, Remark)</td><td>Array</td></tr>
+                    <tr><td>Quality Rating</td><td>ประเมินคุณภาพ: ผลิตภัณฑ์(1-5), ฝ่ายขาย(1-5), ฝ่ายช่าง(1-5)</td><td>Object</td></tr>
+                    <tr><td>Comment</td><td>ความคิดเห็น</td><td>String</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PR Tab -->
+    <div id="tab-pr" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🛒</span> Purchase Request (ใบขอซื้อ)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th></tr></thead>
+                <tbody>
+                    <tr><td>PR No.</td><td>เลขใบขอซื้อ (Auto: PR#####)</td><td>String</td></tr>
+                    <tr><td>Date of Issue</td><td>วันที่ออก</td><td>Date</td></tr>
+                    <tr><td>Date of Required</td><td>วันที่ต้องการ</td><td>Date</td></tr>
+                    <tr><td>Customer</td><td>ลูกค้า</td><td>String</td></tr>
+                    <tr><td>Project Ref</td><td>อ้างอิงโครงการ</td><td>String</td></tr>
+                    <tr><td>Remarks</td><td>หมายเหตุ</td><td>String</td></tr>
+                    <tr><td>Items[]</td><td>รายการ (Detail, Unit, QTY, Unit Price, Amount, หมายเหตุ)</td><td>Array</td></tr>
+                    <tr><td>Sub Total</td><td>รวมเงิน</td><td>Decimal</td></tr>
+                    <tr><td>VAT 7%</td><td>ภาษีมูลค่าเพิ่ม</td><td>Decimal</td></tr>
+                    <tr><td>Net Total</td><td>ยอดเงินสุทธิ</td><td>Decimal</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
 
 <!-- ==================== ADDITIONAL FEATURES ==================== -->
 <section id="features">
