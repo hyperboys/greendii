@@ -52,6 +52,21 @@
             margin-right: 2rem;
         }
         nav .logo span { color: var(--green-light); }
+        nav .nav-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            background: rgba(255,255,255,0.05);
+            margin-left: auto;
+            margin-right: 1rem;
+        }
+        nav .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
         nav ul {
             list-style: none;
             display: flex;
@@ -464,15 +479,13 @@
 <!-- ==================== NAVIGATION ==================== -->
 <nav>
     <div class="logo">GREEN <span>Dii</span></div>
+    <a href="technical.html" class="nav-link">📘 Technical Docs for Developers →</a>
     <ul>
         <li><a href="#overview" class="active">ภาพรวม</a></li>
         <li><a href="#workflow">ขั้นตอนงาน</a></li>
-        <li><a href="#documents">เอกสาร</a></li>
         <li><a href="#flow-diagram">Flow Diagram</a></li>
         <li><a href="#approval">สายอนุมัติ</a></li>
-        <li><a href="#system">ระบบ</a></li>
-        <li><a href="#datamodel">Data Model</a></li>
-        <li><a href="#api">API</a></li>
+        <li><a href="#documents">เอกสาร</a></li>
         <li><a href="#features">Features</a></li>
     </ul>
 </nav>
@@ -481,6 +494,7 @@
 <div class="hero">
     <h1>Sales Workflow Management System</h1>
     <p>ระบบจัดการงานขาย เอกสาร และ Approval Flow สำหรับ บริษัท กรีนส์ดี จำกัด (GREEN Dii Co., Ltd.)</p>
+    <p style="margin-top:1rem; font-size:0.95rem; opacity:0.85;">🎯 Flow Document for Business Presentation</p>
 </div>
 
 <div class="container">
@@ -641,32 +655,37 @@
 
             <div class="approval-chain">
                 <div class="approval-node">
-                    <div class="name">เซลล์ (Sales)</div>
-                    <div class="title">Kullanit C.</div>
+                    <div class="name">1. เซลล์คนที่ 1</div>
+                    <div class="title">ผู้สร้างเอกสาร</div>
                 </div>
                 <span class="approval-arrow">→</span>
                 <div class="approval-node">
-                    <div class="name">คุณสินธร</div>
+                    <div class="name">2. เซลล์คนที่ 2</div>
+                    <div class="title">เซลล์ตรวจสอบ</div>
+                </div>
+                <span class="approval-arrow">→</span>
+                <div class="approval-node">
+                    <div class="name">3. คุณสินธร</div>
                     <div class="title">Sales Manager</div>
                 </div>
                 <span class="approval-arrow">→</span>
                 <div class="approval-node">
-                    <div class="name">คุณสิรวิชญ์</div>
+                    <div class="name">4. คุณสิรวิชญ์</div>
                     <div class="title">Admin Manager</div>
                 </div>
                 <span class="approval-arrow">→</span>
                 <div class="approval-node">
-                    <div class="name">คุณสรายุทธ</div>
+                    <div class="name">5. คุณสรายุทธ</div>
                     <div class="title">Project Manager</div>
                 </div>
                 <span class="approval-arrow">→</span>
                 <div class="approval-node">
-                    <div class="name">คุณสิริน</div>
+                    <div class="name">6. คุณสิริน</div>
                     <div class="title">Managing Director</div>
                 </div>
                 <span class="approval-arrow">→</span>
                 <div class="approval-node procurement">
-                    <div class="name">จัดซื้อ (คุณพนิดา)</div>
+                    <div class="name">7. จัดซื้อ (คุณพนิดา)</div>
                     <div class="title">Procurement</div>
                 </div>
             </div>
@@ -744,7 +763,7 @@
                     <tr><td>Document Checklist</td><td>PO, PR, Quotation, Min, Drawing Confirm, Waiting Confirm, Hand Over Job, Check List</td><td>Boolean[]</td></tr>
                 </tbody>
             </table>
-            <p style="margin-top:1rem;font-size:0.9rem;"><strong>ผู้เซ็น:</strong> Sales → Sales Manager (Sindhorn J.) → Admin Manager (Sirawit A.) → Project Manager (Sarayut Y.) → Managing Director (Sirin J.)</p>
+            <p style="margin-top:1rem;font-size:0.9rem;"><strong>ผู้เซ็น:</strong> เซลล์คนที่ 1 (ผู้สร้าง) → เซลล์คนที่ 2 (ตรวจสอบ) → Sales Manager (Sindhorn J.) → Admin Manager (Sirawit A.) → Project Manager (Sarayut Y.) → Managing Director (Sirin J.)</p>
         </div>
     </div>
 
@@ -854,15 +873,17 @@
 
         <!-- Row 7: Approval -->
         <div class="flow-row">
-            <div class="flow-box approval">✍️ เซลล์เซ็น</div>
+            <div class="flow-box approval">1. เซลล์คนที่ 1<br><small>ผู้สร้างเอกสาร</small></div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box approval">คุณสินธร<br><small>Sales Manager</small></div>
+            <div class="flow-box approval">2. เซลล์คนที่ 2<br><small>เซลล์ตรวจสอบ</small></div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box approval">คุณสิรวิชญ์<br><small>Admin Manager</small></div>
+            <div class="flow-box approval">3. คุณสินธร<br><small>Sales Manager</small></div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box approval">คุณสรายุทธ<br><small>Project Manager</small></div>
+            <div class="flow-box approval">4. คุณสิรวิชญ์<br><small>Admin Manager</small></div>
             <span class="flow-arrow">→</span>
-            <div class="flow-box approval">คุณสิริน<br><small>Managing Director</small></div>
+            <div class="flow-box approval">5. คุณสรายุทธ<br><small>Project Manager</small></div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-box approval">6. คุณสิริน<br><small>Managing Director</small></div>
         </div>
         <div class="flow-arrow-down">↓</div>
 
@@ -887,32 +908,37 @@
 
         <div class="approval-chain" style="margin-top:1.5rem;">
             <div class="approval-node">
-                <div class="name">1. เซลล์</div>
-                <div class="title">Sales / ผู้สร้างเอกสาร</div>
+                <div class="name">1. เซลล์คนที่ 1</div>
+                <div class="title">ผู้สร้างเอกสาร</div>
             </div>
             <span class="approval-arrow">→</span>
             <div class="approval-node">
-                <div class="name">2. คุณสินธร</div>
+                <div class="name">2. เซลล์คนที่ 2</div>
+                <div class="title">เซลล์ตรวจสอบ</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">3. คุณสินธร</div>
                 <div class="title">Sales Manager</div>
             </div>
             <span class="approval-arrow">→</span>
             <div class="approval-node">
-                <div class="name">3. คุณสิรวิชญ์</div>
+                <div class="name">4. คุณสิรวิชญ์</div>
                 <div class="title">Admin Manager</div>
             </div>
             <span class="approval-arrow">→</span>
             <div class="approval-node">
-                <div class="name">4. คุณสรายุทธ</div>
+                <div class="name">5. คุณสรายุทธ</div>
                 <div class="title">Project Manager</div>
             </div>
             <span class="approval-arrow">→</span>
             <div class="approval-node">
-                <div class="name">5. คุณสิริน</div>
+                <div class="name">6. คุณสิริน</div>
                 <div class="title">Managing Director</div>
             </div>
             <span class="approval-arrow">→</span>
             <div class="approval-node procurement">
-                <div class="name">6. จัดซื้อ (คุณพนิดา)</div>
+                <div class="name">7. จัดซื้อ (คุณพนิดา)</div>
                 <div class="title">Procurement</div>
             </div>
         </div>
@@ -936,356 +962,6 @@
                 <li>เซลล์แก้ไขแล้วส่งเข้าสายอนุมัติใหม่</li>
                 <li>ระบบบันทึก Log การแก้ไขทุกครั้ง</li>
             </ul>
-        </div>
-    </div>
-</section>
-
-<!-- ==================== SYSTEM ARCHITECTURE ==================== -->
-<section id="system">
-    <h2>สถาปัตยกรรมระบบ (System Architecture)</h2>
-
-    <div class="system-grid">
-        <div class="system-card">
-            <h3><span class="icon">🖥️</span> Frontend (Web Application)</h3>
-            <ul style="padding-left:1.2rem;">
-                <li><strong>Framework:</strong> React / Next.js</li>
-                <li>Login ด้วย User & Password + แสดงรูปผู้ใช้</li>
-                <li>Dashboard แสดงเมนู: Quotation, Work Order, Hand Over Job, PR</li>
-                <li>ฟอร์มกรอกข้อมูลเอกสารทุกประเภท</li>
-                <li>อัพโหลดรูปภาพประกอบ</li>
-                <li>แนบไฟล์ PO, Drawing, Min จากภายนอก</li>
-                <li>Generate PDF & ส่งเมล์ผ่าน Outlook</li>
-                <li>Approval Workflow UI (อนุมัติ/ปฏิเสธ)</li>
-                <li>Dashboard สรุปสถิติ (กราฟงานรายเดือน/เซลล์)</li>
-            </ul>
-        </div>
-        <div class="system-card">
-            <h3><span class="icon">⚙️</span> Backend (API Server)</h3>
-            <ul style="padding-left:1.2rem;">
-                <li><strong>Framework:</strong> Node.js / Express หรือ .NET Core</li>
-                <li>RESTful API</li>
-                <li>Authentication: JWT Token</li>
-                <li>Role-based Access Control (Sales, Manager, Procurement, Factory)</li>
-                <li>Auto Number Generation (Quotation, WO, HO, PR)</li>
-                <li>PDF Generation Service</li>
-                <li>Email Service (Outlook Integration)</li>
-                <li>File Storage & Merge Service</li>
-                <li>Approval Workflow Engine</li>
-                <li>Notification Service</li>
-            </ul>
-        </div>
-        <div class="system-card">
-            <h3><span class="icon">💾</span> Database</h3>
-            <ul style="padding-left:1.2rem;">
-                <li><strong>RDBMS:</strong> PostgreSQL / SQL Server</li>
-                <li>Users & Roles</li>
-                <li>Quotations</li>
-                <li>Work Orders</li>
-                <li>Hand Over Jobs</li>
-                <li>Purchase Requests</li>
-                <li>Approval Logs</li>
-                <li>Document Files</li>
-                <li>Notifications</li>
-                <li>Audit Trail</li>
-            </ul>
-        </div>
-        <div class="system-card">
-            <h3><span class="icon">🔗</span> Integration</h3>
-            <ul style="padding-left:1.2rem;">
-                <li><strong>Email:</strong> Microsoft Outlook API / SMTP</li>
-                <li><strong>PDF:</strong> Puppeteer / wkhtmltopdf</li>
-                <li><strong>File Storage:</strong> AWS S3 / Azure Blob</li>
-                <li><strong>Notification:</strong> LINE Notify / Email</li>
-                <li><strong>Authentication:</strong> Azure AD (Optional)</li>
-            </ul>
-        </div>
-    </div>
-</section>
-
-<!-- ==================== DATA MODEL ==================== -->
-<section id="datamodel">
-    <h2>Data Model (ER Diagram)</h2>
-
-    <div class="model-grid">
-        <!-- Users -->
-        <div class="model-card">
-            <div class="model-header">👤 users</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">username</span><span class="ftype">VARCHAR(50)</span></div>
-                <div class="field"><span class="fname">password_hash</span><span class="ftype">VARCHAR(255)</span></div>
-                <div class="field"><span class="fname">full_name</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">initials</span><span class="ftype">VARCHAR(5)</span></div>
-                <div class="field"><span class="fname">role</span><span class="ftype">ENUM</span></div>
-                <div class="field"><span class="fname">avatar_url</span><span class="ftype">VARCHAR(500)</span></div>
-                <div class="field"><span class="fname">email</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">is_active</span><span class="ftype">BOOLEAN</span></div>
-                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-
-        <!-- Quotations -->
-        <div class="model-card">
-            <div class="model-header">📋 quotations</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">quo_no</span><span class="ftype">VARCHAR(20)</span></div>
-                <div class="field"><span class="fname">sales_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">customer_name</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">attn</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">address</span><span class="ftype">TEXT</span></div>
-                <div class="field"><span class="fname">tel / fax / hp</span><span class="ftype">VARCHAR(50)</span></div>
-                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">condition_term</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">validity_days</span><span class="ftype">INTEGER</span></div>
-                <div class="field"><span class="fname">lead_time</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">payment_term</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">special_discount</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">vat_amount</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">grand_total</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">status</span><span class="ftype">ENUM</span></div>
-                <div class="field"><span class="fname">pdf_url</span><span class="ftype">VARCHAR(500)</span></div>
-                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-
-        <!-- Work Orders -->
-        <div class="model-card">
-            <div class="model-header">🔧 work_orders</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">wo_no</span><span class="ftype">VARCHAR(20)</span></div>
-                <div class="field"><span class="fname">quotation_id</span><span class="fpk">FK→quotations</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">sales_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">location</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">products</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">responsibility</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">customer_name</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">contact_name / tel</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">team_assignment</span><span class="ftype">JSON</span></div>
-                <div class="field"><span class="fname">qc_date</span><span class="ftype">DATE</span></div>
-                <div class="field"><span class="fname">installation_date</span><span class="ftype">DATE</span></div>
-                <div class="field"><span class="fname">remark</span><span class="ftype">TEXT</span></div>
-                <div class="field"><span class="fname">doc_checklist</span><span class="ftype">JSON</span></div>
-                <div class="field"><span class="fname">status</span><span class="ftype">ENUM</span></div>
-                <div class="field"><span class="fname">is_closed</span><span class="ftype">BOOLEAN</span></div>
-                <div class="field"><span class="fname">closed_at</span><span class="ftype">TIMESTAMP</span></div>
-                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-
-        <!-- Hand Over Jobs -->
-        <div class="model-card">
-            <div class="model-header">🤝 hand_over_jobs</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">ho_no</span><span class="ftype">VARCHAR(20)</span></div>
-                <div class="field"><span class="fname">work_order_id</span><span class="fpk">FK→work_orders</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">quotation_id</span><span class="fpk">FK→quotations</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">contractor</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">location</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">contract_name</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">customer_hp</span><span class="ftype">VARCHAR(50)</span></div>
-                <div class="field"><span class="fname">product</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">responsibility</span><span class="ftype">VARCHAR(100)</span></div>
-                <div class="field"><span class="fname">date_of_service</span><span class="ftype">DATE</span></div>
-                <div class="field"><span class="fname">quality_product</span><span class="ftype">INTEGER(1-5)</span></div>
-                <div class="field"><span class="fname">quality_sales</span><span class="ftype">INTEGER(1-5)</span></div>
-                <div class="field"><span class="fname">quality_install</span><span class="ftype">INTEGER(1-5)</span></div>
-                <div class="field"><span class="fname">comment</span><span class="ftype">TEXT</span></div>
-                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-
-        <!-- Purchase Requests -->
-        <div class="model-card">
-            <div class="model-header">🛒 purchase_requests</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">pr_no</span><span class="ftype">VARCHAR(20)</span></div>
-                <div class="field"><span class="fname">work_order_id</span><span class="fpk">FK→work_orders</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">customer</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">project_ref</span><span class="ftype">VARCHAR(200)</span></div>
-                <div class="field"><span class="fname">date_of_issue</span><span class="ftype">DATE</span></div>
-                <div class="field"><span class="fname">date_of_required</span><span class="ftype">DATE</span></div>
-                <div class="field"><span class="fname">remarks</span><span class="ftype">TEXT</span></div>
-                <div class="field"><span class="fname">sub_total</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">vat_amount</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">net_total</span><span class="ftype">DECIMAL</span></div>
-                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-
-        <!-- Approval Logs -->
-        <div class="model-card">
-            <div class="model-header">✍️ approval_logs</div>
-            <div class="model-body">
-                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">document_type</span><span class="ftype">ENUM</span></div>
-                <div class="field"><span class="fname">document_id</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">approver_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
-                <div class="field"><span class="fname">step_order</span><span class="ftype">INTEGER</span></div>
-                <div class="field"><span class="fname">action</span><span class="ftype">ENUM(approve/reject)</span></div>
-                <div class="field"><span class="fname">comment</span><span class="ftype">TEXT</span></div>
-                <div class="field"><span class="fname">acted_at</span><span class="ftype">TIMESTAMP</span></div>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- ==================== API SPECIFICATION ==================== -->
-<section id="api">
-    <h2>API Specification</h2>
-
-    <div class="tabs">
-        <button class="tab-btn active" onclick="openTab(event, 'api-auth')">Auth</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-quo')">Quotation</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-wo')">Work Order</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-ho')">Hand Over Job</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-pr')">Purchase Request</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-approval')">Approval</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-docs')">Documents</button>
-        <button class="tab-btn" onclick="openTab(event, 'api-report')">Reports</button>
-    </div>
-
-    <!-- Auth API -->
-    <div id="api-auth" class="tab-content active">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/auth/login</td><td>เข้าสู่ระบบ → รับ JWT Token</td><td>-</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/auth/logout</td><td>ออกจากระบบ</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/auth/me</td><td>ดูข้อมูลผู้ใช้ปัจจุบัน (รูป, ชื่อ, role)</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/auth/change-password</td><td>เปลี่ยนรหัสผ่าน</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/users</td><td>รายชื่อผู้ใช้ทั้งหมด (Admin)</td><td>Bearer + Admin</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/users</td><td>สร้างผู้ใช้ใหม่ (Admin)</td><td>Bearer + Admin</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Quotation API -->
-    <div id="api-quo" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations</td><td>รายการใบเสนอราคา (filter by sales, status, date)</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations/:id</td><td>รายละเอียดใบเสนอราคา</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations</td><td>สร้างใบเสนอราคาใหม่ (Auto เลข QGD-MMYY-XX###)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/quotations/:id</td><td>แก้ไขใบเสนอราคา</td><td>Bearer + Owner</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/send-email</td><td>ส่งเมล์ Quotation + แนบ Drawing ให้ลูกค้า</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/items</td><td>เพิ่มรายการสินค้า</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/quotations/:id/items/:itemId</td><td>แก้ไขรายการสินค้า</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-delete">DELETE</span></td><td>/api/quotations/:id/items/:itemId</td><td>ลบรายการสินค้า</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/attachments</td><td>แนบไฟล์ (PO, Drawing, Min)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/images</td><td>เพิ่มรูปภาพประกอบ</td><td>Bearer + Sales</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Work Order API -->
-    <div id="api-wo" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders</td><td>รายการ Work Order (filter by sales, status, date, is_closed)</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders/:id</td><td>รายละเอียด Work Order</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/work-orders</td><td>สร้าง Work Order (Auto เลข WO#####)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/work-orders/:id</td><td>แก้ไข Work Order</td><td>Bearer + Owner</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-patch">PATCH</span></td><td>/api/work-orders/:id/close</td><td>ปิดงาน Work Order (โรงงาน)</td><td>Bearer + Factory</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/work-orders/:id/return</td><td>ส่งกลับให้เซลล์แก้ไข</td><td>Bearer</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Hand Over Job API -->
-    <div id="api-ho" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs</td><td>รายการ Hand Over Job</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs/:id</td><td>รายละเอียด Hand Over Job</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/hand-over-jobs</td><td>สร้าง Hand Over Job (Auto เลข HO#####)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/hand-over-jobs/:id</td><td>แก้ไข Hand Over Job</td><td>Bearer + Owner</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-patch">PATCH</span></td><td>/api/hand-over-jobs/:id/quality-rating</td><td>บันทึกคะแนนประเมินคุณภาพ</td><td>Bearer</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Purchase Request API -->
-    <div id="api-pr" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests</td><td>รายการ Purchase Request</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests/:id</td><td>รายละเอียด PR</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/purchase-requests</td><td>สร้าง PR (Auto เลข PR#####)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/purchase-requests/:id</td><td>แก้ไข PR</td><td>Bearer + Owner</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Approval API -->
-    <div id="api-approval" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/approvals/pending</td><td>รายการเอกสารรออนุมัติ (ตาม role ของผู้ใช้)</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/:documentType/:documentId/approve</td><td>อนุมัติเอกสาร → ส่งต่อไปคนถัดไป</td><td>Bearer + Approver</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/:documentType/:documentId/reject</td><td>ปฏิเสธเอกสาร → ส่งกลับเซลล์</td><td>Bearer + Approver</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/approvals/:documentType/:documentId/history</td><td>ประวัติการอนุมัติเอกสาร</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/submit-for-signing</td><td>ส่งเอกสารเข้าสายอนุมัติ (เลือกผู้เซ็น)</td><td>Bearer + Sales</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Documents API -->
-    <div id="api-docs" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/merge</td><td>รวมไฟล์เอกสารเป็นชุดเดียว (WO+PO+QUO+HO+Drawing+Min+PR)</td><td>Bearer + Sales</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/documents/:id/download</td><td>ดาวน์โหลดไฟล์รวม</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/upload</td><td>อัพโหลดไฟล์ (PO, Drawing, Min จากภายนอก)</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/strip-pricing</td><td>ตัดหน้าราคาขายออก (สำหรับจัดซื้อ)</td><td>Bearer + Procurement</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/send-to-factory</td><td>ส่งเอกสารให้ทีมโรงงาน (เลือกทีม)</td><td>Bearer + Procurement</td></tr>
-                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/scan-upload</td><td>อัพโหลดเอกสารสแกน</td><td>Bearer + Procurement</td></tr>
-                </tbody>
-            </table>
-        </div>
-    </div>
-
-    <!-- Reports API -->
-    <div id="api-report" class="tab-content">
-        <div class="api-table-wrap">
-            <table class="api-table">
-                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
-                <tbody>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/monthly</td><td>สรุปจำนวน Work Order รายเดือนเป็นกราฟ</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/by-sales</td><td>สรุป Work Order แยกตามเซลล์</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/overdue</td><td>WO ที่เกิน 3 เดือนยังไม่ปิด</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/quotations/summary</td><td>สรุปใบเสนอราคา</td><td>Bearer</td></tr>
-                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/dashboard</td><td>ข้อมูลรวม Dashboard</td><td>Bearer</td></tr>
-                </tbody>
-            </table>
         </div>
     </div>
 </section>

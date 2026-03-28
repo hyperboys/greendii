@@ -1,0 +1,1253 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Dii - Technical Documentation</title>
+    <style>
+        :root {
+            --green-dark: #2d6a2e;
+            --green-main: #4CAF50;
+            --green-light: #81C784;
+            --green-pale: #E8F5E9;
+            --orange: #FF9800;
+            --red: #E53935;
+            --blue: #1976D2;
+            --purple: #9C27B0;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #f5f5f5;
+            --white: #fff;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --shadow-hover: 0 4px 24px rgba(0,0,0,0.15);
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--gray-light);
+            color: var(--gray-dark);
+            line-height: 1.6;
+        }
+
+        /* ========== NAVIGATION ========== */
+        nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: #263238;
+            color: var(--white);
+            padding: 0 2rem;
+            display: flex;
+            align-items: center;
+            height: 64px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        }
+        nav .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            margin-right: 2rem;
+        }
+        nav .logo span { color: #80CBC4; }
+        nav .nav-link {
+            color: rgba(255,255,255,0.7);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+            background: rgba(255,255,255,0.05);
+            margin-right: 1rem;
+        }
+        nav .nav-link:hover {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+        nav ul {
+            list-style: none;
+            display: flex;
+            gap: 0.25rem;
+            margin-left: auto;
+        }
+        nav ul li a {
+            color: rgba(255,255,255,0.85);
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        nav ul li a:hover, nav ul li a.active {
+            background: rgba(255,255,255,0.15);
+            color: #fff;
+        }
+
+        /* ========== HERO ========== */
+        .hero {
+            margin-top: 64px;
+            background: linear-gradient(135deg, #263238 0%, #37474F 100%);
+            color: var(--white);
+            padding: 4rem 2rem;
+            text-align: center;
+        }
+        .hero h1 { font-size: 2.8rem; margin-bottom: 0.5rem; }
+        .hero p { font-size: 1.2rem; opacity: 0.9; max-width: 800px; margin: 0 auto; }
+        .hero .badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            padding: 0.3rem 1rem;
+            border-radius: 20px;
+            margin-top: 1rem;
+            font-size: 0.9rem;
+        }
+
+        /* ========== SECTIONS ========== */
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        section { padding: 3rem 0; }
+        section h2 {
+            font-size: 1.8rem;
+            color: #263238;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 3px solid var(--blue);
+            display: inline-block;
+        }
+
+        /* ========== SYSTEM ARCH ========== */
+        .system-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .system-card {
+            background: var(--white);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        .system-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        .system-card h3 {
+            color: #263238;
+            margin-bottom: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .system-card h3 .icon {
+            width: 36px;
+            height: 36px;
+            background: var(--green-pale);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+        }
+        .system-card ul {
+            padding-left: 1.2rem;
+        }
+        .system-card ul li {
+            margin-bottom: 0.4rem;
+            font-size: 0.95rem;
+        }
+
+        /* ========== API TABLE ========== */
+        .api-table-wrap {
+            overflow-x: auto;
+            margin-top: 1rem;
+        }
+        table.api-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        table.api-table thead {
+            background: #263238;
+            color: var(--white);
+        }
+        table.api-table th, table.api-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            font-size: 0.9rem;
+            border-bottom: 1px solid #eee;
+        }
+        table.api-table tbody tr:hover { background: var(--green-pale); }
+        .method-badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-weight: 700;
+            font-size: 0.75rem;
+            color: var(--white);
+        }
+        .method-get { background: #1976D2; }
+        .method-post { background: #4CAF50; }
+        .method-put { background: #FF9800; }
+        .method-patch { background: #9C27B0; }
+        .method-delete { background: #E53935; }
+
+        /* ========== DATA MODEL ========== */
+        .model-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .model-card {
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+        .model-card .model-header {
+            background: #263238;
+            color: #80CBC4;
+            padding: 0.8rem 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .model-card .model-body {
+            padding: 1rem 1.2rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+        .model-card .field {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.15rem 0;
+            border-bottom: 1px dashed #eee;
+        }
+        .model-card .field .fname { color: var(--green-dark); font-weight: 600; }
+        .model-card .field .ftype { color: var(--gray); }
+        .model-card .field .fpk { color: var(--orange); font-weight: 700; }
+
+        /* ========== TABS ========== */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+        }
+        .tab-btn {
+            padding: 0.5rem 1.2rem;
+            border: 2px solid var(--blue);
+            background: var(--white);
+            color: #263238;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+        .tab-btn.active, .tab-btn:hover {
+            background: var(--blue);
+            color: var(--white);
+        }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ========== APPROVAL FLOW ========== */
+        .approval-chain {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin: 1.5rem 0;
+        }
+        .approval-node {
+            background: var(--white);
+            border: 2px solid var(--blue);
+            border-radius: 10px;
+            padding: 0.8rem 1.2rem;
+            text-align: center;
+            min-width: 120px;
+            box-shadow: var(--shadow);
+        }
+        .approval-node .name { font-weight: 700; font-size: 0.95rem; color: #263238; }
+        .approval-node .title { font-size: 0.75rem; color: var(--gray); }
+        .approval-arrow {
+            font-size: 1.5rem;
+            color: var(--blue);
+            font-weight: 700;
+        }
+        .approval-node.procurement {
+            border-color: var(--orange);
+            background: #FFF8E1;
+        }
+        .approval-node.procurement .name { color: #E65100; }
+
+        /* ========== DOC CARDS ========== */
+        .doc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1rem;
+        }
+        .doc-card {
+            background: var(--white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            transition: transform 0.2s, box-shadow 0.3s;
+        }
+        .doc-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-hover);
+        }
+        .doc-card .card-header {
+            padding: 1rem 1.2rem;
+            color: var(--white);
+            font-weight: 700;
+            font-size: 1.05rem;
+        }
+        .doc-card:nth-child(1) .card-header { background: var(--green-main); }
+        .doc-card:nth-child(2) .card-header { background: var(--blue); }
+        .doc-card:nth-child(3) .card-header { background: var(--orange); }
+        .doc-card:nth-child(4) .card-header { background: var(--red); }
+        .doc-card .card-body {
+            padding: 1.2rem;
+        }
+        .doc-card .card-body h4 {
+            font-size: 0.85rem;
+            color: var(--gray);
+            text-transform: uppercase;
+            margin-bottom: 0.3rem;
+            margin-top: 0.8rem;
+        }
+        .doc-card .card-body h4:first-child { margin-top: 0; }
+        .doc-card .card-body p, .doc-card .card-body li {
+            font-size: 0.9rem;
+        }
+        .doc-card .card-body ul {
+            padding-left: 1.2rem;
+        }
+
+        /* ========== TECH STACK ========== */
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 0.5rem;
+        }
+        .tech-badge {
+            display: inline-block;
+            background: #E3F2FD;
+            color: #1565C0;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* ========== FOOTER ========== */
+        footer {
+            background: #263238;
+            color: rgba(255,255,255,0.7);
+            text-align: center;
+            padding: 2rem;
+            margin-top: 2rem;
+        }
+        footer strong { color: var(--white); }
+        footer a {
+            color: #80CBC4;
+            text-decoration: none;
+        }
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 768px) {
+            nav { flex-direction: column; height: auto; padding: 0.5rem 1rem; }
+            nav ul { flex-wrap: wrap; justify-content: center; gap: 0.1rem; margin-left: 0; margin-top: 0.5rem; }
+            .hero { padding: 2rem 1rem; }
+            .hero h1 { font-size: 1.8rem; }
+            .approval-chain { flex-direction: column; }
+            .approval-arrow { transform: rotate(90deg); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ==================== NAVIGATION ==================== -->
+<nav>
+    <div class="logo">GREEN <span>Dii</span></div>
+    <a href="index.html" class="nav-link">← Back to Flow Document</a>
+    <ul>
+        <li><a href="#overview" class="active">Overview</a></li>
+        <li><a href="#architecture">Architecture</a></li>
+        <li><a href="#documents">Documents</a></li>
+        <li><a href="#datamodel">Data Model</a></li>
+        <li><a href="#api">API</a></li>
+        <li><a href="#approval">Approval Flow</a></li>
+        <li><a href="#deployment">Deployment</a></li>
+    </ul>
+</nav>
+
+<!-- ==================== HERO ==================== -->
+<div class="hero">
+    <h1>Technical Documentation</h1>
+    <p>System Architecture, API Specification, และ Data Model สำหรับทีมพัฒนา</p>
+    <div class="badge">🔧 For Developers & Engineers</div>
+</div>
+
+<div class="container">
+
+<!-- ==================== OVERVIEW ==================== -->
+<section id="overview">
+    <h2>System Overview</h2>
+    <p style="margin-bottom:1.5rem;">ระบบ Sales Workflow Management ถูกออกแบบเป็น Web-based Application แบบ Full-stack ที่ใช้ Modern Technology Stack เพื่อรองรับการทำงานของบริษัท กรีนส์ดี จำกัด</p>
+
+    <div class="system-grid">
+        <div class="system-card">
+            <h3><span class="icon">🎯</span> Core Features</h3>
+            <ul>
+                <li>User Authentication & Authorization</li>
+                <li>Document Management (Quotation, WO, HO, PR)</li>
+                <li>Auto Number Generation</li>
+                <li>Multi-step Approval Workflow</li>
+                <li>PDF Generation & Email Integration</li>
+                <li>File Upload & Storage</li>
+                <li>Role-based Access Control (RBAC)</li>
+                <li>Audit Trail & Logging</li>
+                <li>Dashboard & Reporting</li>
+                <li>Notification System</li>
+            </ul>
+        </div>
+        <div class="system-card">
+            <h3><span class="icon">👥</span> User Roles</h3>
+            <ul>
+                <li><strong>Sales (เซลล์)</strong> — สร้างและแก้ไขเอกสาร</li>
+                <li><strong>Sales Manager</strong> — อนุมัติเอกสารระดับ Manager</li>
+                <li><strong>Admin Manager</strong> — อนุมัติด้านการบริหาร</li>
+                <li><strong>Project Manager</strong> — อนุมัติด้านโครงการ</li>
+                <li><strong>Managing Director</strong> — อนุมัติสูงสุด</li>
+                <li><strong>Procurement (จัดซื้อ)</strong> — จัดการเอกสารหลังอนุมัติ</li>
+                <li><strong>Factory (โรงงาน)</strong> — รับงานและปิด Work Order</li>
+                <li><strong>Admin</strong> — จัดการระบบและผู้ใช้</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== SYSTEM ARCHITECTURE ==================== -->
+<section id="architecture">
+    <h2>System Architecture</h2>
+
+    <div class="system-grid">
+        <div class="system-card">
+            <h3><span class="icon">💻</span> Frontend</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">React 18</span>
+                <span class="tech-badge">Next.js 14</span>
+                <span class="tech-badge">TypeScript</span>
+                <span class="tech-badge">Tailwind CSS</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Server-Side Rendering (SSR)</li>
+                <li>Client-Side State Management (Zustand/Redux)</li>
+                <li>Form Validation (React Hook Form + Zod)</li>
+                <li>Table Management (TanStack Table)</li>
+                <li>Date Picker (React DatePicker)</li>
+                <li>File Upload (react-dropzone)</li>
+                <li>PDF Preview (react-pdf)</li>
+                <li>Charts (Recharts/Chart.js)</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">⚙️</span> Backend API</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">Node.js</span>
+                <span class="tech-badge">Express</span>
+                <span class="tech-badge">TypeScript</span>
+                <span class="tech-badge">Prisma ORM</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>RESTful API Architecture</li>
+                <li>JWT Authentication</li>
+                <li>Role-based Access Control (RBAC)</li>
+                <li>Request Validation (Joi/Zod)</li>
+                <li>Error Handling Middleware</li>
+                <li>Logger (Winston/Pino)</li>
+                <li>API Rate Limiting</li>
+                <li>CORS Configuration</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">💾</span> Database</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">PostgreSQL 15</span>
+                <span class="tech-badge">Prisma</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Relational Database (ACID)</li>
+                <li>Migration Management (Prisma Migrate)</li>
+                <li>Connection Pooling</li>
+                <li>Full-text Search</li>
+                <li>Indexing Strategy</li>
+                <li>Backup & Recovery Plan</li>
+                <li>Database Triggers for Auto Numbering</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">☁️</span> Cloud Services</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">AWS S3</span>
+                <span class="tech-badge">Azure Blob</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>File Storage (PDF, Images, Attachments)</li>
+                <li>CDN Distribution (CloudFront/Azure CDN)</li>
+                <li>Signed URLs for Secure Access</li>
+                <li>Lifecycle Policies</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">📧</span> Email Service</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">Nodemailer</span>
+                <span class="tech-badge">SMTP</span>
+                <span class="tech-badge">Outlook API</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Send Quotation to Customer</li>
+                <li>Approval Notifications</li>
+                <li>Document Status Updates</li>
+                <li>Email Templates (Handlebars/EJS)</li>
+                <li>Attachment Support</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">📄</span> PDF Generation</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">Puppeteer</span>
+                <span class="tech-badge">PDFKit</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>HTML to PDF Conversion</li>
+                <li>Template-based Generation</li>
+                <li>Thai Language Support</li>
+                <li>Watermark & Logo</li>
+                <li>Page Numbering</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== DOCUMENTS DETAIL ==================== -->
+<section id="documents">
+    <h2>Document Specifications</h2>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'tab-quo')">Quotation</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-wo')">Work Order</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-ho')">Hand Over Job</button>
+        <button class="tab-btn" onclick="openTab(event, 'tab-pr')">Purchase Request</button>
+    </div>
+
+    <!-- Quotation Tab -->
+    <div id="tab-quo" class="tab-content active">
+        <div class="system-card">
+            <h3><span class="icon">📋</span> Quotation (ใบเสนอราคา)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th><th>Validation</th></tr></thead>
+                <tbody>
+                    <tr><td>quo_no</td><td>เลขใบเสนอราคา (Auto: QGD-MMYY-XX###)</td><td>String</td><td>Unique, Auto-generated</td></tr>
+                    <tr><td>date</td><td>วันที่ออกเอกสาร</td><td>Date</td><td>Required</td></tr>
+                    <tr><td>to</td><td>ชื่อบริษัทลูกค้า</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>attn</td><td>ชื่อผู้ติดต่อ</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>address</td><td>ที่อยู่ลูกค้า</td><td>Text</td><td>Max 500</td></tr>
+                    <tr><td>tel_fax</td><td>เบอร์โทร / แฟกซ์</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>project</td><td>ชื่อโครงการ</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>hp</td><td>มือถือ</td><td>String</td><td>Max 50</td></tr>
+                    <tr><td>items</td><td>รายการสินค้า (JSON Array)</td><td>JSON</td><td>Min 1 item</td></tr>
+                    <tr><td>special_discount</td><td>ส่วนลดพิเศษ</td><td>Decimal(10,2)</td><td>Min 0</td></tr>
+                    <tr><td>vat_percent</td><td>ภาษีมูลค่าเพิ่ม (%)</td><td>Decimal(5,2)</td><td>Default 7</td></tr>
+                    <tr><td>grand_total</td><td>ยอดรวมสุทธิ</td><td>Decimal(12,2)</td><td>Calculated</td></tr>
+                    <tr><td>condition_term</td><td>เงื่อนไข</td><td>String</td><td>Default "Local Price"</td></tr>
+                    <tr><td>validity_days</td><td>ระยะเวลาเสนอราคา</td><td>Integer</td><td>Default 30</td></tr>
+                    <tr><td>lead_time</td><td>ระยะเวลาจัดส่ง</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>payment_term</td><td>เงื่อนไขชำระเงิน</td><td>String</td><td>Default "Credit 30 Days"</td></tr>
+                    <tr><td>sales_id</td><td>รหัสเซลล์ผู้สร้าง (FK)</td><td>UUID</td><td>Required</td></tr>
+                    <tr><td>status</td><td>สถานะ</td><td>Enum</td><td>draft, sent, approved, rejected</td></tr>
+                    <tr><td>attachments</td><td>ไฟล์แนบ (PO, Drawing, Min)</td><td>JSON Array</td><td>-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Work Order Tab -->
+    <div id="tab-wo" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🔧</span> Work Order (Project Work Form)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th><th>Validation</th></tr></thead>
+                <tbody>
+                    <tr><td>wo_no</td><td>เลข Work Order (Auto: WO#####)</td><td>String</td><td>Unique, Auto-generated</td></tr>
+                    <tr><td>date</td><td>วันที่</td><td>Date</td><td>Required</td></tr>
+                    <tr><td>project</td><td>ชื่อโครงการ</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>location</td><td>สถานที่</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>products</td><td>ชื่อสินค้า</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>responsibility</td><td>ผู้รับผิดชอบโครงการ</td><td>String</td><td>Required, Max 100</td></tr>
+                    <tr><td>customer</td><td>ชื่อลูกค้า</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>contact_tel</td><td>ผู้ติดต่อ / เบอร์โทร</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>sales_id</td><td>รหัสเซลล์ (FK)</td><td>UUID</td><td>Required</td></tr>
+                    <tr><td>quotation_id</td><td>อ้างอิง Quotation (FK)</td><td>UUID</td><td>Nullable</td></tr>
+                    <tr><td>items</td><td>รายการงาน (JSON Array)</td><td>JSON</td><td>Min 1 item</td></tr>
+                    <tr><td>team_assignment</td><td>ทีมที่รับผิดชอบ (JSON Array)</td><td>JSON</td><td>-</td></tr>
+                    <tr><td>qc_date</td><td>วันที่ต้องการ QC</td><td>Date</td><td>Nullable</td></tr>
+                    <tr><td>installation_date</td><td>วันติดตั้ง</td><td>Date</td><td>Nullable</td></tr>
+                    <tr><td>remark</td><td>หมายเหตุ</td><td>Text</td><td>-</td></tr>
+                    <tr><td>doc_checklist</td><td>เอกสาร Checklist (JSON Object)</td><td>JSON</td><td>-</td></tr>
+                    <tr><td>status</td><td>สถานะ</td><td>Enum</td><td>draft, pending_approval, approved, in_progress, completed</td></tr>
+                    <tr><td>is_closed</td><td>ปิดงานแล้ว</td><td>Boolean</td><td>Default false</td></tr>
+                    <tr><td>closed_at</td><td>วันที่ปิดงาน</td><td>Timestamp</td><td>Nullable</td></tr>
+                    <tr><td>closed_by</td><td>ผู้ปิดงาน (FK)</td><td>UUID</td><td>Nullable</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Hand Over Job Tab -->
+    <div id="tab-ho" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🤝</span> Hand Over Job (ใบส่งมอบงาน)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th><th>Validation</th></tr></thead>
+                <tbody>
+                    <tr><td>ho_no</td><td>เลขใบส่งมอบ (Auto: HO#####)</td><td>String</td><td>Unique, Auto-generated</td></tr>
+                    <tr><td>project</td><td>ชื่อโครงการ</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>contractor</td><td>ผู้รับเหมา</td><td>String</td><td>Max 200</td></tr>
+                    <tr><td>location</td><td>สถานที่</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>contract_name</td><td>ชื่อผู้ติดต่อ</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>customer_hp</td><td>เบอร์มือถือลูกค้า</td><td>String</td><td>Max 50</td></tr>
+                    <tr><td>product</td><td>สินค้า</td><td>String</td><td>Required, Max 200</td></tr>
+                    <tr><td>responsibility</td><td>ผู้รับผิดชอบ</td><td>String</td><td>Max 100</td></tr>
+                    <tr><td>work_order_id</td><td>อ้างอิง Work Order (FK)</td><td>UUID</td><td>Required</td></tr>
+                    <tr><td>quotation_id</td><td>อ้างอิง Quotation (FK)</td><td>UUID</td><td>Required</td></tr>
+                    <tr><td>date_of_service</td><td>วันที่ให้บริการ</td><td>Date</td><td>Required</td></tr>
+                    <tr><td>items</td><td>รายการ (JSON Array)</td><td>JSON</td><td>Min 1 item</td></tr>
+                    <tr><td>quality_product</td><td>คะแนนคุณภาพผลิตภัณฑ์</td><td>Integer</td><td>1-5</td></tr>
+                    <tr><td>quality_sales</td><td>คะแนนคุณภาพฝ่ายขาย</td><td>Integer</td><td>1-5</td></tr>
+                    <tr><td>quality_install</td><td>คะแนนคุณภาพฝ่ายช่าง</td><td>Integer</td><td>1-5</td></tr>
+                    <tr><td>comment</td><td>ความคิดเห็น</td><td>Text</td><td>-</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- PR Tab -->
+    <div id="tab-pr" class="tab-content">
+        <div class="system-card">
+            <h3><span class="icon">🛒</span> Purchase Request (ใบขอซื้อ)</h3>
+            <table class="api-table" style="margin-top:0.5rem;">
+                <thead><tr><th>Field</th><th>Description</th><th>Type</th><th>Validation</th></tr></thead>
+                <tbody>
+                    <tr><td>pr_no</td><td>เลขใบขอซื้อ (Auto: PR#####)</td><td>String</td><td>Unique, Auto-generated</td></tr>
+                    <tr><td>date_of_issue</td><td>วันที่ออก</td><td>Date</td><td>Required</td></tr>
+                    <tr><td>date_of_required</td><td>วันที่ต้องการ</td><td>Date</td><td>Required</td></tr>
+                    <tr><td>customer</td><td>ลูกค้า</td><td>String</td><td>Max 200</td></tr>
+                    <tr><td>project_ref</td><td>อ้างอิงโครงการ</td><td>String</td><td>Max 200</td></tr>
+                    <tr><td>work_order_id</td><td>อ้างอิง Work Order (FK)</td><td>UUID</td><td>Required</td></tr>
+                    <tr><td>remarks</td><td>หมายเหตุ</td><td>Text</td><td>-</td></tr>
+                    <tr><td>items</td><td>รายการ (JSON Array)</td><td>JSON</td><td>Min 1 item</td></tr>
+                    <tr><td>sub_total</td><td>รวมเงิน</td><td>Decimal(12,2)</td><td>Calculated</td></tr>
+                    <tr><td>vat_amount</td><td>ภาษีมูลค่าเพิ่ม</td><td>Decimal(12,2)</td><td>Calculated</td></tr>
+                    <tr><td>net_total</td><td>ยอดเงินสุทธิ</td><td>Decimal(12,2)</td><td>Calculated</td></tr>
+                    <tr><td>status</td><td>สถานะ</td><td>Enum</td><td>draft, submitted, approved</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== DATA MODEL ==================== -->
+<section id="datamodel">
+    <h2>Data Model (Database Schema)</h2>
+
+    <div class="model-grid">
+        <!-- Users -->
+        <div class="model-card">
+            <div class="model-header">👤 users</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">username</span><span class="ftype">VARCHAR(50)</span></div>
+                <div class="field"><span class="fname">password_hash</span><span class="ftype">VARCHAR(255)</span></div>
+                <div class="field"><span class="fname">full_name</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">initials</span><span class="ftype">VARCHAR(5)</span></div>
+                <div class="field"><span class="fname">role</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">avatar_url</span><span class="ftype">VARCHAR(500)</span></div>
+                <div class="field"><span class="fname">email</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">is_active</span><span class="ftype">BOOLEAN</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+                <div class="field"><span class="fname">updated_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Quotations -->
+        <div class="model-card">
+            <div class="model-header">📋 quotations</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">quo_no</span><span class="ftype">VARCHAR(20)</span></div>
+                <div class="field"><span class="fname">sales_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">customer_name</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">attn</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">address</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">tel_fax_hp</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">condition_term</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">validity_days</span><span class="ftype">INTEGER</span></div>
+                <div class="field"><span class="fname">lead_time</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">payment_term</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">items</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">special_discount</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">vat_amount</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">grand_total</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">status</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">attachments</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">pdf_url</span><span class="ftype">VARCHAR(500)</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+                <div class="field"><span class="fname">updated_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Work Orders -->
+        <div class="model-card">
+            <div class="model-header">🔧 work_orders</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">wo_no</span><span class="ftype">VARCHAR(20)</span></div>
+                <div class="field"><span class="fname">quotation_id</span><span class="fpk">FK→quotations</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">sales_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">location</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">products</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">responsibility</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">customer_name</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">contact_tel</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">items</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">team_assignment</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">qc_date</span><span class="ftype">DATE</span></div>
+                <div class="field"><span class="fname">installation_date</span><span class="ftype">DATE</span></div>
+                <div class="field"><span class="fname">remark</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">doc_checklist</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">status</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">is_closed</span><span class="ftype">BOOLEAN</span></div>
+                <div class="field"><span class="fname">closed_at</span><span class="ftype">TIMESTAMP</span></div>
+                <div class="field"><span class="fname">closed_by</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+                <div class="field"><span class="fname">updated_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Hand Over Jobs -->
+        <div class="model-card">
+            <div class="model-header">🤝 hand_over_jobs</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">ho_no</span><span class="ftype">VARCHAR(20)</span></div>
+                <div class="field"><span class="fname">work_order_id</span><span class="fpk">FK→work_orders</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">quotation_id</span><span class="fpk">FK→quotations</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">project_name</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">contractor</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">location</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">contract_name</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">customer_hp</span><span class="ftype">VARCHAR(50)</span></div>
+                <div class="field"><span class="fname">product</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">responsibility</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">date_of_service</span><span class="ftype">DATE</span></div>
+                <div class="field"><span class="fname">items</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">quality_product</span><span class="ftype">INTEGER(1-5)</span></div>
+                <div class="field"><span class="fname">quality_sales</span><span class="ftype">INTEGER(1-5)</span></div>
+                <div class="field"><span class="fname">quality_install</span><span class="ftype">INTEGER(1-5)</span></div>
+                <div class="field"><span class="fname">comment</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Purchase Requests -->
+        <div class="model-card">
+            <div class="model-header">🛒 purchase_requests</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">pr_no</span><span class="ftype">VARCHAR(20)</span></div>
+                <div class="field"><span class="fname">work_order_id</span><span class="fpk">FK→work_orders</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">customer</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">project_ref</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">date_of_issue</span><span class="ftype">DATE</span></div>
+                <div class="field"><span class="fname">date_of_required</span><span class="ftype">DATE</span></div>
+                <div class="field"><span class="fname">remarks</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">items</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">sub_total</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">vat_amount</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">net_total</span><span class="ftype">DECIMAL</span></div>
+                <div class="field"><span class="fname">status</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Approval Logs -->
+        <div class="model-card">
+            <div class="model-header">✍️ approval_logs</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">document_type</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">document_id</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">approver_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">step_order</span><span class="ftype">INTEGER</span></div>
+                <div class="field"><span class="fname">action</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">comment</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">acted_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="model-card">
+            <div class="model-header">🔔 notifications</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">user_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">type</span><span class="ftype">ENUM</span></div>
+                <div class="field"><span class="fname">title</span><span class="ftype">VARCHAR(200)</span></div>
+                <div class="field"><span class="fname">message</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">link_url</span><span class="ftype">VARCHAR(500)</span></div>
+                <div class="field"><span class="fname">is_read</span><span class="ftype">BOOLEAN</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+
+        <!-- Audit Trail -->
+        <div class="model-card">
+            <div class="model-header">📝 audit_trail</div>
+            <div class="model-body">
+                <div class="field"><span class="fname">id</span><span class="fpk">PK</span><span class="ftype">BIGINT</span></div>
+                <div class="field"><span class="fname">user_id</span><span class="fpk">FK→users</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">action</span><span class="ftype">VARCHAR(50)</span></div>
+                <div class="field"><span class="fname">resource_type</span><span class="ftype">VARCHAR(50)</span></div>
+                <div class="field"><span class="fname">resource_id</span><span class="ftype">UUID</span></div>
+                <div class="field"><span class="fname">changes</span><span class="ftype">JSON</span></div>
+                <div class="field"><span class="fname">ip_address</span><span class="ftype">VARCHAR(45)</span></div>
+                <div class="field"><span class="fname">user_agent</span><span class="ftype">TEXT</span></div>
+                <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== API SPECIFICATION ==================== -->
+<section id="api">
+    <h2>API Specification</h2>
+
+    <div class="tabs">
+        <button class="tab-btn active" onclick="openTab(event, 'api-auth')">Auth</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-quo')">Quotation</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-wo')">Work Order</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-ho')">Hand Over Job</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-pr')">Purchase Request</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-approval')">Approval</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-docs')">Documents</button>
+        <button class="tab-btn" onclick="openTab(event, 'api-report')">Reports</button>
+    </div>
+
+    <!-- Auth API -->
+    <div id="api-auth" class="tab-content active">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/auth/login</td><td>เข้าสู่ระบบ → รับ JWT Token</td><td>-</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/auth/logout</td><td>ออกจากระบบ</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/auth/me</td><td>ดูข้อมูลผู้ใช้ปัจจุบัน (รูป, ชื่อ, role)</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/auth/change-password</td><td>เปลี่ยนรหัสผ่าน</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/users</td><td>รายชื่อผู้ใช้ทั้งหมด (Admin)</td><td>Bearer + Admin</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/users</td><td>สร้างผู้ใช้ใหม่ (Admin)</td><td>Bearer + Admin</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/users/:id</td><td>แก้ไขผู้ใช้ (Admin)</td><td>Bearer + Admin</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/users/:id/avatar</td><td>อัปโหลดรูปผู้ใช้</td><td>Bearer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Quotation API -->
+    <div id="api-quo" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations</td><td>รายการใบเสนอราคา (filter by sales, status, date)</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations/:id</td><td>รายละเอียดใบเสนอราคา</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations</td><td>สร้างใบเสนอราคาใหม่ (Auto เลข QGD-MMYY-XX###)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/quotations/:id</td><td>แก้ไขใบเสนอราคา</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-delete">DELETE</span></td><td>/api/quotations/:id</td><td>ลบใบเสนอราคา (draft only)</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/quotations/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/send-email</td><td>ส่งเมล์ Quotation + แนบ Drawing ให้ลูกค้า</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/items</td><td>เพิ่มรายการสินค้า</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/quotations/:id/items/:itemId</td><td>แก้ไขรายการสินค้า</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-delete">DELETE</span></td><td>/api/quotations/:id/items/:itemId</td><td>ลบรายการสินค้า</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/attachments</td><td>แนบไฟล์ (PO, Drawing, Min)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/quotations/:id/images</td><td>เพิ่มรูปภาพประกอบ</td><td>Bearer + Sales</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Work Order API -->
+    <div id="api-wo" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders</td><td>รายการ Work Order (filter by sales, status, date, is_closed)</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders/:id</td><td>รายละเอียด Work Order</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/work-orders</td><td>สร้าง Work Order (Auto เลข WO#####)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/work-orders/:id</td><td>แก้ไข Work Order</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-delete">DELETE</span></td><td>/api/work-orders/:id</td><td>ลบ Work Order (draft only)</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-patch">PATCH</span></td><td>/api/work-orders/:id/close</td><td>ปิดงาน Work Order (โรงงาน)</td><td>Bearer + Factory</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/work-orders/:id/return</td><td>ส่งกลับให้เซลล์แก้ไข</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/work-orders/overdue</td><td>WO เกิน 3 เดือนยังไม่ปิด</td><td>Bearer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Hand Over Job API -->
+    <div id="api-ho" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs</td><td>รายการ Hand Over Job</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs/:id</td><td>รายละเอียด Hand Over Job</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/hand-over-jobs</td><td>สร้าง Hand Over Job (Auto เลข HO#####)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/hand-over-jobs/:id</td><td>แก้ไข Hand Over Job</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/hand-over-jobs/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-patch">PATCH</span></td><td>/api/hand-over-jobs/:id/quality-rating</td><td>บันทึกคะแนนประเมินคุณภาพ</td><td>Bearer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Purchase Request API -->
+    <div id="api-pr" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests</td><td>รายการ Purchase Request</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests/:id</td><td>รายละเอียด PR</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/purchase-requests</td><td>สร้าง PR (Auto เลข PR#####)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/purchase-requests/:id</td><td>แก้ไข PR</td><td>Bearer + Owner</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/purchase-requests/:id/pdf</td><td>ดาวน์โหลด PDF</td><td>Bearer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Approval API -->
+    <div id="api-approval" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/approvals/pending</td><td>รายการเอกสารรออนุมัติ (ตาม role ของผู้ใช้)</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/:documentType/:documentId/approve</td><td>อนุมัติเอกสาร → ส่งต่อไปคนถัดไป</td><td>Bearer + Approver</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/:documentType/:documentId/reject</td><td>ปฏิเสธเอกสาร → ส่งกลับเซลล์</td><td>Bearer + Approver</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/approvals/:documentType/:documentId/history</td><td>ประวัติการอนุมัติเอกสาร</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/approvals/submit-for-signing</td><td>ส่งเอกสารเข้าสายอนุมัติ (เลือกผู้เซ็น)</td><td>Bearer + Sales</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Documents API -->
+    <div id="api-docs" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/merge</td><td>รวมไฟล์เอกสารเป็นชุดเดียว (WO+PO+QUO+HO+Drawing+Min+PR)</td><td>Bearer + Sales</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/documents/:id/download</td><td>ดาวน์โหลดไฟล์รวม</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/upload</td><td>อัพโหลดไฟล์ (PO, Drawing, Min จากภายนอก)</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/strip-pricing</td><td>ตัดหน้าราคาขายออก (สำหรับจัดซื้อ)</td><td>Bearer + Procurement</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/send-to-factory</td><td>ส่งเอกสารให้ทีมโรงงาน (เลือกทีม)</td><td>Bearer + Procurement</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/documents/:id/scan-upload</td><td>อัพโหลดเอกสารสแกน</td><td>Bearer + Procurement</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Reports API -->
+    <div id="api-report" class="tab-content">
+        <div class="api-table-wrap">
+            <table class="api-table">
+                <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th><th>Auth</th></tr></thead>
+                <tbody>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/monthly</td><td>สรุปจำนวน Work Order รายเดือนเป็นกราฟ</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/by-sales</td><td>สรุป Work Order แยกตามเซลล์</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/work-orders/overdue</td><td>WO ที่เกิน 3 เดือนยังไม่ปิด</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/quotations/summary</td><td>สรุปใบเสนอราคา</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/reports/dashboard</td><td>ข้อมูลรวม Dashboard</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-get">GET</span></td><td>/api/notifications</td><td>รายการแจ้งเตือน</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-patch">PATCH</span></td><td>/api/notifications/:id/read</td><td>ทำเครื่องหมายว่าอ่านแล้ว</td><td>Bearer</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== APPROVAL FLOW ==================== -->
+<section id="approval">
+    <h2>Approval Flow Implementation</h2>
+
+    <div class="system-card" style="margin-bottom:1.5rem;">
+        <h3><span class="icon">🔄</span> ลำดับการอนุมัติเอกสาร</h3>
+        <p>เอกสารจะถูกส่งต่ออัตโนมัติตามลำดับ ผู้อนุมัติแต่ละคนสามารถ Approve หรือ Reject ได้</p>
+
+        <div class="approval-chain" style="margin-top:1.5rem;">
+            <div class="approval-node">
+                <div class="name">1. เซลล์คนที่ 1</div>
+                <div class="title">ผู้สร้างเอกสาร</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">2. เซลล์คนที่ 2</div>
+                <div class="title">เซลล์ตรวจสอบ</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">3. คุณสินธร</div>
+                <div class="title">Sales Manager</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">4. คุณสิรวิชญ์</div>
+                <div class="title">Admin Manager</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">5. คุณสรายุทธ</div>
+                <div class="title">Project Manager</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node">
+                <div class="name">6. คุณสิริน</div>
+                <div class="title">Managing Director</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node procurement">
+                <div class="name">7. จัดซื้อ (คุณพนิดา)</div>
+                <div class="title">Procurement</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="system-grid">
+        <div class="system-card">
+            <h3><span class="icon">⚙️</span> Implementation Logic</h3>
+            <ul>
+                <li>ใช้ State Machine Pattern</li>
+                <li>บันทึก Log ทุก Step ใน <code>approval_logs</code></li>
+                <li>ตรวจสอบ Role ก่อนอนุมัติ</li>
+                <li>ส่ง Notification อัตโนมัติ</li>
+                <li>รองรับ Skip Step (ถ้าผู้อนุมัติไม่ว่าง)</li>
+                <li>Reject → ส่งกลับเซลล์คนที่ 1</li>
+                <li>Timeout Alert (เกิน 3 วัน ไม่อนุมัติ)</li>
+            </ul>
+        </div>
+        <div class="system-card">
+            <h3><span class="icon">💡</span> Business Rules</h3>
+            <ul>
+                <li>เซลล์คนที่ 1 สร้างเอกสาร → ส่งเซลล์คนที่ 2 เช็ค</li>
+                <li>เซลล์คนที่ 2 อนุมัติ → ส่ง Sales Manager</li>
+                <li>Sales Manager อนุมัติ → ส่งไปตามสายจนถึง Managing Director</li>
+                <li>Managing Director อนุมัติ → ส่งจัดซื้อ</li>
+                <li>จัดซื้อตัดราคาขาย → ส่งโรงงาน</li>
+                <li>โรงงานปิดงาน → สิ้นสุด Workflow</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ==================== DEPLOYMENT ==================== -->
+<section id="deployment">
+    <h2>Deployment & DevOps</h2>
+
+    <div class="system-grid">
+        <div class="system-card">
+            <h3><span class="icon">🐳</span> Containerization</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">Docker</span>
+                <span class="tech-badge">Docker Compose</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Frontend Container (Next.js)</li>
+                <li>Backend Container (Node.js + Express)</li>
+                <li>Database Container (PostgreSQL)</li>
+                <li>Redis Cache (Session/Queue)</li>
+                <li>Nginx Reverse Proxy</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">☁️</span> Cloud Platform</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">AWS</span>
+                <span class="tech-badge">Azure</span>
+                <span class="tech-badge">Digital Ocean</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>EC2 / App Service</li>
+                <li>RDS / Azure Database for PostgreSQL</li>
+                <li>S3 / Azure Blob Storage</li>
+                <li>CloudFront / Azure CDN</li>
+                <li>Load Balancer</li>
+                <li>Auto Scaling</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">🔄</span> CI/CD Pipeline</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">GitHub Actions</span>
+                <span class="tech-badge">GitLab CI</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Automated Testing (Jest, Cypress)</li>
+                <li>Code Quality Check (ESLint, SonarQube)</li>
+                <li>Build & Deploy</li>
+                <li>Database Migration</li>
+                <li>Docker Image Push to Registry</li>
+                <li>Blue-Green Deployment</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">📊</span> Monitoring</h3>
+            <div class="tech-stack">
+                <span class="tech-badge">Prometheus</span>
+                <span class="tech-badge">Grafana</span>
+                <span class="tech-badge">Sentry</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>Application Performance Monitoring (APM)</li>
+                <li>Error Tracking (Sentry)</li>
+                <li>Log Aggregation (ELK Stack)</li>
+                <li>Uptime Monitoring</li>
+                <li>Alert System (Slack/Email)</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">🔐</span> Security</h3>
+            <ul>
+                <li>HTTPS/TLS Encryption</li>
+                <li>JWT Token with Expiration</li>
+                <li>Password Hashing (bcrypt)</li>
+                <li>SQL Injection Prevention (Parameterized Query)</li>
+                <li>XSS Protection</li>
+                <li>CSRF Token</li>
+                <li>Rate Limiting</li>
+                <li>Input Validation & Sanitization</li>
+                <li>Role-based Access Control (RBAC)</li>
+                <li>File Upload Validation</li>
+            </ul>
+        </div>
+
+        <div class="system-card">
+            <h3><span class="icon">💾</span> Backup & Recovery</h3>
+            <ul>
+                <li>Automated Daily Database Backup</li>
+                <li>Weekly Full Backup</li>
+                <li>Backup Retention (30 Days)</li>
+                <li>Point-in-Time Recovery (PITR)</li>
+                <li>Disaster Recovery Plan</li>
+                <li>File Storage Backup (S3 Versioning)</li>
+                <li>Backup Testing (Monthly)</li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<footer>
+    <p><strong>GREEN Dii Co., Ltd.</strong> — Technical Documentation</p>
+    <p>98 Moo 6 T.Klong Sii A.Klongluang Pathumtani 12120</p>
+    <p style="margin-top:0.5rem; font-size:0.85rem;">Document Version 1.0 — For Developers & Engineers</p>
+    <p style="margin-top:0.5rem;"><a href="index.html">← Back to Flow Document</a></p>
+</footer>
+
+<script>
+    // Tab functionality
+    function openTab(evt, tabId) {
+        const section = evt.target.closest('section');
+        if (section) {
+            const tabContents = section.querySelectorAll('.tab-content');
+            const tabButtons = section.querySelectorAll('.tab-btn');
+            
+            tabContents.forEach(tc => tc.classList.remove('active'));
+            tabButtons.forEach(tb => tb.classList.remove('active'));
+        }
+        
+        document.getElementById(tabId).classList.add('active');
+        evt.target.classList.add('active');
+    }
+
+    // Smooth scroll for navigation
+    document.querySelectorAll('nav a[href^="#"]').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            const targetId = this.getAttribute('href').substring(1);
+            const target = document.getElementById(targetId);
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            document.querySelectorAll('nav a[href^="#"]').forEach(a => a.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
+
+    // Highlight active nav on scroll
+    window.addEventListener('scroll', function() {
+        const sections = document.querySelectorAll('section');
+        let current = '';
+        sections.forEach(section => {
+            const sectionTop = section.offsetTop - 100;
+            if (window.scrollY >= sectionTop) {
+                current = section.getAttribute('id');
+            }
+        });
+        document.querySelectorAll('nav a[href^="#"]').forEach(a => {
+            a.classList.remove('active');
+            if (a.getAttribute('href') === '#' + current) {
+                a.classList.add('active');
+            }
+        });
+    });
+</script>
+
+</body>
+</html>
