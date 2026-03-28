@@ -1,0 +1,1846 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Green Dii - Demo System</title>
+    <style>
+        :root {
+            --green-dark: #2d6a2e;
+            --green-main: #4CAF50;
+            --green-light: #81C784;
+            --green-pale: #E8F5E9;
+            --orange: #FF9800;
+            --red: #E53935;
+            --blue: #1976D2;
+            --purple: #9C27B0;
+            --gray-dark: #333;
+            --gray: #666;
+            --gray-light: #f5f5f5;
+            --white: #fff;
+            --shadow: 0 2px 12px rgba(0,0,0,0.08);
+            --shadow-hover: 0 4px 24px rgba(0,0,0,0.15);
+            --sidebar-w: 260px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; background:var(--gray-light); color:var(--gray-dark); line-height:1.6; }
+
+        /* ========== LOGIN ========== */
+        .login-bg {
+            min-height:100vh; display:flex; align-items:center; justify-content:center;
+            background:linear-gradient(135deg, var(--green-dark) 0%, #1b5e20 50%, #2e7d32 100%);
+        }
+        .login-card {
+            background:var(--white); border-radius:16px; padding:3rem; width:400px;
+            box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center;
+        }
+        .login-card .logo-big { font-size:2.2rem; font-weight:800; color:var(--green-dark); margin-bottom:0.5rem; }
+        .login-card .logo-big span { color:var(--green-main); }
+        .login-card .subtitle { color:var(--gray); font-size:0.9rem; margin-bottom:2rem; }
+        .login-card .avatar-circle {
+            width:80px; height:80px; border-radius:50%; background:var(--green-pale);
+            display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;
+            font-size:2.5rem;
+        }
+        .form-group { margin-bottom:1rem; text-align:left; }
+        .form-group label { display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.3rem; color:var(--gray); }
+        .form-group input, .form-group select, .form-group textarea {
+            width:100%; padding:0.7rem 1rem; border:2px solid #e0e0e0; border-radius:8px;
+            font-size:0.95rem; transition:border 0.2s; outline:none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--green-main); }
+        .btn {
+            padding:0.7rem 1.5rem; border:none; border-radius:8px; font-size:0.95rem;
+            font-weight:600; cursor:pointer; transition:all 0.2s; display:inline-flex;
+            align-items:center; gap:0.4rem;
+        }
+        .btn-primary { background:var(--green-main); color:var(--white); }
+        .btn-primary:hover { background:var(--green-dark); }
+        .btn-danger { background:var(--red); color:var(--white); }
+        .btn-danger:hover { background:#c62828; }
+        .btn-warning { background:var(--orange); color:var(--white); }
+        .btn-warning:hover { background:#e65100; }
+        .btn-info { background:var(--blue); color:var(--white); }
+        .btn-info:hover { background:#0d47a1; }
+        .btn-sm { padding:0.4rem 0.8rem; font-size:0.8rem; }
+        .btn-block { width:100%; justify-content:center; padding:0.9rem; font-size:1rem; }
+        .btn-outline { background:transparent; border:2px solid var(--green-main); color:var(--green-main); }
+        .btn-outline:hover { background:var(--green-main); color:var(--white); }
+        .login-users { margin-top:1.5rem; text-align:left; }
+        .login-users h4 { font-size:0.8rem; color:var(--gray); margin-bottom:0.5rem; }
+        .user-chip {
+            display:inline-block; padding:0.3rem 0.7rem; margin:0.2rem; border-radius:20px;
+            font-size:0.75rem; cursor:pointer; transition:all 0.2s; border:1px solid #e0e0e0;
+        }
+        .user-chip:hover { background:var(--green-pale); border-color:var(--green-main); }
+        .login-error { color:var(--red); font-size:0.85rem; margin-top:0.5rem; display:none; }
+
+        /* ========== APP LAYOUT ========== */
+        .app { display:none; }
+        .app.active { display:flex; min-height:100vh; }
+
+        /* Sidebar */
+        .sidebar {
+            width:var(--sidebar-w); background:var(--green-dark); color:var(--white);
+            position:fixed; top:0; left:0; bottom:0; z-index:100; overflow-y:auto;
+            display:flex; flex-direction:column;
+        }
+        .sidebar-header {
+            padding:1.2rem; text-align:center; border-bottom:1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-header .logo-text { font-size:1.4rem; font-weight:700; letter-spacing:2px; }
+        .sidebar-header .logo-text span { color:var(--green-light); }
+        .sidebar-header .version { font-size:0.7rem; opacity:0.5; }
+        .sidebar-user {
+            padding:1rem; display:flex; align-items:center; gap:0.8rem;
+            border-bottom:1px solid rgba(255,255,255,0.1);
+        }
+        .sidebar-user .user-avatar {
+            width:40px; height:40px; border-radius:50%; background:var(--green-main);
+            display:flex; align-items:center; justify-content:center; font-weight:700; font-size:1rem;
+        }
+        .sidebar-user .user-info { flex:1; }
+        .sidebar-user .user-name { font-size:0.9rem; font-weight:600; }
+        .sidebar-user .user-role { font-size:0.7rem; opacity:0.7; }
+        .sidebar-menu { flex:1; padding:0.5rem 0; }
+        .menu-label { padding:0.5rem 1.2rem; font-size:0.7rem; text-transform:uppercase; opacity:0.4; letter-spacing:1px; }
+        .menu-item {
+            display:flex; align-items:center; gap:0.7rem; padding:0.7rem 1.2rem;
+            cursor:pointer; transition:all 0.2s; color:rgba(255,255,255,0.8); text-decoration:none;
+            font-size:0.9rem; border-left:3px solid transparent;
+        }
+        .menu-item:hover { background:rgba(255,255,255,0.1); color:#fff; }
+        .menu-item.active { background:rgba(255,255,255,0.15); color:#fff; border-left-color:var(--green-light); }
+        .menu-item .badge-count {
+            margin-left:auto; background:var(--red); color:#fff; font-size:0.65rem;
+            padding:0.1rem 0.5rem; border-radius:10px; font-weight:700;
+        }
+        .sidebar-footer {
+            padding:1rem; border-top:1px solid rgba(255,255,255,0.1); text-align:center;
+        }
+        .btn-logout {
+            width:100%; padding:0.5rem; background:rgba(255,255,255,0.1); border:none;
+            color:rgba(255,255,255,0.8); border-radius:6px; cursor:pointer; font-size:0.85rem;
+            transition:all 0.2s;
+        }
+        .btn-logout:hover { background:var(--red); color:#fff; }
+
+        /* Main Content */
+        .main { flex:1; margin-left:var(--sidebar-w); }
+        .topbar {
+            background:var(--white); padding:1rem 2rem; display:flex; align-items:center;
+            justify-content:space-between; box-shadow:var(--shadow); position:sticky; top:0; z-index:50;
+        }
+        .topbar h2 { font-size:1.3rem; color:var(--green-dark); }
+        .topbar .breadcrumb { font-size:0.8rem; color:var(--gray); }
+        .content { padding:1.5rem 2rem; }
+
+        /* ========== DASHBOARD ========== */
+        .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
+        .stat-card {
+            background:var(--white); border-radius:12px; padding:1.5rem; box-shadow:var(--shadow);
+            transition:all 0.3s; cursor:pointer; position:relative; overflow:hidden;
+        }
+        .stat-card:hover { transform:translateY(-3px); box-shadow:var(--shadow-hover); }
+        .stat-card .stat-icon {
+            font-size:2rem; margin-bottom:0.5rem;
+        }
+        .stat-card .stat-value { font-size:2rem; font-weight:700; }
+        .stat-card .stat-label { font-size:0.85rem; color:var(--gray); }
+        .stat-card::after {
+            content:''; position:absolute; top:0; right:0; width:80px; height:80px;
+            border-radius:0 0 0 80px; opacity:0.1;
+        }
+        .stat-card.green::after { background:var(--green-main); }
+        .stat-card.blue::after { background:var(--blue); }
+        .stat-card.orange::after { background:var(--orange); }
+        .stat-card.purple::after { background:var(--purple); }
+
+        .dashboard-grid { display:grid; grid-template-columns:2fr 1fr; gap:1.5rem; }
+        .card {
+            background:var(--white); border-radius:12px; box-shadow:var(--shadow); overflow:hidden;
+        }
+        .card-header {
+            padding:1rem 1.5rem; font-weight:600; border-bottom:1px solid #f0f0f0;
+            display:flex; align-items:center; justify-content:space-between; font-size:0.95rem;
+        }
+        .card-body { padding:1.5rem; }
+
+        /* ========== TABLES ========== */
+        .data-table { width:100%; border-collapse:collapse; }
+        .data-table th {
+            background:var(--green-pale); color:var(--green-dark); padding:0.7rem 1rem;
+            text-align:left; font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px;
+            position:sticky; top:0;
+        }
+        .data-table td { padding:0.7rem 1rem; border-bottom:1px solid #f0f0f0; font-size:0.85rem; }
+        .data-table tr:hover td { background:#fafafa; }
+        .status-badge {
+            display:inline-block; padding:0.2rem 0.6rem; border-radius:20px;
+            font-size:0.72rem; font-weight:600;
+        }
+        .status-draft { background:#f5f5f5; color:#666; }
+        .status-pending { background:#FFF3E0; color:#E65100; }
+        .status-approved { background:#E8F5E9; color:#2E7D32; }
+        .status-rejected { background:#FFEBEE; color:#C62828; }
+        .status-completed { background:#E3F2FD; color:#1565C0; }
+        .status-closed { background:#F3E5F5; color:#7B1FA2; }
+
+        /* ========== FORM MODAL ========== */
+        .modal-overlay {
+            display:none; position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.5); z-index:200; align-items:center; justify-content:center;
+        }
+        .modal-overlay.active { display:flex; }
+        .modal {
+            background:var(--white); border-radius:16px; width:700px; max-height:85vh;
+            overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding:1.2rem 1.5rem; border-bottom:1px solid #f0f0f0; display:flex;
+            align-items:center; justify-content:space-between; position:sticky; top:0;
+            background:var(--white); z-index:1; border-radius:16px 16px 0 0;
+        }
+        .modal-header h3 { font-size:1.1rem; color:var(--green-dark); }
+        .modal-close {
+            width:32px; height:32px; border-radius:50%; border:none; background:#f5f5f5;
+            font-size:1.2rem; cursor:pointer; display:flex; align-items:center; justify-content:center;
+            transition:all 0.2s;
+        }
+        .modal-close:hover { background:var(--red); color:#fff; }
+        .modal-body { padding:1.5rem; }
+        .modal-footer {
+            padding:1rem 1.5rem; border-top:1px solid #f0f0f0; display:flex;
+            justify-content:flex-end; gap:0.5rem;
+        }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        .form-row.three { grid-template-columns:1fr 1fr 1fr; }
+
+        /* ========== APPROVAL CHAIN ========== */
+        .approval-chain {
+            display:flex; align-items:center; gap:0.3rem; flex-wrap:wrap;
+            padding:1rem 0;
+        }
+        .approval-step {
+            display:flex; flex-direction:column; align-items:center; gap:0.3rem;
+            min-width:90px; position:relative;
+        }
+        .approval-step .step-circle {
+            width:48px; height:48px; border-radius:50%; display:flex; align-items:center;
+            justify-content:center; font-size:1.2rem; border:3px solid #e0e0e0;
+            background:var(--white); transition:all 0.3s;
+        }
+        .approval-step.done .step-circle { border-color:var(--green-main); background:var(--green-pale); }
+        .approval-step.current .step-circle { border-color:var(--orange); background:#FFF3E0; animation:pulse 2s infinite; }
+        .approval-step.rejected .step-circle { border-color:var(--red); background:#FFEBEE; }
+        .approval-step .step-label { font-size:0.65rem; text-align:center; color:var(--gray); max-width:90px; }
+        .approval-arrow { font-size:1.2rem; color:#ccc; margin:0 0.2rem; }
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,152,0,0.3);} 50%{box-shadow:0 0 0 8px rgba(255,152,0,0);} }
+
+        /* ========== ACTIVITY LIST ========== */
+        .activity-item {
+            display:flex; gap:0.8rem; padding:0.8rem 0; border-bottom:1px solid #f5f5f5;
+        }
+        .activity-item:last-child { border:none; }
+        .activity-dot {
+            width:8px; height:8px; border-radius:50%; margin-top:6px; flex-shrink:0;
+        }
+        .activity-text { font-size:0.82rem; }
+        .activity-time { font-size:0.7rem; color:var(--gray); }
+
+        /* ========== DETAIL VIEW ========== */
+        .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
+        .detail-item { }
+        .detail-label { font-size:0.75rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; }
+        .detail-value { font-size:0.95rem; font-weight:600; }
+
+        /* ========== TOAST ========== */
+        .toast-container { position:fixed; top:1rem; right:1rem; z-index:300; display:flex; flex-direction:column; gap:0.5rem; }
+        .toast {
+            padding:0.8rem 1.2rem; border-radius:8px; color:var(--white); font-size:0.85rem;
+            box-shadow:0 4px 20px rgba(0,0,0,0.2); display:flex; align-items:center; gap:0.5rem;
+            animation:slideIn 0.3s ease; min-width:280px;
+        }
+        .toast.success { background:var(--green-main); }
+        .toast.error { background:var(--red); }
+        .toast.info { background:var(--blue); }
+        @keyframes slideIn { from{transform:translateX(100%);opacity:0;} to{transform:translateX(0);opacity:1;} }
+
+        /* ========== RESPONSIVE ========== */
+        .empty-state { text-align:center; padding:3rem; color:var(--gray); }
+        .empty-state .empty-icon { font-size:3rem; margin-bottom:0.5rem; }
+
+        /* Toolbar */
+        .toolbar { display:flex; align-items:center; justify-content:space-between; margin-bottom:1rem; flex-wrap:wrap; gap:0.5rem; }
+        .search-box {
+            padding:0.5rem 1rem; border:2px solid #e0e0e0; border-radius:8px; font-size:0.85rem;
+            width:250px; outline:none; transition:border 0.2s;
+        }
+        .search-box:focus { border-color:var(--green-main); }
+        .filter-group { display:flex; gap:0.5rem; }
+        .filter-chip {
+            padding:0.3rem 0.8rem; border-radius:20px; border:1px solid #e0e0e0;
+            font-size:0.75rem; cursor:pointer; transition:all 0.2s; background:var(--white);
+        }
+        .filter-chip.active, .filter-chip:hover { border-color:var(--green-main); background:var(--green-pale); color:var(--green-dark); }
+
+        /* Items table in forms */
+        .items-table { width:100%; border-collapse:collapse; margin:1rem 0; }
+        .items-table th { background:var(--gray-light); padding:0.5rem; font-size:0.75rem; text-align:left; }
+        .items-table td { padding:0.4rem; border-bottom:1px solid #f0f0f0; }
+        .items-table input { width:100%; padding:0.4rem; border:1px solid #e0e0e0; border-radius:4px; font-size:0.82rem; }
+        .items-table .remove-row { color:var(--red); cursor:pointer; font-size:1rem; background:none; border:none; }
+        .add-row-btn { font-size:0.8rem; color:var(--green-main); cursor:pointer; background:none; border:none; font-weight:600; padding:0.5rem 0; }
+        .total-section { text-align:right; padding:1rem 0; font-size:0.95rem; }
+        .total-section strong { color:var(--green-dark); }
+
+        /* Approval action area */
+        .approval-actions {
+            background:var(--green-pale); border-radius:12px; padding:1.2rem; margin-top:1rem;
+        }
+        .approval-actions h4 { color:var(--green-dark); margin-bottom:0.8rem; }
+        .doc-link-bar {
+            padding:0.8rem 1.2rem; background:var(--green-pale); border-radius:8px;
+            margin-bottom:1rem; display:flex; align-items:center; gap:1rem; font-size:0.85rem;
+        }
+        .doc-link-bar a { color:var(--green-dark); text-decoration:none; font-weight:600; }
+        .doc-link-bar a:hover { text-decoration:underline; }
+    </style>
+</head>
+<body>
+
+<!-- ==================== LOGIN PAGE ==================== -->
+<div id="loginPage" class="login-bg">
+    <div class="login-card">
+        <div class="avatar-circle">👤</div>
+        <div class="logo-big">GREEN <span>Dii</span></div>
+        <div class="subtitle">Sales Workflow Management System — Demo</div>
+
+        <div class="form-group">
+            <label>ชื่อผู้ใช้ (Username)</label>
+            <input type="text" id="loginUser" placeholder="เลือกจากด้านล่างหรือพิมพ์เอง" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>รหัสผ่าน (Password)</label>
+            <input type="password" id="loginPass" placeholder="ใช้ 1234 สำหรับ Demo" value="1234">
+        </div>
+        <div class="login-error" id="loginError">❌ Username หรือ Password ไม่ถูกต้อง</div>
+        <button class="btn btn-primary btn-block" onclick="doLogin()" style="margin-top:0.5rem;">🔐 เข้าสู่ระบบ</button>
+
+        <div class="login-users">
+            <h4>👥 Demo Users — คลิกเพื่อเลือก:</h4>
+            <span class="user-chip" onclick="pickUser('somchai')" style="background:#E8F5E9;">🧑‍💼 สมชาย (เซลล์ 1)</span>
+            <span class="user-chip" onclick="pickUser('somsri')" style="background:#E3F2FD;">🧑‍💼 สมศรี (เซลล์ 2)</span>
+            <span class="user-chip" onclick="pickUser('manager_sale')" style="background:#FFF3E0;">👔 ผจก.ฝ่ายขาย</span>
+            <span class="user-chip" onclick="pickUser('manager_admin')" style="background:#F3E5F5;">👔 ผจก.ฝ่ายธุรการ</span>
+            <span class="user-chip" onclick="pickUser('manager_project')" style="background:#FFFDE7;">👔 ผจก.โครงการ</span>
+            <span class="user-chip" onclick="pickUser('director')" style="background:#FCE4EC;">🏢 กรรมการผู้จัดการ</span>
+            <span class="user-chip" onclick="pickUser('procurement')" style="background:#E0F7FA;">🛒 จัดซื้อ</span>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="appPage" class="app">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo-text">GREEN <span>Dii</span></div>
+            <div class="version">Demo v1.0</div>
+        </div>
+        <div class="sidebar-user">
+            <div class="user-avatar" id="sideAvatar">SC</div>
+            <div class="user-info">
+                <div class="user-name" id="sideName">สมชาย</div>
+                <div class="user-role" id="sideRole">Sales</div>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <div class="menu-label">เมนูหลัก</div>
+            <div class="menu-item active" onclick="navigate('dashboard')">📊 Dashboard</div>
+            <div class="menu-item" onclick="navigate('quotations')">📋 ใบเสนอราคา <span class="badge-count" id="quoBadge" style="display:none">0</span></div>
+            <div class="menu-item" onclick="navigate('workorders')">🔧 Work Order <span class="badge-count" id="woBadge" style="display:none">0</span></div>
+            <div class="menu-item" onclick="navigate('handover')">🤝 Hand Over Job</div>
+            <div class="menu-item" onclick="navigate('pr')">🛒 Purchase Request</div>
+            <div class="menu-label">อนุมัติ</div>
+            <div class="menu-item" onclick="navigate('approvals')">✍️ รออนุมัติ <span class="badge-count" id="approvalBadge" style="display:none">0</span></div>
+            <div class="menu-label">รายงาน</div>
+            <div class="menu-item" onclick="navigate('reports')">📈 สรุปรายงาน</div>
+        </div>
+        <div class="sidebar-footer">
+            <button class="btn-logout" onclick="doLogout()">🚪 ออกจากระบบ</button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <div class="main">
+        <div class="topbar">
+            <div>
+                <h2 id="pageTitle">Dashboard</h2>
+                <div class="breadcrumb" id="pageBreadcrumb">หน้าหลัก > Dashboard</div>
+            </div>
+            <div class="doc-link-bar">
+                <a href="index.html" target="_blank">📄 Flow Document</a>
+                <a href="technical.html" target="_blank">📘 Technical Docs</a>
+            </div>
+        </div>
+
+        <div class="content" id="mainContent">
+            <!-- Dynamic content rendered here -->
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+<div class="modal-overlay" id="modalOverlay">
+    <div class="modal" id="modalContent">
+        <!-- Dynamic modal content -->
+    </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+// ==================== MOCK DATA ====================
+const USERS = {
+    somchai:       { id:'u1', username:'somchai',       fullName:'สมชาย ใจดี',       initials:'SC', role:'sales',       avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 1' },
+    somsri:        { id:'u2', username:'somsri',        fullName:'สมศรี รักงาน',     initials:'SS', role:'sales2',      avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 2' },
+    manager_sale:  { id:'u3', username:'manager_sale',  fullName:'วิชัย ขายเก่ง',    initials:'WC', role:'sale_mgr',    avatar:'👔', roleLabel:'Sales Manager' },
+    manager_admin: { id:'u4', username:'manager_admin', fullName:'ปรีชา จัดการ',     initials:'PC', role:'admin_mgr',   avatar:'👔', roleLabel:'Admin Manager' },
+    manager_project:{id:'u5', username:'manager_project',fullName:'นิพนธ์ โปรเจกต์', initials:'NP', role:'project_mgr', avatar:'👔', roleLabel:'Project Manager' },
+    director:      { id:'u6', username:'director',      fullName:'ประยุทธ์ ผู้บริหาร', initials:'PY', role:'director',   avatar:'🏢', roleLabel:'Managing Director' },
+    procurement:   { id:'u7', username:'procurement',   fullName:'มาลี จัดซื้อ',     initials:'ML', role:'procurement', avatar:'🛒', roleLabel:'Procurement' }
+};
+
+const APPROVAL_STEPS = [
+    { role:'sales',       label:'เซลล์คนที่ 1',    icon:'🧑‍💼' },
+    { role:'sales2',      label:'เซลล์คนที่ 2',    icon:'🧑‍💼' },
+    { role:'sale_mgr',    label:'Sales Manager',    icon:'👔' },
+    { role:'admin_mgr',   label:'Admin Manager',    icon:'👔' },
+    { role:'project_mgr', label:'Project Manager',  icon:'👔' },
+    { role:'director',    label:'Managing Director', icon:'🏢' },
+    { role:'procurement', label:'Procurement',       icon:'🛒' }
+];
+
+let currentUser = null;
+let db = { quotations:[], workOrders:[], handOverJobs:[], purchaseRequests:[], approvalLogs:[], notifications:[] };
+
+function loadDB() {
+    const saved = localStorage.getItem('greendii_demo_db');
+    if (saved) {
+        db = JSON.parse(saved);
+    } else {
+        seedData();
+    }
+}
+
+function saveDB() {
+    localStorage.setItem('greendii_demo_db', JSON.stringify(db));
+}
+
+function resetDB() {
+    localStorage.removeItem('greendii_demo_db');
+    seedData();
+    saveDB();
+    navigate('dashboard');
+    toast('ข้อมูล Demo ถูก Reset แล้ว', 'info');
+}
+
+// ==================== SEED DEMO DATA ====================
+function seedData() {
+    const now = new Date();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const yy = String(now.getFullYear()).toString().slice(-2);
+
+    db.quotations = [
+        { id:'q1', quoNo:`QGD-${mm}${yy}-SC001`, salesId:'u1', salesName:'สมชาย ใจดี', customerName:'บริษัท ABC จำกัด', attn:'คุณมานี', project:'Green Wall - ABC Tower', address:'123 ถ.สุขุมวิท กรุงเทพฯ', tel:'02-123-4567', conditionTerm:'FOB Bangkok', validityDays:30, leadTime:'30 วัน', paymentTerm:'30 วันหลังส่งมอบ', items:[{desc:'Green Wall Panel 1200x600mm',qty:50,unit:'แผ่น',price:1500,amount:75000},{desc:'โครงเหล็กรองรับ',qty:50,unit:'ชุด',price:800,amount:40000},{desc:'ค่าติดตั้ง',qty:1,unit:'งาน',price:25000,amount:25000}], subTotal:140000, vat:9800, grandTotal:149800, status:'approved', createdAt:'2026-03-20T09:00:00', approvalStep:7 },
+        { id:'q2', quoNo:`QGD-${mm}${yy}-SC002`, salesId:'u1', salesName:'สมชาย ใจดี', customerName:'บริษัท XYZ จำกัด', attn:'คุณสมพร', project:'Acoustic Panel - XYZ Mall', address:'456 ถ.พหลโยธิน กรุงเทพฯ', tel:'02-987-6543', conditionTerm:'FOB Bangkok', validityDays:30, leadTime:'45 วัน', paymentTerm:'เงินสด', items:[{desc:'Acoustic Panel 600x600mm',qty:200,unit:'แผ่น',price:950,amount:190000},{desc:'วัสดุติดตั้ง',qty:1,unit:'ชุด',price:15000,amount:15000}], subTotal:205000, vat:14350, grandTotal:219350, status:'pending', createdAt:'2026-03-25T10:30:00', approvalStep:3 },
+        { id:'q3', quoNo:`QGD-${mm}${yy}-SC003`, salesId:'u1', salesName:'สมชาย ใจดี', customerName:'โรงแรม สยามรีสอร์ท', attn:'คุณวิไล', project:'Green Facade - Siam Resort', address:'789 ถ.ราชดำเนิน เชียงใหม่', tel:'053-111-222', conditionTerm:'FOB Chiang Mai', validityDays:15, leadTime:'60 วัน', paymentTerm:'มัดจำ 50%', items:[{desc:'Green Facade System',qty:100,unit:'ตร.ม.',price:3500,amount:350000}], subTotal:350000, vat:24500, grandTotal:374500, status:'draft', createdAt:'2026-03-27T14:00:00', approvalStep:0 }
+    ];
+
+    db.workOrders = [
+        { id:'wo1', woNo:'WO00001', quotationId:'q1', salesId:'u1', salesName:'สมชาย ใจดี', project:'Green Wall - ABC Tower', location:'ชั้น 5, ABC Tower สุขุมวิท', products:'Green Wall Panel 1200x600mm', responsibility:'สมชาย ใจดี', customerName:'บริษัท ABC จำกัด', contactName:'คุณมานี', contactTel:'086-111-2222', teamAssignment:'ทีม A - ช่างประสิทธิ์', qcDate:'2026-04-20', installDate:'2026-04-25', remark:'ลูกค้าต้องการติดตั้งวันเสาร์', docChecklist:{po:true,drawing:true,min:false}, status:'approved', isClosed:false, createdAt:'2026-03-21T11:00:00', approvalStep:7 },
+        { id:'wo2', woNo:'WO00002', quotationId:'q2', salesId:'u1', salesName:'สมชาย ใจดี', project:'Acoustic Panel - XYZ Mall', location:'Zone B, XYZ Mall พหลโยธิน', products:'Acoustic Panel 600x600mm', responsibility:'สมชาย ใจดี', customerName:'บริษัท XYZ จำกัด', contactName:'คุณสมพร', contactTel:'089-333-4444', teamAssignment:'ทีม B - ช่างวิรัตน์', qcDate:'2026-05-10', installDate:'2026-05-15', docChecklist:{po:true,drawing:false,min:false}, status:'pending', isClosed:false, createdAt:'2026-03-26T09:00:00', approvalStep:4 }
+    ];
+
+    db.handOverJobs = [
+        { id:'ho1', hoNo:'HO00001', workOrderId:'wo1', quotationId:'q1', project:'Green Wall - ABC Tower', contractor:'บริษัท ABC จำกัด', location:'ชั้น 5, ABC Tower', contactName:'คุณมานี', contactTel:'086-111-2222', product:'Green Wall Panel', responsibility:'สมชาย ใจดี', serviceDate:'2026-04-25', qualityProduct:0, qualitySales:0, qualityInstall:0, comment:'', status:'pending', createdAt:'2026-03-22T10:00:00' }
+    ];
+
+    db.purchaseRequests = [
+        { id:'pr1', prNo:'PR00001', workOrderId:'wo1', customer:'บริษัท ABC จำกัด', projectRef:'Green Wall - ABC Tower', dateIssue:'2026-03-21', dateRequired:'2026-04-10', items:[{desc:'Green Wall Panel 1200x600mm',qty:50,unit:'แผ่น',price:900,amount:45000},{desc:'Mounting Frame',qty:50,unit:'ชุด',price:400,amount:20000}], subTotal:65000, vat:4550, netTotal:69550, remarks:'ส่งด่วน - ลูกค้าต้องการก่อน 10 เมษายน', status:'approved', createdAt:'2026-03-21T14:00:00', approvalStep:7 }
+    ];
+
+    db.approvalLogs = [
+        { id:'al1', docType:'quotation', docId:'q1', approverId:'u1', approverName:'สมชาย ใจดี', step:1, action:'approve', comment:'ส่งเอกสารเข้าอนุมัติ', actedAt:'2026-03-20T09:30:00' },
+        { id:'al2', docType:'quotation', docId:'q1', approverId:'u2', approverName:'สมศรี รักงาน', step:2, action:'approve', comment:'ตรวจสอบแล้ว ราคาเหมาะสม', actedAt:'2026-03-20T10:00:00' },
+        { id:'al3', docType:'quotation', docId:'q1', approverId:'u3', approverName:'วิชัย ขายเก่ง', step:3, action:'approve', comment:'อนุมัติ', actedAt:'2026-03-20T11:00:00' },
+        { id:'al4', docType:'quotation', docId:'q2', approverId:'u1', approverName:'สมชาย ใจดี', step:1, action:'approve', comment:'ส่งเข้าอนุมัติ', actedAt:'2026-03-25T11:00:00' },
+        { id:'al5', docType:'quotation', docId:'q2', approverId:'u2', approverName:'สมศรี รักงาน', step:2, action:'approve', comment:'OK', actedAt:'2026-03-25T13:00:00' },
+    ];
+
+    db.notifications = [
+        { id:'n1', userId:'u3', text:'ใบเสนอราคา QGD-'+mm+yy+'-SC002 รออนุมัติ', read:false, createdAt:'2026-03-25T13:00:00' },
+        { id:'n2', userId:'u4', text:'Work Order WO00002 รออนุมัติ', read:false, createdAt:'2026-03-26T09:30:00' }
+    ];
+
+    saveDB();
+}
+
+// ==================== AUTH ====================
+function pickUser(u) {
+    document.getElementById('loginUser').value = u;
+    document.getElementById('loginPass').value = '1234';
+}
+
+function doLogin() {
+    const username = document.getElementById('loginUser').value.trim();
+    const password = document.getElementById('loginPass').value;
+    if (!USERS[username] || password !== '1234') {
+        document.getElementById('loginError').style.display = 'block';
+        return;
+    }
+    document.getElementById('loginError').style.display = 'none';
+    currentUser = USERS[username];
+    loadDB();
+    document.getElementById('loginPage').style.display = 'none';
+    document.getElementById('appPage').classList.add('active');
+    document.getElementById('sideName').textContent = currentUser.fullName;
+    document.getElementById('sideRole').textContent = currentUser.roleLabel;
+    document.getElementById('sideAvatar').textContent = currentUser.initials;
+    updateBadges();
+    navigate('dashboard');
+}
+
+function doLogout() {
+    currentUser = null;
+    document.getElementById('appPage').classList.remove('active');
+    document.getElementById('loginPage').style.display = 'flex';
+    document.getElementById('loginUser').value = '';
+}
+
+// ==================== NAVIGATION ====================
+function navigate(page) {
+    document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
+    const items = document.querySelectorAll('.menu-item');
+    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6};
+    if (map[page] !== undefined) items[map[page]]?.classList.add('active');
+
+    const titles = {
+        dashboard:'Dashboard', quotations:'ใบเสนอราคา (Quotation)',
+        workorders:'Work Order', handover:'Hand Over Job',
+        pr:'Purchase Request', approvals:'รออนุมัติ', reports:'สรุปรายงาน'
+    };
+    document.getElementById('pageTitle').textContent = titles[page] || page;
+    document.getElementById('pageBreadcrumb').textContent = 'หน้าหลัก > ' + (titles[page]||page);
+
+    const renderers = {
+        dashboard: renderDashboard, quotations: renderQuotations,
+        workorders: renderWorkOrders, handover: renderHandOver,
+        pr: renderPR, approvals: renderApprovals, reports: renderReports
+    };
+    if (renderers[page]) renderers[page]();
+    updateBadges();
+}
+
+function updateBadges() {
+    if (!currentUser) return;
+    const pendingApprovals = getPendingApprovals().length;
+    const ab = document.getElementById('approvalBadge');
+    if (pendingApprovals > 0) { ab.textContent = pendingApprovals; ab.style.display = 'inline'; }
+    else ab.style.display = 'none';
+}
+
+// ==================== HELPERS ====================
+function toast(msg, type='success') {
+    const container = document.getElementById('toastContainer');
+    const icons = {success:'✅', error:'❌', info:'ℹ️'};
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.innerHTML = icons[type] + ' ' + msg;
+    container.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+}
+
+function formatDate(d) {
+    if (!d) return '-';
+    const dt = new Date(d);
+    return dt.toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+}
+
+function formatMoney(n) {
+    return Number(n).toLocaleString('th-TH', {minimumFractionDigits:2});
+}
+
+function genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).slice(2,8); }
+
+function openModal(html) {
+    document.getElementById('modalContent').innerHTML = html;
+    document.getElementById('modalOverlay').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('active');
+}
+
+function getStatusLabel(s) {
+    const map = {draft:'ฉบับร่าง', pending:'รออนุมัติ', approved:'อนุมัติแล้ว', rejected:'ถูกปฏิเสธ', completed:'เสร็จสิ้น', closed:'ปิดงาน'};
+    return map[s]||s;
+}
+
+function getStatusClass(s) { return 'status-'+s; }
+
+function getPendingApprovals() {
+    const role = currentUser.role;
+    let stepIndex = APPROVAL_STEPS.findIndex(s => s.role === role);
+    if (stepIndex < 0) return [];
+    const targetStep = stepIndex + 1;
+
+    let pending = [];
+    db.quotations.filter(q => q.status === 'pending' && q.approvalStep === stepIndex).forEach(q => {
+        pending.push({docType:'quotation', docId:q.id, docNo:q.quoNo, project:q.project, step:targetStep});
+    });
+    db.workOrders.filter(w => w.status === 'pending' && w.approvalStep === stepIndex).forEach(w => {
+        pending.push({docType:'workorder', docId:w.id, docNo:w.woNo, project:w.project, step:targetStep});
+    });
+    return pending;
+}
+
+function renderApprovalChain(currentStep, maxSteps) {
+    let html = '<div class="approval-chain">';
+    APPROVAL_STEPS.forEach((s, i) => {
+        const stepNum = i + 1;
+        let cls = '';
+        if (stepNum <= currentStep) cls = 'done';
+        else if (stepNum === currentStep + 1) cls = 'current';
+        html += `<div class="approval-step ${cls}">
+            <div class="step-circle">${s.icon}</div>
+            <div class="step-label">${s.label}</div>
+        </div>`;
+        if (i < APPROVAL_STEPS.length - 1) html += '<div class="approval-arrow">→</div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+// ==================== DASHBOARD ====================
+function renderDashboard() {
+    const qCount = db.quotations.length;
+    const woCount = db.workOrders.length;
+    const hoCount = db.handOverJobs.length;
+    const prCount = db.purchaseRequests.length;
+    const pendingCount = getPendingApprovals().length;
+
+    const woApproved = db.workOrders.filter(w => w.status === 'approved').length;
+    const woPending = db.workOrders.filter(w => w.status === 'pending').length;
+
+    const recentLogs = [...db.approvalLogs].sort((a,b) => new Date(b.actedAt)-new Date(a.actedAt)).slice(0,8);
+
+    document.getElementById('mainContent').innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card green" onclick="navigate('quotations')">
+                <div class="stat-icon">📋</div>
+                <div class="stat-value">${qCount}</div>
+                <div class="stat-label">ใบเสนอราคา</div>
+            </div>
+            <div class="stat-card blue" onclick="navigate('workorders')">
+                <div class="stat-icon">🔧</div>
+                <div class="stat-value">${woCount}</div>
+                <div class="stat-label">Work Order</div>
+            </div>
+            <div class="stat-card orange" onclick="navigate('handover')">
+                <div class="stat-icon">🤝</div>
+                <div class="stat-value">${hoCount}</div>
+                <div class="stat-label">Hand Over Job</div>
+            </div>
+            <div class="stat-card purple" onclick="navigate('pr')">
+                <div class="stat-icon">🛒</div>
+                <div class="stat-value">${prCount}</div>
+                <div class="stat-label">Purchase Request</div>
+            </div>
+        </div>
+
+        ${pendingCount > 0 ? `
+        <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--orange);">
+            <div class="card-header">⚠️ เอกสารรออนุมัติของคุณ (${pendingCount} รายการ)
+                <button class="btn btn-warning btn-sm" onclick="navigate('approvals')">ดูทั้งหมด</button>
+            </div>
+        </div>` : ''}
+
+        <div class="dashboard-grid">
+            <div class="card">
+                <div class="card-header">🔧 Work Order ล่าสุด</div>
+                <div class="card-body" style="padding:0;">
+                    <table class="data-table">
+                        <thead><tr><th>เลขที่</th><th>โครงการ</th><th>สถานะ</th><th>วันที่</th></tr></thead>
+                        <tbody>
+                            ${db.workOrders.slice(-5).reverse().map(w => `
+                            <tr style="cursor:pointer;" onclick="viewWorkOrder('${w.id}')">
+                                <td><strong>${w.woNo}</strong></td>
+                                <td>${w.project}</td>
+                                <td><span class="status-badge ${getStatusClass(w.status)}">${getStatusLabel(w.status)}</span></td>
+                                <td>${formatDate(w.createdAt)}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header">📝 กิจกรรมล่าสุด</div>
+                <div class="card-body">
+                    ${recentLogs.map(l => `
+                    <div class="activity-item">
+                        <div class="activity-dot" style="background:${l.action==='approve'?'var(--green-main)':'var(--red)'}"></div>
+                        <div>
+                            <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'อนุมัติ':'ปฏิเสธ'} ${l.docType}</div>
+                            <div class="activity-time">${formatDate(l.actedAt)} ${l.comment?'— '+l.comment:''}</div>
+                        </div>
+                    </div>`).join('')}
+                    ${recentLogs.length === 0 ? '<div class="empty-state"><div class="empty-icon">📭</div>ยังไม่มีกิจกรรม</div>' : ''}
+                </div>
+            </div>
+        </div>
+
+        <div style="text-align:center;margin-top:2rem;">
+            <button class="btn btn-outline btn-sm" onclick="resetDB()">🔄 Reset Demo Data</button>
+        </div>
+    `;
+}
+
+// ==================== QUOTATIONS ====================
+function renderQuotations() {
+    const list = db.quotations;
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <div style="display:flex;gap:0.5rem;">
+                <input class="search-box" placeholder="🔍 ค้นหาใบเสนอราคา..." oninput="filterQuotations(this.value)">
+                <div class="filter-group">
+                    <span class="filter-chip active" onclick="filterQuoStatus(this,'all')">ทั้งหมด</span>
+                    <span class="filter-chip" onclick="filterQuoStatus(this,'draft')">ร่าง</span>
+                    <span class="filter-chip" onclick="filterQuoStatus(this,'pending')">รออนุมัติ</span>
+                    <span class="filter-chip" onclick="filterQuoStatus(this,'approved')">อนุมัติ</span>
+                </div>
+            </div>
+            <button class="btn btn-primary" onclick="openNewQuotation()">+ สร้างใบเสนอราคา</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table" id="quoTable">
+                    <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th>มูลค่า</th><th>สถานะ</th><th>สายอนุมัติ</th><th>วันที่</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(q => `
+                        <tr>
+                            <td><strong style="color:var(--green-dark)">${q.quoNo}</strong></td>
+                            <td>${q.customerName}</td>
+                            <td>${q.project}</td>
+                            <td style="text-align:right;">${formatMoney(q.grandTotal)}</td>
+                            <td><span class="status-badge ${getStatusClass(q.status)}">${getStatusLabel(q.status)}</span></td>
+                            <td><div style="font-size:0.7rem">Step ${q.approvalStep}/${APPROVAL_STEPS.length}</div></td>
+                            <td>${formatDate(q.createdAt)}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewQuotation('${q.id}')">ดู</button>
+                                ${q.status==='draft'?`<button class="btn btn-primary btn-sm" onclick="submitForApproval('quotation','${q.id}')">ส่งอนุมัติ</button>`:''}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div>ยังไม่มีใบเสนอราคา</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openNewQuotation() {
+    const now = new Date();
+    const mm = String(now.getMonth()+1).padStart(2,'0');
+    const yy = now.getFullYear().toString().slice(-2);
+    const num = String(db.quotations.length+1).padStart(3,'0');
+    const autoNo = `QGD-${mm}${yy}-${currentUser.initials}${num}`;
+
+    openModal(`
+        <div class="modal-header">
+            <h3>📋 สร้างใบเสนอราคาใหม่</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>เลขที่ (Auto)</label>
+                <input type="text" id="fQuoNo" value="${autoNo}" readonly style="background:#f5f5f5;">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ชื่อลูกค้า *</label>
+                    <input type="text" id="fCustName" placeholder="ชื่อบริษัท/ลูกค้า">
+                </div>
+                <div class="form-group">
+                    <label>ผู้ติดต่อ (Attn)</label>
+                    <input type="text" id="fAttn" placeholder="ชื่อผู้ติดต่อ">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ชื่อโครงการ *</label>
+                <input type="text" id="fProject" placeholder="ชื่อโครงการ">
+            </div>
+            <div class="form-group">
+                <label>ที่อยู่</label>
+                <textarea id="fAddress" rows="2" placeholder="ที่อยู่ลูกค้า"></textarea>
+            </div>
+            <div class="form-row three">
+                <div class="form-group">
+                    <label>เงื่อนไข</label>
+                    <input type="text" id="fCondition" value="FOB Bangkok">
+                </div>
+                <div class="form-group">
+                    <label>ระยะเวลาส่ง</label>
+                    <input type="text" id="fLeadTime" value="30 วัน">
+                </div>
+                <div class="form-group">
+                    <label>เงื่อนไขชำระ</label>
+                    <input type="text" id="fPayment" value="30 วันหลังส่งมอบ">
+                </div>
+            </div>
+
+            <h4 style="margin:1rem 0 0.5rem;">รายการสินค้า</h4>
+            <table class="items-table" id="quoItemsTable">
+                <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th></th></tr></thead>
+                <tbody id="quoItemsBody">
+                    <tr>
+                        <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
+                        <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
+                        <td><input type="text" class="item-unit" value="ชิ้น"></td>
+                        <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
+                        <td class="item-amount" style="text-align:right;">0.00</td>
+                        <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="add-row-btn" onclick="addQuoItem()">+ เพิ่มรายการ</button>
+            <div class="total-section">
+                <div>รวมก่อน VAT: <strong id="quoSubTotal">0.00</strong> บาท</div>
+                <div>VAT 7%: <strong id="quoVat">0.00</strong> บาท</div>
+                <div style="font-size:1.1rem;margin-top:0.3rem;">รวมทั้งสิ้น: <strong id="quoGrandTotal" style="color:var(--green-dark);font-size:1.3rem;">0.00</strong> บาท</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveQuotation()">💾 บันทึกร่าง</button>
+            <button class="btn btn-warning" onclick="saveQuotation(true)">📤 บันทึกและส่งอนุมัติ</button>
+        </div>
+    `);
+}
+
+function addQuoItem() {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
+        <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
+        <td><input type="text" class="item-unit" value="ชิ้น"></td>
+        <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
+        <td class="item-amount" style="text-align:right;">0.00</td>
+        <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
+    `;
+    document.getElementById('quoItemsBody').appendChild(row);
+}
+
+function calcQuoItems() {
+    let sub = 0;
+    document.querySelectorAll('#quoItemsBody tr').forEach(row => {
+        const qty = parseFloat(row.querySelector('.item-qty')?.value)||0;
+        const price = parseFloat(row.querySelector('.item-price')?.value)||0;
+        const amount = qty * price;
+        sub += amount;
+        const amountEl = row.querySelector('.item-amount');
+        if (amountEl) amountEl.textContent = formatMoney(amount);
+    });
+    const vat = sub * 0.07;
+    document.getElementById('quoSubTotal').textContent = formatMoney(sub);
+    document.getElementById('quoVat').textContent = formatMoney(vat);
+    document.getElementById('quoGrandTotal').textContent = formatMoney(sub + vat);
+}
+
+function saveQuotation(submit=false) {
+    const custName = document.getElementById('fCustName').value.trim();
+    const project = document.getElementById('fProject').value.trim();
+    if (!custName || !project) { toast('กรุณากรอกชื่อลูกค้าและโครงการ','error'); return; }
+
+    const items = [];
+    document.querySelectorAll('#quoItemsBody tr').forEach(row => {
+        const desc = row.querySelector('.item-desc')?.value||'';
+        const qty = parseFloat(row.querySelector('.item-qty')?.value)||0;
+        const unit = row.querySelector('.item-unit')?.value||'';
+        const price = parseFloat(row.querySelector('.item-price')?.value)||0;
+        if (desc) items.push({desc, qty, unit, price, amount:qty*price});
+    });
+
+    const subTotal = items.reduce((s,i) => s+i.amount, 0);
+    const vat = subTotal * 0.07;
+
+    const q = {
+        id: genId(), quoNo: document.getElementById('fQuoNo').value,
+        salesId: currentUser.id, salesName: currentUser.fullName,
+        customerName: custName, attn: document.getElementById('fAttn').value,
+        project: project, address: document.getElementById('fAddress').value,
+        conditionTerm: document.getElementById('fCondition').value,
+        leadTime: document.getElementById('fLeadTime').value,
+        paymentTerm: document.getElementById('fPayment').value,
+        items, subTotal, vat, grandTotal: subTotal + vat,
+        status: submit ? 'pending' : 'draft',
+        approvalStep: submit ? 1 : 0,
+        createdAt: new Date().toISOString()
+    };
+
+    db.quotations.push(q);
+    if (submit) {
+        db.approvalLogs.push({
+            id:genId(), docType:'quotation', docId:q.id,
+            approverId:currentUser.id, approverName:currentUser.fullName,
+            step:1, action:'approve', comment:'ส่งเอกสารเข้าสายอนุมัติ',
+            actedAt:new Date().toISOString()
+        });
+    }
+    saveDB();
+    closeModal();
+    toast(submit ? 'สร้างใบเสนอราคาและส่งอนุมัติแล้ว' : 'บันทึกร่างใบเสนอราคาแล้ว');
+    renderQuotations();
+}
+
+function submitForApproval(docType, docId) {
+    if (docType === 'quotation') {
+        const q = db.quotations.find(x => x.id === docId);
+        if (q) {
+            q.status = 'pending';
+            q.approvalStep = 1;
+            db.approvalLogs.push({
+                id:genId(), docType:'quotation', docId:q.id,
+                approverId:currentUser.id, approverName:currentUser.fullName,
+                step:1, action:'approve', comment:'ส่งเอกสารเข้าสายอนุมัติ',
+                actedAt:new Date().toISOString()
+            });
+            saveDB();
+            toast('ส่งใบเสนอราคาเข้าสายอนุมัติแล้ว');
+            renderQuotations();
+        }
+    }
+}
+
+function viewQuotation(id) {
+    const q = db.quotations.find(x => x.id === id);
+    if (!q) return;
+    const logs = db.approvalLogs.filter(l => l.docType==='quotation' && l.docId===id).sort((a,b) => new Date(a.actedAt)-new Date(b.actedAt));
+
+    openModal(`
+        <div class="modal-header">
+            <h3>📋 ${q.quoNo}</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <span class="status-badge ${getStatusClass(q.status)}" style="font-size:0.85rem;margin-bottom:1rem;display:inline-block;">${getStatusLabel(q.status)}</span>
+
+            ${renderApprovalChain(q.approvalStep, APPROVAL_STEPS.length)}
+
+            <div class="detail-grid" style="margin:1rem 0;">
+                <div class="detail-item"><div class="detail-label">ลูกค้า</div><div class="detail-value">${q.customerName}</div></div>
+                <div class="detail-item"><div class="detail-label">ผู้ติดต่อ</div><div class="detail-value">${q.attn||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">โครงการ</div><div class="detail-value">${q.project}</div></div>
+                <div class="detail-item"><div class="detail-label">เซลล์</div><div class="detail-value">${q.salesName}</div></div>
+                <div class="detail-item"><div class="detail-label">เงื่อนไข</div><div class="detail-value">${q.conditionTerm||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ระยะเวลาส่ง</div><div class="detail-value">${q.leadTime||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">การชำระ</div><div class="detail-value">${q.paymentTerm||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">วันที่สร้าง</div><div class="detail-value">${formatDate(q.createdAt)}</div></div>
+            </div>
+
+            <h4 style="margin:1rem 0 0.5rem;">รายการสินค้า</h4>
+            <table class="items-table">
+                <thead><tr><th>รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th style="text-align:right">รวม</th></tr></thead>
+                <tbody>
+                    ${(q.items||[]).map(i => `<tr><td>${i.desc}</td><td>${i.qty}</td><td>${i.unit}</td><td>${formatMoney(i.price)}</td><td style="text-align:right">${formatMoney(i.amount)}</td></tr>`).join('')}
+                </tbody>
+            </table>
+            <div class="total-section">
+                <div>รวมก่อน VAT: <strong>${formatMoney(q.subTotal)}</strong></div>
+                <div>VAT 7%: <strong>${formatMoney(q.vat)}</strong></div>
+                <div style="font-size:1.1rem;">รวมทั้งสิ้น: <strong style="color:var(--green-dark)">${formatMoney(q.grandTotal)} บาท</strong></div>
+            </div>
+
+            ${logs.length > 0 ? `
+            <h4 style="margin:1rem 0 0.5rem;">📝 ประวัติการอนุมัติ</h4>
+            ${logs.map(l => `
+            <div class="activity-item">
+                <div class="activity-dot" style="background:${l.action==='approve'?'var(--green-main)':'var(--red)'}"></div>
+                <div>
+                    <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'✅ อนุมัติ':'❌ ปฏิเสธ'} (Step ${l.step})</div>
+                    <div class="activity-time">${formatDate(l.actedAt)} ${l.comment ? '— '+l.comment:''}</div>
+                </div>
+            </div>`).join('')}` : ''}
+
+            ${q.status === 'approved' && !db.workOrders.find(w=>w.quotationId===id) ? `
+            <div class="approval-actions">
+                <h4>🔧 สร้าง Work Order จาก Quotation นี้</h4>
+                <button class="btn btn-primary" onclick="closeModal();openNewWorkOrder('${id}')">สร้าง Work Order</button>
+            </div>` : ''}
+        </div>
+    `);
+}
+
+// ==================== WORK ORDERS ====================
+function renderWorkOrders() {
+    const list = db.workOrders;
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <input class="search-box" placeholder="🔍 ค้นหา Work Order...">
+            <button class="btn btn-primary" onclick="openNewWorkOrder()">+ สร้าง Work Order</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>เลขที่</th><th>โครงการ</th><th>สถานที่</th><th>เซลล์</th><th>สถานะ</th><th>สายอนุมัติ</th><th>ปิดงาน</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(w => `
+                        <tr>
+                            <td><strong style="color:var(--blue)">${w.woNo}</strong></td>
+                            <td>${w.project}</td>
+                            <td>${w.location||'-'}</td>
+                            <td>${w.salesName}</td>
+                            <td><span class="status-badge ${getStatusClass(w.status)}">${getStatusLabel(w.status)}</span></td>
+                            <td><div style="font-size:0.7rem">Step ${w.approvalStep||0}/${APPROVAL_STEPS.length}</div></td>
+                            <td>${w.isClosed?'<span class="status-badge status-closed">ปิดแล้ว</span>':'<span style="color:var(--gray);font-size:0.8rem">ยังไม่ปิด</span>'}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewWorkOrder('${w.id}')">ดู</button>
+                                ${w.status==='approved' && !w.isClosed ? `<button class="btn btn-sm" style="background:var(--purple);color:#fff;" onclick="closeWorkOrder('${w.id}')">ปิดงาน</button>` : ''}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">🔧</div>ยังไม่มี Work Order</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openNewWorkOrder(quoId) {
+    const q = quoId ? db.quotations.find(x => x.id === quoId) : null;
+    const woNum = String(db.workOrders.length+1).padStart(5,'0');
+
+    openModal(`
+        <div class="modal-header">
+            <h3>🔧 สร้าง Work Order ใหม่</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>เลขที่ WO (Auto)</label>
+                    <input type="text" id="fWoNo" value="WO${woNum}" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>อ้างอิง Quotation</label>
+                    <input type="text" id="fWoQuoId" value="${q?q.quoNo:'(ไม่มี)'}" readonly style="background:#f5f5f5;">
+                    <input type="hidden" id="fWoQuoIdVal" value="${q?q.id:''}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ชื่อโครงการ *</label>
+                <input type="text" id="fWoProject" value="${q?q.project:''}">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>สถานที่ติดตั้ง</label>
+                    <input type="text" id="fWoLocation" placeholder="สถานที่">
+                </div>
+                <div class="form-group">
+                    <label>สินค้า</label>
+                    <input type="text" id="fWoProducts" value="${q&&q.items?q.items[0]?.desc||'':''}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ลูกค้า</label>
+                    <input type="text" id="fWoCust" value="${q?q.customerName:''}">
+                </div>
+                <div class="form-group">
+                    <label>ผู้ติดต่อ / เบอร์</label>
+                    <input type="text" id="fWoContact" value="${q?q.attn:''}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ทีมที่รับผิดชอบ</label>
+                    <select id="fWoTeam">
+                        <option>ทีม A - ช่างประสิทธิ์</option>
+                        <option>ทีม B - ช่างวิรัตน์</option>
+                        <option>ทีม C - ช่างสมศักดิ์</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>วันติดตั้ง</label>
+                    <input type="date" id="fWoInstall">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>หมายเหตุ</label>
+                <textarea id="fWoRemark" rows="2" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
+            </div>
+            <div style="margin:1rem 0;">
+                <strong>📎 เอกสารแนบ (Checklist):</strong>
+                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocPO"> PO (Purchase Order)</label>
+                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocDraw"> Drawing</label>
+                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocMin"> Minutes of Meeting</label>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-warning" onclick="saveWorkOrder()">💾 บันทึกและส่งอนุมัติ</button>
+        </div>
+    `);
+}
+
+function saveWorkOrder() {
+    const project = document.getElementById('fWoProject').value.trim();
+    if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
+
+    const wo = {
+        id: genId(), woNo: document.getElementById('fWoNo').value,
+        quotationId: document.getElementById('fWoQuoIdVal').value||null,
+        salesId: currentUser.id, salesName: currentUser.fullName,
+        project, location: document.getElementById('fWoLocation').value,
+        products: document.getElementById('fWoProducts').value,
+        responsibility: currentUser.fullName,
+        customerName: document.getElementById('fWoCust').value,
+        contactName: document.getElementById('fWoContact').value,
+        teamAssignment: document.getElementById('fWoTeam').value,
+        installDate: document.getElementById('fWoInstall').value,
+        remark: document.getElementById('fWoRemark').value,
+        docChecklist: {
+            po: document.getElementById('fWoDocPO').checked,
+            drawing: document.getElementById('fWoDocDraw').checked,
+            min: document.getElementById('fWoDocMin').checked
+        },
+        status: 'pending', isClosed: false, approvalStep: 1,
+        createdAt: new Date().toISOString()
+    };
+
+    db.workOrders.push(wo);
+    db.approvalLogs.push({
+        id:genId(), docType:'workorder', docId:wo.id,
+        approverId:currentUser.id, approverName:currentUser.fullName,
+        step:1, action:'approve', comment:'สร้างและส่ง Work Order เข้าสายอนุมัติ',
+        actedAt:new Date().toISOString()
+    });
+    saveDB();
+    closeModal();
+    toast('สร้าง Work Order และส่งอนุมัติแล้ว');
+    renderWorkOrders();
+}
+
+function viewWorkOrder(id) {
+    const w = db.workOrders.find(x => x.id === id);
+    if (!w) return;
+    const logs = db.approvalLogs.filter(l => l.docType==='workorder' && l.docId===id).sort((a,b) => new Date(a.actedAt)-new Date(b.actedAt));
+
+    openModal(`
+        <div class="modal-header">
+            <h3>🔧 ${w.woNo}</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <span class="status-badge ${getStatusClass(w.status)}" style="font-size:0.85rem;display:inline-block;margin-bottom:1rem;">${getStatusLabel(w.status)}</span>
+            ${w.isClosed?'<span class="status-badge status-closed" style="font-size:0.85rem;margin-left:0.5rem;">ปิดงานแล้ว</span>':''}
+
+            ${renderApprovalChain(w.approvalStep||0, APPROVAL_STEPS.length)}
+
+            <div class="detail-grid" style="margin:1rem 0;">
+                <div class="detail-item"><div class="detail-label">โครงการ</div><div class="detail-value">${w.project}</div></div>
+                <div class="detail-item"><div class="detail-label">สถานที่</div><div class="detail-value">${w.location||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">สินค้า</div><div class="detail-value">${w.products||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ลูกค้า</div><div class="detail-value">${w.customerName||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ผู้ติดต่อ</div><div class="detail-value">${w.contactName||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ทีมติดตั้ง</div><div class="detail-value">${w.teamAssignment||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">วันติดตั้ง</div><div class="detail-value">${w.installDate||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">เซลล์</div><div class="detail-value">${w.salesName}</div></div>
+            </div>
+
+            <div style="margin:1rem 0;">
+                <strong>📎 เอกสารแนบ:</strong>
+                <div style="margin-top:0.3rem;">
+                    ${w.docChecklist?.po ? '✅' : '⬜'} PO &nbsp;
+                    ${w.docChecklist?.drawing ? '✅' : '⬜'} Drawing &nbsp;
+                    ${w.docChecklist?.min ? '✅' : '⬜'} Minutes
+                </div>
+            </div>
+            ${w.remark ? `<div><strong>หมายเหตุ:</strong> ${w.remark}</div>` : ''}
+
+            ${logs.length > 0 ? `
+            <h4 style="margin:1rem 0 0.5rem;">📝 ประวัติการอนุมัติ</h4>
+            ${logs.map(l => `
+            <div class="activity-item">
+                <div class="activity-dot" style="background:${l.action==='approve'?'var(--green-main)':'var(--red)'}"></div>
+                <div>
+                    <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'✅ อนุมัติ':'❌ ปฏิเสธ'} (Step ${l.step})</div>
+                    <div class="activity-time">${formatDate(l.actedAt)} ${l.comment?'— '+l.comment:''}</div>
+                </div>
+            </div>`).join('')}` : ''}
+        </div>
+    `);
+}
+
+function closeWorkOrder(id) {
+    const w = db.workOrders.find(x => x.id === id);
+    if (w) {
+        w.isClosed = true;
+        w.closedAt = new Date().toISOString();
+        saveDB();
+        toast('ปิดงาน Work Order เรียบร้อย');
+        renderWorkOrders();
+    }
+}
+
+// ==================== HAND OVER JOB ====================
+function renderHandOver() {
+    const list = db.handOverJobs;
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <input class="search-box" placeholder="🔍 ค้นหา Hand Over Job...">
+            <button class="btn btn-primary" onclick="openNewHandOver()">+ สร้าง Hand Over Job</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>เลขที่</th><th>โครงการ</th><th>ลูกค้า</th><th>วันบริการ</th><th>คะแนนคุณภาพ</th><th>สถานะ</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(h => `
+                        <tr>
+                            <td><strong style="color:var(--orange)">${h.hoNo}</strong></td>
+                            <td>${h.project}</td>
+                            <td>${h.contractor}</td>
+                            <td>${h.serviceDate||'-'}</td>
+                            <td>${h.qualityProduct>0 ? `⭐${((h.qualityProduct+h.qualitySales+h.qualityInstall)/3).toFixed(1)}/5` : '<span style="color:var(--gray)">ยังไม่ประเมิน</span>'}</td>
+                            <td><span class="status-badge ${getStatusClass(h.status)}">${getStatusLabel(h.status)}</span></td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewHandOver('${h.id}')">ดู</button>
+                                ${h.qualityProduct===0?`<button class="btn btn-warning btn-sm" onclick="rateHandOver('${h.id}')">ให้คะแนน</button>`:''}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">🤝</div>ยังไม่มี Hand Over Job</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openNewHandOver() {
+    const hoNum = String(db.handOverJobs.length+1).padStart(5,'0');
+    const approvedWOs = db.workOrders.filter(w => w.status === 'approved');
+
+    openModal(`
+        <div class="modal-header">
+            <h3>🤝 สร้าง Hand Over Job ใหม่</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>เลขที่ (Auto)</label>
+                    <input type="text" id="fHoNo" value="HO${hoNum}" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>อ้างอิง Work Order</label>
+                    <select id="fHoWo">
+                        <option value="">-- เลือก --</option>
+                        ${approvedWOs.map(w => `<option value="${w.id}">${w.woNo} - ${w.project}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ชื่อโครงการ *</label>
+                <input type="text" id="fHoProject">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ผู้รับเหมา/ลูกค้า</label>
+                    <input type="text" id="fHoContractor">
+                </div>
+                <div class="form-group">
+                    <label>สถานที่</label>
+                    <input type="text" id="fHoLocation">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ผู้ติดต่อ</label>
+                    <input type="text" id="fHoContact">
+                </div>
+                <div class="form-group">
+                    <label>วันที่บริการ</label>
+                    <input type="date" id="fHoDate">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>สินค้า</label>
+                <input type="text" id="fHoProduct">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveHandOver()">💾 บันทึก</button>
+        </div>
+    `);
+}
+
+function saveHandOver() {
+    const project = document.getElementById('fHoProject').value.trim();
+    if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
+
+    const ho = {
+        id: genId(), hoNo: document.getElementById('fHoNo').value,
+        workOrderId: document.getElementById('fHoWo').value||null,
+        project, contractor: document.getElementById('fHoContractor').value,
+        location: document.getElementById('fHoLocation').value,
+        contactName: document.getElementById('fHoContact').value,
+        product: document.getElementById('fHoProduct').value,
+        responsibility: currentUser.fullName,
+        serviceDate: document.getElementById('fHoDate').value,
+        qualityProduct:0, qualitySales:0, qualityInstall:0, comment:'',
+        status:'pending', createdAt:new Date().toISOString()
+    };
+    db.handOverJobs.push(ho);
+    saveDB();
+    closeModal();
+    toast('สร้าง Hand Over Job เรียบร้อย');
+    renderHandOver();
+}
+
+function rateHandOver(id) {
+    openModal(`
+        <div class="modal-header">
+            <h3>⭐ ให้คะแนนคุณภาพ</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>คุณภาพสินค้า (1-5)</label>
+                <select id="fRateProduct"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select>
+            </div>
+            <div class="form-group">
+                <label>คุณภาพงานขาย (1-5)</label>
+                <select id="fRateSales"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select>
+            </div>
+            <div class="form-group">
+                <label>คุณภาพงานติดตั้ง (1-5)</label>
+                <select id="fRateInstall"><option>1</option><option>2</option><option>3</option><option selected>4</option><option>5</option></select>
+            </div>
+            <div class="form-group">
+                <label>ความคิดเห็น</label>
+                <textarea id="fRateComment" rows="3" placeholder="ความคิดเห็นเพิ่มเติม..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveRating('${id}')">💾 บันทึกคะแนน</button>
+        </div>
+    `);
+}
+
+function saveRating(id) {
+    const ho = db.handOverJobs.find(x => x.id === id);
+    if (ho) {
+        ho.qualityProduct = parseInt(document.getElementById('fRateProduct').value);
+        ho.qualitySales = parseInt(document.getElementById('fRateSales').value);
+        ho.qualityInstall = parseInt(document.getElementById('fRateInstall').value);
+        ho.comment = document.getElementById('fRateComment').value;
+        ho.status = 'completed';
+        saveDB();
+        closeModal();
+        toast('บันทึกคะแนนคุณภาพเรียบร้อย');
+        renderHandOver();
+    }
+}
+
+function viewHandOver(id) {
+    const h = db.handOverJobs.find(x => x.id === id);
+    if (!h) return;
+    openModal(`
+        <div class="modal-header">
+            <h3>🤝 ${h.hoNo}</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">โครงการ</div><div class="detail-value">${h.project}</div></div>
+                <div class="detail-item"><div class="detail-label">ผู้รับเหมา</div><div class="detail-value">${h.contractor||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">สถานที่</div><div class="detail-value">${h.location||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">สินค้า</div><div class="detail-value">${h.product||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">วันบริการ</div><div class="detail-value">${h.serviceDate||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ผู้รับผิดชอบ</div><div class="detail-value">${h.responsibility||'-'}</div></div>
+            </div>
+            ${h.qualityProduct > 0 ? `
+            <h4 style="margin:1.5rem 0 0.5rem;">⭐ คะแนนคุณภาพ</h4>
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">สินค้า</div><div class="detail-value">${'⭐'.repeat(h.qualityProduct)} (${h.qualityProduct}/5)</div></div>
+                <div class="detail-item"><div class="detail-label">งานขาย</div><div class="detail-value">${'⭐'.repeat(h.qualitySales)} (${h.qualitySales}/5)</div></div>
+                <div class="detail-item"><div class="detail-label">ติดตั้ง</div><div class="detail-value">${'⭐'.repeat(h.qualityInstall)} (${h.qualityInstall}/5)</div></div>
+            </div>
+            ${h.comment ? `<div style="margin-top:0.5rem;"><strong>ความคิดเห็น:</strong> ${h.comment}</div>` : ''}` : ''}
+        </div>
+    `);
+}
+
+// ==================== PURCHASE REQUEST ====================
+function renderPR() {
+    const list = db.purchaseRequests;
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <input class="search-box" placeholder="🔍 ค้นหา PR...">
+            <button class="btn btn-primary" onclick="openNewPR()">+ สร้าง Purchase Request</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th>มูลค่า</th><th>ต้องการวันที่</th><th>สถานะ</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(p => `
+                        <tr>
+                            <td><strong style="color:var(--purple)">${p.prNo}</strong></td>
+                            <td>${p.customer}</td>
+                            <td>${p.projectRef}</td>
+                            <td style="text-align:right">${formatMoney(p.netTotal)}</td>
+                            <td>${p.dateRequired||'-'}</td>
+                            <td><span class="status-badge ${getStatusClass(p.status)}">${getStatusLabel(p.status)}</span></td>
+                            <td><button class="btn btn-info btn-sm" onclick="viewPR('${p.id}')">ดู</button></td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">🛒</div>ยังไม่มี Purchase Request</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openNewPR() {
+    const prNum = String(db.purchaseRequests.length+1).padStart(5,'0');
+    openModal(`
+        <div class="modal-header">
+            <h3>🛒 สร้าง Purchase Request ใหม่</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>เลขที่ PR (Auto)</label>
+                    <input type="text" id="fPrNo" value="PR${prNum}" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>ลูกค้า</label>
+                    <input type="text" id="fPrCust" placeholder="ชื่อลูกค้า">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>อ้างอิงโครงการ *</label>
+                <input type="text" id="fPrProject" placeholder="ชื่อโครงการ">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>วันที่ออก</label>
+                    <input type="date" id="fPrIssue" value="${new Date().toISOString().slice(0,10)}">
+                </div>
+                <div class="form-group">
+                    <label>วันที่ต้องการ</label>
+                    <input type="date" id="fPrRequired">
+                </div>
+            </div>
+
+            <h4 style="margin:1rem 0 0.5rem;">รายการ</h4>
+            <table class="items-table" id="prItemsTable">
+                <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th>รวม</th><th></th></tr></thead>
+                <tbody id="prItemsBody">
+                    <tr>
+                        <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
+                        <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
+                        <td><input type="text" class="pr-unit" value="ชิ้น"></td>
+                        <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
+                        <td class="pr-amount" style="text-align:right;">0.00</td>
+                        <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
+                    </tr>
+                </tbody>
+            </table>
+            <button class="add-row-btn" onclick="addPRItem()">+ เพิ่มรายการ</button>
+            <div class="total-section">
+                <div>รวมก่อน VAT: <strong id="prSubTotal">0.00</strong></div>
+                <div>VAT 7%: <strong id="prVat">0.00</strong></div>
+                <div style="font-size:1.1rem;">รวมสุทธิ: <strong id="prNetTotal" style="color:var(--purple)">0.00</strong> บาท</div>
+            </div>
+            <div class="form-group">
+                <label>หมายเหตุ</label>
+                <textarea id="fPrRemarks" rows="2" placeholder="หมายเหตุ"></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="savePR()">💾 บันทึกและส่งอนุมัติ</button>
+        </div>
+    `);
+}
+
+function addPRItem() {
+    const row = document.createElement('tr');
+    row.innerHTML = `
+        <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
+        <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
+        <td><input type="text" class="pr-unit" value="ชิ้น"></td>
+        <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
+        <td class="pr-amount" style="text-align:right;">0.00</td>
+        <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
+    `;
+    document.getElementById('prItemsBody').appendChild(row);
+}
+
+function calcPRItems() {
+    let sub = 0;
+    document.querySelectorAll('#prItemsBody tr').forEach(row => {
+        const qty = parseFloat(row.querySelector('.pr-qty')?.value)||0;
+        const price = parseFloat(row.querySelector('.pr-price')?.value)||0;
+        const amount = qty * price;
+        sub += amount;
+        const amountEl = row.querySelector('.pr-amount');
+        if (amountEl) amountEl.textContent = formatMoney(amount);
+    });
+    const vat = sub * 0.07;
+    document.getElementById('prSubTotal').textContent = formatMoney(sub);
+    document.getElementById('prVat').textContent = formatMoney(vat);
+    document.getElementById('prNetTotal').textContent = formatMoney(sub + vat);
+}
+
+function savePR() {
+    const project = document.getElementById('fPrProject').value.trim();
+    if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
+
+    const items = [];
+    document.querySelectorAll('#prItemsBody tr').forEach(row => {
+        const desc = row.querySelector('.pr-desc')?.value||'';
+        const qty = parseFloat(row.querySelector('.pr-qty')?.value)||0;
+        const unit = row.querySelector('.pr-unit')?.value||'';
+        const price = parseFloat(row.querySelector('.pr-price')?.value)||0;
+        if (desc) items.push({desc,qty,unit,price,amount:qty*price});
+    });
+    const subTotal = items.reduce((s,i)=>s+i.amount,0);
+    const vat = subTotal * 0.07;
+
+    const pr = {
+        id:genId(), prNo:document.getElementById('fPrNo').value,
+        customer:document.getElementById('fPrCust').value, projectRef:project,
+        dateIssue:document.getElementById('fPrIssue').value,
+        dateRequired:document.getElementById('fPrRequired').value,
+        items, subTotal, vat, netTotal:subTotal+vat,
+        remarks:document.getElementById('fPrRemarks').value,
+        status:'pending', approvalStep:1, createdAt:new Date().toISOString()
+    };
+    db.purchaseRequests.push(pr);
+    saveDB();
+    closeModal();
+    toast('สร้าง Purchase Request เรียบร้อย');
+    renderPR();
+}
+
+function viewPR(id) {
+    const p = db.purchaseRequests.find(x=>x.id===id);
+    if(!p) return;
+    openModal(`
+        <div class="modal-header">
+            <h3>🛒 ${p.prNo}</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <span class="status-badge ${getStatusClass(p.status)}" style="font-size:0.85rem;display:inline-block;margin-bottom:1rem;">${getStatusLabel(p.status)}</span>
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">ลูกค้า</div><div class="detail-value">${p.customer||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">โครงการ</div><div class="detail-value">${p.projectRef}</div></div>
+                <div class="detail-item"><div class="detail-label">วันที่ออก</div><div class="detail-value">${p.dateIssue||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ต้องการวันที่</div><div class="detail-value">${p.dateRequired||'-'}</div></div>
+            </div>
+            <h4 style="margin:1rem 0 0.5rem;">รายการ</h4>
+            <table class="items-table">
+                <thead><tr><th>รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th style="text-align:right">รวม</th></tr></thead>
+                <tbody>${(p.items||[]).map(i=>`<tr><td>${i.desc}</td><td>${i.qty}</td><td>${i.unit}</td><td>${formatMoney(i.price)}</td><td style="text-align:right">${formatMoney(i.amount)}</td></tr>`).join('')}</tbody>
+            </table>
+            <div class="total-section">
+                <div>รวมก่อน VAT: <strong>${formatMoney(p.subTotal)}</strong></div>
+                <div>VAT 7%: <strong>${formatMoney(p.vat)}</strong></div>
+                <div style="font-size:1.1rem;">รวมสุทธิ: <strong style="color:var(--purple)">${formatMoney(p.netTotal)} บาท</strong></div>
+            </div>
+            ${p.remarks ? `<div><strong>หมายเหตุ:</strong> ${p.remarks}</div>` : ''}
+        </div>
+    `);
+}
+
+// ==================== APPROVALS ====================
+function renderApprovals() {
+    const pending = getPendingApprovals();
+    document.getElementById('mainContent').innerHTML = `
+        <div class="card">
+            <div class="card-header">✍️ เอกสารรออนุมัติของคุณ (${pending.length} รายการ)
+                <span style="font-size:0.8rem;color:var(--gray);">คุณ: ${currentUser.fullName} — ${currentUser.roleLabel}</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                ${pending.length === 0 ? '<div class="empty-state"><div class="empty-icon">✅</div>ไม่มีเอกสารรออนุมัติ</div>' : ''}
+                <table class="data-table" ${pending.length===0?'style="display:none"':''}>
+                    <thead><tr><th>ประเภท</th><th>เลขที่</th><th>โครงการ</th><th>Step ที่ต้องอนุมัติ</th><th>การดำเนินการ</th></tr></thead>
+                    <tbody>
+                        ${pending.map(p => `
+                        <tr>
+                            <td>${p.docType==='quotation'?'📋 ใบเสนอราคา':'🔧 Work Order'}</td>
+                            <td><strong>${p.docNo}</strong></td>
+                            <td>${p.project}</td>
+                            <td>Step ${p.step} (${currentUser.roleLabel})</td>
+                            <td>
+                                <button class="btn btn-primary btn-sm" onclick="approveDoc('${p.docType}','${p.docId}')">✅ อนุมัติ</button>
+                                <button class="btn btn-danger btn-sm" onclick="rejectDoc('${p.docType}','${p.docId}')">❌ ปฏิเสธ</button>
+                                <button class="btn btn-info btn-sm" onclick="${p.docType==='quotation'?'viewQuotation':'viewWorkOrder'}('${p.docId}')">👁️ ดู</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">📜 ประวัติการอนุมัติทั้งหมด</div>
+            <div class="card-body">
+                ${[...db.approvalLogs].sort((a,b)=>new Date(b.actedAt)-new Date(a.actedAt)).slice(0,20).map(l => `
+                <div class="activity-item">
+                    <div class="activity-dot" style="background:${l.action==='approve'?'var(--green-main)':'var(--red)'}"></div>
+                    <div>
+                        <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'✅ อนุมัติ':'❌ ปฏิเสธ'} ${l.docType} (Step ${l.step})</div>
+                        <div class="activity-time">${formatDate(l.actedAt)} ${l.comment?'— '+l.comment:''}</div>
+                    </div>
+                </div>`).join('')}
+            </div>
+        </div>
+    `;
+}
+
+function approveDoc(docType, docId) {
+    const role = currentUser.role;
+    const stepIndex = APPROVAL_STEPS.findIndex(s => s.role === role);
+    const step = stepIndex + 1;
+
+    let doc;
+    if (docType === 'quotation') doc = db.quotations.find(x => x.id === docId);
+    else doc = db.workOrders.find(x => x.id === docId);
+    if (!doc) return;
+
+    doc.approvalStep = step;
+    if (step >= APPROVAL_STEPS.length) {
+        doc.status = 'approved';
+    }
+
+    db.approvalLogs.push({
+        id:genId(), docType, docId,
+        approverId:currentUser.id, approverName:currentUser.fullName,
+        step, action:'approve', comment:'อนุมัติ',
+        actedAt:new Date().toISOString()
+    });
+
+    saveDB();
+    toast(`อนุมัติเอกสารเรียบร้อย (Step ${step}/${APPROVAL_STEPS.length})`);
+    renderApprovals();
+}
+
+function rejectDoc(docType, docId) {
+    const role = currentUser.role;
+    const stepIndex = APPROVAL_STEPS.findIndex(s => s.role === role);
+
+    openModal(`
+        <div class="modal-header">
+            <h3>❌ ปฏิเสธเอกสาร</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>เหตุผลที่ปฏิเสธ *</label>
+                <textarea id="fRejectReason" rows="3" placeholder="กรุณาระบุเหตุผล..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-danger" onclick="confirmReject('${docType}','${docId}',${stepIndex+1})">❌ ยืนยันปฏิเสธ</button>
+        </div>
+    `);
+}
+
+function confirmReject(docType, docId, step) {
+    const reason = document.getElementById('fRejectReason').value.trim();
+    if (!reason) { toast('กรุณาระบุเหตุผล','error'); return; }
+
+    let doc;
+    if (docType === 'quotation') doc = db.quotations.find(x => x.id === docId);
+    else doc = db.workOrders.find(x => x.id === docId);
+    if (!doc) return;
+
+    doc.status = 'rejected';
+    doc.approvalStep = 0;
+
+    db.approvalLogs.push({
+        id:genId(), docType, docId,
+        approverId:currentUser.id, approverName:currentUser.fullName,
+        step, action:'reject', comment:reason,
+        actedAt:new Date().toISOString()
+    });
+
+    saveDB();
+    closeModal();
+    toast('ปฏิเสธเอกสาร — ส่งกลับเซลล์เจ้าของ','error');
+    renderApprovals();
+}
+
+// ==================== REPORTS ====================
+function renderReports() {
+    const totalQuo = db.quotations.length;
+    const totalWO = db.workOrders.length;
+    const totalHO = db.handOverJobs.length;
+    const totalPR = db.purchaseRequests.length;
+
+    const quoApproved = db.quotations.filter(q=>q.status==='approved').length;
+    const quoPending = db.quotations.filter(q=>q.status==='pending').length;
+    const quoDraft = db.quotations.filter(q=>q.status==='draft').length;
+
+    const woApproved = db.workOrders.filter(w=>w.status==='approved').length;
+    const woPending = db.workOrders.filter(w=>w.status==='pending').length;
+    const woClosed = db.workOrders.filter(w=>w.isClosed).length;
+
+    const totalQuoValue = db.quotations.reduce((s,q)=>s+(q.grandTotal||0),0);
+    const totalPRValue = db.purchaseRequests.reduce((s,p)=>s+(p.netTotal||0),0);
+
+    document.getElementById('mainContent').innerHTML = `
+        <div class="stats-grid">
+            <div class="stat-card green">
+                <div class="stat-icon">💰</div>
+                <div class="stat-value" style="font-size:1.5rem;">${formatMoney(totalQuoValue)}</div>
+                <div class="stat-label">มูลค่า Quotation รวม (บาท)</div>
+            </div>
+            <div class="stat-card blue">
+                <div class="stat-icon">📦</div>
+                <div class="stat-value" style="font-size:1.5rem;">${formatMoney(totalPRValue)}</div>
+                <div class="stat-label">มูลค่า PR รวม (บาท)</div>
+            </div>
+            <div class="stat-card orange">
+                <div class="stat-icon">✍️</div>
+                <div class="stat-value">${db.approvalLogs.length}</div>
+                <div class="stat-label">การอนุมัติทั้งหมด</div>
+            </div>
+            <div class="stat-card purple">
+                <div class="stat-icon">📊</div>
+                <div class="stat-value">${totalQuo+totalWO+totalHO+totalPR}</div>
+                <div class="stat-label">เอกสารทั้งหมด</div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+            <div class="card">
+                <div class="card-header">📋 สรุป Quotation</div>
+                <div class="card-body">
+                    <div style="display:flex;justify-content:space-around;text-align:center;">
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--gray);">${quoDraft}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">ร่าง</div>
+                        </div>
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--orange);">${quoPending}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">รออนุมัติ</div>
+                        </div>
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--green-main);">${quoApproved}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">อนุมัติ</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:1rem;">
+                        ${renderBar(quoDraft, quoPending, quoApproved, totalQuo)}
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">🔧 สรุป Work Order</div>
+                <div class="card-body">
+                    <div style="display:flex;justify-content:space-around;text-align:center;">
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--orange);">${woPending}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">รออนุมัติ</div>
+                        </div>
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--green-main);">${woApproved}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">อนุมัติ</div>
+                        </div>
+                        <div>
+                            <div style="font-size:2rem;font-weight:700;color:var(--purple);">${woClosed}</div>
+                            <div style="font-size:0.8rem;color:var(--gray);">ปิดงาน</div>
+                        </div>
+                    </div>
+                    <div style="margin-top:1rem;">
+                        ${renderBar(0, woPending, woApproved, totalWO)}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">📈 สรุปเอกสารทั้งหมด</div>
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>ประเภท</th><th>จำนวน</th><th>รออนุมัติ</th><th>อนุมัติแล้ว</th><th>มูลค่ารวม</th></tr></thead>
+                    <tbody>
+                        <tr>
+                            <td>📋 ใบเสนอราคา</td><td><strong>${totalQuo}</strong></td>
+                            <td>${quoPending}</td><td>${quoApproved}</td>
+                            <td style="text-align:right">${formatMoney(totalQuoValue)}</td>
+                        </tr>
+                        <tr>
+                            <td>🔧 Work Order</td><td><strong>${totalWO}</strong></td>
+                            <td>${woPending}</td><td>${woApproved}</td>
+                            <td style="text-align:right">-</td>
+                        </tr>
+                        <tr>
+                            <td>🤝 Hand Over Job</td><td><strong>${totalHO}</strong></td>
+                            <td>${db.handOverJobs.filter(h=>h.status==='pending').length}</td>
+                            <td>${db.handOverJobs.filter(h=>h.status==='completed').length}</td>
+                            <td style="text-align:right">-</td>
+                        </tr>
+                        <tr>
+                            <td>🛒 Purchase Request</td><td><strong>${totalPR}</strong></td>
+                            <td>${db.purchaseRequests.filter(p=>p.status==='pending').length}</td>
+                            <td>${db.purchaseRequests.filter(p=>p.status==='approved').length}</td>
+                            <td style="text-align:right">${formatMoney(totalPRValue)}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+}
+
+function renderBar(draft, pending, approved, total) {
+    if (total === 0) return '<div style="height:20px;background:#f0f0f0;border-radius:10px;"></div>';
+    const pDraft = (draft/total)*100;
+    const pPending = (pending/total)*100;
+    const pApproved = (approved/total)*100;
+    return `<div style="display:flex;height:20px;border-radius:10px;overflow:hidden;">
+        ${pDraft>0?`<div style="width:${pDraft}%;background:#bdbdbd;" title="ร่าง ${draft}"></div>`:''}
+        ${pPending>0?`<div style="width:${pPending}%;background:var(--orange);" title="รออนุมัติ ${pending}"></div>`:''}
+        ${pApproved>0?`<div style="width:${pApproved}%;background:var(--green-main);" title="อนุมัติ ${approved}"></div>`:''}
+        ${(pDraft+pPending+pApproved)<100?`<div style="flex:1;background:#f0f0f0;"></div>`:''}
+    </div>`;
+}
+
+// ==================== INIT ====================
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+});
+</script>
+</body>
+</html>
