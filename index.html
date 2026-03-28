@@ -186,8 +186,10 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            flex-wrap: wrap;
+            flex-wrap: nowrap;
             margin: 1.5rem 0;
+            overflow-x: auto;
+            padding-bottom: 0.5rem;
         }
         .approval-node {
             background: var(--white);
@@ -833,6 +835,11 @@
             <div class="approval-node procurement">
                 <div class="name">7. จัดซื้อ (คุณพนิดา)</div>
                 <div class="title">Procurement</div>
+            </div>
+            <span class="approval-arrow">→</span>
+            <div class="approval-node factory">
+                <div class="name">8. ทีมโรงงาน</div>
+                <div class="title">Factory Team</div>
             </div>
         </div>
     </div>
