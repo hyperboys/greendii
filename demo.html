@@ -336,6 +336,7 @@
             <span class="user-chip" onclick="pickUser('manager_project')" style="background:#FFFDE7;">👔 ผจก.โครงการ</span>
             <span class="user-chip" onclick="pickUser('director')" style="background:#FCE4EC;">🏢 กรรมการผู้จัดการ</span>
             <span class="user-chip" onclick="pickUser('procurement')" style="background:#E0F7FA;">🛒 จัดซื้อ</span>
+            <span class="user-chip" onclick="pickUser('factory')" style="background:#FBE9E7;">🏭 ทีมโรงงาน</span>
         </div>
     </div>
 </div>
@@ -411,7 +412,8 @@ const USERS = {
     manager_admin: { id:'u4', username:'manager_admin', fullName:'ปรีชา จัดการ',     initials:'PC', role:'admin_mgr',   avatar:'👔', roleLabel:'Admin Manager' },
     manager_project:{id:'u5', username:'manager_project',fullName:'นิพนธ์ โปรเจกต์', initials:'NP', role:'project_mgr', avatar:'👔', roleLabel:'Project Manager' },
     director:      { id:'u6', username:'director',      fullName:'ประยุทธ์ ผู้บริหาร', initials:'PY', role:'director',   avatar:'🏢', roleLabel:'Managing Director' },
-    procurement:   { id:'u7', username:'procurement',   fullName:'มาลี จัดซื้อ',     initials:'ML', role:'procurement', avatar:'🛒', roleLabel:'Procurement' }
+    procurement:   { id:'u7', username:'procurement',   fullName:'มาลี จัดซื้อ',     initials:'ML', role:'procurement', avatar:'🛒', roleLabel:'Procurement' },
+    factory:       { id:'u8', username:'factory',       fullName:'สมบูรณ์ โรงงาน',   initials:'SB', role:'factory',     avatar:'🏭', roleLabel:'ทีมโรงงาน' }
 };
 
 const APPROVAL_STEPS = [
@@ -421,7 +423,8 @@ const APPROVAL_STEPS = [
     { role:'admin_mgr',   label:'Admin Manager',    icon:'👔' },
     { role:'project_mgr', label:'Project Manager',  icon:'👔' },
     { role:'director',    label:'Managing Director', icon:'🏢' },
-    { role:'procurement', label:'Procurement',       icon:'🛒' }
+    { role:'procurement', label:'Procurement',       icon:'🛒' },
+    { role:'factory',     label:'ทีมโรงงาน',       icon:'🏭' }
 ];
 
 let currentUser = null;
@@ -461,7 +464,7 @@ function seedData() {
     ];
 
     db.workOrders = [
-        { id:'wo1', woNo:'WO00001', quotationId:'q1', salesId:'u1', salesName:'สมชาย ใจดี', project:'Green Wall - ABC Tower', location:'ชั้น 5, ABC Tower สุขุมวิท', products:'Green Wall Panel 1200x600mm', responsibility:'สมชาย ใจดี', customerName:'บริษัท ABC จำกัด', contactName:'คุณมานี', contactTel:'086-111-2222', teamAssignment:'ทีม A - ช่างประสิทธิ์', qcDate:'2026-04-20', installDate:'2026-04-25', remark:'ลูกค้าต้องการติดตั้งวันเสาร์', docChecklist:{po:true,drawing:true,min:false}, status:'approved', isClosed:false, createdAt:'2026-03-21T11:00:00', approvalStep:7 },
+        { id:'wo1', woNo:'WO00001', quotationId:'q1', salesId:'u1', salesName:'สมชาย ใจดี', project:'Green Wall - ABC Tower', location:'ชั้น 5, ABC Tower สุขุมวิท', products:'Green Wall Panel 1200x600mm', responsibility:'สมชาย ใจดี', customerName:'บริษัท ABC จำกัด', contactName:'คุณมานี', contactTel:'086-111-2222', teamAssignment:'ทีม A - ช่างประสิทธิ์', qcDate:'2026-04-20', installDate:'2026-04-25', remark:'ลูกค้าต้องการติดตั้งวันเสาร์', docChecklist:{po:true,drawing:true,min:false}, status:'approved', isClosed:true, closedAt:'2026-03-22T16:00:00', createdAt:'2026-03-21T11:00:00', approvalStep:8 },
         { id:'wo2', woNo:'WO00002', quotationId:'q2', salesId:'u1', salesName:'สมชาย ใจดี', project:'Acoustic Panel - XYZ Mall', location:'Zone B, XYZ Mall พหลโยธิน', products:'Acoustic Panel 600x600mm', responsibility:'สมชาย ใจดี', customerName:'บริษัท XYZ จำกัด', contactName:'คุณสมพร', contactTel:'089-333-4444', teamAssignment:'ทีม B - ช่างวิรัตน์', qcDate:'2026-05-10', installDate:'2026-05-15', docChecklist:{po:true,drawing:false,min:false}, status:'pending', isClosed:false, createdAt:'2026-03-26T09:00:00', approvalStep:4 }
     ];
 
@@ -479,6 +482,14 @@ function seedData() {
         { id:'al3', docType:'quotation', docId:'q1', approverId:'u3', approverName:'วิชัย ขายเก่ง', step:3, action:'approve', comment:'อนุมัติ', actedAt:'2026-03-20T11:00:00' },
         { id:'al4', docType:'quotation', docId:'q2', approverId:'u1', approverName:'สมชาย ใจดี', step:1, action:'approve', comment:'ส่งเข้าอนุมัติ', actedAt:'2026-03-25T11:00:00' },
         { id:'al5', docType:'quotation', docId:'q2', approverId:'u2', approverName:'สมศรี รักงาน', step:2, action:'approve', comment:'OK', actedAt:'2026-03-25T13:00:00' },
+        { id:'al6', docType:'workorder', docId:'wo1', approverId:'u1', approverName:'สมชาย ใจดี', step:1, action:'approve', comment:'สร้างและส่ง Work Order', actedAt:'2026-03-21T11:30:00' },
+        { id:'al7', docType:'workorder', docId:'wo1', approverId:'u2', approverName:'สมศรี รักงาน', step:2, action:'approve', comment:'ตรวจสอบแล้ว', actedAt:'2026-03-21T13:00:00' },
+        { id:'al8', docType:'workorder', docId:'wo1', approverId:'u3', approverName:'วิชัย ขายเก่ง', step:3, action:'approve', comment:'อนุมัติ', actedAt:'2026-03-21T14:00:00' },
+        { id:'al9', docType:'workorder', docId:'wo1', approverId:'u4', approverName:'ปรีชา จัดการ', step:4, action:'approve', comment:'อนุมัติให้ดำเนินการ', actedAt:'2026-03-22T09:00:00' },
+        { id:'al10', docType:'workorder', docId:'wo1', approverId:'u5', approverName:'นิพนธ์ โปรเจกต์', step:5, action:'approve', comment:'อนุมัติโครงการ', actedAt:'2026-03-22T10:00:00' },
+        { id:'al11', docType:'workorder', docId:'wo1', approverId:'u6', approverName:'ประยุทธ์ ผู้บริหาร', step:6, action:'approve', comment:'อนุมัติ', actedAt:'2026-03-22T11:00:00' },
+        { id:'al12', docType:'workorder', docId:'wo1', approverId:'u7', approverName:'มาลี จัดซื้อ', step:7, action:'approve', comment:'จัดซื้อวัสดุเรียบร้อย', actedAt:'2026-03-22T14:00:00' },
+        { id:'al13', docType:'workorder', docId:'wo1', approverId:'u8', approverName:'สมบูรณ์ โรงงาน', step:8, action:'approve', comment:'ผลิตเสร็จและปิดงาน', actedAt:'2026-03-22T16:00:00' }
     ];
 
     db.notifications = [
@@ -1008,7 +1019,6 @@ function renderWorkOrders() {
                             <td>${w.isClosed?'<span class="status-badge status-closed">ปิดแล้ว</span>':'<span style="color:var(--gray);font-size:0.8rem">ยังไม่ปิด</span>'}</td>
                             <td>
                                 <button class="btn btn-info btn-sm" onclick="viewWorkOrder('${w.id}')">ดู</button>
-                                ${w.status==='approved' && !w.isClosed ? `<button class="btn btn-sm" style="background:var(--purple);color:#fff;" onclick="closeWorkOrder('${w.id}')">ปิดงาน</button>` : ''}
                             </td>
                         </tr>`).join('')}
                     </tbody>
@@ -1631,8 +1641,15 @@ function approveDoc(docType, docId) {
     if (!doc) return;
 
     doc.approvalStep = step;
-    if (step >= APPROVAL_STEPS.length) {
+    
+    // Quotation อนุมัติเสร็จที่ step 7 (Procurement)
+    // Work Order อนุมัติเสร็จที่ step 8 (Factory) และปิดงานอัตโนมัติ
+    if (docType === 'quotation' && step >= 7) {
         doc.status = 'approved';
+    } else if (docType === 'workorder' && step >= APPROVAL_STEPS.length) {
+        doc.status = 'approved';
+        doc.isClosed = true;
+        doc.closedAt = new Date().toISOString();
     }
 
     db.approvalLogs.push({
@@ -1643,7 +1660,11 @@ function approveDoc(docType, docId) {
     });
 
     saveDB();
-    toast(`อนุมัติเอกสารเรียบร้อย (Step ${step}/${APPROVAL_STEPS.length})`);
+    if (docType === 'workorder' && step >= APPROVAL_STEPS.length) {
+        toast(`อนุมัติและปิดงาน Work Order เรียบร้อย (Step ${step}/${APPROVAL_STEPS.length}) 🎉`);
+    } else {
+        toast(`อนุมัติเอกสารเรียบร้อย (Step ${step}/${docType==='quotation'?7:APPROVAL_STEPS.length})`);
+    }
     renderApprovals();
 }
 
