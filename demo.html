@@ -349,6 +349,133 @@
             position:absolute; right:0.7rem; top:50%; transform:translateY(-50%);
             color:var(--gray); font-size:0.9rem; pointer-events:none;
         }
+
+        /* ========== ENHANCED UI ========== */
+        .welcome-banner {
+            background:linear-gradient(135deg, var(--green-dark) 0%, var(--green-main) 50%, #66BB6A 100%);
+            color:var(--white); border-radius:16px; padding:2rem 2.5rem; margin-bottom:1.5rem;
+            position:relative; overflow:hidden;
+        }
+        .welcome-banner::before {
+            content:''; position:absolute; top:-30px; right:-30px; width:200px; height:200px;
+            background:rgba(255,255,255,0.08); border-radius:50%;
+        }
+        .welcome-banner::after {
+            content:''; position:absolute; bottom:-40px; right:60px; width:150px; height:150px;
+            background:rgba(255,255,255,0.05); border-radius:50%;
+        }
+        .welcome-banner h1 { font-size:1.6rem; font-weight:700; margin-bottom:0.3rem; position:relative; z-index:1; }
+        .welcome-banner p { opacity:0.9; font-size:0.95rem; position:relative; z-index:1; }
+        .welcome-banner .welcome-date { font-size:0.8rem; opacity:0.7; margin-top:0.5rem; position:relative; z-index:1; }
+
+        .stat-card { position:relative; overflow:hidden; }
+        .stat-card.gradient-green { background:linear-gradient(135deg, #43A047, #66BB6A); color:#fff; }
+        .stat-card.gradient-blue { background:linear-gradient(135deg, #1565C0, #42A5F5); color:#fff; }
+        .stat-card.gradient-orange { background:linear-gradient(135deg, #EF6C00, #FFB74D); color:#fff; }
+        .stat-card.gradient-purple { background:linear-gradient(135deg, #7B1FA2, #BA68C8); color:#fff; }
+        .stat-card.gradient-teal { background:linear-gradient(135deg, #00695C, #4DB6AC); color:#fff; }
+        .stat-card.gradient-red { background:linear-gradient(135deg, #C62828, #EF5350); color:#fff; }
+        .stat-card.gradient-green .stat-label,
+        .stat-card.gradient-blue .stat-label,
+        .stat-card.gradient-orange .stat-label,
+        .stat-card.gradient-purple .stat-label,
+        .stat-card.gradient-teal .stat-label,
+        .stat-card.gradient-red .stat-label { color:rgba(255,255,255,0.85); }
+
+        .quick-actions { display:flex; gap:0.8rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+        .quick-action-btn {
+            padding:0.7rem 1.2rem; border-radius:10px; border:2px solid var(--green-main);
+            background:var(--white); color:var(--green-dark); font-weight:600; font-size:0.85rem;
+            cursor:pointer; transition:all 0.25s; display:flex; align-items:center; gap:0.5rem;
+        }
+        .quick-action-btn:hover { background:var(--green-main); color:#fff; transform:translateY(-2px); box-shadow:0 4px 12px rgba(76,175,80,0.3); }
+
+        /* Report Tabs */
+        .report-tabs { display:flex; gap:0; margin-bottom:1.5rem; border-bottom:2px solid #e0e0e0; }
+        .report-tab {
+            padding:0.8rem 1.5rem; cursor:pointer; font-weight:600; font-size:0.9rem;
+            color:var(--gray); border-bottom:3px solid transparent; transition:all 0.2s;
+            background:none; border:none; border-bottom:3px solid transparent;
+        }
+        .report-tab:hover { color:var(--green-dark); background:var(--green-pale); }
+        .report-tab.active { color:var(--green-dark); border-bottom-color:var(--green-main); }
+        .report-section { display:none; animation:fadeIn 0.3s ease; }
+        .report-section.active { display:block; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(8px);} to{opacity:1;transform:translateY(0);} }
+
+        /* CSS Bar Charts */
+        .chart-bar-h { display:flex; align-items:center; gap:0.8rem; margin-bottom:0.7rem; }
+        .chart-bar-h .bar-label { min-width:120px; font-size:0.82rem; font-weight:500; text-align:right; color:var(--gray-dark); }
+        .chart-bar-h .bar-track { flex:1; height:28px; background:#f0f0f0; border-radius:14px; overflow:hidden; position:relative; }
+        .chart-bar-h .bar-fill {
+            height:100%; border-radius:14px; display:flex; align-items:center; padding-left:10px;
+            font-size:0.72rem; font-weight:700; color:#fff; transition:width 0.8s ease;
+            min-width:fit-content;
+        }
+        .chart-bar-h .bar-value { min-width:80px; font-size:0.82rem; font-weight:600; text-align:right; }
+
+        .chart-donut-container { display:flex; align-items:center; justify-content:center; gap:2rem; padding:1rem 0; }
+        .chart-donut {
+            width:140px; height:140px; border-radius:50%; position:relative;
+            display:flex; align-items:center; justify-content:center;
+        }
+        .chart-donut .donut-center {
+            width:80px; height:80px; background:#fff; border-radius:50%; display:flex;
+            align-items:center; justify-content:center; flex-direction:column; z-index:2;
+        }
+        .chart-donut .donut-center .donut-value { font-size:1.3rem; font-weight:700; color:var(--green-dark); }
+        .chart-donut .donut-center .donut-label { font-size:0.65rem; color:var(--gray); }
+        .chart-legend { display:flex; flex-direction:column; gap:0.5rem; }
+        .chart-legend-item { display:flex; align-items:center; gap:0.5rem; font-size:0.82rem; }
+        .chart-legend-dot { width:12px; height:12px; border-radius:3px; }
+
+        /* Mini Metrics */
+        .metric-cards { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; margin-bottom:1.5rem; }
+        .metric-card {
+            background:var(--white); border-radius:12px; padding:1.2rem; box-shadow:var(--shadow);
+            text-align:center; border-top:4px solid var(--green-main);
+        }
+        .metric-card.blue-top { border-top-color:var(--blue); }
+        .metric-card.orange-top { border-top-color:var(--orange); }
+        .metric-card.purple-top { border-top-color:var(--purple); }
+        .metric-card .metric-icon { font-size:1.8rem; margin-bottom:0.3rem; }
+        .metric-card .metric-value { font-size:1.6rem; font-weight:700; color:var(--gray-dark); }
+        .metric-card .metric-label { font-size:0.78rem; color:var(--gray); margin-top:0.2rem; }
+
+        /* Timeline */
+        .timeline-v { position:relative; padding-left:2rem; }
+        .timeline-v::before { content:''; position:absolute; left:0.5rem; top:0; bottom:0; width:2px; background:#e0e0e0; }
+        .timeline-item { position:relative; margin-bottom:1.2rem; padding-left:1rem; }
+        .timeline-item::before {
+            content:''; position:absolute; left:-1.55rem; top:0.3rem; width:12px; height:12px;
+            border-radius:50%; border:2px solid var(--green-main); background:#fff;
+        }
+        .timeline-item.done::before { background:var(--green-main); }
+        .timeline-item.rejected::before { border-color:var(--red); background:var(--red); }
+        .timeline-item .tl-header { font-weight:600; font-size:0.85rem; }
+        .timeline-item .tl-sub { font-size:0.75rem; color:var(--gray); }
+
+        /* Smooth transitions */
+        .content { transition:opacity 0.2s ease; }
+        .menu-item { transition:all 0.2s ease; }
+        .card { transition:box-shadow 0.3s ease; }
+        .card:hover { box-shadow:var(--shadow-hover); }
+
+        /* Top performers */
+        .performer-list { display:flex; flex-direction:column; gap:0.6rem; }
+        .performer-item {
+            display:flex; align-items:center; gap:1rem; padding:0.8rem 1rem;
+            background:var(--white); border-radius:10px; border:1px solid #f0f0f0;
+            transition:all 0.2s;
+        }
+        .performer-item:hover { border-color:var(--green-light); background:var(--green-pale); }
+        .performer-rank {
+            width:32px; height:32px; border-radius:50%; display:flex; align-items:center;
+            justify-content:center; font-weight:700; font-size:0.85rem;
+        }
+        .performer-rank.gold { background:#FFF8E1; color:#F57F17; }
+        .performer-rank.silver { background:#ECEFF1; color:#546E7A; }
+        .performer-rank.bronze { background:#FBE9E7; color:#BF360C; }
     </style>
 </head>
 <body>
@@ -411,7 +538,9 @@
             <div class="menu-label">อนุมัติ</div>
             <div class="menu-item" onclick="navigate('approvals')">✍️ รออนุมัติ <span class="badge-count" id="approvalBadge" style="display:none">0</span></div>
             <div class="menu-label">รายงาน</div>
-            <div class="menu-item" onclick="navigate('reports')">📈 สรุปรายงาน</div>
+            <div class="menu-item" onclick="navigate('reports')">� ภาพรวม</div>
+            <div class="menu-item" onclick="navigate('report_sales')">💰 ยอดขายลูกค้า</div>
+            <div class="menu-item" onclick="navigate('report_approval')">⚡ ประสิทธิภาพอนุมัติ</div>
         </div>
         <div class="sidebar-footer">
             <button class="btn-logout" onclick="doLogout()">🚪 ออกจากระบบ</button>
@@ -581,13 +710,14 @@ function doLogout() {
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
     const items = document.querySelectorAll('.menu-item');
-    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6};
+    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6, report_sales:7, report_approval:8};
     if (map[page] !== undefined) items[map[page]]?.classList.add('active');
 
     const titles = {
         dashboard:'Dashboard', quotations:'ใบเสนอราคา (Quotation)',
         workorders:'Work Order', handover:'Hand Over Job',
-        pr:'Purchase Request', approvals:'รออนุมัติ', reports:'สรุปรายงาน'
+        pr:'Purchase Request', approvals:'รออนุมัติ', 
+        reports:'สรุปรายงาน', report_sales:'ยอดขายตามลูกค้า', report_approval:'ประสิทธิภาพการอนุมัติ'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
     document.getElementById('pageBreadcrumb').textContent = 'หน้าหลัก > ' + (titles[page]||page);
@@ -595,7 +725,9 @@ function navigate(page) {
     const renderers = {
         dashboard: renderDashboard, quotations: renderQuotations,
         workorders: renderWorkOrders, handover: renderHandOver,
-        pr: renderPR, approvals: renderApprovals, reports: renderReports
+        pr: renderPR, approvals: renderApprovals, reports: renderReports,
+        report_sales: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[1]; if(tab) switchReportTab('sales',tab); },0); },
+        report_approval: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[2]; if(tab) switchReportTab('approval',tab); },0); }
     };
     if (renderers[page]) renderers[page]();
     updateBadges();
@@ -707,69 +839,109 @@ function renderDashboard() {
     const hoCount = db.handOverJobs.length;
     const prCount = db.purchaseRequests.length;
     const pendingCount = getPendingApprovals().length;
+    const totalQuoValue = db.quotations.reduce((s,q)=>s+(q.grandTotal||0),0);
+    const approvedQuoValue = db.quotations.filter(q=>q.status==='approved').reduce((s,q)=>s+(q.grandTotal||0),0);
 
     const woApproved = db.workOrders.filter(w => w.status === 'approved').length;
     const woPending = db.workOrders.filter(w => w.status === 'pending').length;
 
     const recentLogs = [...db.approvalLogs].sort((a,b) => new Date(b.actedAt)-new Date(a.actedAt)).slice(0,8);
 
+    const now = new Date();
+    const thaiMonths = ['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+    const thaiDays = ['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'];
+    const greeting = now.getHours() < 12 ? 'สวัสดีตอนเช้า' : now.getHours() < 17 ? 'สวัสดีตอนบ่าย' : 'สวัสดีตอนเย็น';
+    const dateStr = `วัน${thaiDays[now.getDay()]}ที่ ${now.getDate()} ${thaiMonths[now.getMonth()]} ${now.getFullYear()+543}`;
+
     document.getElementById('mainContent').innerHTML = `
+        <div class="welcome-banner">
+            <h1>${greeting}, ${currentUser.fullName.split(' ')[0]} ${currentUser.avatar}</h1>
+            <p>ยินดีต้อนรับเข้าสู่ระบบ Green Dii — ${currentUser.roleLabel}</p>
+            <div class="welcome-date">📅 ${dateStr}</div>
+        </div>
+
         <div class="stats-grid">
-            <div class="stat-card green" onclick="navigate('quotations')">
+            <div class="stat-card gradient-green" onclick="navigate('quotations')" style="cursor:pointer;">
                 <div class="stat-icon">📋</div>
                 <div class="stat-value">${qCount}</div>
-                <div class="stat-label">ใบเสนอราคา</div>
+                <div class="stat-label">ใบเสนอราคาทั้งหมด</div>
             </div>
-            <div class="stat-card blue" onclick="navigate('workorders')">
+            <div class="stat-card gradient-blue" onclick="navigate('workorders')" style="cursor:pointer;">
                 <div class="stat-icon">🔧</div>
                 <div class="stat-value">${woCount}</div>
                 <div class="stat-label">Work Order</div>
             </div>
-            <div class="stat-card orange" onclick="navigate('handover')">
+            <div class="stat-card gradient-orange" onclick="navigate('handover')" style="cursor:pointer;">
                 <div class="stat-icon">🤝</div>
                 <div class="stat-value">${hoCount}</div>
                 <div class="stat-label">Hand Over Job</div>
             </div>
-            <div class="stat-card purple" onclick="navigate('pr')">
+            <div class="stat-card gradient-purple" onclick="navigate('pr')" style="cursor:pointer;">
                 <div class="stat-icon">🛒</div>
                 <div class="stat-value">${prCount}</div>
                 <div class="stat-label">Purchase Request</div>
             </div>
         </div>
 
+        <div class="quick-actions">
+            <button class="quick-action-btn" onclick="openNewQuotation()">📋 สร้างใบเสนอราคา</button>
+            <button class="quick-action-btn" onclick="openNewWorkOrder()">🔧 สร้าง Work Order</button>
+            <button class="quick-action-btn" onclick="openNewHandOver()">🤝 สร้าง Hand Over</button>
+            <button class="quick-action-btn" onclick="openNewPR()">🛒 สร้าง PR</button>
+            ${pendingCount > 0 ? `<button class="quick-action-btn" onclick="navigate('approvals')" style="border-color:var(--orange);color:var(--orange);">⚠️ รออนุมัติ (${pendingCount})</button>` : ''}
+        </div>
+
         ${pendingCount > 0 ? `
         <div class="card" style="margin-bottom:1.5rem;border-left:4px solid var(--orange);">
-            <div class="card-header">⚠️ เอกสารรออนุมัติของคุณ (${pendingCount} รายการ)
-                <button class="btn btn-warning btn-sm" onclick="navigate('approvals')">ดูทั้งหมด</button>
+            <div class="card-header" style="background:#FFF8E1;">⚠️ เอกสารรออนุมัติของคุณ (${pendingCount} รายการ)
+                <button class="btn btn-warning btn-sm" onclick="navigate('approvals')">ดูทั้งหมด →</button>
             </div>
         </div>` : ''}
 
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
+            <div class="card" style="border-top:4px solid var(--green-main);">
+                <div class="card-body" style="text-align:center;">
+                    <div style="font-size:0.8rem;color:var(--gray);margin-bottom:0.3rem;">💰 มูลค่า Quotation รวม</div>
+                    <div style="font-size:1.8rem;font-weight:700;color:var(--green-dark);">${formatMoney(totalQuoValue)}</div>
+                    <div style="font-size:0.75rem;color:var(--gray);">บาท</div>
+                </div>
+            </div>
+            <div class="card" style="border-top:4px solid var(--blue);">
+                <div class="card-body" style="text-align:center;">
+                    <div style="font-size:0.8rem;color:var(--gray);margin-bottom:0.3rem;">✅ มูลค่าที่อนุมัติแล้ว</div>
+                    <div style="font-size:1.8rem;font-weight:700;color:var(--blue);">${formatMoney(approvedQuoValue)}</div>
+                    <div style="font-size:0.75rem;color:var(--gray);">บาท</div>
+                </div>
+            </div>
+        </div>
+
         <div class="dashboard-grid">
             <div class="card">
-                <div class="card-header">🔧 Work Order ล่าสุด</div>
+                <div class="card-header" style="background:var(--green-pale);color:var(--green-dark);">🔧 Work Order ล่าสุด</div>
                 <div class="card-body" style="padding:0;">
                     <table class="data-table">
                         <thead><tr><th>เลขที่</th><th>โครงการ</th><th>สถานะ</th><th>วันที่</th></tr></thead>
                         <tbody>
                             ${db.workOrders.slice(-5).reverse().map(w => `
                             <tr style="cursor:pointer;" onclick="viewWorkOrder('${w.id}')">
-                                <td><strong>${w.woNo}</strong></td>
+                                <td><strong style="color:var(--blue)">${w.woNo}</strong></td>
                                 <td>${w.project}</td>
                                 <td><span class="status-badge ${getStatusClass(w.status)}">${getStatusLabel(w.status)}</span></td>
                                 <td>${formatDate(w.createdAt)}</td>
                             </tr>`).join('')}
+                            ${db.workOrders.length === 0 ? '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray);">ยังไม่มี Work Order</td></tr>' : ''}
                         </tbody>
                     </table>
                 </div>
             </div>
             <div class="card">
-                <div class="card-header">📝 กิจกรรมล่าสุด</div>
+                <div class="card-header" style="background:#F3E5F5;color:#7B1FA2;">📝 กิจกรรมล่าสุด</div>
                 <div class="card-body">
                     ${recentLogs.map(l => `
                     <div class="activity-item">
                         <div class="activity-dot" style="background:${l.action==='approve'?'var(--green-main)':'var(--red)'}"></div>
                         <div>
-                            <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'อนุมัติ':'ปฏิเสธ'} ${l.docType}</div>
+                            <div class="activity-text"><strong>${l.approverName}</strong> ${l.action==='approve'?'✅ อนุมัติ':'❌ ปฏิเสธ'} ${l.docType}</div>
                             <div class="activity-time">${formatDate(l.actedAt)} ${l.comment?'— '+l.comment:''}</div>
                         </div>
                     </div>`).join('')}
@@ -1962,6 +2134,26 @@ function confirmReject(docType, docId, step) {
 
 // ==================== REPORTS ====================
 function renderReports() {
+    document.getElementById('mainContent').innerHTML = `
+        <div class="report-tabs">
+            <button class="report-tab active" onclick="switchReportTab('overview',this)">📊 ภาพรวม</button>
+            <button class="report-tab" onclick="switchReportTab('sales',this)">💰 ยอดขายตามลูกค้า</button>
+            <button class="report-tab" onclick="switchReportTab('approval',this)">⚡ ประสิทธิภาพการอนุมัติ</button>
+        </div>
+        <div id="reportOverview" class="report-section active">${renderReportOverview()}</div>
+        <div id="reportSales" class="report-section">${renderReportSales()}</div>
+        <div id="reportApproval" class="report-section">${renderReportApproval()}</div>
+    `;
+}
+
+function switchReportTab(tab, el) {
+    document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.report-section').forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+    document.getElementById('report' + tab.charAt(0).toUpperCase() + tab.slice(1)).classList.add('active');
+}
+
+function renderReportOverview() {
     const totalQuo = db.quotations.length;
     const totalWO = db.workOrders.length;
     const totalHO = db.handOverJobs.length;
@@ -1970,6 +2162,7 @@ function renderReports() {
     const quoApproved = db.quotations.filter(q=>q.status==='approved').length;
     const quoPending = db.quotations.filter(q=>q.status==='pending').length;
     const quoDraft = db.quotations.filter(q=>q.status==='draft').length;
+    const quoRejected = db.quotations.filter(q=>q.status==='rejected').length;
 
     const woApproved = db.workOrders.filter(w=>w.status==='approved').length;
     const woPending = db.workOrders.filter(w=>w.status==='pending').length;
@@ -1977,25 +2170,27 @@ function renderReports() {
 
     const totalQuoValue = db.quotations.reduce((s,q)=>s+(q.grandTotal||0),0);
     const totalPRValue = db.purchaseRequests.reduce((s,p)=>s+(p.netTotal||0),0);
+    const approvedQuoValue = db.quotations.filter(q=>q.status==='approved').reduce((s,q)=>s+(q.grandTotal||0),0);
+    const conversionRate = totalQuo > 0 ? ((quoApproved/totalQuo)*100).toFixed(0) : 0;
 
-    document.getElementById('mainContent').innerHTML = `
+    return `
         <div class="stats-grid">
-            <div class="stat-card green">
+            <div class="stat-card gradient-green">
                 <div class="stat-icon">💰</div>
-                <div class="stat-value" style="font-size:1.5rem;">${formatMoney(totalQuoValue)}</div>
+                <div class="stat-value" style="font-size:1.4rem;">${formatMoney(totalQuoValue)}</div>
                 <div class="stat-label">มูลค่า Quotation รวม (บาท)</div>
             </div>
-            <div class="stat-card blue">
+            <div class="stat-card gradient-blue">
                 <div class="stat-icon">📦</div>
-                <div class="stat-value" style="font-size:1.5rem;">${formatMoney(totalPRValue)}</div>
+                <div class="stat-value" style="font-size:1.4rem;">${formatMoney(totalPRValue)}</div>
                 <div class="stat-label">มูลค่า PR รวม (บาท)</div>
             </div>
-            <div class="stat-card orange">
+            <div class="stat-card gradient-orange">
                 <div class="stat-icon">✍️</div>
                 <div class="stat-value">${db.approvalLogs.length}</div>
                 <div class="stat-label">การอนุมัติทั้งหมด</div>
             </div>
-            <div class="stat-card purple">
+            <div class="stat-card gradient-purple">
                 <div class="stat-icon">📊</div>
                 <div class="stat-value">${totalQuo+totalWO+totalHO+totalPR}</div>
                 <div class="stat-label">เอกสารทั้งหมด</div>
@@ -2004,7 +2199,7 @@ function renderReports() {
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
             <div class="card">
-                <div class="card-header">📋 สรุป Quotation</div>
+                <div class="card-header" style="background:var(--green-pale);color:var(--green-dark);">📋 สรุป Quotation</div>
                 <div class="card-body">
                     <div style="display:flex;justify-content:space-around;text-align:center;">
                         <div>
@@ -2027,7 +2222,7 @@ function renderReports() {
             </div>
 
             <div class="card">
-                <div class="card-header">🔧 สรุป Work Order</div>
+                <div class="card-header" style="background:#E3F2FD;color:var(--blue);">🔧 สรุป Work Order</div>
                 <div class="card-body">
                     <div style="display:flex;justify-content:space-around;text-align:center;">
                         <div>
@@ -2080,6 +2275,289 @@ function renderReports() {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== REPORT: Sales by Customer ====================
+function renderReportSales() {
+    // Group quotations by customer
+    const custMap = {};
+    db.quotations.forEach(q => {
+        if (!custMap[q.customerName]) {
+            custMap[q.customerName] = { name:q.customerName, count:0, totalValue:0, approved:0, pending:0, projects:[] };
+        }
+        custMap[q.customerName].count++;
+        custMap[q.customerName].totalValue += (q.grandTotal||0);
+        if (q.status==='approved') custMap[q.customerName].approved++;
+        if (q.status==='pending') custMap[q.customerName].pending++;
+        if (!custMap[q.customerName].projects.includes(q.project)) custMap[q.customerName].projects.push(q.project);
+    });
+    const customers = Object.values(custMap).sort((a,b)=>b.totalValue-a.totalValue);
+    const maxValue = customers.length > 0 ? customers[0].totalValue : 1;
+    const totalAllValue = customers.reduce((s,c)=>s+c.totalValue,0);
+
+    // Project breakdown
+    const projectMap = {};
+    db.quotations.forEach(q => {
+        if (!projectMap[q.project]) {
+            projectMap[q.project] = { name:q.project, customer:q.customerName, value:q.grandTotal||0, status:q.status, wo:null, ho:null };
+        }
+    });
+    db.workOrders.forEach(w => {
+        if (projectMap[w.project]) projectMap[w.project].wo = w.woNo;
+    });
+    db.handOverJobs.forEach(h => {
+        if (projectMap[h.project]) projectMap[h.project].ho = h.hoNo;
+    });
+    const projects = Object.values(projectMap).sort((a,b)=>b.value-a.value);
+
+    const barColors = ['#43A047','#1565C0','#EF6C00','#7B1FA2','#C62828','#00695C'];
+
+    return `
+        <div class="metric-cards">
+            <div class="metric-card">
+                <div class="metric-icon">👥</div>
+                <div class="metric-value">${customers.length}</div>
+                <div class="metric-label">ลูกค้าทั้งหมด</div>
+            </div>
+            <div class="metric-card blue-top">
+                <div class="metric-icon">📋</div>
+                <div class="metric-value">${db.quotations.length}</div>
+                <div class="metric-label">ใบเสนอราคาทั้งหมด</div>
+            </div>
+            <div class="metric-card orange-top">
+                <div class="metric-icon">💰</div>
+                <div class="metric-value" style="font-size:1.2rem;">${formatMoney(totalAllValue)}</div>
+                <div class="metric-label">มูลค่ารวม (บาท)</div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:3fr 2fr;gap:1.5rem;">
+            <div class="card">
+                <div class="card-header" style="background:var(--green-pale);color:var(--green-dark);">📊 ยอดขายตามลูกค้า</div>
+                <div class="card-body">
+                    ${customers.length === 0 ? '<div class="empty-state"><div class="empty-icon">📊</div>ยังไม่มีข้อมูล</div>' : ''}
+                    ${customers.map((c,i) => {
+                        const pct = maxValue > 0 ? ((c.totalValue/maxValue)*100).toFixed(0) : 0;
+                        const color = barColors[i % barColors.length];
+                        return `<div class="chart-bar-h">
+                            <div class="bar-label">${c.name.length > 18 ? c.name.slice(0,18)+'...' : c.name}</div>
+                            <div class="bar-track">
+                                <div class="bar-fill" style="width:${Math.max(pct,8)}%;background:${color};">${c.count} รายการ</div>
+                            </div>
+                            <div class="bar-value">${formatMoney(c.totalValue)}</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="background:#FFF8E1;color:#E65100;">🏆 ลูกค้ามูลค่าสูงสุด</div>
+                <div class="card-body">
+                    <div class="performer-list">
+                        ${customers.slice(0,5).map((c,i) => {
+                            const rankCls = i===0?'gold':i===1?'silver':'bronze';
+                            const pctShare = totalAllValue > 0 ? ((c.totalValue/totalAllValue)*100).toFixed(1) : 0;
+                            return `<div class="performer-item">
+                                <div class="performer-rank ${rankCls}">${i+1}</div>
+                                <div style="flex:1;">
+                                    <div style="font-weight:600;font-size:0.88rem;">${c.name}</div>
+                                    <div style="font-size:0.75rem;color:var(--gray);">${c.count} ใบเสนอราคา • ${c.projects.length} โครงการ</div>
+                                </div>
+                                <div style="text-align:right;">
+                                    <div style="font-weight:700;font-size:0.9rem;color:var(--green-dark);">${formatMoney(c.totalValue)}</div>
+                                    <div style="font-size:0.7rem;color:var(--gray);">${pctShare}%</div>
+                                </div>
+                            </div>`;
+                        }).join('')}
+                        ${customers.length === 0 ? '<div style="text-align:center;padding:1rem;color:var(--gray);">ยังไม่มีข้อมูล</div>' : ''}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">📋 รายละเอียดโครงการทั้งหมด</div>
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>โครงการ</th><th>ลูกค้า</th><th>มูลค่า</th><th>สถานะ QUO</th><th>Work Order</th><th>Hand Over</th><th>สถานะรวม</th></tr></thead>
+                    <tbody>
+                        ${projects.map(p => {
+                            const progress = p.ho ? '🟢 ส่งมอบแล้ว' : p.wo ? '🟡 กำลังดำเนินงาน' : p.status==='approved' ? '🔵 อนุมัติแล้ว' : '⚪ รอดำเนินการ';
+                            return `<tr>
+                                <td><strong>${p.name}</strong></td>
+                                <td>${p.customer}</td>
+                                <td style="text-align:right;">${formatMoney(p.value)}</td>
+                                <td><span class="status-badge ${getStatusClass(p.status)}">${getStatusLabel(p.status)}</span></td>
+                                <td>${p.wo || '<span style="color:#bbb;">—</span>'}</td>
+                                <td>${p.ho || '<span style="color:#bbb;">—</span>'}</td>
+                                <td style="font-size:0.8rem;">${progress}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                ${projects.length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div>ยังไม่มีโครงการ</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+// ==================== REPORT: Approval Efficiency ====================
+function renderReportApproval() {
+    const logs = [...db.approvalLogs].sort((a,b) => new Date(a.actedAt) - new Date(b.actedAt));
+    
+    // Compute approval stats per step
+    const stepStats = {};
+    APPROVAL_STEPS.forEach((s,i) => {
+        stepStats[i+1] = { label:s.label, icon:s.icon, count:0, approveCount:0, rejectCount:0 };
+    });
+    logs.forEach(l => {
+        if (stepStats[l.step]) {
+            stepStats[l.step].count++;
+            if (l.action==='approve') stepStats[l.step].approveCount++;
+            else stepStats[l.step].rejectCount++;
+        }
+    });
+
+    // Compute per-approver stats
+    const approverMap = {};
+    logs.forEach(l => {
+        if (!approverMap[l.approverName]) {
+            approverMap[l.approverName] = { name:l.approverName, total:0, approved:0, rejected:0 };
+        }
+        approverMap[l.approverName].total++;
+        if (l.action==='approve') approverMap[l.approverName].approved++;
+        else approverMap[l.approverName].rejected++;
+    });
+    const approvers = Object.values(approverMap).sort((a,b) => b.total - a.total);
+    const maxApproverCount = approvers.length > 0 ? approvers[0].total : 1;
+
+    // Compute per-document timeline
+    const docTimelines = {};
+    logs.forEach(l => {
+        const key = l.docType + '|' + l.docId;
+        if (!docTimelines[key]) {
+            docTimelines[key] = { docType:l.docType, docId:l.docId, steps:[], firstTime:l.actedAt, lastTime:l.actedAt };
+        }
+        docTimelines[key].steps.push(l);
+        if (new Date(l.actedAt) > new Date(docTimelines[key].lastTime)) docTimelines[key].lastTime = l.actedAt;
+    });
+
+    // Completion stats
+    const totalDocs = Object.keys(docTimelines).length;
+    const totalApprovals = logs.filter(l=>l.action==='approve').length;
+    const totalRejections = logs.filter(l=>l.action==='reject').length;
+    const approvalRate = logs.length > 0 ? ((totalApprovals/logs.length)*100).toFixed(1) : 0;
+
+    const stepBarColors = ['#43A047','#2196F3','#FF9800','#9C27B0','#F44336','#00BCD4','#795548','#607D8B'];
+
+    return `
+        <div class="metric-cards">
+            <div class="metric-card">
+                <div class="metric-icon">✅</div>
+                <div class="metric-value">${totalApprovals}</div>
+                <div class="metric-label">อนุมัติทั้งหมด</div>
+            </div>
+            <div class="metric-card" style="border-top-color:var(--red);">
+                <div class="metric-icon">❌</div>
+                <div class="metric-value">${totalRejections}</div>
+                <div class="metric-label">ปฏิเสธทั้งหมด</div>
+            </div>
+            <div class="metric-card blue-top">
+                <div class="metric-icon">📈</div>
+                <div class="metric-value">${approvalRate}%</div>
+                <div class="metric-label">อัตราการอนุมัติ</div>
+            </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1.5rem;">
+            <div class="card">
+                <div class="card-header" style="background:#E8F5E9;color:var(--green-dark);">📊 จำนวนการอนุมัติแต่ละขั้นตอน</div>
+                <div class="card-body">
+                    ${Object.entries(stepStats).map(([step, s]) => {
+                        const total = s.count;
+                        const pct = maxApproverCount > 0 ? ((total/Math.max(...Object.values(stepStats).map(x=>x.count),1))*100).toFixed(0) : 0;
+                        const color = stepBarColors[(parseInt(step)-1) % stepBarColors.length];
+                        return `<div class="chart-bar-h">
+                            <div class="bar-label" style="min-width:130px;">${s.icon} ${s.label}</div>
+                            <div class="bar-track">
+                                <div class="bar-fill" style="width:${Math.max(pct,10)}%;background:${color};">
+                                    ${s.approveCount} ✅ ${s.rejectCount > 0 ? s.rejectCount + ' ❌' : ''}
+                                </div>
+                            </div>
+                            <div class="bar-value">${total} ครั้ง</div>
+                        </div>`;
+                    }).join('')}
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header" style="background:#E3F2FD;color:var(--blue);">👤 ผู้อนุมัติ — จำนวนครั้ง</div>
+                <div class="card-body">
+                    ${approvers.map((a,i) => {
+                        const pct = maxApproverCount > 0 ? ((a.total/maxApproverCount)*100).toFixed(0) : 0;
+                        const color = a.rejected > 0 ? '#EF5350' : '#43A047';
+                        return `<div class="chart-bar-h">
+                            <div class="bar-label">${a.name}</div>
+                            <div class="bar-track">
+                                <div class="bar-fill" style="width:${Math.max(pct,12)}%;background:${color};">
+                                    ${a.approved} ✅ ${a.rejected > 0 ? a.rejected + ' ❌' : ''}
+                                </div>
+                            </div>
+                            <div class="bar-value">${a.total} ครั้ง</div>
+                        </div>`;
+                    }).join('')}
+                    ${approvers.length === 0 ? '<div style="text-align:center;padding:1rem;color:var(--gray);">ยังไม่มีข้อมูล</div>' : ''}
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">🕐 Timeline การอนุมัติเอกสาร</div>
+            <div class="card-body">
+                <div class="timeline-v">
+                    ${logs.slice(-15).reverse().map(l => {
+                        const cls = l.action==='approve' ? 'done' : 'rejected';
+                        const docLabel = l.docType==='quotation' ? '📋 Quotation' : '🔧 Work Order';
+                        return `<div class="timeline-item ${cls}">
+                            <div class="tl-header">${l.approverName} — ${l.action==='approve'?'✅ อนุมัติ':'❌ ปฏิเสธ'} ${docLabel} (Step ${l.step})</div>
+                            <div class="tl-sub">${formatDate(l.actedAt)} ${l.comment ? '• ' + l.comment : ''}</div>
+                        </div>`;
+                    }).join('')}
+                    ${logs.length === 0 ? '<div style="text-align:center;padding:2rem;color:var(--gray);">ยังไม่มีประวัติการอนุมัติ</div>' : ''}
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header">📋 สรุปสายอนุมัติแต่ละเอกสาร</div>
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th>ประเภท</th><th>เอกสาร</th><th>จำนวน Step ที่ผ่าน</th><th>ขั้นตอนแรก</th><th>ขั้นตอนล่าสุด</th><th>สถานะ</th></tr></thead>
+                    <tbody>
+                        ${Object.values(docTimelines).map(dt => {
+                            const docNo = dt.docType==='quotation' 
+                                ? (db.quotations.find(q=>q.id===dt.docId)?.quoNo||dt.docId)
+                                : (db.workOrders.find(w=>w.id===dt.docId)?.woNo||dt.docId);
+                            const doc = dt.docType==='quotation' 
+                                ? db.quotations.find(q=>q.id===dt.docId)
+                                : db.workOrders.find(w=>w.id===dt.docId);
+                            const hasReject = dt.steps.some(s=>s.action==='reject');
+                            const statusLabel = hasReject ? '❌ ถูกปฏิเสธ' : (doc?.status==='approved' ? '✅ อนุมัติครบ' : '🔄 กำลังดำเนินการ');
+                            return `<tr>
+                                <td>${dt.docType==='quotation'?'📋 Quotation':'🔧 Work Order'}</td>
+                                <td><strong>${docNo}</strong></td>
+                                <td style="text-align:center;">${dt.steps.length} / ${APPROVAL_STEPS.length}</td>
+                                <td>${formatDate(dt.firstTime)}</td>
+                                <td>${formatDate(dt.lastTime)}</td>
+                                <td>${statusLabel}</td>
+                            </tr>`;
+                        }).join('')}
+                    </tbody>
+                </table>
+                ${Object.keys(docTimelines).length === 0 ? '<div class="empty-state"><div class="empty-icon">📋</div>ยังไม่มีข้อมูล</div>' : ''}
             </div>
         </div>
     `;

@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ใบเสนอราคา - Green Dii Sales Workflow System</title>
+    <style>
+        @media print {
+            .no-print { display: none; }
+            body { background: white; }
+            .container { max-width: 100%; padding: 1cm; }
+        }
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 2rem 1rem;
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 3rem;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 2rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 3px solid #4CAF50;
+        }
+        
+        .logo-section {
+            flex: 1;
+        }
+        
+        .company-name {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #2d6a2e;
+            margin-bottom: 0.3rem;
+        }
+        
+        .company-name span {
+            color: #4CAF50;
+        }
+        
+        .company-tagline {
+            color: #666;
+            font-size: 0.95rem;
+            font-style: italic;
+        }
+        
+        .doc-info {
+            text-align: right;
+            font-size: 0.9rem;
+        }
+        
+        .doc-info .doc-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d6a2e;
+            margin-bottom: 0.5rem;
+        }
+        
+        .doc-info .doc-detail {
+            color: #666;
+            margin: 0.2rem 0;
+        }
+        
+        .section {
+            margin: 2rem 0;
+        }
+        
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            color: #2d6a2e;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #81C784;
+        }
+        
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .info-box {
+            background: #f9f9f9;
+            padding: 1.2rem;
+            border-radius: 8px;
+            border-left: 4px solid #4CAF50;
+        }
+        
+        .info-box h3 {
+            font-size: 1rem;
+            color: #2d6a2e;
+            margin-bottom: 0.8rem;
+            font-weight: 700;
+        }
+        
+        .info-box p {
+            margin: 0.3rem 0;
+            font-size: 0.95rem;
+            color: #555;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.95rem;
+        }
+        
+        table thead {
+            background: #2d6a2e;
+            color: white;
+        }
+        
+        table th, table td {
+            padding: 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+        
+        table th {
+            font-weight: 600;
+        }
+        
+        table tbody tr:hover {
+            background: #E8F5E9;
+        }
+        
+        table tbody tr.category-row {
+            background: #f5f5f5;
+            font-weight: 600;
+            color: #2d6a2e;
+        }
+        
+        table tbody tr.category-row:hover {
+            background: #e8e8e8;
+        }
+        
+        .text-right {
+            text-align: right !important;
+        }
+        
+        .text-center {
+            text-align: center !important;
+        }
+        
+        .subtotal-row {
+            background: #f9f9f9;
+            font-weight: 600;
+        }
+        
+        .total-section {
+            margin-top: 2rem;
+            display: flex;
+            justify-content: flex-end;
+        }
+        
+        .total-box {
+            background: #2d6a2e;
+            color: white;
+            padding: 1.5rem 2rem;
+            border-radius: 8px;
+            min-width: 350px;
+        }
+        
+        .total-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .total-row:last-child {
+            border-bottom: none;
+            font-size: 1.3rem;
+            font-weight: 700;
+            padding-top: 1rem;
+            border-top: 2px solid rgba(255,255,255,0.5);
+        }
+        
+        .notes {
+            background: #FFF3E0;
+            border-left: 4px solid #FF9800;
+            padding: 1.2rem;
+            border-radius: 4px;
+            margin: 2rem 0;
+        }
+        
+        .notes h3 {
+            color: #E65100;
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .notes ul {
+            margin-left: 1.5rem;
+        }
+        
+        .notes li {
+            margin: 0.4rem 0;
+            color: #555;
+        }
+        
+        .terms {
+            background: #E3F2FD;
+            border-left: 4px solid #1976D2;
+            padding: 1.2rem;
+            border-radius: 4px;
+            margin: 2rem 0;
+        }
+        
+        .terms h3 {
+            color: #0D47A1;
+            font-size: 1.1rem;
+            margin-bottom: 0.8rem;
+        }
+        
+        .terms ol {
+            margin-left: 1.5rem;
+        }
+        
+        .terms li {
+            margin: 0.4rem 0;
+            color: #555;
+        }
+        
+        .signature-section {
+            margin-top: 3rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+        }
+        
+        .signature-box {
+            text-align: center;
+        }
+        
+        .signature-line {
+            border-top: 2px solid #333;
+            margin: 3rem 2rem 0.5rem;
+            padding-top: 0.5rem;
+        }
+        
+        .signature-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .footer {
+            margin-top: 3rem;
+            padding-top: 1.5rem;
+            border-top: 2px solid #e0e0e0;
+            text-align: center;
+            color: #666;
+            font-size: 0.85rem;
+        }
+        
+        .btn-print {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #4CAF50;
+            color: white;
+            padding: 1rem 2rem;
+            border: none;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(76,175,80,0.4);
+            transition: all 0.3s;
+        }
+        
+        .btn-print:hover {
+            background: #2d6a2e;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(76,175,80,0.5);
+        }
+        
+        .highlight {
+            background: #FFEB3B;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-weight: 600;
+        }
+        
+        .badge {
+            display: inline-block;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+        
+        .badge-recommended {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .badge-optional {
+            background: #FF9800;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <button class="btn-print no-print" onclick="window.print()">🖨️ พิมพ์ใบเสนอราคา</button>
+    
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo-section">
+                <div class="company-name">GREEN <span>Dii</span></div>
+                <div class="company-tagline">Sales Workflow Management System</div>
+            </div>
+            <div class="doc-info">
+                <div class="doc-title">ใบเสนอราคา</div>
+                <div class="doc-detail"><strong>เลขที่:</strong> QGD-2603-001</div>
+                <div class="doc-detail"><strong>วันที่:</strong> 29 มีนาคม 2026</div>
+                <div class="doc-detail"><strong>อ้างอิง:</strong> Green Dii System Development</div>
+            </div>
+        </div>
+        
+        <!-- Customer & Company Info -->
+        <div class="info-grid">
+            <div class="info-box">
+                <h3>📋 ข้อมูลลูกค้า</h3>
+                <p><strong>บริษัท:</strong> กรีนส์ดี จำกัด</p>
+                <p><strong>ที่อยู่:</strong> [ที่อยู่บริษัท]</p>
+                <p><strong>ผู้ติดต่อ:</strong> [ชื่อผู้ติดต่อ]</p>
+                <p><strong>โทรศัพท์:</strong> [เบอร์โทร]</p>
+                <p><strong>อีเมล:</strong> [อีเมล]</p>
+            </div>
+            <div class="info-box">
+                <h3>🏢 ข้อมูลผู้เสนอราคา</h3>
+                <p><strong>บริษัท:</strong> [ชื่อบริษัทของคุณ]</p>
+                <p><strong>ที่อยู่:</strong> [ที่อยู่ของคุณ]</p>
+                <p><strong>โทรศัพท์:</strong> [เบอร์โทร]</p>
+                <p><strong>อีเมล:</strong> [อีเมล]</p>
+                <p><strong>Tax ID:</strong> [เลขประจำตัวผู้เสียภาษี]</p>
+            </div>
+        </div>
+        
+        <!-- Project Overview -->
+        <div class="section">
+            <div class="section-title">📦 รายละเอียดโครงการ</div>
+            <table>
+                <tr>
+                    <td style="width: 150px;"><strong>ชื่อโครงการ:</strong></td>
+                    <td>ระบบจัดการเอกสารขายและการอนุมัติ (Green Dii Sales Workflow System)</td>
+                </tr>
+                <tr>
+                    <td><strong>ประเภท:</strong></td>
+                    <td>Web-based Application (Full-stack Development)</td>
+                </tr>
+                <tr>
+                    <td><strong>ระยะเวลา:</strong></td>
+                    <td>100 วันทำการ (ประมาณ 4-5 เดือน)</td>
+                </tr>
+                <tr>
+                    <td><strong>จำนวนทีม:</strong></td>
+                    <td>1 Developer (Junior Full-stack Developer)</td>
+                </tr>
+                <tr>
+                    <td><strong>เทคโนโลยี:</strong></td>
+                    <td>React + Next.js + TypeScript + Node.js + Express + PostgreSQL + Prisma + AWS S3</td>
+                </tr>
+            </table>
+        </div>
+        
+        <!-- Quotation Table -->
+        <div class="section">
+            <div class="section-title">💰 รายการและราคา</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 50px;">#</th>
+                        <th>รายการ</th>
+                        <th style="width: 100px;" class="text-center">จำนวน</th>
+                        <th style="width: 120px;" class="text-right">ราคา/หน่วย</th>
+                        <th style="width: 120px;" class="text-right">รวม (บาท)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Development Costs -->
+                    <tr class="category-row">
+                        <td colspan="5">🔧 ค่าพัฒนาระบบ (Development)</td>
+                    </tr>
+                    <tr>
+                        <td>1</td>
+                        <td>Junior Full-stack Developer<br>
+                            <small style="color: #666;">- Setup Infrastructure, Database Design<br>
+                            - Authentication & Authorization<br>
+                            - Core Features: Quotation, Work Order, Hand Over Job, PR<br>
+                            - Multi-step Approval Workflow<br>
+                            - File Management & PDF Generation<br>
+                            - Dashboard & Reporting<br>
+                            - Testing & Bug Fixing</small>
+                        </td>
+                        <td class="text-center">100 วัน</td>
+                        <td class="text-right">3,500</td>
+                        <td class="text-right"><strong>350,000</strong></td>
+                    </tr>
+                    <tr class="subtotal-row">
+                        <td colspan="4" class="text-right">รวมค่าพัฒนา</td>
+                        <td class="text-right"><strong>350,000</strong></td>
+                    </tr>
+                    
+                    <!-- Server Costs -->
+                    <tr class="category-row">
+                        <td colspan="5">☁️ ค่าบริการ Cloud Server (Server & Infrastructure)</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>Cloud VPS Server <span class="badge badge-recommended">แนะนำ</span><br>
+                            <small style="color: #666;">
+                            - Vultr High Frequency (4GB RAM, 2 vCPU, 128GB SSD)<br>
+                            - Location: Bangkok, Thailand<br>
+                            - Bandwidth: Unlimited<br>
+                            - 99.9% Uptime SLA
+                            </small>
+                        </td>
+                        <td class="text-center">5 เดือน</td>
+                        <td class="text-right">840</td>
+                        <td class="text-right"><strong>4,200</strong></td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>Domain Name Registration (.com)<br>
+                            <small style="color: #666;">- Domain Registration + DNS Management</small>
+                        </td>
+                        <td class="text-center">1 ปี</td>
+                        <td class="text-right">400</td>
+                        <td class="text-right"><strong>400</strong></td>
+                    </tr>
+                    <tr>
+                        <td>4</td>
+                        <td>SSL Certificate<br>
+                            <small style="color: #666;">- Let's Encrypt (Free SSL) + Auto-renewal Setup</small>
+                        </td>
+                        <td class="text-center">1 ปี</td>
+                        <td class="text-right">0</td>
+                        <td class="text-right"><strong>0</strong></td>
+                    </tr>
+                    <tr>
+                        <td>5</td>
+                        <td>Backup & Storage<br>
+                            <small style="color: #666;">- MinIO Object Storage (Self-hosted on VPS)<br>
+                            - Database Backup (Weekly)</small>
+                        </td>
+                        <td class="text-center">5 เดือน</td>
+                        <td class="text-right">0</td>
+                        <td class="text-right"><strong>0</strong></td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>Email Service (Transactional Email) <span class="badge badge-optional">ตัวเลือก</span><br>
+                            <small style="color: #666;">- SendGrid/AWS SES สำหรับส่งอีเมลแจ้งเตือน<br>
+                            - 10,000 emails/month included</small>
+                        </td>
+                        <td class="text-center">5 เดือน</td>
+                        <td class="text-right">350</td>
+                        <td class="text-right"><strong>1,750</strong></td>
+                    </tr>
+                    <tr class="subtotal-row">
+                        <td colspan="4" class="text-right">รวมค่า Server (5 เดือน)</td>
+                        <td class="text-right"><strong>6,350</strong></td>
+                    </tr>
+                    
+                    <!-- Additional Services -->
+                    <tr class="category-row">
+                        <td colspan="5">📚 บริการเพิ่มเติม (Additional Services)</td>
+                    </tr>
+                    <tr>
+                        <td>7</td>
+                        <td>Documentation & Training<br>
+                            <small style="color: #666;">- API Documentation<br>
+                            - User Manual (ภาษาไทย)<br>
+                            - Admin Training (2 sessions)</small>
+                        </td>
+                        <td class="text-center">1 ครั้ง</td>
+                        <td class="text-right">8,000</td>
+                        <td class="text-right"><strong>8,000</strong></td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td>Deployment & Setup<br>
+                            <small style="color: #666;">- Production Server Setup<br>
+                            - CI/CD Pipeline Configuration<br>
+                            - SSL & Security Configuration</small>
+                        </td>
+                        <td class="text-center">1 ครั้ง</td>
+                        <td class="text-right">5,000</td>
+                        <td class="text-right"><strong>5,000</strong></td>
+                    </tr>
+                    <tr>
+                        <td>9</td>
+                        <td>Bug Fixing & Support (Post-launch)<br>
+                            <small style="color: #666;">- 1 เดือนหลังส่งมอบระบบ<br>
+                            - แก้ไข Bug ที่พบภายใน 48 ชั่วโมง</small>
+                        </td>
+                        <td class="text-center">1 เดือน</td>
+                        <td class="text-right">10,000</td>
+                        <td class="text-right"><strong>10,000</strong></td>
+                    </tr>
+                    <tr class="subtotal-row">
+                        <td colspan="4" class="text-right">รวมบริการเพิ่มเติม</td>
+                        <td class="text-right"><strong>23,000</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <!-- Total Summary -->
+            <div class="total-section">
+                <div class="total-box">
+                    <div class="total-row">
+                        <span>ยอดรวมก่อน VAT</span>
+                        <span>379,350 บาท</span>
+                    </div>
+                    <div class="total-row">
+                        <span>VAT 7%</span>
+                        <span>26,555 บาท</span>
+                    </div>
+                    <div class="total-row">
+                        <span>รวมทั้งสิ้น</span>
+                        <span>405,905 บาท</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Payment Terms -->
+        <div class="section">
+            <div class="section-title">💳 เงื่อนไขการชำระเงิน</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">งวดที่</th>
+                        <th>เงื่อนไข</th>
+                        <th style="width: 150px;" class="text-right">จำนวนเงิน</th>
+                        <th style="width: 100px;" class="text-center">%</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-center"><strong>1</strong></td>
+                        <td>มัดจำ - เมื่อเซ็นสัญญา</td>
+                        <td class="text-right"><strong>121,772 บาท</strong></td>
+                        <td class="text-center">30%</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center"><strong>2</strong></td>
+                        <td>งวดกลาง - เมื่อทำงานได้ 50% (Core Features เสร็จ)</td>
+                        <td class="text-right"><strong>121,772 บาท</strong></td>
+                        <td class="text-center">30%</td>
+                    </tr>
+                    <tr>
+                        <td class="text-center"><strong>3</strong></td>
+                        <td>งวดสุดท้าย - เมื่อส่งมอบระบบและ Deploy เสร็จสมบูรณ์</td>
+                        <td class="text-right"><strong>162,361 บาท</strong></td>
+                        <td class="text-center">40%</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Project Timeline -->
+        <div class="section">
+            <div class="section-title">📅 กำหนดการส่งมอบงาน (Timeline)</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 100px;">Phase</th>
+                        <th>รายละเอียด</th>
+                        <th style="width: 120px;">ระยะเวลา</th>
+                        <th style="width: 150px;">กำหนดส่งมอบ</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Phase 1</strong></td>
+                        <td>Database Design + Authentication + User Management</td>
+                        <td>15 วัน</td>
+                        <td>สัปดาห์ที่ 3</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 2</strong></td>
+                        <td>Quotation Module + Work Order Module</td>
+                        <td>30 วัน</td>
+                        <td>สัปดาห์ที่ 9</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 3</strong></td>
+                        <td>Hand Over Job + PR + Approval Workflow</td>
+                        <td>25 วัน</td>
+                        <td>สัปดาห์ที่ 14</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 4</strong></td>
+                        <td>Dashboard + Reports + File Management + Email</td>
+                        <td>15 วัน</td>
+                        <td>สัปดาห์ที่ 17</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Phase 5</strong></td>
+                        <td>Testing + Bug Fixing + Deployment</td>
+                        <td>15 วัน</td>
+                        <td>สัปดาห์ที่ 20</td>
+                    </tr>
+                    <tr style="background: #E8F5E9; font-weight: 600;">
+                        <td colspan="2">รวมระยะเวลาทั้งหมด</td>
+                        <td><strong>100 วัน</strong></td>
+                        <td><strong>~5 เดือน</strong></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Notes -->
+        <div class="notes">
+            <h3>📝 หมายเหตุและข้อกำหนด</h3>
+            <ul>
+                <li><strong>ราคานี้รวม:</strong> ค่าพัฒนาระบบ + ค่า Server 5 เดือนแรก + ค่า Domain 1 ปี + ค่าฝึกอบรม + ค่าแก้ไข Bug 1 เดือน</li>
+                <li><strong>ราคานี้ไม่รวม:</strong> ค่า Hosting หลังจากนั้น (ประมาณ 840-1,750 บาท/เดือน ขึ้นอยู่กับการใช้งาน)</li>
+                <li>Source Code และ Database เป็นของลูกค้าทั้งหมดเมื่อชำระครบ</li>
+                <li>รองรับการแก้ไขเพิ่มเติมตาม Requirement ที่ตกลงไว้ในเอกสาร</li>
+                <li>การเปลี่ยนแปลง Requirement ที่สำคัญจะมีการคิดค่าใช้จ้ายเพิ่มเติม</li>
+                <li>ใบเสนอราคานี้มีอายุ 30 วัน นับจากวันที่ออกเอกสาร</li>
+                <li>Server จะอยู่ที่ Bangkok Datacenter (Vultr) เพื่อความเร็วที่ดีที่สุดสำหรับผู้ใช้ในไทย</li>
+                <li>มี Backup อัตโนมัติทุกสัปดาห์ และสามารถ Restore ได้ภายใน 24 ชั่วโมง</li>
+            </ul>
+        </div>
+        
+        <!-- Terms & Conditions -->
+        <div class="terms">
+            <h3>📋 เงื่อนไขและข้อตกลง</h3>
+            <ol>
+                <li>ลูกค้าต้องชำระเงินตามงวดที่กำหนด หากไม่ชำระตามกำหนดอาจทำให้การส่งมอบล่าช้า</li>
+                <li>ระยะเวลาดำเนินการเริ่มนับหลังจากได้รับมัดจำและเอกสาร Requirement ครบถ้วน</li>
+                <li>การแก้ไข Bug ฟรี 1 เดือนหลังส่งมอบ (ไม่รวมการเพิ่ม Feature ใหม่)</li>
+                <li>ลูกค้าต้องจัดเตรียมข้อมูล Content, Logo, และข้อมูลที่จำเป็นสำหรับระบบ</li>
+                <li>การทดสอบและรับรองระบบต้องทำภายใน 7 วัน หลังแจ้งส่งมอบ</li>
+                <li>ค่า Server เดือนต่อไปหลังจาก 5 เดือนแรก เป็นความรับผิดชอบของลูกค้า</li>
+                <li>ระบบรองรับ Browser: Chrome, Firefox, Safari, Edge (เวอร์ชันล่าสุด)</li>
+                <li>การ Support หลังส่งมอบ: ติดต่อผ่าน Email/Line (เวลาทำการ จ-ศ 9:00-18:00)</li>
+            </ol>
+        </div>
+        
+        <!-- Signature Section -->
+        <div class="signature-section">
+            <div class="signature-box">
+                <div class="signature-line">
+                    <div class="signature-label">ผู้เสนอราคา</div>
+                    <div style="margin-top:0.5rem;">( _________________________________ )</div>
+                    <div style="margin-top:0.3rem;">วันที่ ______/_______/_______</div>
+                </div>
+            </div>
+            <div class="signature-box">
+                <div class="signature-line">
+                    <div class="signature-label">ผู้รับใบเสนอราคา</div>
+                    <div style="margin-top:0.5rem;">( _________________________________ )</div>
+                    <div style="margin-top:0.3rem;">วันที่ ______/_______/_______</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p><strong>ติดต่อสอบถามเพิ่มเติม:</strong></p>
+            <p>โทร: [เบอร์โทร] | อีเมล: [อีเมล] | Line: [Line ID]</p>
+            <p style="margin-top:1rem;">ขอบคุณที่ไว้วางใจในบริการของเรา</p>
+            <p style="font-size:0.8rem;color:#999;margin-top:1rem;">เอกสารนี้ถูกสร้างโดยระบบอัตโนมัติ | Green Dii Quotation System © 2026</p>
+        </div>
+    </div>
+    
+    <script>
+        // Auto-calculate totals function if needed
+        function calculateTotal() {
+            // This can be enhanced for dynamic calculation
+            console.log('Quotation loaded');
+        }
+        
+        window.onload = calculateTotal;
+    </script>
+</body>
+</html>
