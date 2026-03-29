@@ -258,7 +258,6 @@
 
         /* ========== DETAIL VIEW ========== */
         .detail-grid { display:grid; grid-template-columns:1fr 1fr; gap:0.8rem; }
-        .detail-item { }
         .detail-label { font-size:0.75rem; color:var(--gray); text-transform:uppercase; letter-spacing:0.5px; }
         .detail-value { font-size:0.95rem; font-weight:600; }
 
@@ -549,6 +548,7 @@ function seedData() {
 function pickUser(u) {
     document.getElementById('loginUser').value = u;
     document.getElementById('loginPass').value = '1234';
+    doLogin();
 }
 
 function doLogin() {
@@ -1107,6 +1107,10 @@ function viewQuotation(id) {
                 <button class="btn btn-primary" onclick="closeModal();openNewWorkOrder('${id}')">สร้าง Work Order</button>
             </div>` : ''}
         </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-info" onclick="printDocument('quotation','${id}')">🖨️ พิมพ์เอกสาร</button>
+        </div>
     `);
 }
 
@@ -1378,6 +1382,10 @@ function viewWorkOrder(id) {
                 </div>
             </div>`).join('')}` : ''}
         </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-info" onclick="printDocument('workorder','${id}')">🖨️ พิมพ์เอกสาร</button>
+        </div>
     `);
 }
 
@@ -1579,6 +1587,10 @@ function viewHandOver(id) {
                 <div class="detail-item"><div class="detail-label">ติดตั้ง</div><div class="detail-value">${'⭐'.repeat(h.qualityInstall)} (${h.qualityInstall}/5)</div></div>
             </div>
             ${h.comment ? `<div style="margin-top:0.5rem;"><strong>ความคิดเห็น:</strong> ${h.comment}</div>` : ''}` : ''}
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-info" onclick="printDocument('handover','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
     `);
 }
@@ -1809,6 +1821,10 @@ function viewPR(id) {
                 <div style="font-size:1.1rem;">รวมสุทธิ: <strong style="color:var(--purple)">${formatMoney(p.netTotal)} บาท</strong></div>
             </div>
             ${p.remarks ? `<div><strong>หมายเหตุ:</strong> ${p.remarks}</div>` : ''}
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-info" onclick="printDocument('pr','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
     `);
 }
@@ -2080,6 +2096,324 @@ function renderBar(draft, pending, approved, total) {
         ${pApproved>0?`<div style="width:${pApproved}%;background:var(--green-main);" title="อนุมัติ ${approved}"></div>`:''}
         ${(pDraft+pPending+pApproved)<100?`<div style="flex:1;background:#f0f0f0;"></div>`:''}
     </div>`;
+}
+
+// ==================== PRINT ====================
+function printDocument(type, id) {
+    let doc, title, bodyHtml;
+    const companyHeader = `
+        <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:3px solid #2d6a2e;padding-bottom:12px;margin-bottom:20px;">
+            <div>
+                <div style="font-size:26px;font-weight:900;color:#2d6a2e;letter-spacing:2px;">GREEN <span style="color:#4CAF50;">Dii</span></div>
+                <div style="font-size:11px;color:#666;">Sales Workflow Management System</div>
+                <div style="font-size:11px;color:#666;">โทร: 02-XXX-XXXX | www.greendii.com</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:11px;color:#666;">วันที่พิมพ์: ${formatDate(new Date().toISOString())}</div>
+                <div style="font-size:11px;color:#666;">พิมพ์โดย: ${currentUser?.fullName || '-'}</div>
+            </div>
+        </div>`;
+
+    const signatureBlock = (names) => `
+        <div style="margin-top:50px;display:grid;grid-template-columns:repeat(${names.length},1fr);gap:20px;text-align:center;">
+            ${names.map(n => `
+            <div>
+                <div style="border-top:1px solid #333;padding-top:8px;margin-top:60px;">
+                    <div style="font-size:12px;font-weight:600;">${n.name}</div>
+                    <div style="font-size:11px;color:#666;">${n.role}</div>
+                    <div style="font-size:10px;color:#999;">วันที่ ............/............/............</div>
+                </div>
+            </div>`).join('')}
+        </div>`;
+
+    if (type === 'quotation') {
+        doc = db.quotations.find(x => x.id === id);
+        if (!doc) return;
+        title = `ใบเสนอราคา — ${doc.quoNo}`;
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:700;color:#2d6a2e;border:2px solid #2d6a2e;display:inline-block;padding:6px 40px;">ใบเสนอราคา (QUOTATION)</div>
+                <div style="font-size:13px;font-weight:600;margin-top:6px;">เลขที่: ${doc.quoNo}</div>
+            </div>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;border-collapse:collapse;">
+                <tr>
+                    <td style="width:50%;vertical-align:top;padding:4px 0;">
+                        <strong>เรียน:</strong> ${doc.customerName}<br>
+                        <strong>ผู้ติดต่อ:</strong> ${doc.attn || '-'}<br>
+                        <strong>โทรศัพท์:</strong> ${doc.tel || '-'}<br>
+                        <strong>ที่อยู่:</strong> ${doc.address || '-'}
+                    </td>
+                    <td style="width:50%;vertical-align:top;padding:4px 0;text-align:right;">
+                        <strong>โครงการ:</strong> ${doc.project}<br>
+                        <strong>วันที่:</strong> ${formatDate(doc.createdAt)}<br>
+                        <strong>ผู้เสนอ:</strong> ${doc.salesName}<br>
+                        <strong>ยืนราคา:</strong> ${doc.validityDays || 30} วัน
+                    </td>
+                </tr>
+            </table>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+                <thead>
+                    <tr style="background:#2d6a2e;color:#fff;">
+                        <th style="padding:8px;text-align:left;border:1px solid #ccc;">#</th>
+                        <th style="padding:8px;text-align:left;border:1px solid #ccc;">รายการ</th>
+                        <th style="padding:8px;text-align:center;border:1px solid #ccc;">จำนวน</th>
+                        <th style="padding:8px;text-align:center;border:1px solid #ccc;">หน่วย</th>
+                        <th style="padding:8px;text-align:right;border:1px solid #ccc;">ราคา/หน่วย</th>
+                        <th style="padding:8px;text-align:right;border:1px solid #ccc;">รวม</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(doc.items||[]).map((i,idx) => `
+                    <tr style="background:${idx%2===0?'#f9f9f9':'#fff'};">
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;">${idx+1}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;">${i.desc}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:center;">${i.qty}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:center;">${i.unit}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:right;">${formatMoney(i.price)}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:right;">${formatMoney(i.amount)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;">
+                <tr><td style="text-align:right;padding:3px 0;">รวมก่อน VAT: <strong>${formatMoney(doc.subTotal)} บาท</strong></td></tr>
+                <tr><td style="text-align:right;padding:3px 0;">VAT 7%: <strong>${formatMoney(doc.vat)} บาท</strong></td></tr>
+                <tr><td style="text-align:right;padding:3px 0;font-size:14px;border-top:2px solid #2d6a2e;">รวมทั้งสิ้น: <strong style="color:#2d6a2e;">${formatMoney(doc.grandTotal)} บาท</strong></td></tr>
+            </table>
+            <div style="font-size:11px;background:#f5f5f5;padding:10px;border-radius:4px;margin-bottom:16px;">
+                <strong>เงื่อนไข:</strong> ${doc.conditionTerm || '-'} &nbsp;|&nbsp;
+                <strong>ระยะเวลาส่ง:</strong> ${doc.leadTime || '-'} &nbsp;|&nbsp;
+                <strong>การชำระเงิน:</strong> ${doc.paymentTerm || '-'}
+            </div>
+            ${signatureBlock([
+                {name: doc.salesName, role: 'ผู้เสนอราคา'},
+                {name: 'คุณสินธร', role: 'Sales Manager'},
+                {name: 'คุณสิริน', role: 'Managing Director'},
+                {name: '____________________', role: 'ผู้มีอำนาจลงนาม (ลูกค้า)'}
+            ])}`;
+
+    } else if (type === 'workorder') {
+        doc = db.workOrders.find(x => x.id === id);
+        if (!doc) return;
+        title = `Work Order — ${doc.woNo}`;
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:700;color:#1976D2;border:2px solid #1976D2;display:inline-block;padding:6px 40px;">WORK ORDER</div>
+                <div style="font-size:13px;font-weight:600;margin-top:6px;">เลขที่: ${doc.woNo}</div>
+            </div>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;border-collapse:collapse;">
+                <tr>
+                    <td style="width:50%;vertical-align:top;padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>โครงการ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;" colspan="3">${doc.project}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ลูกค้า</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.customerName || '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ผู้ติดต่อ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.contactName || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>สถานที่ติดตั้ง</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;" colspan="3">${doc.location || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>สินค้า</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;" colspan="3">${doc.products || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ทีมติดตั้ง</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.teamAssignment || '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ความเร่งด่วน</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.urgency || 'ปกติ'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>วันติดตั้ง</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.installDate ? formatDate(doc.installDate+'T00:00:00') : '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>วัน QC</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.qcDate ? formatDate(doc.qcDate+'T00:00:00') : '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ผู้รับผิดชอบ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.salesName}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>วันที่สร้าง</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${formatDate(doc.createdAt)}</td>
+                </tr>
+                ${doc.remark ? `<tr><td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>หมายเหตุ</strong></td><td colspan="3" style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.remark}</td></tr>` : ''}
+            </table>
+            <div style="margin-bottom:16px;">
+                <strong style="font-size:12px;">เอกสารแนบ:</strong>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+                    <tr>
+                        <td style="border:1px solid #e0e0e0;padding:6px 10px;width:33%;">
+                            ${doc.docChecklist?.po ? '☑' : '☐'} PO (Purchase Order)
+                        </td>
+                        <td style="border:1px solid #e0e0e0;padding:6px 10px;width:33%;">
+                            ${doc.docChecklist?.drawing ? '☑' : '☐'} Drawing / แบบ
+                        </td>
+                        <td style="border:1px solid #e0e0e0;padding:6px 10px;width:33%;">
+                            ${doc.docChecklist?.min ? '☑' : '☐'} Minutes of Meeting
+                        </td>
+                    </tr>
+                </table>
+            </div>
+            ${signatureBlock([
+                {name: doc.salesName, role: 'ผู้สร้าง Work Order'},
+                {name: 'คุณสินธร', role: 'Sales Manager'},
+                {name: 'คุณสิรวิชญ์', role: 'Admin Manager'},
+                {name: 'คุณสิริน', role: 'Managing Director'}
+            ])}`;
+
+    } else if (type === 'pr') {
+        doc = db.purchaseRequests.find(x => x.id === id);
+        if (!doc) return;
+        title = `Purchase Request — ${doc.prNo}`;
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:700;color:#9C27B0;border:2px solid #9C27B0;display:inline-block;padding:6px 40px;">ใบขอซื้อ (PURCHASE REQUEST)</div>
+                <div style="font-size:13px;font-weight:600;margin-top:6px;">เลขที่: ${doc.prNo}</div>
+            </div>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;width:25%;"><strong>ลูกค้า</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.customer || '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;width:25%;"><strong>วันที่ออก</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.dateIssue ? formatDate(doc.dateIssue+'T00:00:00') : '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>โครงการ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.projectRef}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#f5f5f5;"><strong>ต้องการวันที่</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.dateRequired ? formatDate(doc.dateRequired+'T00:00:00') : '-'}</td>
+                </tr>
+            </table>
+            <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;">
+                <thead>
+                    <tr style="background:#7B1FA2;color:#fff;">
+                        <th style="padding:8px;text-align:left;border:1px solid #ccc;">#</th>
+                        <th style="padding:8px;text-align:left;border:1px solid #ccc;">รายการ</th>
+                        <th style="padding:8px;text-align:center;border:1px solid #ccc;">จำนวน</th>
+                        <th style="padding:8px;text-align:center;border:1px solid #ccc;">หน่วย</th>
+                        <th style="padding:8px;text-align:right;border:1px solid #ccc;">ราคา/หน่วย</th>
+                        <th style="padding:8px;text-align:right;border:1px solid #ccc;">รวม</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${(doc.items||[]).map((i,idx) => `
+                    <tr style="background:${idx%2===0?'#f9f9f9':'#fff'};">
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;">${idx+1}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;">${i.desc}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:center;">${i.qty}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:center;">${i.unit}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:right;">${formatMoney(i.price)}</td>
+                        <td style="padding:7px 8px;border:1px solid #e0e0e0;text-align:right;">${formatMoney(i.amount)}</td>
+                    </tr>`).join('')}
+                </tbody>
+            </table>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;">
+                <tr><td style="text-align:right;padding:3px 0;">รวมก่อน VAT: <strong>${formatMoney(doc.subTotal)} บาท</strong></td></tr>
+                <tr><td style="text-align:right;padding:3px 0;">VAT 7%: <strong>${formatMoney(doc.vat)} บาท</strong></td></tr>
+                <tr><td style="text-align:right;padding:3px 0;font-size:14px;border-top:2px solid #7B1FA2;">รวมสุทธิ: <strong style="color:#7B1FA2;">${formatMoney(doc.netTotal)} บาท</strong></td></tr>
+            </table>
+            ${doc.remarks ? `<div style="font-size:11px;background:#f5f5f5;padding:8px;border-radius:4px;margin-bottom:12px;"><strong>หมายเหตุ:</strong> ${doc.remarks}</div>` : ''}
+            ${signatureBlock([
+                {name: '____________________', role: 'ผู้ขอซื้อ'},
+                {name: 'คุณสินธร', role: 'Sales Manager'},
+                {name: 'คุณพนิดา', role: 'Procurement'},
+                {name: 'คุณสิริน', role: 'Managing Director'}
+            ])}`;
+
+    } else if (type === 'handover') {
+        doc = db.handOverJobs.find(x => x.id === id);
+        if (!doc) return;
+        title = `Hand Over Job — ${doc.hoNo}`;
+        const avgScore = doc.qualityProduct > 0
+            ? ((doc.qualityProduct + doc.qualitySales + doc.qualityInstall) / 3).toFixed(1)
+            : null;
+        bodyHtml = `
+            <div style="text-align:center;margin-bottom:20px;">
+                <div style="font-size:20px;font-weight:700;color:#FF9800;border:2px solid #FF9800;display:inline-block;padding:6px 40px;">HAND OVER JOB</div>
+                <div style="font-size:13px;font-weight:600;margin-top:6px;">เลขที่: ${doc.hoNo}</div>
+            </div>
+            <table style="width:100%;font-size:12px;margin-bottom:16px;border-collapse:collapse;">
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;width:25%;"><strong>โครงการ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;" colspan="3">${doc.project}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>ลูกค้า/ผู้รับเหมา</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.contractor || '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>ผู้ติดต่อ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.contactName || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>สถานที่</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.location || '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>สินค้า</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.product || '-'}</td>
+                </tr>
+                <tr>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>วันที่บริการ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.serviceDate ? formatDate(doc.serviceDate+'T00:00:00') : '-'}</td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;background:#FFF8E1;"><strong>ผู้รับผิดชอบ</strong></td>
+                    <td style="padding:4px 8px;border:1px solid #e0e0e0;">${doc.responsibility || '-'}</td>
+                </tr>
+            </table>
+            ${avgScore ? `
+            <div style="margin-bottom:16px;">
+                <strong style="font-size:12px;">ผลการประเมินคุณภาพ:</strong>
+                <table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:6px;">
+                    <thead><tr style="background:#FF9800;color:#fff;">
+                        <th style="padding:7px;border:1px solid #ccc;">หัวข้อ</th>
+                        <th style="padding:7px;border:1px solid #ccc;text-align:center;">คะแนน</th>
+                        <th style="padding:7px;border:1px solid #ccc;">ระดับ</th>
+                    </tr></thead>
+                    <tbody>
+                        <tr><td style="padding:6px 8px;border:1px solid #e0e0e0;">คุณภาพสินค้า</td><td style="padding:6px 8px;border:1px solid #e0e0e0;text-align:center;">${doc.qualityProduct}/5</td><td style="padding:6px 8px;border:1px solid #e0e0e0;">${'★'.repeat(doc.qualityProduct)}${'☆'.repeat(5-doc.qualityProduct)}</td></tr>
+                        <tr><td style="padding:6px 8px;border:1px solid #e0e0e0;">คุณภาพงานขาย</td><td style="padding:6px 8px;border:1px solid #e0e0e0;text-align:center;">${doc.qualitySales}/5</td><td style="padding:6px 8px;border:1px solid #e0e0e0;">${'★'.repeat(doc.qualitySales)}${'☆'.repeat(5-doc.qualitySales)}</td></tr>
+                        <tr><td style="padding:6px 8px;border:1px solid #e0e0e0;">คุณภาพงานติดตั้ง</td><td style="padding:6px 8px;border:1px solid #e0e0e0;text-align:center;">${doc.qualityInstall}/5</td><td style="padding:6px 8px;border:1px solid #e0e0e0;">${'★'.repeat(doc.qualityInstall)}${'☆'.repeat(5-doc.qualityInstall)}</td></tr>
+                        <tr style="background:#FFF8E1;font-weight:700;"><td style="padding:6px 8px;border:1px solid #e0e0e0;">คะแนนเฉลี่ย</td><td style="padding:6px 8px;border:1px solid #e0e0e0;text-align:center;">${avgScore}/5</td><td style="padding:6px 8px;border:1px solid #e0e0e0;">${avgScore >= 4 ? 'ดีมาก' : avgScore >= 3 ? 'ดี' : 'พอใช้'}</td></tr>
+                    </tbody>
+                </table>
+                ${doc.comment ? `<div style="font-size:11px;background:#FFF8E1;padding:8px;border-radius:4px;margin-top:8px;"><strong>ความคิดเห็น:</strong> ${doc.comment}</div>` : ''}
+            </div>` : `
+            <div style="font-size:12px;background:#f5f5f5;padding:10px;margin-bottom:16px;border-radius:4px;">
+                <strong>การรับมอบงาน:</strong> ลูกค้ารับมอบงานแล้ว / ยังไม่มีการประเมินคุณภาพ
+            </div>`}
+            ${signatureBlock([
+                {name: doc.responsibility || '____________________', role: 'ผู้ส่งมอบงาน'},
+                {name: '____________________', role: 'ผู้รับมอบงาน (ลูกค้า)'},
+                {name: 'คุณสินธร', role: 'Sales Manager'}
+            ])}`;
+    } else {
+        return;
+    }
+
+    const printWin = window.open('', '_blank', 'width=900,height=700');
+    printWin.document.write(`<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<title>${title}</title>
+<style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',Tahoma,sans-serif; padding:30px 40px; font-size:13px; color:#333; }
+    @media print {
+        body { padding:15px 20px; }
+        .no-print { display:none !important; }
+    }
+    .print-btn-bar { text-align:center; margin-bottom:20px; }
+    .print-btn-bar button { padding:8px 24px; background:#2d6a2e; color:#fff; border:none; border-radius:6px; font-size:13px; cursor:pointer; margin:0 4px; }
+    .print-btn-bar button.close-btn { background:#666; }
+</style>
+</head>
+<body>
+<div class="no-print print-btn-bar">
+    <button onclick="window.print()">🖨️ พิมพ์</button>
+    <button class="close-btn" onclick="window.close()">✕ ปิด</button>
+</div>
+${companyHeader}
+${bodyHtml}
+</body></html>`);
+    printWin.document.close();
 }
 
 // ==================== FILE UPLOAD HELPERS ====================
