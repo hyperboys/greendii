@@ -138,9 +138,11 @@
         .topbar {
             background:var(--white); padding:1rem 2rem; display:flex; align-items:center;
             justify-content:space-between; box-shadow:var(--shadow); position:sticky; top:0; z-index:50;
+            gap:0.5rem; min-width:0;
         }
-        .topbar h2 { font-size:1.3rem; color:var(--green-dark); }
-        .topbar .breadcrumb { font-size:0.8rem; color:var(--gray); }
+        .topbar > div { min-width:0; }
+        .topbar h2 { font-size:1.3rem; color:var(--green-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .topbar .breadcrumb { font-size:0.8rem; color:var(--gray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .content { padding:1.5rem 2rem; }
 
         /* ========== DASHBOARD ========== */
@@ -309,6 +311,7 @@
         .doc-link-bar {
             padding:0.8rem 1.2rem; background:var(--green-pale); border-radius:8px;
             margin-bottom:1rem; display:flex; align-items:center; gap:1rem; font-size:0.85rem;
+            flex-shrink:0; white-space:nowrap;
         }
         .doc-link-bar a { color:var(--green-dark); text-decoration:none; font-weight:600; }
         .doc-link-bar a:hover { text-decoration:underline; }
@@ -518,6 +521,10 @@
             .content { padding: 1rem; }
             .welcome-banner { padding: 1.5rem 1.5rem; }
             .welcome-banner h1 { font-size: 1.3rem; }
+            /* Tables scroll horizontally */
+            .card { overflow: visible; }
+            .card .card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .data-table { min-width: 600px; }
         }
 
         @media (max-width: 640px) {
@@ -529,41 +536,54 @@
             .metric-cards { grid-template-columns: 1fr 1fr; }
             .form-row { grid-template-columns: 1fr; }
             .form-row.three { grid-template-columns: 1fr; }
-            .topbar { padding: 0.7rem 0.8rem; }
+            .topbar { padding: 0.6rem 0.6rem; }
             .topbar .doc-link-bar { display: none; }
-            .content { padding: 0.7rem; }
-            .card-header { padding: 0.8rem 1rem; font-size: 0.88rem; }
-            .card-body { padding: 1rem; }
-            .data-table th { font-size: 0.72rem; padding: 0.5rem 0.6rem; }
-            .data-table td { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
-            .toolbar { flex-direction: column; align-items: stretch; }
+            .topbar h2 { font-size: 1.05rem; }
+            .topbar .breadcrumb { font-size: 0.7rem; }
+            .content { padding: 0.5rem; }
+            .card-header { padding: 0.6rem 0.8rem; font-size: 0.85rem; }
+            .card-body { padding: 0.8rem; }
+            .data-table th { font-size: 0.7rem; padding: 0.45rem 0.5rem; }
+            .data-table td { padding: 0.45rem 0.5rem; font-size: 0.78rem; }
+            .toolbar { flex-direction: column; align-items: stretch; gap: 0.5rem; }
+            .toolbar > div { flex-direction: column !important; gap: 0.4rem !important; }
             .search-box { width: 100%; }
+            .filter-group { flex-wrap: wrap; }
+            .filter-chip { font-size: 0.7rem; padding: 0.25rem 0.6rem; }
+            .btn { font-size: 0.82rem; }
+            .btn-sm { font-size: 0.72rem; padding: 0.3rem 0.5rem; }
             .detail-grid { grid-template-columns: 1fr; }
             .quick-actions { gap: 0.5rem; }
             .quick-action-btn { font-size: 0.78rem; padding: 0.5rem 0.8rem; }
             .welcome-banner { padding: 1.2rem; }
             .welcome-banner h1 { font-size: 1.1rem; }
             .welcome-banner p { font-size: 0.85rem; }
-            .approval-chain { padding: 0.5rem 0; }
-            .approval-step { min-width: 75px; }
-            .approval-step .step-circle { width: 40px; height: 40px; font-size: 1rem; }
-            .report-tab { padding: 0.6rem 0.8rem; font-size: 0.82rem; }
+            .approval-chain { padding: 0.5rem 0; overflow-x: auto; }
+            .approval-step { min-width: 70px; }
+            .approval-step .step-circle { width: 38px; height: 38px; font-size: 0.95rem; }
+            .approval-step .step-label { font-size: 0.6rem; }
+            .report-tabs { overflow-x: auto; flex-wrap: nowrap; -webkit-overflow-scrolling: touch; }
+            .report-tab { padding: 0.6rem 0.8rem; font-size: 0.82rem; white-space: nowrap; }
             .chart-donut-container { flex-direction: column; gap: 1rem; }
+            .chart-bar-h .bar-label { min-width: 80px; font-size: 0.75rem; }
+            .items-table { min-width: 400px; }
+            .items-table input { font-size: 0.78rem; padding: 0.3rem; }
+            .modal-body { padding: 1rem; }
+            .modal-header { padding: 0.8rem 1rem; }
+            .modal-footer { padding: 0.7rem 1rem; }
         }
 
         @media (max-width: 400px) {
             .stats-grid { grid-template-columns: 1fr; }
             .metric-cards { grid-template-columns: 1fr; }
-            .btn { padding: 0.6rem 0.9rem; font-size: 0.82rem; }
+            .btn { padding: 0.5rem 0.7rem; font-size: 0.78rem; }
             .sidebar-user .user-name { font-size: 0.8rem; }
             .login-card .logo-big { font-size: 1.8rem; }
-        }
-
-        /* Ensure card tables are scrollable on mobile */
-        @media (max-width: 960px) {
-            .card { overflow: visible; }
-            .card .card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-            .data-table { min-width: 480px; }
+            .login-card .user-chip { font-size: 0.68rem; padding: 0.2rem 0.5rem; }
+            .topbar h2 { font-size: 0.95rem; }
+            .stat-card .stat-value { font-size: 1.3rem; }
+            .stat-card .stat-label { font-size: 0.78rem; }
+            .data-table { min-width: 560px; }
         }
     </style>
 </head>
@@ -640,7 +660,7 @@
     <div class="main">
         <div class="topbar">
             <button class="sidebar-toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
-            <div>
+            <div style="flex:1;min-width:0;">
                 <h2 id="pageTitle">Dashboard</h2>
                 <div class="breadcrumb" id="pageBreadcrumb">หน้าหลัก > Dashboard</div>
             </div>
