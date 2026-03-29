@@ -4,7 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Green Dii - Demo System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <style>
+        /* Flatpickr overrides */
+        .flatpickr-input.form-input { display:none; }
+        .flatpickr-input.flatpickr-input.input { border:2px solid #e0e0e0; border-radius:8px; padding:0.7rem 1rem; font-size:0.95rem; transition:border 0.2s; outline:none; width:100%; }
+        .flatpickr-input:focus { border-color:var(--green-main,#4CAF50); }
+        .flatpickr-calendar { font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif; }
+        .flatpickr-day.selected { background:var(--green-main,#4CAF50); border-color:var(--green-main,#4CAF50); }
+        .flatpickr-day.selected:hover { background:#2d6a2e; border-color:#2d6a2e; }
         :root {
             --green-dark: #2d6a2e;
             --green-main: #4CAF50;
@@ -305,6 +313,43 @@
         }
         .doc-link-bar a { color:var(--green-dark); text-decoration:none; font-weight:600; }
         .doc-link-bar a:hover { text-decoration:underline; }
+
+        /* ========== FILE UPLOAD ZONE ========== */
+        .file-upload-zone {
+            border:2px dashed #ccc; border-radius:10px; padding:1.2rem;
+            text-align:center; cursor:pointer; transition:all 0.2s;
+            background:#fafafa; margin-bottom:0.5rem; position:relative;
+        }
+        .file-upload-zone:hover { border-color:var(--green-main); background:var(--green-pale); }
+        .file-upload-zone.dragover { border-color:var(--green-main); background:var(--green-pale); transform:scale(1.01); }
+        .file-upload-zone input[type="file"] {
+            position:absolute; top:0; left:0; width:100%; height:100%; opacity:0; cursor:pointer;
+        }
+        .file-upload-zone .upload-icon { font-size:1.8rem; margin-bottom:0.3rem; }
+        .file-upload-zone .upload-text { font-size:0.82rem; color:var(--gray); }
+        .file-upload-zone .upload-hint { font-size:0.7rem; color:#aaa; margin-top:0.2rem; }
+        .file-list { margin-top:0.5rem; }
+        .file-item {
+            display:flex; align-items:center; gap:0.5rem; padding:0.4rem 0.7rem;
+            background:var(--white); border:1px solid #e8e8e8; border-radius:6px;
+            margin-bottom:0.3rem; font-size:0.8rem;
+        }
+        .file-item .file-icon { font-size:1rem; }
+        .file-item .file-name { flex:1; font-weight:500; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .file-item .file-size { color:var(--gray); font-size:0.7rem; }
+        .file-item .file-remove {
+            color:var(--red); cursor:pointer; border:none; background:none;
+            font-size:1rem; padding:0; line-height:1;
+        }
+        .file-item .file-remove:hover { transform:scale(1.2); }
+        .file-preview-img { width:40px; height:40px; object-fit:cover; border-radius:4px; }
+        .form-group select { appearance:auto; }
+        .input-with-icon { position:relative; }
+        .input-with-icon input { padding-right:2.5rem; }
+        .input-with-icon .input-icon {
+            position:absolute; right:0.7rem; top:50%; transform:translateY(-50%);
+            color:var(--gray); font-size:0.9rem; pointer-events:none;
+        }
     </style>
 </head>
 <body>
@@ -578,7 +623,10 @@ function toast(msg, type='success') {
 function formatDate(d) {
     if (!d) return '-';
     const dt = new Date(d);
-    return dt.toLocaleDateString('th-TH', {year:'numeric',month:'short',day:'numeric'});
+    const day = String(dt.getDate()).padStart(2,'0');
+    const month = String(dt.getMonth()+1).padStart(2,'0');
+    const year = dt.getFullYear();
+    return `${day}/${month}/${year}`;
 }
 
 function formatMoney(n) {
@@ -590,6 +638,22 @@ function genId() { return 'id_' + Date.now() + '_' + Math.random().toString(36).
 function openModal(html) {
     document.getElementById('modalContent').innerHTML = html;
     document.getElementById('modalOverlay').classList.add('active');
+    // Initialize DD/MM/YYYY datepickers on all date inputs inside modal
+    setTimeout(() => {
+        document.querySelectorAll('#modalContent input[type="date"]').forEach(el => {
+            flatpickr(el, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                allowInput: true,
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: { shorthand:['อา','จ','อ','พ','พฤ','ศ','ส'], longhand:['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'] },
+                    months: { shorthand:['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'], longhand:['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'] }
+                }
+            });
+        });
+    }, 0);
 }
 
 function closeModal() {
@@ -783,7 +847,16 @@ function openNewQuotation() {
             <div class="form-row">
                 <div class="form-group">
                     <label>ชื่อลูกค้า *</label>
-                    <input type="text" id="fCustName" placeholder="ชื่อบริษัท/ลูกค้า">
+                    <select id="fCustName" onchange="if(this.value==='__custom__'){this.style.display='none';document.getElementById('fCustNameCustom').style.display='block';document.getElementById('fCustNameCustom').focus();}">
+                        <option value="">-- เลือกลูกค้า --</option>
+                        <option value="บริษัท ABC จำกัด">บริษัท ABC จำกัด</option>
+                        <option value="บริษัท XYZ จำกัด">บริษัท XYZ จำกัด</option>
+                        <option value="โรงแรม สยามรีสอร์ท">โรงแรม สยามรีสอร์ท</option>
+                        <option value="บริษัท กรีนเทค จำกัด">บริษัท กรีนเทค จำกัด</option>
+                        <option value="บริษัท สมาร์ทบิลด์ จำกัด">บริษัท สมาร์ทบิลด์ จำกัด</option>
+                        <option value="__custom__">+ เพิ่มลูกค้าใหม่...</option>
+                    </select>
+                    <input type="text" id="fCustNameCustom" placeholder="พิมพ์ชื่อลูกค้าใหม่" style="display:none;margin-top:0.3rem;">
                 </div>
                 <div class="form-group">
                     <label>ผู้ติดต่อ (Attn)</label>
@@ -794,22 +867,62 @@ function openNewQuotation() {
                 <label>ชื่อโครงการ *</label>
                 <input type="text" id="fProject" placeholder="ชื่อโครงการ">
             </div>
-            <div class="form-group">
-                <label>ที่อยู่</label>
-                <textarea id="fAddress" rows="2" placeholder="ที่อยู่ลูกค้า"></textarea>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ที่อยู่</label>
+                    <textarea id="fAddress" rows="2" placeholder="ที่อยู่ลูกค้า"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>เบอร์โทรศัพท์</label>
+                    <input type="tel" id="fTel" placeholder="02-xxx-xxxx">
+                </div>
             </div>
             <div class="form-row three">
                 <div class="form-group">
-                    <label>เงื่อนไข</label>
-                    <input type="text" id="fCondition" value="FOB Bangkok">
+                    <label>เงื่อนไขการส่ง</label>
+                    <select id="fCondition">
+                        <option value="FOB Bangkok">FOB Bangkok</option>
+                        <option value="FOB Chiang Mai">FOB Chiang Mai</option>
+                        <option value="FOB หน้างาน">FOB หน้างาน</option>
+                        <option value="CIF Bangkok">CIF Bangkok</option>
+                        <option value="EXW โรงงาน">EXW โรงงาน</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>ระยะเวลาส่ง</label>
-                    <input type="text" id="fLeadTime" value="30 วัน">
+                    <select id="fLeadTime">
+                        <option value="15 วัน">15 วัน</option>
+                        <option value="30 วัน" selected>30 วัน</option>
+                        <option value="45 วัน">45 วัน</option>
+                        <option value="60 วัน">60 วัน</option>
+                        <option value="90 วัน">90 วัน</option>
+                    </select>
                 </div>
                 <div class="form-group">
-                    <label>เงื่อนไขชำระ</label>
-                    <input type="text" id="fPayment" value="30 วันหลังส่งมอบ">
+                    <label>เงื่อนไขชำระเงิน</label>
+                    <select id="fPayment">
+                        <option value="เงินสด">เงินสด</option>
+                        <option value="มัดจำ 50%">มัดจำ 50%</option>
+                        <option value="30 วันหลังส่งมอบ" selected>30 วันหลังส่งมอบ</option>
+                        <option value="60 วันหลังส่งมอบ">60 วันหลังส่งมอบ</option>
+                        <option value="เครดิต 30 วัน">เครดิต 30 วัน</option>
+                        <option value="เครดิต 60 วัน">เครดิต 60 วัน</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ยืนราคา (วัน)</label>
+                    <select id="fValidity">
+                        <option value="15">15 วัน</option>
+                        <option value="30" selected>30 วัน</option>
+                        <option value="45">45 วัน</option>
+                        <option value="60">60 วัน</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>วันที่เสนอราคา</label>
+                    <input type="date" id="fQuoDate" value="${new Date().toISOString().slice(0,10)}" onchange="formatDateInput(this)">
                 </div>
             </div>
 
@@ -820,7 +933,7 @@ function openNewQuotation() {
                     <tr>
                         <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
                         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
-                        <td><input type="text" class="item-unit" value="ชิ้น"></td>
+                        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
                         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
                         <td class="item-amount" style="text-align:right;">0.00</td>
                         <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
@@ -847,7 +960,7 @@ function addQuoItem() {
     row.innerHTML = `
         <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
-        <td><input type="text" class="item-unit" value="ชิ้น"></td>
+        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
         <td class="item-amount" style="text-align:right;">0.00</td>
         <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
@@ -872,7 +985,9 @@ function calcQuoItems() {
 }
 
 function saveQuotation(submit=false) {
-    const custName = document.getElementById('fCustName').value.trim();
+    const custSelect = document.getElementById('fCustName');
+    const custCustom = document.getElementById('fCustNameCustom');
+    const custName = (custSelect.value === '__custom__' || custSelect.style.display === 'none') ? custCustom.value.trim() : custSelect.value.trim();
     const project = document.getElementById('fProject').value.trim();
     if (!custName || !project) { toast('กรุณากรอกชื่อลูกค้าและโครงการ','error'); return; }
 
@@ -1032,6 +1147,7 @@ function renderWorkOrders() {
 function openNewWorkOrder(quoId) {
     const q = quoId ? db.quotations.find(x => x.id === quoId) : null;
     const woNum = String(db.workOrders.length+1).padStart(5,'0');
+    uploadedFiles = {};
 
     openModal(`
         <div class="modal-header">
@@ -1078,6 +1194,7 @@ function openNewWorkOrder(quoId) {
                 <div class="form-group">
                     <label>ทีมที่รับผิดชอบ</label>
                     <select id="fWoTeam">
+                        <option value="">-- เลือกทีม --</option>
                         <option>ทีม A - ช่างประสิทธิ์</option>
                         <option>ทีม B - ช่างวิรัตน์</option>
                         <option>ทีม C - ช่างสมศักดิ์</option>
@@ -1088,15 +1205,57 @@ function openNewWorkOrder(quoId) {
                     <input type="date" id="fWoInstall">
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>วัน QC / ตรวจงาน</label>
+                    <input type="date" id="fWoQcDate">
+                </div>
+                <div class="form-group">
+                    <label>ระดับความเร่งด่วน</label>
+                    <select id="fWoUrgency">
+                        <option value="ปกติ">ปกติ</option>
+                        <option value="เร่งด่วน">เร่งด่วน</option>
+                        <option value="เร่งด่วนมาก">เร่งด่วนมาก</option>
+                    </select>
+                </div>
+            </div>
             <div class="form-group">
                 <label>หมายเหตุ</label>
                 <textarea id="fWoRemark" rows="2" placeholder="หมายเหตุ (ถ้ามี)"></textarea>
             </div>
-            <div style="margin:1rem 0;">
-                <strong>📎 เอกสารแนบ (Checklist):</strong>
-                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocPO"> PO (Purchase Order)</label>
-                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocDraw"> Drawing</label>
-                <label style="display:block;margin:0.3rem 0;"><input type="checkbox" id="fWoDocMin"> Minutes of Meeting</label>
+
+            <h4 style="margin:1rem 0 0.5rem;">📎 เอกสารแนบ</h4>
+            <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:0.8rem;">
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.3rem;">PO (Purchase Order)</label>
+                    <div class="file-upload-zone" id="dropZonePO" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'po')">
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'po')">
+                        <div class="upload-icon">📄</div>
+                        <div class="upload-text">คลิกหรือลากไฟล์</div>
+                        <div class="upload-hint">PDF, รูปภาพ, Word</div>
+                    </div>
+                    <div class="file-list" id="fileListPO"></div>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.3rem;">Drawing / แบบ</label>
+                    <div class="file-upload-zone" id="dropZoneDrawing" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'drawing')">
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.dwg,.dxf" onchange="handleFileSelect(this,'drawing')">
+                        <div class="upload-icon">📐</div>
+                        <div class="upload-text">คลิกหรือลากไฟล์</div>
+                        <div class="upload-hint">PDF, รูปภาพ, CAD</div>
+                    </div>
+                    <div class="file-list" id="fileListDrawing"></div>
+                </div>
+                <div>
+                    <label style="font-size:0.8rem;font-weight:600;display:block;margin-bottom:0.3rem;">Minutes of Meeting</label>
+                    <div class="file-upload-zone" id="dropZoneMoM" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'min')">
+                        <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" onchange="handleFileSelect(this,'min')">
+                        <div class="upload-icon">📝</div>
+                        <div class="upload-text">คลิกหรือลากไฟล์</div>
+                        <div class="upload-hint">PDF, รูปภาพ, Word</div>
+                    </div>
+                    <div class="file-list" id="fileListMin"></div>
+                </div>
             </div>
         </div>
         <div class="modal-footer">
@@ -1110,6 +1269,13 @@ function saveWorkOrder() {
     const project = document.getElementById('fWoProject').value.trim();
     if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
 
+    // Collect uploaded file info
+    const docFiles = {
+        po: uploadedFiles['po'] || [],
+        drawing: uploadedFiles['drawing'] || [],
+        min: uploadedFiles['min'] || []
+    };
+
     const wo = {
         id: genId(), woNo: document.getElementById('fWoNo').value,
         quotationId: document.getElementById('fWoQuoIdVal').value||null,
@@ -1121,12 +1287,15 @@ function saveWorkOrder() {
         contactName: document.getElementById('fWoContact').value,
         teamAssignment: document.getElementById('fWoTeam').value,
         installDate: document.getElementById('fWoInstall').value,
+        qcDate: document.getElementById('fWoQcDate')?.value || '',
+        urgency: document.getElementById('fWoUrgency')?.value || 'ปกติ',
         remark: document.getElementById('fWoRemark').value,
         docChecklist: {
-            po: document.getElementById('fWoDocPO').checked,
-            drawing: document.getElementById('fWoDocDraw').checked,
-            min: document.getElementById('fWoDocMin').checked
+            po: docFiles.po.length > 0,
+            drawing: docFiles.drawing.length > 0,
+            min: docFiles.min.length > 0
         },
+        docFiles: docFiles,
         status: 'pending', isClosed: false, approvalStep: 1,
         createdAt: new Date().toISOString()
     };
@@ -1167,16 +1336,33 @@ function viewWorkOrder(id) {
                 <div class="detail-item"><div class="detail-label">ลูกค้า</div><div class="detail-value">${w.customerName||'-'}</div></div>
                 <div class="detail-item"><div class="detail-label">ผู้ติดต่อ</div><div class="detail-value">${w.contactName||'-'}</div></div>
                 <div class="detail-item"><div class="detail-label">ทีมติดตั้ง</div><div class="detail-value">${w.teamAssignment||'-'}</div></div>
-                <div class="detail-item"><div class="detail-label">วันติดตั้ง</div><div class="detail-value">${w.installDate||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">วันติดตั้ง</div><div class="detail-value">${w.installDate ? formatDate(w.installDate+'T00:00:00') : '-'}</div></div>
+                <div class="detail-item"><div class="detail-label">วัน QC</div><div class="detail-value">${w.qcDate ? formatDate(w.qcDate+'T00:00:00') : '-'}</div></div>
+                <div class="detail-item"><div class="detail-label">ความเร่งด่วน</div><div class="detail-value">${w.urgency || 'ปกติ'}</div></div>
                 <div class="detail-item"><div class="detail-label">เซลล์</div><div class="detail-value">${w.salesName}</div></div>
             </div>
 
             <div style="margin:1rem 0;">
                 <strong>📎 เอกสารแนบ:</strong>
-                <div style="margin-top:0.3rem;">
-                    ${w.docChecklist?.po ? '✅' : '⬜'} PO &nbsp;
-                    ${w.docChecklist?.drawing ? '✅' : '⬜'} Drawing &nbsp;
-                    ${w.docChecklist?.min ? '✅' : '⬜'} Minutes
+                <div style="margin-top:0.5rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;">
+                    <div>
+                        <div style="font-size:0.75rem;color:var(--gray);font-weight:600;margin-bottom:0.3rem;">PO (Purchase Order)</div>
+                        ${w.docFiles && w.docFiles.po && w.docFiles.po.length > 0 
+                            ? w.docFiles.po.map(f => `<div class="file-item"><span class="file-icon">${getFileIcon(f.name)}</span><span class="file-name">${f.name}</span><span class="file-size">${f.size}</span></div>`).join('') 
+                            : w.docChecklist?.po ? '<div class="file-item"><span class="file-icon">📄</span><span class="file-name">แนบแล้ว</span></div>' : '<div style="font-size:0.8rem;color:#bbb;">— ยังไม่แนบ</div>'}
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:var(--gray);font-weight:600;margin-bottom:0.3rem;">Drawing / แบบ</div>
+                        ${w.docFiles && w.docFiles.drawing && w.docFiles.drawing.length > 0 
+                            ? w.docFiles.drawing.map(f => `<div class="file-item"><span class="file-icon">${getFileIcon(f.name)}</span><span class="file-name">${f.name}</span><span class="file-size">${f.size}</span></div>`).join('') 
+                            : w.docChecklist?.drawing ? '<div class="file-item"><span class="file-icon">📐</span><span class="file-name">แนบแล้ว</span></div>' : '<div style="font-size:0.8rem;color:#bbb;">— ยังไม่แนบ</div>'}
+                    </div>
+                    <div>
+                        <div style="font-size:0.75rem;color:var(--gray);font-weight:600;margin-bottom:0.3rem;">Minutes of Meeting</div>
+                        ${w.docFiles && w.docFiles.min && w.docFiles.min.length > 0 
+                            ? w.docFiles.min.map(f => `<div class="file-item"><span class="file-icon">${getFileIcon(f.name)}</span><span class="file-name">${f.name}</span><span class="file-size">${f.size}</span></div>`).join('') 
+                            : w.docChecklist?.min ? '<div class="file-item"><span class="file-icon">📝</span><span class="file-name">แนบแล้ว</span></div>' : '<div style="font-size:0.8rem;color:#bbb;">— ยังไม่แนบ</div>'}
+                    </div>
                 </div>
             </div>
             ${w.remark ? `<div><strong>หมายเหตุ:</strong> ${w.remark}</div>` : ''}
@@ -1443,12 +1629,25 @@ function openNewPR() {
                 </div>
                 <div class="form-group">
                     <label>ลูกค้า</label>
-                    <input type="text" id="fPrCust" placeholder="ชื่อลูกค้า">
+                    <select id="fPrCust">
+                        <option value="">-- เลือกลูกค้า --</option>
+                        <option value="บริษัท ABC จำกัด">บริษัท ABC จำกัด</option>
+                        <option value="บริษัท XYZ จำกัด">บริษัท XYZ จำกัด</option>
+                        <option value="โรงแรม สยามรีสอร์ท">โรงแรม สยามรีสอร์ท</option>
+                        <option value="บริษัท กรีนเทค จำกัด">บริษัท กรีนเทค จำกัด</option>
+                        <option value="บริษัท สมาร์ทบิลด์ จำกัด">บริษัท สมาร์ทบิลด์ จำกัด</option>
+                    </select>
                 </div>
             </div>
             <div class="form-group">
                 <label>อ้างอิงโครงการ *</label>
-                <input type="text" id="fPrProject" placeholder="ชื่อโครงการ">
+                <select id="fPrProjectRef" onchange="if(this.value==='__custom__'){this.style.display='none';document.getElementById('fPrProjectCustom').style.display='block';document.getElementById('fPrProjectCustom').focus();}else{document.getElementById('fPrProject').value=this.value;}">
+                    <option value="">-- เลือกโครงการ --</option>
+                    ${db.quotations.map(q => `<option value="${q.project}">${q.quoNo} — ${q.project}</option>`).join('')}
+                    <option value="__custom__">+ พิมพ์ชื่อโครงการเอง...</option>
+                </select>
+                <input type="text" id="fPrProjectCustom" placeholder="พิมพ์ชื่อโครงการ" style="display:none;margin-top:0.3rem;">
+                <input type="hidden" id="fPrProject">
             </div>
             <div class="form-row">
                 <div class="form-group">
@@ -1460,6 +1659,25 @@ function openNewPR() {
                     <input type="date" id="fPrRequired">
                 </div>
             </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ระดับความเร่งด่วน</label>
+                    <select id="fPrUrgency">
+                        <option value="ปกติ">ปกติ</option>
+                        <option value="เร่งด่วน">เร่งด่วน</option>
+                        <option value="เร่งด่วนมาก">เร่งด่วนมาก</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ประเภทการจัดซื้อ</label>
+                    <select id="fPrType">
+                        <option value="วัสดุโครงการ">วัสดุโครงการ</option>
+                        <option value="วัสดุสิ้นเปลือง">วัสดุสิ้นเปลือง</option>
+                        <option value="อุปกรณ์ติดตั้ง">อุปกรณ์ติดตั้ง</option>
+                        <option value="บริการ/ค่าจ้าง">บริการ/ค่าจ้าง</option>
+                    </select>
+                </div>
+            </div>
 
             <h4 style="margin:1rem 0 0.5rem;">รายการ</h4>
             <table class="items-table" id="prItemsTable">
@@ -1468,7 +1686,7 @@ function openNewPR() {
                     <tr>
                         <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
                         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
-                        <td><input type="text" class="pr-unit" value="ชิ้น"></td>
+                        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
                         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
                         <td class="pr-amount" style="text-align:right;">0.00</td>
                         <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
@@ -1485,6 +1703,15 @@ function openNewPR() {
                 <label>หมายเหตุ</label>
                 <textarea id="fPrRemarks" rows="2" placeholder="หมายเหตุ"></textarea>
             </div>
+
+            <h4 style="margin:1rem 0 0.5rem;">📎 เอกสารประกอบ</h4>
+            <div class="file-upload-zone" id="dropZonePR" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event,'pr_doc')">
+                <input type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx,.xls,.xlsx" multiple onchange="handleFileSelect(this,'pr_doc')">
+                <div class="upload-icon">📎</div>
+                <div class="upload-text">คลิกหรือลากไฟล์เพื่อแนบเอกสาร</div>
+                <div class="upload-hint">PDF, รูปภาพ, Word, Excel — แนบได้หลายไฟล์</div>
+            </div>
+            <div class="file-list" id="fileListPr_doc"></div>
         </div>
         <div class="modal-footer">
             <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
@@ -1498,7 +1725,7 @@ function addPRItem() {
     row.innerHTML = `
         <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
-        <td><input type="text" class="pr-unit" value="ชิ้น"></td>
+        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
         <td class="pr-amount" style="text-align:right;">0.00</td>
         <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
@@ -1523,8 +1750,10 @@ function calcPRItems() {
 }
 
 function savePR() {
-    const project = document.getElementById('fPrProject').value.trim();
-    if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
+    const projectRef = document.getElementById('fPrProjectRef');
+    const projectCustom = document.getElementById('fPrProjectCustom');
+    const project = (projectRef.style.display === 'none') ? projectCustom.value.trim() : (document.getElementById('fPrProject').value || projectRef.value);
+    if (!project || project === '__custom__') { toast('กรุณาเลือกหรือกรอกชื่อโครงการ','error'); return; }
 
     const items = [];
     document.querySelectorAll('#prItemsBody tr').forEach(row => {
@@ -1853,6 +2082,98 @@ function renderBar(draft, pending, approved, total) {
     </div>`;
 }
 
+// ==================== FILE UPLOAD HELPERS ====================
+let uploadedFiles = {};
+
+function handleFileSelect(input, category) {
+    if (!input.files || input.files.length === 0) return;
+    if (!uploadedFiles[category]) uploadedFiles[category] = [];
+    
+    Array.from(input.files).forEach(file => {
+        const fileInfo = {
+            name: file.name,
+            size: formatFileSize(file.size),
+            type: file.type,
+            lastModified: new Date(file.lastModified).toLocaleDateString('th-TH')
+        };
+        uploadedFiles[category].push(fileInfo);
+    });
+    renderFileList(category);
+    input.value = '';
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.currentTarget.classList.add('dragover');
+}
+
+function handleDragLeave(e) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+}
+
+function handleDrop(e, category) {
+    e.preventDefault();
+    e.currentTarget.classList.remove('dragover');
+    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return;
+    if (!uploadedFiles[category]) uploadedFiles[category] = [];
+    
+    Array.from(e.dataTransfer.files).forEach(file => {
+        uploadedFiles[category].push({
+            name: file.name,
+            size: formatFileSize(file.size),
+            type: file.type,
+            lastModified: new Date(file.lastModified).toLocaleDateString('th-TH')
+        });
+    });
+    renderFileList(category);
+}
+
+function renderFileList(category) {
+    const listMap = { po: 'fileListPO', drawing: 'fileListDrawing', min: 'fileListMin', pr_doc: 'fileListPr_doc' };
+    const container = document.getElementById(listMap[category]);
+    if (!container) return;
+    
+    container.innerHTML = (uploadedFiles[category] || []).map((f, i) => `
+        <div class="file-item">
+            <span class="file-icon">${getFileIcon(f.name)}</span>
+            <span class="file-name" title="${f.name}">${f.name}</span>
+            <span class="file-size">${f.size}</span>
+            <button class="file-remove" onclick="removeFile('${category}',${i})">×</button>
+        </div>
+    `).join('');
+}
+
+function removeFile(category, index) {
+    if (uploadedFiles[category]) {
+        uploadedFiles[category].splice(index, 1);
+        renderFileList(category);
+    }
+}
+
+function getFileIcon(filename) {
+    if (!filename) return '📄';
+    const ext = filename.split('.').pop().toLowerCase();
+    const icons = {
+        pdf: '📕', doc: '📘', docx: '📘', xls: '📗', xlsx: '📗',
+        jpg: '🖼️', jpeg: '🖼️', png: '🖼️', gif: '🖼️', webp: '🖼️',
+        dwg: '📐', dxf: '📐', zip: '📦', rar: '📦'
+    };
+    return icons[ext] || '📄';
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+}
+
+function formatDateInput(el) {
+    // Visual hint only — browsers handle date input natively
+}
+
 // ==================== INIT ====================
 document.getElementById('modalOverlay').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
@@ -1863,5 +2184,6 @@ document.addEventListener('keydown', function(e) {
     if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 </body>
 </html>
