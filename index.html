@@ -186,10 +186,10 @@
             display: flex;
             align-items: center;
             gap: 0.5rem;
-            flex-wrap: nowrap;
+            flex-wrap: wrap;
             margin: 1.5rem 0;
-            overflow-x: auto;
             padding-bottom: 0.5rem;
+            justify-content: center;
         }
         .approval-node {
             background: var(--white);
@@ -679,7 +679,9 @@
                     <div class="name">4. คุณสิรวิชญ์</div>
                     <div class="title">Admin Manager</div>
                 </div>
-                <span class="approval-arrow">→</span>
+                <div style="flex-basis: 100%; height: 0;"></div>
+                <span class="approval-arrow" style="transform: rotate(90deg);">↓</span>
+                <div style="flex-basis: 100%; height: 0;"></div>
                 <div class="approval-node">
                     <div class="name">5. คุณสรายุทธ</div>
                     <div class="title">Project Manager</div>
@@ -821,7 +823,9 @@
                 <div class="name">4. คุณสิรวิชญ์</div>
                 <div class="title">Admin Manager</div>
             </div>
-            <span class="approval-arrow">→</span>
+            <div style="flex-basis: 100%; height: 0;"></div>
+            <span class="approval-arrow" style="transform: rotate(90deg);">↓</span>
+            <div style="flex-basis: 100%; height: 0;"></div>
             <div class="approval-node">
                 <div class="name">5. คุณสรายุทธ</div>
                 <div class="title">Project Manager</div>
