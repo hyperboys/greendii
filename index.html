@@ -446,13 +446,78 @@
         }
 
         /* ========== RESPONSIVE ========== */
+        .nav-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            padding: 0.3rem 0.6rem;
+            margin-left: auto;
+            border-radius: 6px;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+        .nav-hamburger:hover { background: rgba(255,255,255,0.15); }
+
+        @media (max-width: 900px) {
+            nav ul li a { padding: 0.4rem 0.7rem; font-size: 0.82rem; }
+        }
+
         @media (max-width: 768px) {
-            nav { flex-direction: column; height: auto; padding: 0.5rem 1rem; }
-            nav ul { flex-wrap: wrap; justify-content: center; gap: 0.1rem; }
-            .hero { padding: 2rem 1rem; }
-            .hero h1 { font-size: 1.8rem; }
-            .approval-chain { flex-direction: column; }
+            nav {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 0.7rem 1rem;
+                gap: 0;
+            }
+            nav .logo { margin-right: 0; flex: 1; }
+            .nav-hamburger { display: inline-flex; align-items: center; }
+            nav ul {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                gap: 0.1rem;
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(255,255,255,0.15);
+            }
+            nav ul.open { display: flex; }
+            nav ul li { width: 100%; }
+            nav ul li a { display: block; padding: 0.6rem 1rem; }
+            .hero { padding: 2.5rem 1rem; }
+            .hero h1 { font-size: 1.7rem; }
+            .hero p { font-size: 1rem; }
+            .container { padding: 1rem; }
+            section { padding: 2rem 0; }
+            section h2 { font-size: 1.35rem; }
+            .approval-chain { flex-direction: column; align-items: center; }
             .approval-arrow { transform: rotate(90deg); }
+            .approval-node { min-width: unset; width: 100%; max-width: 280px; }
+            .flow-row { flex-direction: column; align-items: stretch; }
+            .flow-box { min-width: unset; width: 100%; }
+            .flow-arrow { display: none; }
+            .doc-grid { grid-template-columns: 1fr; }
+            .system-grid { grid-template-columns: 1fr; }
+            .model-grid { grid-template-columns: 1fr; }
+            .feature-list { grid-template-columns: 1fr 1fr; }
+            .api-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table.api-table { min-width: 480px; }
+            .flow-timeline { padding-left: 2.5rem; }
+            .tab-btn { font-size: 0.8rem; padding: 0.4rem 0.7rem; }
+            .flow-diagram { padding: 1rem; }
+            .system-card { padding: 1rem; }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 1.4rem; }
+            .hero p { font-size: 0.88rem; }
+            nav .logo { font-size: 1.2rem; }
+            .container { padding: 0.75rem; }
+            section h2 { font-size: 1.15rem; }
+            .feature-list { grid-template-columns: 1fr; }
+            .flow-step { padding: 1rem 1rem 1rem 1.5rem; }
         }
 
         /* ========== TABS ========== */
@@ -486,7 +551,8 @@
 <!-- ==================== NAVIGATION ==================== -->
 <nav>
     <div class="logo">GREEN <span>Dii</span></div>
-    <ul>
+    <button class="nav-hamburger" id="navToggle" onclick="toggleNav()" aria-label="Toggle navigation">☰</button>
+    <ul id="navMenu">
         <li><a href="#overview" class="active">ภาพรวม</a></li>
         <li><a href="#workflow">ขั้นตอนงาน</a></li>
         <li><a href="#flow-diagram">Flow Diagram</a></li>
@@ -1038,6 +1104,12 @@
 </footer>
 
 <script>
+    // ========== Nav Toggle ==========
+    function toggleNav() {
+        const menu = document.getElementById('navMenu');
+        menu.classList.toggle('open');
+    }
+
     // Tab functionality
     function openTab(evt, tabId) {
         const tabGroup = evt.target.closest('section') || evt.target.closest('.container');
@@ -1067,6 +1139,9 @@
     // Smooth scroll for navigation
     document.querySelectorAll('nav a').forEach(link => {
         link.addEventListener('click', function(e) {
+            // Close mobile nav when link clicked
+            const menu = document.getElementById('navMenu');
+            if (menu.classList.contains('open')) menu.classList.remove('open');
             e.preventDefault();
             const targetId = this.getAttribute('href').substring(1);
             const target = document.getElementById(targetId);

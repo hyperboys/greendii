@@ -476,6 +476,95 @@
         .performer-rank.gold { background:#FFF8E1; color:#F57F17; }
         .performer-rank.silver { background:#ECEFF1; color:#546E7A; }
         .performer-rank.bronze { background:#FBE9E7; color:#BF360C; }
+
+        /* ========== RESPONSIVE ========== */
+        .sidebar-toggle-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--green-dark);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.3rem 0.5rem;
+            border-radius: 6px;
+            margin-right: 0.8rem;
+            flex-shrink: 0;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+        .sidebar-toggle-btn:hover { background: var(--green-pale); }
+        .sidebar-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 90;
+        }
+        .sidebar-overlay.active { display: block; }
+
+        @media (max-width: 960px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+                z-index: 95;
+            }
+            .sidebar.open { transform: translateX(0); }
+            .main { margin-left: 0 !important; }
+            .sidebar-toggle-btn { display: inline-flex; align-items: center; }
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .metric-cards { grid-template-columns: repeat(2, 1fr); }
+            .topbar { padding: 0.8rem 1rem; }
+            .content { padding: 1rem; }
+            .welcome-banner { padding: 1.5rem 1.5rem; }
+            .welcome-banner h1 { font-size: 1.3rem; }
+        }
+
+        @media (max-width: 640px) {
+            .login-card { width: 94vw; padding: 1.8rem 1.2rem; margin: 1rem; }
+            .modal { width: 96vw; max-width: 96vw; max-height: 92vh; border-radius: 12px; }
+            .stats-grid { grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+            .stat-card { padding: 1rem; }
+            .stat-card .stat-value { font-size: 1.5rem; }
+            .metric-cards { grid-template-columns: 1fr 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .form-row.three { grid-template-columns: 1fr; }
+            .topbar { padding: 0.7rem 0.8rem; }
+            .topbar .doc-link-bar { display: none; }
+            .content { padding: 0.7rem; }
+            .card-header { padding: 0.8rem 1rem; font-size: 0.88rem; }
+            .card-body { padding: 1rem; }
+            .data-table th { font-size: 0.72rem; padding: 0.5rem 0.6rem; }
+            .data-table td { padding: 0.5rem 0.6rem; font-size: 0.8rem; }
+            .toolbar { flex-direction: column; align-items: stretch; }
+            .search-box { width: 100%; }
+            .detail-grid { grid-template-columns: 1fr; }
+            .quick-actions { gap: 0.5rem; }
+            .quick-action-btn { font-size: 0.78rem; padding: 0.5rem 0.8rem; }
+            .welcome-banner { padding: 1.2rem; }
+            .welcome-banner h1 { font-size: 1.1rem; }
+            .welcome-banner p { font-size: 0.85rem; }
+            .approval-chain { padding: 0.5rem 0; }
+            .approval-step { min-width: 75px; }
+            .approval-step .step-circle { width: 40px; height: 40px; font-size: 1rem; }
+            .report-tab { padding: 0.6rem 0.8rem; font-size: 0.82rem; }
+            .chart-donut-container { flex-direction: column; gap: 1rem; }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid { grid-template-columns: 1fr; }
+            .metric-cards { grid-template-columns: 1fr; }
+            .btn { padding: 0.6rem 0.9rem; font-size: 0.82rem; }
+            .sidebar-user .user-name { font-size: 0.8rem; }
+            .login-card .logo-big { font-size: 1.8rem; }
+        }
+
+        /* Ensure card tables are scrollable on mobile */
+        @media (max-width: 960px) {
+            .card { overflow: visible; }
+            .card .card-body { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            .data-table { min-width: 480px; }
+        }
     </style>
 </head>
 <body>
@@ -550,6 +639,7 @@
     <!-- MAIN CONTENT -->
     <div class="main">
         <div class="topbar">
+            <button class="sidebar-toggle-btn" id="sidebarToggle" onclick="toggleSidebar()" aria-label="Toggle sidebar">☰</button>
             <div>
                 <h2 id="pageTitle">Dashboard</h2>
                 <div class="breadcrumb" id="pageBreadcrumb">หน้าหลัก > Dashboard</div>
@@ -566,6 +656,9 @@
     </div>
 </div>
 
+<!-- Sidebar Overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+
 <!-- ==================== MODALS ==================== -->
 <div class="modal-overlay" id="modalOverlay">
     <div class="modal" id="modalContent">
@@ -577,6 +670,22 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <script>
+// ==================== SIDEBAR TOGGLE (MOBILE) ====================
+function toggleSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+    document.body.style.overflow = sidebar.classList.contains('open') ? 'hidden' : '';
+}
+function closeSidebar() {
+    const sidebar = document.querySelector('.sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sidebar.classList.remove('open');
+    overlay.classList.remove('active');
+    document.body.style.overflow = '';
+}
+
 // ==================== MOCK DATA ====================
 const USERS = {
     somchai:       { id:'u1', username:'somchai',       fullName:'สมชาย ใจดี',       initials:'SC', role:'sales',       avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 1' },
@@ -2994,6 +3103,21 @@ document.getElementById('modalOverlay').addEventListener('click', function(e) {
 document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') closeModal();
     if (e.key === 'Enter' && document.getElementById('loginPage').style.display !== 'none') doLogin();
+});
+
+// Close sidebar on mobile when a menu item is clicked
+document.querySelectorAll('.menu-item').forEach(function(item) {
+    item.addEventListener('click', function() {
+        if (window.innerWidth <= 960) closeSidebar();
+    });
+});
+
+// Handle window resize — restore sidebar visibility on desktop
+window.addEventListener('resize', function() {
+    if (window.innerWidth > 960) {
+        closeSidebar();
+        document.body.style.overflow = '';
+    }
 });
 </script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>

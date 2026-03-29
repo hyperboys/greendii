@@ -379,13 +379,74 @@
         }
 
         /* ========== RESPONSIVE ========== */
+        .nav-hamburger {
+            display: none;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.6rem;
+            cursor: pointer;
+            padding: 0.3rem 0.6rem;
+            margin-left: auto;
+            border-radius: 6px;
+            line-height: 1;
+            transition: background 0.2s;
+        }
+        .nav-hamburger:hover { background: rgba(255,255,255,0.15); }
+
+        @media (max-width: 960px) {
+            nav ul li a { padding: 0.4rem 0.6rem; font-size: 0.8rem; }
+            nav .nav-link { font-size: 0.78rem; padding: 0.4rem 0.7rem; }
+        }
+
         @media (max-width: 768px) {
-            nav { flex-direction: column; height: auto; padding: 0.5rem 1rem; }
-            nav ul { flex-wrap: wrap; justify-content: center; gap: 0.1rem; margin-left: 0; margin-top: 0.5rem; }
-            .hero { padding: 2rem 1rem; }
-            .hero h1 { font-size: 1.8rem; }
-            .approval-chain { flex-direction: column; }
-            .approval-arrow { transform: rotate(90deg); }
+            nav {
+                flex-wrap: wrap;
+                height: auto;
+                padding: 0.7rem 1rem;
+                align-items: center;
+            }
+            nav .logo { margin-right: 0; flex: 1; }
+            nav .nav-link { order: 3; margin-right: 0; font-size: 0.8rem; }
+            .nav-hamburger { display: inline-flex; align-items: center; order: 2; margin-left: 0.5rem; }
+            nav ul {
+                display: none;
+                width: 100%;
+                flex-direction: column;
+                gap: 0.1rem;
+                margin-left: 0;
+                margin-top: 0.5rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid rgba(255,255,255,0.15);
+                order: 4;
+            }
+            nav ul.open { display: flex; }
+            nav ul li { width: 100%; }
+            nav ul li a { display: block; padding: 0.6rem 1rem; }
+            .hero { padding: 2.5rem 1rem; }
+            .hero h1 { font-size: 1.7rem; }
+            .hero p { font-size: 1rem; }
+            .hero .badge { font-size: 0.82rem; }
+            .container { padding: 1rem; }
+            section { padding: 2rem 0; }
+            section h2 { font-size: 1.35rem; }
+            .approval-chain { overflow-x: auto; flex-wrap: nowrap; padding-bottom: 1rem; }
+            .system-grid { grid-template-columns: 1fr; }
+            .model-grid { grid-template-columns: 1fr; }
+            .doc-grid { grid-template-columns: 1fr; }
+            .api-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+            table.api-table { min-width: 520px; }
+            .tab-btn { font-size: 0.8rem; padding: 0.4rem 0.7rem; }
+            .system-card { padding: 1rem; }
+        }
+
+        @media (max-width: 480px) {
+            .hero h1 { font-size: 1.4rem; }
+            .hero p { font-size: 0.88rem; }
+            nav .logo { font-size: 1.2rem; }
+            .container { padding: 0.75rem; }
+            section h2 { font-size: 1.15rem; }
+            nav .nav-link { display: none; }
         }
     </style>
 </head>
@@ -395,7 +456,8 @@
 <nav>
     <div class="logo">GREEN <span>Dii</span></div>
     <a href="index.html" class="nav-link">← Back to Flow Document</a>
-    <ul>
+    <button class="nav-hamburger" id="navToggle" onclick="toggleNav()" aria-label="Toggle navigation">☰</button>
+    <ul id="navMenu">
         <li><a href="#overview" class="active">Overview</a></li>
         <li><a href="#architecture">Architecture</a></li>
         <li><a href="#documents">Documents</a></li>
@@ -1213,6 +1275,12 @@
 </footer>
 
 <script>
+    // ========== Nav Toggle ==========
+    function toggleNav() {
+        const menu = document.getElementById('navMenu');
+        menu.classList.toggle('open');
+    }
+
     // Tab functionality
     function openTab(evt, tabId) {
         const section = evt.target.closest('section');
@@ -1231,6 +1299,9 @@
     // Smooth scroll for navigation
     document.querySelectorAll('nav a[href^="#"]').forEach(link => {
         link.addEventListener('click', function(e) {
+            // Close mobile nav when link clicked
+            const menu = document.getElementById('navMenu');
+            if (menu.classList.contains('open')) menu.classList.remove('open');
             e.preventDefault();
             const targetId = this.getAttribute('href').substring(1);
             const target = document.getElementById(targetId);
