@@ -53,8 +53,8 @@
         .form-group { margin-bottom:1rem; text-align:left; }
         .form-group label { display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.3rem; color:var(--gray); }
         .form-group input, .form-group select, .form-group textarea {
-            width:100%; padding:0.7rem 1rem; border:2px solid #e0e0e0; border-radius:8px;
-            font-size:0.95rem; transition:border 0.2s; outline:none;
+            width:100%; padding:0.85rem 1.2rem; border:2px solid #e0e0e0; border-radius:8px;
+            font-size:1rem; transition:border 0.2s; outline:none;
         }
         .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color:var(--green-main); }
         .btn {
@@ -203,7 +203,7 @@
         }
         .modal-overlay.active { display:flex; }
         .modal {
-            background:var(--white); border-radius:16px; width:700px; max-height:85vh;
+            background:var(--white); border-radius:16px; width:840px; max-height:85vh;
             overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);
         }
         .modal-header {
@@ -223,6 +223,27 @@
             padding:1rem 1.5rem; border-top:1px solid #f0f0f0; display:flex;
             justify-content:flex-end; gap:0.5rem;
         }
+
+        /* ========== PAGE FORM (แทน Modal) ========== */
+        .page-form-wrapper {
+            max-width:1080px; margin:0 auto;
+            background:var(--white); border-radius:16px;
+            box-shadow:0 4px 24px rgba(0,0,0,0.08);
+        }
+        .page-form-wrapper .modal-header {
+            position:relative; border-radius:16px 16px 0 0;
+        }
+        .page-form-wrapper .modal-close {
+            width:auto; height:auto; border-radius:8px; padding:0.3rem 0.8rem;
+            font-size:0.85rem; background:#f0f0f0; color:var(--dark);
+        }
+        .page-form-wrapper .modal-close:hover {
+            background:var(--green-main); color:#fff;
+        }
+        .page-form-wrapper .modal {
+            width:100%; max-height:none; box-shadow:none;
+        }
+
         .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
         .form-row.three { grid-template-columns:1fr 1fr 1fr; }
 
@@ -925,6 +946,32 @@ function closeModal() {
     document.getElementById('modalOverlay').classList.remove('active');
 }
 
+let _formBackPage = 'dashboard';
+
+function renderFormPage(html, backPage) {
+    _formBackPage = backPage || 'dashboard';
+    document.getElementById('mainContent').innerHTML = '<div class="page-form-wrapper">' + html + '</div>';
+    setTimeout(() => {
+        document.querySelectorAll('.page-form-wrapper input[type="date"]').forEach(el => {
+            flatpickr(el, {
+                dateFormat: 'Y-m-d',
+                altInput: true,
+                altFormat: 'd/m/Y',
+                allowInput: true,
+                locale: {
+                    firstDayOfWeek: 1,
+                    weekdays: { shorthand:['อา','จ','อ','พ','พฤ','ศ','ส'], longhand:['อาทิตย์','จันทร์','อังคาร','พุธ','พฤหัสบดี','ศุกร์','เสาร์'] },
+                    months: { shorthand:['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'], longhand:['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'] }
+                }
+            });
+        });
+    }, 0);
+}
+
+function goBack() {
+    navigate(_formBackPage);
+}
+
 function getStatusLabel(s) {
     const map = {draft:'ฉบับร่าง', pending:'รออนุมัติ', approved:'อนุมัติแล้ว', rejected:'ถูกปฏิเสธ', completed:'เสร็จสิ้น', closed:'ปิดงาน'};
     return map[s]||s;
@@ -1139,10 +1186,10 @@ function openNewQuotation() {
     const num = String(db.quotations.length+1).padStart(3,'0');
     const autoNo = `QGD-${mm}${yy}-${currentUser.initials}${num}`;
 
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>📋 สร้างใบเสนอราคาใหม่</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
@@ -1236,7 +1283,7 @@ function openNewQuotation() {
                 <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th></th></tr></thead>
                 <tbody id="quoItemsBody">
                     <tr>
-                        <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
+                        <td><textarea class="item-desc" rows="2" placeholder="รายละเอียดสินค้า" style="width:100%;resize:vertical;"></textarea></td>
                         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
                         <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
                         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
@@ -1253,17 +1300,17 @@ function openNewQuotation() {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
             <button class="btn btn-primary" onclick="saveQuotation()">💾 บันทึกร่าง</button>
             <button class="btn btn-warning" onclick="saveQuotation(true)">📤 บันทึกและส่งอนุมัติ</button>
         </div>
-    `);
+    `, 'quotations');
 }
 
 function addQuoItem() {
     const row = document.createElement('tr');
     row.innerHTML = `
-        <td><input type="text" class="item-desc" placeholder="รายละเอียดสินค้า"></td>
+        <td><textarea class="item-desc" rows="2" placeholder="รายละเอียดสินค้า" style="width:100%;resize:vertical;"></textarea></td>
         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
         <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
@@ -1332,7 +1379,6 @@ function saveQuotation(submit=false) {
         });
     }
     saveDB();
-    closeModal();
     toast(submit ? 'สร้างใบเสนอราคาและส่งอนุมัติแล้ว' : 'บันทึกร่างใบเสนอราคาแล้ว');
     renderQuotations();
 }
@@ -1366,10 +1412,10 @@ function viewQuotation(id) {
     if (!q) return;
     const logs = db.approvalLogs.filter(l => l.docType==='quotation' && l.docId===id).sort((a,b) => new Date(a.actedAt)-new Date(b.actedAt));
 
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>📋 ${q.quoNo}</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <span class="status-badge ${getStatusClass(q.status)}" style="font-size:0.85rem;margin-bottom:1rem;display:inline-block;">${getStatusLabel(q.status)}</span>
@@ -1414,14 +1460,14 @@ function viewQuotation(id) {
             ${q.status === 'approved' && !db.workOrders.find(w=>w.quotationId===id) ? `
             <div class="approval-actions">
                 <h4>🔧 สร้าง Work Order จาก Quotation นี้</h4>
-                <button class="btn btn-primary" onclick="closeModal();openNewWorkOrder('${id}')">สร้าง Work Order</button>
+                <button class="btn btn-primary" onclick="openNewWorkOrder('${id}')">สร้าง Work Order</button>
             </div>` : ''}
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
             <button class="btn btn-info" onclick="printDocument('quotation','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
-    `);
+    `, 'quotations');
 }
 
 // ==================== WORK ORDERS ====================
@@ -1463,10 +1509,10 @@ function openNewWorkOrder(quoId) {
     const woNum = String(db.workOrders.length+1).padStart(5,'0');
     uploadedFiles = {};
 
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🔧 สร้าง Work Order ใหม่</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="form-row">
@@ -1573,10 +1619,10 @@ function openNewWorkOrder(quoId) {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
             <button class="btn btn-warning" onclick="saveWorkOrder()">💾 บันทึกและส่งอนุมัติ</button>
         </div>
-    `);
+    `, 'workorders');
 }
 
 function saveWorkOrder() {
@@ -1622,7 +1668,6 @@ function saveWorkOrder() {
         actedAt:new Date().toISOString()
     });
     saveDB();
-    closeModal();
     toast('สร้าง Work Order และส่งอนุมัติแล้ว');
     renderWorkOrders();
 }
@@ -1632,10 +1677,10 @@ function viewWorkOrder(id) {
     if (!w) return;
     const logs = db.approvalLogs.filter(l => l.docType==='workorder' && l.docId===id).sort((a,b) => new Date(a.actedAt)-new Date(b.actedAt));
 
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🔧 ${w.woNo}</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <span class="status-badge ${getStatusClass(w.status)}" style="font-size:0.85rem;display:inline-block;margin-bottom:1rem;">${getStatusLabel(w.status)}</span>
@@ -1693,10 +1738,10 @@ function viewWorkOrder(id) {
             </div>`).join('')}` : ''}
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
             <button class="btn btn-info" onclick="printDocument('workorder','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
-    `);
+    `, 'workorders');
 }
 
 function closeWorkOrder(id) {
@@ -1748,10 +1793,10 @@ function openNewHandOver() {
     const hoNum = String(db.handOverJobs.length+1).padStart(5,'0');
     const approvedWOs = db.workOrders.filter(w => w.status === 'approved');
 
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🤝 สร้าง Hand Over Job ใหม่</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="form-row">
@@ -1797,10 +1842,10 @@ function openNewHandOver() {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
             <button class="btn btn-primary" onclick="saveHandOver()">💾 บันทึก</button>
         </div>
-    `);
+    `, 'handover');
 }
 
 function saveHandOver() {
@@ -1821,16 +1866,15 @@ function saveHandOver() {
     };
     db.handOverJobs.push(ho);
     saveDB();
-    closeModal();
     toast('สร้าง Hand Over Job เรียบร้อย');
     renderHandOver();
 }
 
 function rateHandOver(id) {
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>⭐ ให้คะแนนคุณภาพ</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="form-group">
@@ -1851,10 +1895,10 @@ function rateHandOver(id) {
             </div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
             <button class="btn btn-primary" onclick="saveRating('${id}')">💾 บันทึกคะแนน</button>
         </div>
-    `);
+    `, 'handover');
 }
 
 function saveRating(id) {
@@ -1866,7 +1910,6 @@ function saveRating(id) {
         ho.comment = document.getElementById('fRateComment').value;
         ho.status = 'completed';
         saveDB();
-        closeModal();
         toast('บันทึกคะแนนคุณภาพเรียบร้อย');
         renderHandOver();
     }
@@ -1875,10 +1918,10 @@ function saveRating(id) {
 function viewHandOver(id) {
     const h = db.handOverJobs.find(x => x.id === id);
     if (!h) return;
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🤝 ${h.hoNo}</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="detail-grid">
@@ -1899,10 +1942,10 @@ function viewHandOver(id) {
             ${h.comment ? `<div style="margin-top:0.5rem;"><strong>ความคิดเห็น:</strong> ${h.comment}</div>` : ''}` : ''}
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
             <button class="btn btn-info" onclick="printDocument('handover','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
-    `);
+    `, 'handover');
 }
 
 // ==================== PURCHASE REQUEST ====================
@@ -1938,10 +1981,10 @@ function renderPR() {
 
 function openNewPR() {
     const prNum = String(db.purchaseRequests.length+1).padStart(5,'0');
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🛒 สร้าง Purchase Request ใหม่</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <div class="form-row">
@@ -2006,7 +2049,7 @@ function openNewPR() {
                 <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th>รวม</th><th></th></tr></thead>
                 <tbody id="prItemsBody">
                     <tr>
-                        <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
+                        <td><textarea class="pr-desc" rows="2" placeholder="รายละเอียด" style="width:100%;resize:vertical;"></textarea></td>
                         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
                         <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
                         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
@@ -2036,16 +2079,16 @@ function openNewPR() {
             <div class="file-list" id="fileListPr_doc"></div>
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
             <button class="btn btn-primary" onclick="savePR()">💾 บันทึกและส่งอนุมัติ</button>
         </div>
-    `);
+    `, 'pr');
 }
 
 function addPRItem() {
     const row = document.createElement('tr');
     row.innerHTML = `
-        <td><input type="text" class="pr-desc" placeholder="รายละเอียด"></td>
+        <td><textarea class="pr-desc" rows="2" placeholder="รายละเอียด" style="width:100%;resize:vertical;"></textarea></td>
         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
         <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
@@ -2099,7 +2142,6 @@ function savePR() {
     };
     db.purchaseRequests.push(pr);
     saveDB();
-    closeModal();
     toast('สร้าง Purchase Request เรียบร้อย');
     renderPR();
 }
@@ -2107,10 +2149,10 @@ function savePR() {
 function viewPR(id) {
     const p = db.purchaseRequests.find(x=>x.id===id);
     if(!p) return;
-    openModal(`
+    renderFormPage(`
         <div class="modal-header">
             <h3>🛒 ${p.prNo}</h3>
-            <button class="modal-close" onclick="closeModal()">×</button>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
             <span class="status-badge ${getStatusClass(p.status)}" style="font-size:0.85rem;display:inline-block;margin-bottom:1rem;">${getStatusLabel(p.status)}</span>
@@ -2133,10 +2175,10 @@ function viewPR(id) {
             ${p.remarks ? `<div><strong>หมายเหตุ:</strong> ${p.remarks}</div>` : ''}
         </div>
         <div class="modal-footer">
-            <button class="btn btn-outline" onclick="closeModal()">ปิด</button>
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
             <button class="btn btn-info" onclick="printDocument('pr','${id}')">🖨️ พิมพ์เอกสาร</button>
         </div>
-    `);
+    `, 'pr');
 }
 
 // ==================== APPROVALS ====================
