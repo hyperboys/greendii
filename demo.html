@@ -671,6 +671,10 @@
             <div class="menu-item" onclick="navigate('reports')">� ภาพรวม</div>
             <div class="menu-item" onclick="navigate('report_sales')">💰 ยอดขายลูกค้า</div>
             <div class="menu-item" onclick="navigate('report_approval')">⚡ ประสิทธิภาพอนุมัติ</div>
+            <div class="menu-label">ข้อมูลหลัก</div>
+            <div class="menu-item" onclick="navigate('customers')">🏢 ลูกค้า</div>
+            <div class="menu-item" onclick="navigate('products')">📦 สินค้า</div>
+            <div class="menu-item" onclick="navigate('units')">📏 หน่วยนับ</div>
             <div class="menu-label">ตั้งค่าระบบ</div>
             <div class="menu-item" onclick="navigate('users')">👥 จัดการผู้ใช้</div>
         </div>
@@ -753,12 +757,20 @@ const APPROVAL_STEPS = [
 ];
 
 let currentUser = null;
-let db = { quotations:[], workOrders:[], handOverJobs:[], purchaseRequests:[], approvalLogs:[], notifications:[] };
+let db = { quotations:[], workOrders:[], handOverJobs:[], purchaseRequests:[], approvalLogs:[], notifications:[], customers:[], products:[], units:[] };
 
 function loadDB() {
     const saved = localStorage.getItem('greendii_demo_db');
     if (saved) {
         db = JSON.parse(saved);
+        // Ensure new arrays exist for backwards compatibility
+        if (!db.customers) db.customers = [];
+        if (!db.products) db.products = [];
+        if (!db.units) db.units = [];
+        // If empty, seed the data
+        if (db.customers.length === 0 && db.products.length === 0 && db.units.length === 0) {
+            seedMasterData();
+        }
     } else {
         seedData();
     }
@@ -822,6 +834,72 @@ function seedData() {
         { id:'n2', userId:'u4', text:'Work Order WO00002 รออนุมัติ', read:false, createdAt:'2026-03-26T09:30:00' }
     ];
 
+    // Master Data
+    db.customers = [
+        { id:'c1', name:'บริษัท ABC จำกัด', contactPerson:'คุณมานี', tel:'02-123-4567', email:'info@abc.com', address:'123 ถ.สุขุมวิท กรุงเทพฯ 10110', taxId:'0105123456789', type:'นิติบุคคล', active:true, createdAt:'2026-01-15T10:00:00' },
+        { id:'c2', name:'บริษัท XYZ จำกัด', contactPerson:'คุณสมพร', tel:'02-987-6543', email:'contact@xyz.co.th', address:'456 ถ.พหลโยธิน กรุงเทพฯ 10400', taxId:'0105987654321', type:'นิติบุคคล', active:true, createdAt:'2026-01-20T14:00:00' },
+        { id:'c3', name:'โรงแรม สยามรีสอร์ท', contactPerson:'คุณวิไล', tel:'053-111-222', email:'booking@siamresort.com', address:'789 ถ.ราชดำเนิน เชียงใหม่ 50200', taxId:'0105555666777', type:'นิติบุคคล', active:true, createdAt:'2026-02-01T09:00:00' },
+        { id:'c4', name:'บริษัท กรีนเทค จำกัด', contactPerson:'คุณสมชาย', tel:'02-555-8888', email:'info@greentech.co.th', address:'321 ถ.พระราม 4 กรุงเทพฯ 10500', taxId:'0105444555666', type:'นิติบุคคล', active:true, createdAt:'2026-02-10T11:00:00' },
+        { id:'c5', name:'บริษัท สมาร์ทบิลด์ จำกัด', contactPerson:'คุณประเสริฐ', tel:'02-777-9999', email:'contact@smartbuild.co.th', address:'999 ถ.เพชรบุรี กรุงเทพฯ 10310', taxId:'0105888999000', type:'นิติบุคคล', active:true, createdAt:'2026-02-15T15:00:00' }
+    ];
+
+    db.products = [
+        { id:'p1', code:'GW-1200-600', name:'Green Wall Panel 1200x600mm', category:'Green Wall', unit:'แผ่น', price:1500, cost:900, description:'แผ่นกรีนวอลล์ขนาด 1200x600mm พร้อมระบบรดน้ำอัตโนมัติ', active:true, createdAt:'2026-01-10T10:00:00' },
+        { id:'p2', code:'AC-600-600', name:'Acoustic Panel 600x600mm', category:'Acoustic', unit:'แผ่น', price:950, cost:450, description:'แผ่นดูดซับเสียงขนาด 600x600mm หนา 50mm', active:true, createdAt:'2026-01-10T10:30:00' },
+        { id:'p3', code:'MF-STD', name:'โครงเหล็กรองรับ', category:'Structure', unit:'ชุด', price:800, cost:400, description:'โครงเหล็กรองรับสำหรับติดตั้งแผ่นกรีนวอลล์', active:true, createdAt:'2026-01-10T11:00:00' },
+        { id:'p4', code:'INS-001', name:'ค่าติดตั้ง', category:'Service', unit:'งาน', price:25000, cost:15000, description:'ค่าบริการติดตั้งและทดสอบระบบ', active:true, createdAt:'2026-01-10T11:30:00' },
+        { id:'p5', code:'GF-SYS', name:'Green Facade System', category:'Green Wall', unit:'ตร.ม.', price:3500, cost:2100, description:'ระบบปลูกพืชผนังภายนอกอาคารแบบครบชุด', active:true, createdAt:'2026-01-10T12:00:00' },
+        { id:'p6', code:'MAT-INS', name:'วัสดุติดตั้ง', category:'Material', unit:'ชุด', price:15000, cost:8000, description:'วัสดุประกอบการติดตั้งครบชุด', active:true, createdAt:'2026-01-10T12:30:00' }
+    ];
+
+    db.units = [
+        { id:'u1', name:'แผ่น', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u2', name:'ชิ้น', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u3', name:'ชุด', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u4', name:'ตร.ม.', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u5', name:'เมตร', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u6', name:'งาน', active:true, createdAt:'2026-01-05T10:00:00' },
+        { id:'u7', name:'ล็อต', active:true, createdAt:'2026-01-05T10:00:00' }
+    ];
+
+    saveDB();
+}
+
+function seedMasterData() {
+    // Seed only master data for backwards compatibility
+    if (!db.customers || db.customers.length === 0) {
+        db.customers = [
+            { id:'c1', name:'บริษัท ABC จำกัด', contactPerson:'คุณมานี', tel:'02-123-4567', email:'info@abc.com', address:'123 ถ.สุขุมวิท กรุงเทพฯ 10110', taxId:'0105123456789', type:'นิติบุคคล', active:true, createdAt:'2026-01-15T10:00:00' },
+            { id:'c2', name:'บริษัท XYZ จำกัด', contactPerson:'คุณสมพร', tel:'02-987-6543', email:'contact@xyz.co.th', address:'456 ถ.พหลโยธิน กรุงเทพฯ 10400', taxId:'0105987654321', type:'นิติบุคคล', active:true, createdAt:'2026-01-20T14:00:00' },
+            { id:'c3', name:'โรงแรม สยามรีสอร์ท', contactPerson:'คุณวิไล', tel:'053-111-222', email:'booking@siamresort.com', address:'789 ถ.ราชดำเนิน เชียงใหม่ 50200', taxId:'0105555666777', type:'นิติบุคคล', active:true, createdAt:'2026-02-01T09:00:00' },
+            { id:'c4', name:'บริษัท กรีนเทค จำกัด', contactPerson:'คุณสมชาย', tel:'02-555-8888', email:'info@greentech.co.th', address:'321 ถ.พระราม 4 กรุงเทพฯ 10500', taxId:'0105444555666', type:'นิติบุคคล', active:true, createdAt:'2026-02-10T11:00:00' },
+            { id:'c5', name:'บริษัท สมาร์ทบิลด์ จำกัด', contactPerson:'คุณประเสริฐ', tel:'02-777-9999', email:'contact@smartbuild.co.th', address:'999 ถ.เพชรบุรี กรุงเทพฯ 10310', taxId:'0105888999000', type:'นิติบุคคล', active:true, createdAt:'2026-02-15T15:00:00' }
+        ];
+    }
+    
+    if (!db.products || db.products.length === 0) {
+        db.products = [
+            { id:'p1', code:'GW-1200-600', name:'Green Wall Panel 1200x600mm', category:'Green Wall', unit:'แผ่น', price:1500, cost:900, description:'แผ่นกรีนวอลล์ขนาด 1200x600mm พร้อมระบบรดน้ำอัตโนมัติ', active:true, createdAt:'2026-01-10T10:00:00' },
+            { id:'p2', code:'AC-600-600', name:'Acoustic Panel 600x600mm', category:'Acoustic', unit:'แผ่น', price:950, cost:450, description:'แผ่นดูดซับเสียงขนาด 600x600mm หนา 50mm', active:true, createdAt:'2026-01-10T10:30:00' },
+            { id:'p3', code:'MF-STD', name:'โครงเหล็กรองรับ', category:'Structure', unit:'ชุด', price:800, cost:400, description:'โครงเหล็กรองรับสำหรับติดตั้งแผ่นกรีนวอลล์', active:true, createdAt:'2026-01-10T11:00:00' },
+            { id:'p4', code:'INS-001', name:'ค่าติดตั้ง', category:'Service', unit:'งาน', price:25000, cost:15000, description:'ค่าบริการติดตั้งและทดสอบระบบ', active:true, createdAt:'2026-01-10T11:30:00' },
+            { id:'p5', code:'GF-SYS', name:'Green Facade System', category:'Green Wall', unit:'ตร.ม.', price:3500, cost:2100, description:'ระบบปลูกพืชผนังภายนอกอาคารแบบครบชุด', active:true, createdAt:'2026-01-10T12:00:00' },
+            { id:'p6', code:'MAT-INS', name:'วัสดุติดตั้ง', category:'Material', unit:'ชุด', price:15000, cost:8000, description:'วัสดุประกอบการติดตั้งครบชุด', active:true, createdAt:'2026-01-10T12:30:00' }
+        ];
+    }
+    
+    if (!db.units || db.units.length === 0) {
+        db.units = [
+            { id:'u1', name:'แผ่น', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u2', name:'ชิ้น', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u3', name:'ชุด', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u4', name:'ตร.ม.', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u5', name:'เมตร', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u6', name:'งาน', active:true, createdAt:'2026-01-05T10:00:00' },
+            { id:'u7', name:'ล็อต', active:true, createdAt:'2026-01-05T10:00:00' }
+        ];
+    }
+    
     saveDB();
 }
 
@@ -862,7 +940,7 @@ function doLogout() {
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
     const items = document.querySelectorAll('.menu-item');
-    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6, report_sales:7, report_approval:8, users:9};
+    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6, report_sales:7, report_approval:8, customers:9, products:10, units:11, users:12};
     if (map[page] !== undefined) items[map[page]]?.classList.add('active');
 
     const titles = {
@@ -870,6 +948,7 @@ function navigate(page) {
         workorders:'Work Order', handover:'Hand Over Job',
         pr:'Purchase Request', approvals:'รออนุมัติ', 
         reports:'สรุปรายงาน', report_sales:'ยอดขายตามลูกค้า', report_approval:'ประสิทธิภาพการอนุมัติ',
+        customers:'ข้อมูลลูกค้า', products:'ข้อมูลสินค้า', units:'หน่วยนับ',
         users:'จัดการผู้ใช้'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
@@ -881,6 +960,7 @@ function navigate(page) {
         pr: renderPR, approvals: renderApprovals, reports: renderReports,
         report_sales: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[1]; if(tab) switchReportTab('sales',tab); },0); },
         report_approval: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[2]; if(tab) switchReportTab('approval',tab); },0); },
+        customers: renderCustomers, products: renderProducts, units: renderUnits,
         users: renderUsers
     };
     if (renderers[page]) renderers[page]();
@@ -1185,6 +1265,9 @@ function openNewQuotation() {
     const yy = now.getFullYear().toString().slice(-2);
     const num = String(db.quotations.length+1).padStart(3,'0');
     const autoNo = `QGD-${mm}${yy}-${currentUser.initials}${num}`;
+    const customers = db.customers.filter(c => c.active);
+    const products = db.products.filter(p => p.active);
+    const units = db.units.filter(u => u.active);
 
     renderFormPage(`
         <div class="modal-header">
@@ -1201,18 +1284,15 @@ function openNewQuotation() {
                     <label>ชื่อลูกค้า *</label>
                     <select id="fCustName" onchange="if(this.value==='__custom__'){this.style.display='none';document.getElementById('fCustNameCustom').style.display='block';document.getElementById('fCustNameCustom').focus();}">
                         <option value="">-- เลือกลูกค้า --</option>
-                        <option value="บริษัท ABC จำกัด">บริษัท ABC จำกัด</option>
-                        <option value="บริษัท XYZ จำกัด">บริษัท XYZ จำกัด</option>
-                        <option value="โรงแรม สยามรีสอร์ท">โรงแรม สยามรีสอร์ท</option>
-                        <option value="บริษัท กรีนเทค จำกัด">บริษัท กรีนเทค จำกัด</option>
-                        <option value="บริษัท สมาร์ทบิลด์ จำกัด">บริษัท สมาร์ทบิลด์ จำกัด</option>
-                        <option value="__custom__">+ เพิ่มลูกค้าใหม่...</option>
+                        ${customers.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+                        <option value="__custom__">+ พิมพ์ชื่อลูกค้าใหม่...</option>
                     </select>
                     <input type="text" id="fCustNameCustom" placeholder="พิมพ์ชื่อลูกค้าใหม่" style="display:none;margin-top:0.3rem;">
                 </div>
                 <div class="form-group">
                     <label>ผู้ติดต่อ (Attn)</label>
                     <input type="text" id="fAttn" placeholder="ชื่อผู้ติดต่อ">
+                </div>
                 </div>
             </div>
             <div class="form-group">
@@ -1280,12 +1360,17 @@ function openNewQuotation() {
 
             <h4 style="margin:1rem 0 0.5rem;">รายการสินค้า</h4>
             <table class="items-table" id="quoItemsTable">
-                <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th></th></tr></thead>
+                <thead><tr><th style="width:20%">เลือกสินค้า</th><th style="width:30%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th></th></tr></thead>
                 <tbody id="quoItemsBody">
                     <tr>
+                        <td><select class="item-product" onchange="fillQuoProductData(this)" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;width:100%;">
+                            <option value="">-- เลือกสินค้า --</option>
+                            ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                            <option value="__custom__">+ กรอกเอง</option>
+                        </select></td>
                         <td><textarea class="item-desc" rows="2" placeholder="รายละเอียดสินค้า" style="width:100%;resize:vertical;"></textarea></td>
                         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
-                        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
+                        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;">${units.map(u=>`<option>${u.name}</option>`).join('')}</select></td>
                         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
                         <td class="item-amount" style="text-align:right;">0.00</td>
                         <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
@@ -1308,16 +1393,43 @@ function openNewQuotation() {
 }
 
 function addQuoItem() {
+    const products = db.products.filter(p => p.active);
+    const units = db.units.filter(u => u.active);
     const row = document.createElement('tr');
     row.innerHTML = `
+        <td><select class="item-product" onchange="fillQuoProductData(this)" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;width:100%;">
+            <option value="">-- เลือกสินค้า --</option>
+            ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            <option value="__custom__">+ กรอกเอง</option>
+        </select></td>
         <td><textarea class="item-desc" rows="2" placeholder="รายละเอียดสินค้า" style="width:100%;resize:vertical;"></textarea></td>
         <td><input type="number" class="item-qty" value="1" min="1" onchange="calcQuoItems()"></td>
-        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
+        <td><select class="item-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;">${units.map(u=>`<option>${u.name}</option>`).join('')}</select></td>
         <td><input type="number" class="item-price" value="0" min="0" onchange="calcQuoItems()"></td>
         <td class="item-amount" style="text-align:right;">0.00</td>
         <td><button class="remove-row" onclick="this.closest('tr').remove();calcQuoItems();">×</button></td>
     `;
     document.getElementById('quoItemsBody').appendChild(row);
+}
+
+function fillQuoProductData(selectEl) {
+    const productId = selectEl.value;
+    if (!productId || productId === '__custom__') return;
+    
+    const product = db.products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const row = selectEl.closest('tr');
+    const descEl = row.querySelector('.item-desc');
+    const unitEl = row.querySelector('.item-unit');
+    const priceEl = row.querySelector('.item-price');
+    
+    if (descEl) descEl.value = product.description || product.name;
+    if (unitEl) unitEl.value = product.unit;
+    if (priceEl) {
+        priceEl.value = product.price;
+        calcQuoItems();
+    }
 }
 
 function calcQuoItems() {
@@ -1507,6 +1619,7 @@ function renderWorkOrders() {
 function openNewWorkOrder(quoId) {
     const q = quoId ? db.quotations.find(x => x.id === quoId) : null;
     const woNum = String(db.workOrders.length+1).padStart(5,'0');
+    const customers = db.customers.filter(c => c.active);
     uploadedFiles = {};
 
     renderFormPage(`
@@ -1542,8 +1655,13 @@ function openNewWorkOrder(quoId) {
             </div>
             <div class="form-row">
                 <div class="form-group">
-                    <label>ลูกค้า</label>
-                    <input type="text" id="fWoCust" value="${q?q.customerName:''}">
+                    <label>ลูกค้า *</label>
+                    <select id="fWoCust" onchange="if(this.value==='__custom__'){this.style.display='none';document.getElementById('fWoCustCustom').style.display='block';document.getElementById('fWoCustCustom').focus();}">
+                        <option value="">-- เลือกลูกค้า --</option>
+                        ${customers.map(c => `<option value="${c.name}" ${q&&q.customerName===c.name?'selected':''}>${c.name}</option>`).join('')}
+                        <option value="__custom__">+ พิมพ์ชื่อลูกค้าใหม่...</option>
+                    </select>
+                    <input type="text" id="fWoCustCustom" placeholder="พิมพ์ชื่อลูกค้าใหม่" value="${q&&!customers.find(c=>c.name===q.customerName)?q.customerName:''}" style="display:${q&&!customers.find(c=>c.name===q.customerName)?'block':'none'};margin-top:0.3rem;">
                 </div>
                 <div class="form-group">
                     <label>ผู้ติดต่อ / เบอร์</label>
@@ -1627,7 +1745,12 @@ function openNewWorkOrder(quoId) {
 
 function saveWorkOrder() {
     const project = document.getElementById('fWoProject').value.trim();
+    const custSelect = document.getElementById('fWoCust');
+    const custCustom = document.getElementById('fWoCustCustom');
+    const customerName = (custSelect.value === '__custom__' || custSelect.style.display === 'none') ? custCustom.value.trim() : custSelect.value.trim();
+    
     if (!project) { toast('กรุณากรอกชื่อโครงการ','error'); return; }
+    if (!customerName) { toast('กรุณาเลือกหรือกรอกชื่อลูกค้า','error'); return; }
 
     // Collect uploaded file info
     const docFiles = {
@@ -1643,7 +1766,7 @@ function saveWorkOrder() {
         project, location: document.getElementById('fWoLocation').value,
         products: document.getElementById('fWoProducts').value,
         responsibility: currentUser.fullName,
-        customerName: document.getElementById('fWoCust').value,
+        customerName: customerName,
         contactName: document.getElementById('fWoContact').value,
         teamAssignment: document.getElementById('fWoTeam').value,
         installDate: document.getElementById('fWoInstall').value,
@@ -1981,6 +2104,9 @@ function renderPR() {
 
 function openNewPR() {
     const prNum = String(db.purchaseRequests.length+1).padStart(5,'0');
+    const customers = db.customers.filter(c => c.active);
+    const products = db.products.filter(p => p.active);
+    const units = db.units.filter(u => u.active);
     renderFormPage(`
         <div class="modal-header">
             <h3>🛒 สร้าง Purchase Request ใหม่</h3>
@@ -1996,11 +2122,7 @@ function openNewPR() {
                     <label>ลูกค้า</label>
                     <select id="fPrCust">
                         <option value="">-- เลือกลูกค้า --</option>
-                        <option value="บริษัท ABC จำกัด">บริษัท ABC จำกัด</option>
-                        <option value="บริษัท XYZ จำกัด">บริษัท XYZ จำกัด</option>
-                        <option value="โรงแรม สยามรีสอร์ท">โรงแรม สยามรีสอร์ท</option>
-                        <option value="บริษัท กรีนเทค จำกัด">บริษัท กรีนเทค จำกัด</option>
-                        <option value="บริษัท สมาร์ทบิลด์ จำกัด">บริษัท สมาร์ทบิลด์ จำกัด</option>
+                        ${customers.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
                     </select>
                 </div>
             </div>
@@ -2046,12 +2168,17 @@ function openNewPR() {
 
             <h4 style="margin:1rem 0 0.5rem;">รายการ</h4>
             <table class="items-table" id="prItemsTable">
-                <thead><tr><th style="width:40%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th>รวม</th><th></th></tr></thead>
+                <thead><tr><th style="width:20%">เลือกสินค้า</th><th style="width:30%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา</th><th>รวม</th><th></th></tr></thead>
                 <tbody id="prItemsBody">
                     <tr>
+                        <td><select class="pr-product" onchange="fillPRProductData(this)" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;width:100%;">
+                            <option value="">-- เลือกสินค้า --</option>
+                            ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                            <option value="__custom__">+ กรอกเอง</option>
+                        </select></td>
                         <td><textarea class="pr-desc" rows="2" placeholder="รายละเอียด" style="width:100%;resize:vertical;"></textarea></td>
                         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
-                        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
+                        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;">${units.map(u=>`<option>${u.name}</option>`).join('')}</select></td>
                         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
                         <td class="pr-amount" style="text-align:right;">0.00</td>
                         <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
@@ -2086,16 +2213,43 @@ function openNewPR() {
 }
 
 function addPRItem() {
+    const products = db.products.filter(p => p.active);
+    const units = db.units.filter(u => u.active);
     const row = document.createElement('tr');
     row.innerHTML = `
+        <td><select class="pr-product" onchange="fillPRProductData(this)" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;width:100%;">
+            <option value="">-- เลือกสินค้า --</option>
+            ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+            <option value="__custom__">+ กรอกเอง</option>
+        </select></td>
         <td><textarea class="pr-desc" rows="2" placeholder="รายละเอียด" style="width:100%;resize:vertical;"></textarea></td>
         <td><input type="number" class="pr-qty" value="1" min="1" onchange="calcPRItems()"></td>
-        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;"><option>แผ่น</option><option>ชิ้น</option><option>ชุด</option><option>ตร.ม.</option><option>เมตร</option><option>งาน</option><option>ล็อต</option></select></td>
+        <td><select class="pr-unit" style="padding:0.4rem;border:1px solid #e0e0e0;border-radius:4px;font-size:0.82rem;">${units.map(u=>`<option>${u.name}</option>`).join('')}</select></td>
         <td><input type="number" class="pr-price" value="0" min="0" onchange="calcPRItems()"></td>
         <td class="pr-amount" style="text-align:right;">0.00</td>
         <td><button class="remove-row" onclick="this.closest('tr').remove();calcPRItems();">×</button></td>
     `;
     document.getElementById('prItemsBody').appendChild(row);
+}
+
+function fillPRProductData(selectEl) {
+    const productId = selectEl.value;
+    if (!productId || productId === '__custom__') return;
+    
+    const product = db.products.find(p => p.id === productId);
+    if (!product) return;
+    
+    const row = selectEl.closest('tr');
+    const descEl = row.querySelector('.pr-desc');
+    const unitEl = row.querySelector('.pr-unit');
+    const priceEl = row.querySelector('.pr-price');
+    
+    if (descEl) descEl.value = product.description || product.name;
+    if (unitEl) unitEl.value = product.unit;
+    if (priceEl) {
+        priceEl.value = product.cost || product.price;
+        calcPRItems();
+    }
 }
 
 function calcPRItems() {
@@ -3261,6 +3415,562 @@ function getNextApprover(currentStepIndex) {
     if (nextStepIndex >= APPROVAL_STEPS.length) return null;
     const nextRole = APPROVAL_STEPS[nextStepIndex].role;
     return Object.values(USERS).find(u => u.role === nextRole) || null;
+}
+
+// ==================== MASTER DATA: CUSTOMERS ====================
+function renderCustomers() {
+    const list = db.customers.filter(c => c.active);
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <input class="search-box" id="searchCustomers" placeholder="🔍 ค้นหาลูกค้า..." onkeyup="filterCustomers()">
+            <button class="btn btn-primary" onclick="openNewCustomer()">+ เพิ่มลูกค้าใหม่</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table" id="customersTable">
+                    <thead><tr><th>ชื่อบริษัท</th><th>ผู้ติดต่อ</th><th>โทรศัพท์</th><th>อีเมล</th><th>ประเภท</th><th>วันที่สร้าง</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(c => `
+                        <tr>
+                            <td><strong style="color:var(--green-dark)">${c.name}</strong></td>
+                            <td>${c.contactPerson||'-'}</td>
+                            <td>${c.tel||'-'}</td>
+                            <td>${c.email||'-'}</td>
+                            <td><span class="status-badge status-pending">${c.type}</span></td>
+                            <td>${formatDate(c.createdAt)}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewCustomer('${c.id}')">ดู</button>
+                                <button class="btn btn-warning btn-sm" onclick="editCustomer('${c.id}')">แก้ไข</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteCustomer('${c.id}','${c.name}')">ลบ</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">🏢</div>ยังไม่มีข้อมูลลูกค้า</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function filterCustomers() {
+    const search = document.getElementById('searchCustomers').value.toLowerCase();
+    const rows = document.querySelectorAll('#customersTable tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+}
+
+function openNewCustomer() {
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>🏢 เพิ่มลูกค้าใหม่</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>ชื่อบริษัท *</label>
+                <input type="text" id="fCustName" placeholder="บริษัท ABC จำกัด">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ผู้ติดต่อ</label>
+                    <input type="text" id="fCustContact" placeholder="คุณสมชาย">
+                </div>
+                <div class="form-group">
+                    <label>โทรศัพท์</label>
+                    <input type="text" id="fCustTel" placeholder="02-xxx-xxxx">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>อีเมล</label>
+                    <input type="email" id="fCustEmail" placeholder="info@company.com">
+                </div>
+                <div class="form-group">
+                    <label>เลขประจำตัวผู้เสียภาษี</label>
+                    <input type="text" id="fCustTaxId" placeholder="0105xxxxxxxxx">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ที่อยู่</label>
+                <textarea id="fCustAddress" rows="2" placeholder="123 ถ.สุขุมวิท กรุงเทพฯ 10110"></textarea>
+            </div>
+            <div class="form-group">
+                <label>ประเภทลูกค้า</label>
+                <select id="fCustType">
+                    <option value="นิติบุคคล">นิติบุคคล</option>
+                    <option value="บุคคลธรรมดา">บุคคลธรรมดา</option>
+                    <option value="หน่วยงานราชการ">หน่วยงานราชการ</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveCustomer()">💾 บันทึก</button>
+        </div>
+    `, 'customers');
+}
+
+function saveCustomer(id) {
+    const name = document.getElementById('fCustName').value.trim();
+    if (!name) { toast('กรุณากรอกชื่อบริษัท','error'); return; }
+
+    const customer = {
+        id: id || genId(),
+        name,
+        contactPerson: document.getElementById('fCustContact').value.trim(),
+        tel: document.getElementById('fCustTel').value.trim(),
+        email: document.getElementById('fCustEmail').value.trim(),
+        address: document.getElementById('fCustAddress').value.trim(),
+        taxId: document.getElementById('fCustTaxId').value.trim(),
+        type: document.getElementById('fCustType').value,
+        active: true,
+        createdAt: id ? (db.customers.find(c=>c.id===id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    };
+
+    if (id) {
+        const idx = db.customers.findIndex(c => c.id === id);
+        if (idx >= 0) db.customers[idx] = customer;
+    } else {
+        db.customers.push(customer);
+    }
+
+    saveDB();
+    toast(id ? 'แก้ไขข้อมูลลูกค้าแล้ว' : 'เพิ่มลูกค้าใหม่แล้ว');
+    renderCustomers();
+}
+
+function editCustomer(id) {
+    const c = db.customers.find(x => x.id === id);
+    if (!c) return;
+    
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>✏️ แก้ไขข้อมูลลูกค้า</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>ชื่อบริษัท *</label>
+                <input type="text" id="fCustName" value="${c.name}">
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>ผู้ติดต่อ</label>
+                    <input type="text" id="fCustContact" value="${c.contactPerson||''}">
+                </div>
+                <div class="form-group">
+                    <label>โทรศัพท์</label>
+                    <input type="text" id="fCustTel" value="${c.tel||''}">
+                </div>
+            </div>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>อีเมล</label>
+                    <input type="email" id="fCustEmail" value="${c.email||''}">
+                </div>
+                <div class="form-group">
+                    <label>เลขประจำตัวผู้เสียภาษี</label>
+                    <input type="text" id="fCustTaxId" value="${c.taxId||''}">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ที่อยู่</label>
+                <textarea id="fCustAddress" rows="2">${c.address||''}</textarea>
+            </div>
+            <div class="form-group">
+                <label>ประเภทลูกค้า</label>
+                <select id="fCustType">
+                    <option value="นิติบุคคล" ${c.type==='นิติบุคคล'?'selected':''}>นิติบุคคล</option>
+                    <option value="บุคคลธรรมดา" ${c.type==='บุคคลธรรมดา'?'selected':''}>บุคคลธรรมดา</option>
+                    <option value="หน่วยงานราชการ" ${c.type==='หน่วยงานราชการ'?'selected':''}>หน่วยงานราชการ</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveCustomer('${id}')">💾 บันทึกการแก้ไข</button>
+        </div>
+    `, 'customers');
+}
+
+function viewCustomer(id) {
+    const c = db.customers.find(x => x.id === id);
+    if (!c) return;
+    
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>🏢 ${c.name}</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">ชื่อบริษัท</div><div class="detail-value">${c.name}</div></div>
+                <div class="detail-item"><div class="detail-label">ประเภท</div><div class="detail-value">${c.type}</div></div>
+                <div class="detail-item"><div class="detail-label">ผู้ติดต่อ</div><div class="detail-value">${c.contactPerson||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">โทรศัพท์</div><div class="detail-value">${c.tel||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">อีเมล</div><div class="detail-value">${c.email||'-'}</div></div>
+                <div class="detail-item"><div class="detail-label">เลขผู้เสียภาษี</div><div class="detail-value">${c.taxId||'-'}</div></div>
+            </div>
+            ${c.address ? `<div style="margin-top:1rem;"><strong>ที่อยู่:</strong><br>${c.address}</div>` : ''}
+            <div style="margin-top:1rem;font-size:0.8rem;color:var(--gray);">
+                วันที่สร้าง: ${formatDate(c.createdAt)}
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
+            <button class="btn btn-warning" onclick="editCustomer('${id}')">แก้ไข</button>
+        </div>
+    `, 'customers');
+}
+
+function deleteCustomer(id, name) {
+    if (!confirm(`ต้องการลบลูกค้า "${name}" หรือไม่?`)) return;
+    const idx = db.customers.findIndex(c => c.id === id);
+    if (idx >= 0) {
+        db.customers[idx].active = false;
+        saveDB();
+        toast('ลบลูกค้าแล้ว');
+        renderCustomers();
+    }
+}
+
+// ==================== MASTER DATA: PRODUCTS ====================
+function renderProducts() {
+    const list = db.products.filter(p => p.active);
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <input class="search-box" id="searchProducts" placeholder="🔍 ค้นหาสินค้า..." onkeyup="filterProducts()">
+            <button class="btn btn-primary" onclick="openNewProduct()">+ เพิ่มสินค้าใหม่</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table" id="productsTable">
+                    <thead><tr><th>รหัส</th><th>ชื่อสินค้า</th><th>หมวดหมู่</th><th>หน่วย</th><th style="text-align:right">ราคาขาย</th><th style="text-align:right">ต้นทุน</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(p => `
+                        <tr>
+                            <td><strong style="color:var(--purple)">${p.code}</strong></td>
+                            <td>${p.name}</td>
+                            <td><span class="status-badge status-approved">${p.category}</span></td>
+                            <td>${p.unit}</td>
+                            <td style="text-align:right">${formatMoney(p.price)}</td>
+                            <td style="text-align:right;color:var(--gray)">${formatMoney(p.cost)}</td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="viewProduct('${p.id}')">ดู</button>
+                                <button class="btn btn-warning btn-sm" onclick="editProduct('${p.id}')">แก้ไข</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteProduct('${p.id}','${p.name}')">ลบ</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">📦</div>ยังไม่มีข้อมูลสินค้า</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function filterProducts() {
+    const search = document.getElementById('searchProducts').value.toLowerCase();
+    const rows = document.querySelectorAll('#productsTable tbody tr');
+    rows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        row.style.display = text.includes(search) ? '' : 'none';
+    });
+}
+
+function openNewProduct() {
+    const unitList = db.units.filter(u => u.active);
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>📦 เพิ่มสินค้าใหม่</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>รหัสสินค้า *</label>
+                    <input type="text" id="fProdCode" placeholder="GW-1200-600">
+                </div>
+                <div class="form-group">
+                    <label>หมวดหมู่</label>
+                    <select id="fProdCategory">
+                        <option>Green Wall</option>
+                        <option>Acoustic</option>
+                        <option>Structure</option>
+                        <option>Material</option>
+                        <option>Service</option>
+                        <option>อื่นๆ</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ชื่อสินค้า *</label>
+                <input type="text" id="fProdName" placeholder="Green Wall Panel 1200x600mm">
+            </div>
+            <div class="form-group">
+                <label>รายละเอียด</label>
+                <textarea id="fProdDesc" rows="2" placeholder="รายละเอียดสินค้า..."></textarea>
+            </div>
+            <div class="form-row three">
+                <div class="form-group">
+                    <label>หน่วยนับ *</label>
+                    <select id="fProdUnit">
+                        ${unitList.map(u => `<option value="${u.name}">${u.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ราคาขาย *</label>
+                    <input type="number" id="fProdPrice" value="0" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>ต้นทุน</label>
+                    <input type="number" id="fProdCost" value="0" min="0" step="0.01">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveProduct()">💾 บันทึก</button>
+        </div>
+    `, 'products');
+}
+
+function saveProduct(id) {
+    const code = document.getElementById('fProdCode').value.trim();
+    const name = document.getElementById('fProdName').value.trim();
+    if (!code || !name) { toast('กรุณากรอกรหัสและชื่อสินค้า','error'); return; }
+
+    const product = {
+        id: id || genId(),
+        code,
+        name,
+        category: document.getElementById('fProdCategory').value,
+        unit: document.getElementById('fProdUnit').value,
+        price: parseFloat(document.getElementById('fProdPrice').value) || 0,
+        cost: parseFloat(document.getElementById('fProdCost').value) || 0,
+        description: document.getElementById('fProdDesc').value.trim(),
+        active: true,
+        createdAt: id ? (db.products.find(p=>p.id===id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    };
+
+    if (id) {
+        const idx = db.products.findIndex(p => p.id === id);
+        if (idx >= 0) db.products[idx] = product;
+    } else {
+        db.products.push(product);
+    }
+
+    saveDB();
+    toast(id ? 'แก้ไขข้อมูลสินค้าแล้ว' : 'เพิ่มสินค้าใหม่แล้ว');
+    renderProducts();
+}
+
+function editProduct(id) {
+    const p = db.products.find(x => x.id === id);
+    if (!p) return;
+    const unitList = db.units.filter(u => u.active);
+    
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>✏️ แก้ไขข้อมูลสินค้า</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>รหัสสินค้า *</label>
+                    <input type="text" id="fProdCode" value="${p.code}">
+                </div>
+                <div class="form-group">
+                    <label>หมวดหมู่</label>
+                    <select id="fProdCategory">
+                        <option ${p.category==='Green Wall'?'selected':''}>Green Wall</option>
+                        <option ${p.category==='Acoustic'?'selected':''}>Acoustic</option>
+                        <option ${p.category==='Structure'?'selected':''}>Structure</option>
+                        <option ${p.category==='Material'?'selected':''}>Material</option>
+                        <option ${p.category==='Service'?'selected':''}>Service</option>
+                        <option ${p.category==='อื่นๆ'?'selected':''}>อื่นๆ</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>ชื่อสินค้า *</label>
+                <input type="text" id="fProdName" value="${p.name}">
+            </div>
+            <div class="form-group">
+                <label>รายละเอียด</label>
+                <textarea id="fProdDesc" rows="2">${p.description||''}</textarea>
+            </div>
+            <div class="form-row three">
+                <div class="form-group">
+                    <label>หน่วยนับ *</label>
+                    <select id="fProdUnit">
+                        ${unitList.map(u => `<option value="${u.name}" ${p.unit===u.name?'selected':''}>${u.name}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>ราคาขาย *</label>
+                    <input type="number" id="fProdPrice" value="${p.price}" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>ต้นทุน</label>
+                    <input type="number" id="fProdCost" value="${p.cost}" min="0" step="0.01">
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveProduct('${id}')">💾 บันทึกการแก้ไข</button>
+        </div>
+    `, 'products');
+}
+
+function viewProduct(id) {
+    const p = db.products.find(x => x.id === id);
+    if (!p) return;
+    const margin = p.price > 0 ? ((p.price - p.cost) / p.price * 100).toFixed(1) : 0;
+    
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>📦 ${p.name}</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="detail-grid">
+                <div class="detail-item"><div class="detail-label">รหัสสินค้า</div><div class="detail-value">${p.code}</div></div>
+                <div class="detail-item"><div class="detail-label">หมวดหมู่</div><div class="detail-value">${p.category}</div></div>
+                <div class="detail-item"><div class="detail-label">หน่วยนับ</div><div class="detail-value">${p.unit}</div></div>
+                <div class="detail-item"><div class="detail-label">ราคาขาย</div><div class="detail-value">${formatMoney(p.price)} บาท</div></div>
+                <div class="detail-item"><div class="detail-label">ต้นทุน</div><div class="detail-value">${formatMoney(p.cost)} บาท</div></div>
+                <div class="detail-item"><div class="detail-label">กำไรขั้นต้น</div><div class="detail-value" style="color:var(--green-main);font-weight:600;">${margin}%</div></div>
+            </div>
+            ${p.description ? `<div style="margin-top:1rem;"><strong>รายละเอียด:</strong><br>${p.description}</div>` : ''}
+            <div style="margin-top:1rem;font-size:0.8rem;color:var(--gray);">
+                วันที่สร้าง: ${formatDate(p.createdAt)}
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ปิด</button>
+            <button class="btn btn-warning" onclick="editProduct('${id}')">แก้ไข</button>
+        </div>
+    `, 'products');
+}
+
+function deleteProduct(id, name) {
+    if (!confirm(`ต้องการลบสินค้า "${name}" หรือไม่?`)) return;
+    const idx = db.products.findIndex(p => p.id === id);
+    if (idx >= 0) {
+        db.products[idx].active = false;
+        saveDB();
+        toast('ลบสินค้าแล้ว');
+        renderProducts();
+    }
+}
+
+// ==================== MASTER DATA: UNITS ====================
+function renderUnits() {
+    const list = db.units.filter(u => u.active);
+    document.getElementById('mainContent').innerHTML = `
+        <div class="toolbar">
+            <button class="btn btn-primary" onclick="openNewUnit()">+ เพิ่มหน่วยนับใหม่</button>
+        </div>
+        <div class="card">
+            <div class="card-body" style="padding:0;">
+                <table class="data-table">
+                    <thead><tr><th style="width:50%">หน่วยนับ</th><th>วันที่สร้าง</th><th></th></tr></thead>
+                    <tbody>
+                        ${list.map(u => `
+                        <tr>
+                            <td><strong style="color:var(--orange)">${u.name}</strong></td>
+                            <td>${formatDate(u.createdAt)}</td>
+                            <td>
+                                <button class="btn btn-warning btn-sm" onclick="editUnit('${u.id}')">แก้ไข</button>
+                                <button class="btn btn-danger btn-sm" onclick="deleteUnit('${u.id}','${u.name}')">ลบ</button>
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+                ${list.length === 0 ? '<div class="empty-state"><div class="empty-icon">📏</div>ยังไม่มีหน่วยนับ</div>' : ''}
+            </div>
+        </div>
+    `;
+}
+
+function openNewUnit() {
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>📏 เพิ่มหน่วยนับใหม่</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>ชื่อหน่วยนับ *</label>
+                <input type="text" id="fUnitName" placeholder="เช่น กิโลกรัม, เมตร, ลูกบาศก์เมตร">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveUnit()">💾 บันทึก</button>
+        </div>
+    `, 'units');
+}
+
+function saveUnit(id) {
+    const name = document.getElementById('fUnitName').value.trim();
+    if (!name) { toast('กรุณากรอกชื่อหน่วยนับ','error'); return; }
+
+    const unit = {
+        id: id || genId(),
+        name,
+        active: true,
+        createdAt: id ? (db.units.find(u=>u.id===id)?.createdAt || new Date().toISOString()) : new Date().toISOString()
+    };
+
+    if (id) {
+        const idx = db.units.findIndex(u => u.id === id);
+        if (idx >= 0) db.units[idx] = unit;
+    } else {
+        db.units.push(unit);
+    }
+
+    saveDB();
+    toast(id ? 'แก้ไขหน่วยนับแล้ว' : 'เพิ่มหน่วยนับใหม่แล้ว');
+    renderUnits();
+}
+
+function editUnit(id) {
+    const u = db.units.find(x => x.id === id);
+    if (!u) return;
+    
+    renderFormPage(`
+        <div class="modal-header">
+            <h3>✏️ แก้ไขหน่วยนับ</h3>
+            <button class="modal-close" onclick="goBack()">← กลับ</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>ชื่อหน่วยนับ *</label>
+                <input type="text" id="fUnitName" value="${u.name}">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="goBack()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveUnit('${u.id}')">💾 บันทึกการแก้ไข</button>
+        </div>
+    `, 'units');
+}
+
+function deleteUnit(id, name) {
+    if (!confirm(`ต้องการลบหน่วยนับ "${name}" หรือไม่?`)) return;
+    const idx = db.units.findIndex(u => u.id === id);
+    if (idx >= 0) {
+        db.units[idx].active = false;
+        saveDB();
+        toast('ลบหน่วยนับแล้ว');
+        renderUnits();
+    }
 }
 
 // ==================== FILE UPLOAD HELPERS ====================
