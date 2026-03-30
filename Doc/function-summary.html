@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Green Dii — สรุป Function & ข้อมูลระบบ</title>
+<style>
+  :root {
+    --green-dark:#2d6a2e; --green-main:#4CAF50; --green-pale:#E8F5E9;
+    --blue:#1565C0; --blue-pale:#E3F2FD;
+    --orange:#E65100; --orange-pale:#FFF3E0;
+    --purple:#6A1B9A; --purple-pale:#F3E5F5;
+    --red:#C62828; --red-pale:#FFEBEE;
+    --gray:#555; --gray-light:#f7f7f7;
+    --teal:#00695C; --teal-pale:#E0F2F1;
+    --line-green:#06C755;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { font-family:'Segoe UI',Tahoma,sans-serif; background:#f0f4f0; color:#222; line-height:1.65; font-size:14px; }
+
+  /* ===== TOP HEADER ===== */
+  .doc-header {
+    background:linear-gradient(135deg,var(--green-dark),#1b5e20);
+    color:#fff; padding:2rem 2.5rem; position:sticky; top:0; z-index:100;
+    display:flex; align-items:center; justify-content:space-between;
+    box-shadow:0 2px 12px rgba(0,0,0,0.25);
+  }
+  .doc-header .logo { font-size:1.6rem; font-weight:800; letter-spacing:2px; }
+  .doc-header .logo span { color:#81C784; }
+  .doc-header .meta { font-size:0.82rem; opacity:0.8; margin-top:0.2rem; }
+  .doc-header .back-btn {
+    background:rgba(255,255,255,0.15); border:1px solid rgba(255,255,255,0.35);
+    color:#fff; padding:0.45rem 1rem; border-radius:6px; cursor:pointer;
+    font-size:0.82rem; text-decoration:none; transition:background 0.2s;
+  }
+  .doc-header .back-btn:hover { background:rgba(255,255,255,0.3); }
+
+  /* ===== BODY LAYOUT ===== */
+  .body-wrap { display:flex; gap:0; min-height:calc(100vh - 80px); }
+
+  /* ===== SIDEBAR TOC ===== */
+  .toc {
+    width:240px; flex-shrink:0; background:#fff;
+    border-right:1px solid #ddd; position:sticky; top:80px;
+    height:calc(100vh - 80px); overflow-y:auto; padding:1.2rem 0;
+  }
+  .toc h3 { font-size:0.75rem; text-transform:uppercase; letter-spacing:1px;
+    color:var(--gray); padding:0 1.2rem; margin-bottom:0.6rem; margin-top:1rem; }
+  .toc h3:first-child { margin-top:0; }
+  .toc a { display:block; padding:0.4rem 1.2rem; font-size:0.83rem; color:#444;
+    text-decoration:none; border-left:3px solid transparent; transition:all 0.15s; }
+  .toc a:hover { background:var(--green-pale); color:var(--green-dark); border-left-color:var(--green-main); }
+  .toc a.active { background:var(--green-pale); color:var(--green-dark); border-left-color:var(--green-dark); font-weight:600; }
+
+  /* ===== CONTENT ===== */
+  .content { flex:1; padding:2rem 2.5rem; max-width:1100px; }
+
+  /* ===== SECTION ===== */
+  .section { margin-bottom:3rem; scroll-margin-top:90px; }
+  .section-title {
+    font-size:1.3rem; font-weight:700; color:var(--green-dark);
+    border-left:5px solid var(--green-main); padding:0.4rem 0.8rem;
+    background:var(--green-pale); border-radius:0 6px 6px 0;
+    margin-bottom:1.2rem; display:flex; align-items:center; gap:0.5rem;
+  }
+
+  /* ===== CARDS ===== */
+  .card { background:#fff; border-radius:10px; box-shadow:0 1px 6px rgba(0,0,0,0.07);
+    margin-bottom:1.2rem; overflow:hidden; }
+  .card-head {
+    padding:0.65rem 1rem; font-weight:700; font-size:0.9rem;
+    display:flex; align-items:center; gap:0.4rem;
+  }
+  .card-body { padding:1rem; }
+
+  /* ===== TABLE ===== */
+  table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+  th { background:#f5f5f5; font-weight:600; padding:0.55rem 0.8rem; text-align:left;
+    border-bottom:2px solid #e0e0e0; white-space:nowrap; }
+  td { padding:0.5rem 0.8rem; border-bottom:1px solid #f0f0f0; vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:#fafafa; }
+
+  /* ===== CODE ===== */
+  code { background:#f0f4f0; padding:0.1rem 0.4rem; border-radius:4px;
+    font-family:'Consolas','Courier New',monospace; font-size:0.82rem; color:var(--green-dark); }
+  .fn { font-family:'Consolas',monospace; font-weight:700; color:#1565C0; font-size:0.85rem; }
+
+  /* ===== BADGES ===== */
+  .badge {
+    display:inline-block; padding:0.15rem 0.55rem; border-radius:12px;
+    font-size:0.72rem; font-weight:700; white-space:nowrap;
+  }
+  .badge-green  { background:#E8F5E9; color:#2E7D32; }
+  .badge-blue   { background:#E3F2FD; color:#1565C0; }
+  .badge-orange { background:#FFF3E0; color:#E65100; }
+  .badge-red    { background:#FFEBEE; color:#C62828; }
+  .badge-purple { background:#F3E5F5; color:#6A1B9A; }
+  .badge-gray   { background:#f5f5f5; color:#555; }
+  .badge-teal   { background:#E0F2F1; color:#00695C; }
+  .badge-line   { background:#E8F5E9; color:#06C755; }
+
+  /* ===== DATA MODEL ===== */
+  .model-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:1rem; }
+  .model-card { background:#fff; border-radius:8px; border:1px solid #e0e0e0; overflow:hidden; }
+  .model-card .model-head {
+    padding:0.6rem 1rem; font-weight:700; font-size:0.88rem; color:#fff;
+  }
+  .model-card .model-fields { padding:0.5rem 0; }
+  .field-row { display:flex; gap:0.5rem; align-items:flex-start;
+    padding:0.3rem 1rem; border-bottom:1px solid #f5f5f5; font-size:0.82rem; }
+  .field-row:last-child { border-bottom:none; }
+  .field-name { font-family:'Consolas',monospace; color:#333; min-width:140px; font-weight:600; }
+  .field-type { color:var(--blue); font-size:0.78rem; min-width:90px; }
+  .field-desc { color:var(--gray); flex:1; }
+  .field-key { font-size:0.68rem; padding:0.1rem 0.4rem; border-radius:3px; font-weight:700; }
+  .pk { background:#FFF9C4; color:#F57F17; }
+  .fk { background:#E3F2FD; color:#1565C0; }
+  .req { background:#FFEBEE; color:#C62828; }
+
+  /* ===== FLOW STEPS ===== */
+  .flow-steps { display:flex; flex-wrap:wrap; gap:0.5rem; align-items:center; margin:0.8rem 0; }
+  .flow-step {
+    background:#fff; border:2px solid #e0e0e0; border-radius:8px;
+    padding:0.4rem 0.8rem; font-size:0.82rem; text-align:center;
+  }
+  .flow-step.done { border-color:var(--green-main); background:var(--green-pale); }
+  .flow-arrow { color:#aaa; font-size:1.1rem; }
+
+  /* ===== EDITABLE NOTICE ===== */
+  .edit-notice {
+    background:#FFF8E1; border:1px solid #FFE082; border-radius:8px;
+    padding:0.8rem 1rem; font-size:0.82rem; color:#E65100; margin-bottom:1.5rem;
+    display:flex; align-items:flex-start; gap:0.5rem;
+  }
+
+  /* ===== APPROVAL MATRIX ===== */
+  .matrix-table th, .matrix-table td { text-align:center; font-size:0.8rem; }
+  .matrix-table td:first-child { text-align:left; font-weight:600; }
+  .check { color:var(--green-main); font-size:1rem; }
+  .cross { color:#bdbdbd; font-size:0.9rem; }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width:900px) {
+    .toc { display:none; }
+    .content { padding:1rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div>
+    <div class="logo">GREEN <span>Dii</span></div>
+    <div class="meta">เอกสารสรุป Function การทำงาน &amp; โครงสร้างข้อมูล — Demo System v1.0 | อัปเดต มีนาคม 2569</div>
+  </div>
+  <a href="../demo.html" class="back-btn">← กลับ Demo</a>
+</div>
+
+<div class="body-wrap">
+  <!-- TOC SIDEBAR -->
+  <nav class="toc" id="toc">
+    <h3>ข้อมูลระบบ</h3>
+    <a href="#sec-users">👥 ผู้ใช้งาน (USERS)</a>
+    <a href="#sec-approval-flow">🔄 สายอนุมัติ</a>
+    <a href="#sec-db">🗄️ โครงสร้างข้อมูล (DB)</a>
+
+    <h3>Function หลัก</h3>
+    <a href="#sec-auth">🔐 Auth &amp; Login</a>
+    <a href="#sec-nav">🧭 Navigation</a>
+    <a href="#sec-helpers">🔧 Helpers</a>
+    <a href="#sec-dashboard">📊 Dashboard</a>
+    <a href="#sec-quotation">📋 Quotation</a>
+    <a href="#sec-workorder">🔧 Work Order</a>
+    <a href="#sec-handover">🤝 Hand Over Job</a>
+    <a href="#sec-pr">🛒 Purchase Request</a>
+    <a href="#sec-approvals">✍️ Approvals</a>
+    <a href="#sec-reports">📈 Reports</a>
+    <a href="#sec-print">🖨️ Print</a>
+    <a href="#sec-line">💚 LINE Notify</a>
+    <a href="#sec-upload">📎 File Upload</a>
+    <a href="#sec-dbfn">💾 Database Helpers</a>
+  </nav>
+
+  <!-- MAIN CONTENT -->
+  <div class="content">
+
+    <div class="edit-notice">
+      ✏️ <span>ไฟล์นี้เป็น HTML ordinaire — สามารถเปิดใน VS Code แล้วแก้ไขข้อความ เพิ่มหรือลบแถวใน <code>&lt;tr&gt;</code> ได้โดยตรง ไม่ต้องใช้ฐานข้อมูล</span>
+    </div>
+
+    <!-- ==================== USERS ==================== -->
+    <div class="section" id="sec-users">
+      <div class="section-title">👥 ผู้ใช้งาน (USERS — in-memory)</div>
+      <div class="edit-notice" style="margin-bottom:0.8rem;">
+        📌 ข้อมูลผู้ใช้เก็บใน JavaScript object <code>USERS</code> ใน <code>demo.html</code> ไม่ใช่ฐานข้อมูล — แก้ไขได้ที่ var <code>const USERS = { ... }</code>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>key</th><th>id</th><th>ชื่อ</th><th>Role</th><th>Role Label</th><th>Initials</th><th>lineUserId</th></tr></thead>
+            <tbody>
+              <tr><td><code>somchai</code></td><td>u1</td><td>สมชาย ใจดี</td><td><span class="badge badge-green">sales</span></td><td>เซลล์คนที่ 1</td><td>SC</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>somsri</code></td><td>u2</td><td>สมศรี รักงาน</td><td><span class="badge badge-blue">sales2</span></td><td>เซลล์คนที่ 2</td><td>SS</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>manager_sale</code></td><td>u3</td><td>วิชัย ขายเก่ง</td><td><span class="badge badge-orange">sale_mgr</span></td><td>Sales Manager</td><td>WC</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>manager_admin</code></td><td>u4</td><td>ปรีชา จัดการ</td><td><span class="badge badge-purple">admin_mgr</span></td><td>Admin Manager</td><td>PC</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>manager_project</code></td><td>u5</td><td>นิพนธ์ โปรเจกต์</td><td><span class="badge badge-teal">project_mgr</span></td><td>Project Manager</td><td>NP</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>director</code></td><td>u6</td><td>ประยุทธ์ ผู้บริหาร</td><td><span class="badge badge-red">director</span></td><td>Managing Director</td><td>PY</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>procurement</code></td><td>u7</td><td>มาลี จัดซื้อ</td><td><span class="badge badge-gray">procurement</span></td><td>Procurement</td><td>ML</td><td>'' (ว่าง)</td></tr>
+              <tr><td><code>factory</code></td><td>u8</td><td>สมบูรณ์ โรงงาน</td><td><span class="badge badge-gray">factory</span></td><td>ทีมโรงงาน</td><td>SB</td><td>'' (ว่าง)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p style="font-size:0.82rem;color:var(--gray);margin-top:0.5rem;">รหัสผ่าน Demo ทุก user: <code>1234</code></p>
+    </div>
+
+    <!-- ==================== APPROVAL FLOW ==================== -->
+    <div class="section" id="sec-approval-flow">
+      <div class="section-title">🔄 สายอนุมัติ (APPROVAL_STEPS)</div>
+      <div class="card">
+        <div class="card-body">
+          <div class="flow-steps">
+            <div class="flow-step done">Step 1<br>🧑‍💼 เซลล์ 1<br><code style="font-size:0.7rem">sales</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step done">Step 2<br>🧑‍💼 เซลล์ 2<br><code style="font-size:0.7rem">sales2</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 3<br>👔 Sales Mgr<br><code style="font-size:0.7rem">sale_mgr</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 4<br>👔 Admin Mgr<br><code style="font-size:0.7rem">admin_mgr</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 5<br>👔 Project Mgr<br><code style="font-size:0.7rem">project_mgr</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 6<br>🏢 MD<br><code style="font-size:0.7rem">director</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 7<br>🛒 Procurement<br><code style="font-size:0.7rem">procurement</code></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-step">Step 8<br>🏭 Factory<br><code style="font-size:0.7rem">factory</code></div>
+          </div>
+          <div style="margin-top:1rem;padding:0.8rem;background:#f9f9f9;border-radius:6px;font-size:0.83rem;">
+            <strong>กฎ Quotation:</strong> อนุมัติครบที่ Step 7 (Procurement) → <code>status = 'approved'</code><br>
+            <strong>กฎ Work Order:</strong> อนุมัติครบที่ Step 8 (Factory) → <code>status = 'approved'</code> + <code>isClosed = true</code> โดยอัตโนมัติ<br>
+            <strong>กฎ Reject:</strong> ปฏิเสธที่ step ใดก็ตาม → <code>status = 'rejected'</code>, <code>approvalStep = 0</code> (ส่งกลับต้น)
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-head" style="background:#f5f5f5;color:#333;">📋 Matrix: ใครอนุมัติเอกสารอะไรได้บ้าง</div>
+        <div class="card-body" style="padding:0;">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th style="text-align:left">Role</th>
+                <th>Quotation</th>
+                <th>Work Order</th>
+                <th>PR</th>
+                <th>Hand Over</th>
+                <th>สร้างเอกสาร</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>🧑‍💼 Sales (เซลล์ 1)</td><td class="check">✅ Step 1</td><td class="check">✅ Step 1</td><td class="cross">—</td><td class="cross">—</td><td class="check">✅</td></tr>
+              <tr><td>🧑‍💼 Sales 2 (เซลล์ 2)</td><td class="check">✅ Step 2</td><td class="check">✅ Step 2</td><td class="cross">—</td><td class="cross">—</td><td class="check">✅</td></tr>
+              <tr><td>👔 Sales Manager</td><td class="check">✅ Step 3</td><td class="check">✅ Step 3</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+              <tr><td>👔 Admin Manager</td><td class="check">✅ Step 4</td><td class="check">✅ Step 4</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+              <tr><td>👔 Project Manager</td><td class="check">✅ Step 5</td><td class="check">✅ Step 5</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+              <tr><td>🏢 Managing Director</td><td class="check">✅ Step 6</td><td class="check">✅ Step 6</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+              <tr><td>🛒 Procurement</td><td class="check">✅ Step 7 (Final)</td><td class="check">✅ Step 7</td><td class="check">✅</td><td class="cross">—</td><td class="check">✅ PR</td></tr>
+              <tr><td>🏭 Factory</td><td class="cross">—</td><td class="check">✅ Step 8 (Final)</td><td class="cross">—</td><td class="cross">—</td><td class="cross">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== DATABASE ==================== -->
+    <div class="section" id="sec-db">
+      <div class="section-title">🗄️ โครงสร้างข้อมูล — localStorage key: <code>greendii_demo_db</code></div>
+      <p style="font-size:0.83rem;color:var(--gray);margin-bottom:1rem;">
+        ข้อมูลทั้งหมดเก็บเป็น JSON ใน <code>localStorage</code> ของ Browser มี 6 collections หลัก:
+      </p>
+      <div class="model-grid">
+
+        <!-- quotations -->
+        <div class="model-card">
+          <div class="model-head" style="background:#2d6a2e;">📋 quotations</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span><span class="field-desc">genId()</span></div>
+            <div class="field-row"><span class="field-name">quoNo</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">QGD-MMYY-INIxxx</span></div>
+            <div class="field-row"><span class="field-name">salesId</span><span class="field-type">String</span><span class="field-key fk">FK</span><span class="field-desc">USERS[x].id</span></div>
+            <div class="field-row"><span class="field-name">salesName</span><span class="field-type">String</span><span class="field-desc">ชื่อเต็มเซลล์</span></div>
+            <div class="field-row"><span class="field-name">customerName</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">ชื่อลูกค้า</span></div>
+            <div class="field-row"><span class="field-name">attn</span><span class="field-type">String</span><span class="field-desc">ผู้ติดต่อ</span></div>
+            <div class="field-row"><span class="field-name">project</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">ชื่อโครงการ</span></div>
+            <div class="field-row"><span class="field-name">address</span><span class="field-type">String</span><span class="field-desc">ที่อยู่</span></div>
+            <div class="field-row"><span class="field-name">tel</span><span class="field-type">String</span><span class="field-desc">เบอร์โทร</span></div>
+            <div class="field-row"><span class="field-name">conditionTerm</span><span class="field-type">String</span><span class="field-desc">FOB Bangkok ฯลฯ</span></div>
+            <div class="field-row"><span class="field-name">validityDays</span><span class="field-type">Number</span><span class="field-desc">ยืนราคา (วัน)</span></div>
+            <div class="field-row"><span class="field-name">leadTime</span><span class="field-type">String</span><span class="field-desc">ระยะเวลาส่ง</span></div>
+            <div class="field-row"><span class="field-name">paymentTerm</span><span class="field-type">String</span><span class="field-desc">เงื่อนไขชำระ</span></div>
+            <div class="field-row"><span class="field-name">items</span><span class="field-type">Array</span><span class="field-desc">[{desc,qty,unit,price,amount}]</span></div>
+            <div class="field-row"><span class="field-name">subTotal</span><span class="field-type">Number</span><span class="field-desc">รวมก่อน VAT</span></div>
+            <div class="field-row"><span class="field-name">vat</span><span class="field-type">Number</span><span class="field-desc">VAT 7%</span></div>
+            <div class="field-row"><span class="field-name">grandTotal</span><span class="field-type">Number</span><span class="field-desc">รวมทั้งสิ้น</span></div>
+            <div class="field-row"><span class="field-name">status</span><span class="field-type">Enum</span><span class="field-desc">draft / pending / approved / rejected</span></div>
+            <div class="field-row"><span class="field-name">approvalStep</span><span class="field-type">Number</span><span class="field-desc">0–7 (กี่คนผ่านแล้ว)</span></div>
+            <div class="field-row"><span class="field-name">createdAt</span><span class="field-type">ISO String</span><span class="field-desc">วันที่สร้าง</span></div>
+          </div>
+        </div>
+
+        <!-- workOrders -->
+        <div class="model-card">
+          <div class="model-head" style="background:#1565C0;">🔧 workOrders</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span></div>
+            <div class="field-row"><span class="field-name">woNo</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">WO00001</span></div>
+            <div class="field-row"><span class="field-name">quotationId</span><span class="field-type">String|null</span><span class="field-key fk">FK</span><span class="field-desc">quotations.id</span></div>
+            <div class="field-row"><span class="field-name">salesId / salesName</span><span class="field-type">String</span><span class="field-key fk">FK</span></div>
+            <div class="field-row"><span class="field-name">project</span><span class="field-type">String</span><span class="field-key req">REQ</span></div>
+            <div class="field-row"><span class="field-name">location</span><span class="field-type">String</span><span class="field-desc">สถานที่ติดตั้ง</span></div>
+            <div class="field-row"><span class="field-name">products</span><span class="field-type">String</span><span class="field-desc">สินค้า</span></div>
+            <div class="field-row"><span class="field-name">responsibility</span><span class="field-type">String</span><span class="field-desc">ผู้รับผิดชอบ</span></div>
+            <div class="field-row"><span class="field-name">customerName</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">contactName / contactTel</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">teamAssignment</span><span class="field-type">String</span><span class="field-desc">ทีม A/B/C</span></div>
+            <div class="field-row"><span class="field-name">installDate</span><span class="field-type">String</span><span class="field-desc">YYYY-MM-DD</span></div>
+            <div class="field-row"><span class="field-name">qcDate</span><span class="field-type">String</span><span class="field-desc">วัน QC</span></div>
+            <div class="field-row"><span class="field-name">urgency</span><span class="field-type">String</span><span class="field-desc">ปกติ / เร่งด่วน / เร่งด่วนมาก</span></div>
+            <div class="field-row"><span class="field-name">remark</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">docChecklist</span><span class="field-type">Object</span><span class="field-desc">{po, drawing, min}: Boolean</span></div>
+            <div class="field-row"><span class="field-name">docFiles</span><span class="field-type">Object</span><span class="field-desc">{po, drawing, min}: [{name,size}]</span></div>
+            <div class="field-row"><span class="field-name">status</span><span class="field-type">Enum</span><span class="field-desc">pending / approved / rejected</span></div>
+            <div class="field-row"><span class="field-name">approvalStep</span><span class="field-type">Number</span><span class="field-desc">0–8</span></div>
+            <div class="field-row"><span class="field-name">isClosed</span><span class="field-type">Boolean</span><span class="field-desc">ปิดงานแล้ว</span></div>
+            <div class="field-row"><span class="field-name">closedAt</span><span class="field-type">ISO String</span><span class="field-desc">วันที่ปิดงาน</span></div>
+            <div class="field-row"><span class="field-name">createdAt</span><span class="field-type">ISO String</span></div>
+          </div>
+        </div>
+
+        <!-- handOverJobs -->
+        <div class="model-card">
+          <div class="model-head" style="background:#E65100;">🤝 handOverJobs</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span></div>
+            <div class="field-row"><span class="field-name">hoNo</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">HO00001</span></div>
+            <div class="field-row"><span class="field-name">workOrderId</span><span class="field-type">String|null</span><span class="field-key fk">FK</span><span class="field-desc">workOrders.id</span></div>
+            <div class="field-row"><span class="field-name">quotationId</span><span class="field-type">String|null</span><span class="field-key fk">FK</span></div>
+            <div class="field-row"><span class="field-name">project</span><span class="field-type">String</span><span class="field-key req">REQ</span></div>
+            <div class="field-row"><span class="field-name">contractor</span><span class="field-type">String</span><span class="field-desc">ผู้รับเหมา / ลูกค้า</span></div>
+            <div class="field-row"><span class="field-name">location</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">contactName</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">contactTel</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">product</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">responsibility</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">serviceDate</span><span class="field-type">String</span><span class="field-desc">YYYY-MM-DD</span></div>
+            <div class="field-row"><span class="field-name">qualityProduct</span><span class="field-type">Number</span><span class="field-desc">คะแนน 0–5</span></div>
+            <div class="field-row"><span class="field-name">qualitySales</span><span class="field-type">Number</span><span class="field-desc">คะแนน 0–5</span></div>
+            <div class="field-row"><span class="field-name">qualityInstall</span><span class="field-type">Number</span><span class="field-desc">คะแนน 0–5</span></div>
+            <div class="field-row"><span class="field-name">comment</span><span class="field-type">String</span><span class="field-desc">ความคิดเห็น</span></div>
+            <div class="field-row"><span class="field-name">status</span><span class="field-type">Enum</span><span class="field-desc">pending / completed</span></div>
+            <div class="field-row"><span class="field-name">createdAt</span><span class="field-type">ISO String</span></div>
+          </div>
+        </div>
+
+        <!-- purchaseRequests -->
+        <div class="model-card">
+          <div class="model-head" style="background:#6A1B9A;">🛒 purchaseRequests</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span></div>
+            <div class="field-row"><span class="field-name">prNo</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">PR00001</span></div>
+            <div class="field-row"><span class="field-name">workOrderId</span><span class="field-type">String|null</span><span class="field-key fk">FK</span></div>
+            <div class="field-row"><span class="field-name">customer</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">projectRef</span><span class="field-type">String</span><span class="field-key req">REQ</span><span class="field-desc">อ้างอิงโครงการ</span></div>
+            <div class="field-row"><span class="field-name">dateIssue</span><span class="field-type">String</span><span class="field-desc">YYYY-MM-DD</span></div>
+            <div class="field-row"><span class="field-name">dateRequired</span><span class="field-type">String</span><span class="field-desc">ต้องการวันที่</span></div>
+            <div class="field-row"><span class="field-name">items</span><span class="field-type">Array</span><span class="field-desc">[{desc,qty,unit,price,amount}]</span></div>
+            <div class="field-row"><span class="field-name">subTotal</span><span class="field-type">Number</span></div>
+            <div class="field-row"><span class="field-name">vat</span><span class="field-type">Number</span></div>
+            <div class="field-row"><span class="field-name">netTotal</span><span class="field-type">Number</span></div>
+            <div class="field-row"><span class="field-name">remarks</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">status</span><span class="field-type">Enum</span><span class="field-desc">pending / approved / rejected</span></div>
+            <div class="field-row"><span class="field-name">approvalStep</span><span class="field-type">Number</span></div>
+            <div class="field-row"><span class="field-name">createdAt</span><span class="field-type">ISO String</span></div>
+          </div>
+        </div>
+
+        <!-- approvalLogs -->
+        <div class="model-card">
+          <div class="model-head" style="background:#00695C;">📝 approvalLogs</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span></div>
+            <div class="field-row"><span class="field-name">docType</span><span class="field-type">Enum</span><span class="field-desc">quotation / workorder</span></div>
+            <div class="field-row"><span class="field-name">docId</span><span class="field-type">String</span><span class="field-key fk">FK</span><span class="field-desc">id ของเอกสาร</span></div>
+            <div class="field-row"><span class="field-name">approverId</span><span class="field-type">String</span><span class="field-key fk">FK</span><span class="field-desc">USERS[x].id</span></div>
+            <div class="field-row"><span class="field-name">approverName</span><span class="field-type">String</span></div>
+            <div class="field-row"><span class="field-name">step</span><span class="field-type">Number</span><span class="field-desc">1–8</span></div>
+            <div class="field-row"><span class="field-name">action</span><span class="field-type">Enum</span><span class="field-desc">approve / reject</span></div>
+            <div class="field-row"><span class="field-name">comment</span><span class="field-type">String</span><span class="field-desc">ความเห็น</span></div>
+            <div class="field-row"><span class="field-name">actedAt</span><span class="field-type">ISO String</span><span class="field-desc">วันเวลาที่ดำเนินการ</span></div>
+          </div>
+        </div>
+
+        <!-- notifications -->
+        <div class="model-card">
+          <div class="model-head" style="background:#546E7A;">🔔 notifications</div>
+          <div class="model-fields">
+            <div class="field-row"><span class="field-name">id</span><span class="field-type">String</span><span class="field-key pk">PK</span></div>
+            <div class="field-row"><span class="field-name">userId</span><span class="field-type">String</span><span class="field-key fk">FK</span><span class="field-desc">USERS[x].id</span></div>
+            <div class="field-row"><span class="field-name">text</span><span class="field-type">String</span><span class="field-desc">ข้อความแจ้งเตือน</span></div>
+            <div class="field-row"><span class="field-name">read</span><span class="field-type">Boolean</span><span class="field-desc">อ่านแล้ว / ยังไม่อ่าน</span></div>
+            <div class="field-row"><span class="field-name">createdAt</span><span class="field-type">ISO String</span></div>
+          </div>
+        </div>
+
+      </div><!-- /model-grid -->
+    </div>
+
+    <!-- ==================== FUNCTIONS ==================== -->
+
+    <!-- AUTH -->
+    <div class="section" id="sec-auth">
+      <div class="section-title">🔐 Auth &amp; Login</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">pickUser(u)</span></td><td><code>u</code>: username string</td><td>คลิก user chip บน login page → เติม input แล้ว doLogin() อัตโนมัติ</td></tr>
+              <tr><td><span class="fn">doLogin()</span></td><td>—</td><td>อ่าน username + password จาก input → ตรวจสอบกับ <code>USERS</code> → โหลด DB → แสดงหน้า App → navigate('dashboard')</td></tr>
+              <tr><td><span class="fn">doLogout()</span></td><td>—</td><td>ล้าง <code>currentUser</code> → ซ่อน App → แสดง Login page</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- NAVIGATION -->
+    <div class="section" id="sec-nav">
+      <div class="section-title">🧭 Navigation</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">navigate(page)</span></td><td><code>page</code>: string key</td><td>เปลี่ยนหน้าเนื้อหา — highlight menu, set title, breadcrumb, เรียก renderer function ตาม page<br>
+                <span class="badge badge-gray">dashboard</span>
+                <span class="badge badge-green">quotations</span>
+                <span class="badge badge-blue">workorders</span>
+                <span class="badge badge-orange">handover</span>
+                <span class="badge badge-purple">pr</span>
+                <span class="badge badge-red">approvals</span>
+                <span class="badge badge-teal">reports</span>
+                <span class="badge badge-teal">report_sales</span>
+                <span class="badge badge-teal">report_approval</span>
+                <span class="badge badge-gray">users</span>
+              </td></tr>
+              <tr><td><span class="fn">updateBadges()</span></td><td>—</td><td>นับ pending approvals แล้วแสดง badge แดงบน sidebar เมนู "รออนุมัติ"</td></tr>
+              <tr><td><span class="fn">toggleSidebar()</span></td><td>—</td><td>เปิด/ปิด sidebar บน mobile (เพิ่ม class <code>.open</code>)</td></tr>
+              <tr><td><span class="fn">closeSidebar()</span></td><td>—</td><td>ปิด sidebar + ลบ overlay</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- HELPERS -->
+    <div class="section" id="sec-helpers">
+      <div class="section-title">🔧 Helpers &amp; Utilities</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>Return</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">toast(msg, type)</span></td><td>void</td><td>แสดง toast popup ที่มุมล่างขวา — type: <code>'success'</code> / <code>'error'</code> / <code>'info'</code> — หายหลัง 3 วินาที</td></tr>
+              <tr><td><span class="fn">formatDate(d)</span></td><td>String</td><td>แปลง ISO date string → <code>DD/MM/YYYY</code></td></tr>
+              <tr><td><span class="fn">formatMoney(n)</span></td><td>String</td><td>แปลงตัวเลข → format Thai locale (1,234.56)</td></tr>
+              <tr><td><span class="fn">genId()</span></td><td>String</td><td>สร้าง unique ID จาก timestamp + random string</td></tr>
+              <tr><td><span class="fn">openModal(html)</span></td><td>void</td><td>ฉีด HTML เข้า <code>#modalContent</code> → เพิ่ม class <code>.active</code> → init flatpickr บน date input</td></tr>
+              <tr><td><span class="fn">closeModal()</span></td><td>void</td><td>ลบ class <code>.active</code> บน modal overlay</td></tr>
+              <tr><td><span class="fn">getStatusLabel(s)</span></td><td>String</td><td>แปลง status key → Thai label (draft→ฉบับร่าง, pending→รออนุมัติ ฯลฯ)</td></tr>
+              <tr><td><span class="fn">getStatusClass(s)</span></td><td>String</td><td>return CSS class ชื่อ <code>status-{s}</code></td></tr>
+              <tr><td><span class="fn">getPendingApprovals()</span></td><td>Array</td><td>หา quotations + workorders ที่ <code>approvalStep</code> ตรงกับ role ปัจจุบัน → return array ของ pending items</td></tr>
+              <tr><td><span class="fn">renderApprovalChain(currentStep, maxSteps)</span></td><td>HTML String</td><td>สร้าง HTML แสดง progress สายอนุมัติ (highlight step ที่ผ่านแล้ว)</td></tr>
+              <tr><td><span class="fn">renderBar(draft, pending, approved, total)</span></td><td>HTML String</td><td>สร้าง stacked bar chart แสดงสัดส่วน status</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="section" id="sec-dashboard">
+      <div class="section-title">📊 Dashboard</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderDashboard()</span></td><td>แสดง: Welcome banner, Stat cards (Quotation/WO/HO/PR count), Quick action buttons, มูลค่า Quotation รวม, Work Order ล่าสุด, Activity timeline, ปุ่ม Reset Demo</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- QUOTATION -->
+    <div class="section" id="sec-quotation">
+      <div class="section-title">📋 Quotation</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderQuotations()</span></td><td>—</td><td>แสดงตารางรายการ quotations ทั้งหมด + search bar + filter chip (draft/pending/approved) + ปุ่มสร้างใหม่</td></tr>
+              <tr><td><span class="fn">filterQuotations(val)</span></td><td><code>val</code>: text</td><td>กรองตาราง quotation ด้วยข้อความค้นหา (quoNo, customerName, project)</td></tr>
+              <tr><td><span class="fn">filterQuoStatus(el, status)</span></td><td><code>el</code>: chip element, <code>status</code>: string</td><td>กรองด้วย status chip — toggle active chip</td></tr>
+              <tr><td><span class="fn">openNewQuotation()</span></td><td>—</td><td>เปิด modal ฟอร์มสร้าง quotation ใหม่ (auto-gen เลขที่, รายการสินค้า, คำนวณ total)</td></tr>
+              <tr><td><span class="fn">addQuoItem()</span></td><td>—</td><td>เพิ่มแถวรายการสินค้าใน modal quotation</td></tr>
+              <tr><td><span class="fn">calcQuoItems()</span></td><td>—</td><td>คำนวณ amount ทุก row → update subTotal, VAT, grandTotal ใน modal</td></tr>
+              <tr><td><span class="fn">saveQuotation(submit)</span></td><td><code>submit</code>: Boolean</td><td>validate → สร้าง quotation object → push ใส่ <code>db.quotations</code> → saveDB() ถ้า submit=true → status='pending', เพิ่ม approvalLog, แจ้ง LINE ไปยัง sales2</td></tr>
+              <tr><td><span class="fn">submitForApproval(docType, docId)</span></td><td><code>docType</code>: 'quotation', <code>docId</code>: string</td><td>เปลี่ยน draft → pending (step 1) → เพิ่ม log → แจ้ง LINE ไปยัง sales2</td></tr>
+              <tr><td><span class="fn">viewQuotation(id)</span></td><td><code>id</code>: string</td><td>เปิด modal แสดงรายละเอียด quotation + approval chain + ประวัติ log + ปุ่มพิมพ์ + ปุ่มสร้าง WO (ถ้า approved)</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- WORK ORDER -->
+    <div class="section" id="sec-workorder">
+      <div class="section-title">🔧 Work Order</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderWorkOrders()</span></td><td>—</td><td>แสดงตาราง work orders ทั้งหมด + สถานะปิดงาน</td></tr>
+              <tr><td><span class="fn">openNewWorkOrder(quoId)</span></td><td><code>quoId</code>: string|undefined</td><td>เปิด modal ฟอร์มสร้าง WO ใหม่ ถ้ามี quoId จะ pre-fill ข้อมูลจาก quotation นั้น พร้อม drag &amp; drop upload เอกสาร (PO, Drawing, MoM)</td></tr>
+              <tr><td><span class="fn">saveWorkOrder()</span></td><td>—</td><td>validate → สร้าง WO object พร้อม docFiles → push ใส่ <code>db.workOrders</code> → เพิ่ม approvalLog step 1 → saveDB()</td></tr>
+              <tr><td><span class="fn">viewWorkOrder(id)</span></td><td><code>id</code>: string</td><td>แสดง modal รายละเอียด WO + approval chain + ไฟล์แนบ + ประวัติ log + ปุ่มพิมพ์</td></tr>
+              <tr><td><span class="fn">closeWorkOrder(id)</span></td><td><code>id</code>: string</td><td>set <code>isClosed=true</code> + <code>closedAt</code> → saveDB()</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- HAND OVER -->
+    <div class="section" id="sec-handover">
+      <div class="section-title">🤝 Hand Over Job</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderHandOver()</span></td><td>—</td><td>แสดงตาราง hand over jobs + คะแนนเฉลี่ย + ปุ่มให้คะแนน (ถ้ายังไม่ประเมิน)</td></tr>
+              <tr><td><span class="fn">openNewHandOver()</span></td><td>—</td><td>เปิด modal ฟอร์มสร้าง HO อ้างอิง Work Order ที่ approved แล้ว</td></tr>
+              <tr><td><span class="fn">saveHandOver()</span></td><td>—</td><td>validate → สร้าง HO object → push ใส่ <code>db.handOverJobs</code> → saveDB()</td></tr>
+              <tr><td><span class="fn">rateHandOver(id)</span></td><td><code>id</code>: string</td><td>เปิด modal ฟอร์มให้คะแนน 3 ด้าน (สินค้า, งานขาย, ติดตั้ง) + ความคิดเห็น</td></tr>
+              <tr><td><span class="fn">saveRating(id)</span></td><td><code>id</code>: string</td><td>บันทึกคะแนน qualityProduct/Sales/Install + comment → status='completed' → saveDB()</td></tr>
+              <tr><td><span class="fn">viewHandOver(id)</span></td><td><code>id</code>: string</td><td>แสดง modal รายละเอียด HO + คะแนน (ถ้ามี) + ปุ่มพิมพ์</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PURCHASE REQUEST -->
+    <div class="section" id="sec-pr">
+      <div class="section-title">🛒 Purchase Request</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderPR()</span></td><td>—</td><td>แสดงตาราง purchase requests ทั้งหมด + มูลค่า + วันที่ต้องการ</td></tr>
+              <tr><td><span class="fn">openNewPR()</span></td><td>—</td><td>เปิด modal ฟอร์มสร้าง PR ใหม่ dropdown โครงการอิง quotations ที่มี + รายการสินค้า + upload เอกสาร</td></tr>
+              <tr><td><span class="fn">addPRItem()</span></td><td>—</td><td>เพิ่มแถวรายการใน modal PR</td></tr>
+              <tr><td><span class="fn">calcPRItems()</span></td><td>—</td><td>คำนวณ amount → update subTotal, VAT, netTotal ใน modal</td></tr>
+              <tr><td><span class="fn">savePR()</span></td><td>—</td><td>validate → สร้าง PR object → push ใส่ <code>db.purchaseRequests</code> → status='pending' → saveDB()</td></tr>
+              <tr><td><span class="fn">viewPR(id)</span></td><td><code>id</code>: string</td><td>แสดง modal รายละเอียด PR + รายการสินค้า + ยอดรวม + ปุ่มพิมพ์</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- APPROVALS -->
+    <div class="section" id="sec-approvals">
+      <div class="section-title">✍️ Approvals — สายอนุมัติ</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderApprovals()</span></td><td>—</td><td>แสดงเอกสารรออนุมัติของ currentUser + ประวัติ approval logs ทั้งหมด 20 รายการล่าสุด</td></tr>
+              <tr><td><span class="fn">approveDoc(docType, docId)</span></td><td><code>docType</code>: 'quotation'|'workorder', <code>docId</code>: string</td><td>เพิ่ม step, ตรวจว่าครบ step สุดท้าย → เปลี่ยน status='approved' → เพิ่ม approvalLog → saveDB() → แจ้ง LINE ผู้อนุมัติถัดไป</td></tr>
+              <tr><td><span class="fn">rejectDoc(docType, docId)</span></td><td><code>docType</code>, <code>docId</code></td><td>เปิด modal ขอเหตุผล → เรียก <code>confirmReject()</code></td></tr>
+              <tr><td><span class="fn">confirmReject(docType, docId, step)</span></td><td><code>step</code>: Number</td><td>validate เหตุผล → set status='rejected', step=0 → เพิ่ม log action='reject' → saveDB()</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- REPORTS -->
+    <div class="section" id="sec-reports">
+      <div class="section-title">📈 Reports</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderReports()</span></td><td>สร้าง report tab bar (3 แท็บ) + render placeholder sections</td></tr>
+              <tr><td><span class="fn">switchReportTab(tab, el)</span></td><td>สลับ active แท็บและ section ที่แสดง</td></tr>
+              <tr><td><span class="fn">renderReportOverview()</span></td><td>สรุปภาพรวม: Stat cards, stacked bar Quotation/WO, ตาราง summary ทุก document type</td></tr>
+              <tr><td><span class="fn">renderReportSales()</span></td><td>วิเคราะห์ยอดขายตามลูกค้า: horizontal bar chart, top customer ranking, ตารางรายละเอียดโครงการทั้งหมดพร้อม WO/HO link</td></tr>
+              <tr><td><span class="fn">renderReportApproval()</span></td><td>ประสิทธิภาพอนุมัติ: Stat cards (approve/reject/rate%), bar chart จำนวนต่อ step, bar chart per approver, vertical timeline, ตาราง summary ต่อเอกสาร</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PRINT -->
+    <div class="section" id="sec-print">
+      <div class="section-title">🖨️ Print</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">printDocument(type, id)</span></td><td><code>type</code>: 'quotation'|'workorder'|'pr'|'handover', <code>id</code>: string</td><td>สร้าง HTML ต้นฉบับเอกสาร → เปิด popup window → print → ปิด window อัตโนมัติ<br>
+                แต่ละประเภทมี template พร้อม:<br>
+                - Header บริษัท Green Dii<br>
+                - ตาราง detail + รายการสินค้า<br>
+                - Signature block ที่ปรับตามประเภทเอกสาร
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- LINE NOTIFY -->
+    <div class="section" id="sec-line">
+      <div class="section-title" style="border-left-color:var(--line-green);background:#E8F5E9;">💚 LINE Messaging API</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">renderUsers()</span></td><td>—</td><td>หน้า "จัดการผู้ใช้" — แสดงตารางผู้ใช้ทั้งหมด + LINE User ID ปัจจุบัน + ปุ่ม Edit/Test + ช่อง Channel Access Token</td></tr>
+              <tr><td><span class="fn">editUserLine(userId, username)</span></td><td><code>userId</code>: key ใน USERS</td><td>เปิด modal กรอก LINE User ID (ต้องขึ้นต้นด้วย U และยาว 33 ตัวอักษร)</td></tr>
+              <tr><td><span class="fn">saveUserLine(userId)</span></td><td><code>userId</code>: key ใน USERS</td><td>validate format → บันทึก lineUserId ลงใน USERS object (in-memory) → toast</td></tr>
+              <tr><td><span class="fn">testLineNotify(userId)</span></td><td><code>userId</code>: key ใน USERS</td><td>ส่ง test notification ไปยัง user ที่เลือก → เรียก simulateLINENotify()</td></tr>
+              <tr><td><span class="fn">simulateLINENotify(user, message)</span></td><td><code>user</code>: USERS object, <code>message</code>: string</td><td>แสดง popup สีเขียว simulate LINE message — แสดงชื่อผู้รับ, LINE user ID, สถานะ token, ข้อความ — หายหลัง 5 วินาที</td></tr>
+              <tr><td><span class="fn">getNextApprover(currentStepIndex)</span></td><td><code>currentStepIndex</code>: Number (0-based)</td><td>หา role ของ step ถัดไป → หา user ใน USERS ที่มี role นั้น → return user object หรือ null</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:0.8rem;padding:0.8rem 1rem;background:#E8F5E9;border-radius:8px;font-size:0.82rem;border:1px solid #A5D6A7;">
+        <strong style="color:var(--line-green);">💡 หมายเหตุ:</strong> ในระบบ Demo นี้เป็นเพียงการ <em>simulate</em> การส่ง LINE — ไม่ได้ call API จริง
+        การใช้งานจริงต้องมี Backend server ที่ call <code>POST https://api.line.me/v2/bot/message/push</code>
+        พร้อม Channel Access Token และ <code>lineUserId</code> ของแต่ละ user
+      </div>
+    </div>
+
+    <!-- FILE UPLOAD -->
+    <div class="section" id="sec-upload">
+      <div class="section-title">📎 File Upload</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>พารามิเตอร์</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">handleDragOver(event)</span></td><td><code>event</code>: DragEvent</td><td>preventDefault → เพิ่ม CSS class drag-over บน drop zone</td></tr>
+              <tr><td><span class="fn">handleDragLeave(event)</span></td><td><code>event</code>: DragEvent</td><td>ลบ class drag-over</td></tr>
+              <tr><td><span class="fn">handleDrop(event, key)</span></td><td><code>key</code>: 'po'|'drawing'|'min'|'pr_doc'</td><td>รับ files จาก dataTransfer → เรียก <code>processFiles()</code></td></tr>
+              <tr><td><span class="fn">handleFileSelect(input, key)</span></td><td><code>input</code>: file input element, <code>key</code>: string</td><td>รับ files จาก input → เรียก <code>processFiles()</code></td></tr>
+              <tr><td><span class="fn">processFiles(files, key)</span></td><td><code>files</code>: FileList, <code>key</code>: string</td><td>push file metadata {name, size, type} เข้า <code>uploadedFiles[key]</code> → render file list badges</td></tr>
+              <tr><td><span class="fn">getFileIcon(filename)</span></td><td><code>filename</code>: string</td><td>return emoji icon ตาม extension (.pdf→📄, .jpg→🖼️, .doc→📝, .dwg→📐 ฯลฯ)</td></tr>
+              <tr><td><span class="fn">formatFileSize(bytes)</span></td><td><code>bytes</code>: Number</td><td>แปลง bytes → KB / MB string</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p style="font-size:0.82rem;color:var(--gray);margin-top:0.5rem;">
+        ไฟล์ถูกเก็บใน variable <code>uploadedFiles</code> (in-memory) ระหว่างสร้าง Work Order — metadata (ชื่อ, ขนาด) ถูกบันทึกใน <code>workOrders[].docFiles</code>
+        แต่ไม่มีการ upload file จริงในระบบ Demo
+      </p>
+    </div>
+
+    <!-- DATABASE HELPERS -->
+    <div class="section" id="sec-dbfn">
+      <div class="section-title">💾 Database Helpers</div>
+      <div class="card">
+        <div class="card-body" style="padding:0;">
+          <table>
+            <thead><tr><th>Function</th><th>คำอธิบาย</th></tr></thead>
+            <tbody>
+              <tr><td><span class="fn">loadDB()</span></td><td>อ่าน JSON จาก <code>localStorage['greendii_demo_db']</code> → parse → ใส่ตัวแปร <code>db</code> ถ้าไม่มีข้อมูล → เรียก <code>seedData()</code></td></tr>
+              <tr><td><span class="fn">saveDB()</span></td><td>Stringify <code>db</code> object → บันทึกกลับลง <code>localStorage</code></td></tr>
+              <tr><td><span class="fn">resetDB()</span></td><td>ลบ localStorage key → เรียก <code>seedData()</code> → navigate dashboard → toast</td></tr>
+              <tr><td><span class="fn">seedData()</span></td><td>สร้างข้อมูลตัวอย่าง (3 quotations, 2 work orders, 1 hand over, 1 PR, approval logs, notifications) → saveDB()</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="text-align:center;padding:2rem 0;color:var(--gray);font-size:0.8rem;border-top:1px solid #e0e0e0;margin-top:2rem;">
+      Green Dii — Function Summary Document | อัปเดตล่าสุด มีนาคม 2569<br>
+      สามารถแก้ไขไฟล์ <code>Doc/function-summary.html</code> ได้โดยตรงใน VS Code
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /body-wrap -->
+
+<script>
+// Highlight active TOC link on scroll
+const sections = document.querySelectorAll('.section');
+const tocLinks = document.querySelectorAll('.toc a');
+window.addEventListener('scroll', () => {
+  let current = '';
+  sections.forEach(s => {
+    if (window.scrollY >= s.offsetTop - 100) current = s.id;
+  });
+  tocLinks.forEach(a => {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
+</script>
+</body>
+</html>
