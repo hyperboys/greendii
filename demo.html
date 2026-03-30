@@ -650,6 +650,8 @@
             <div class="menu-item" onclick="navigate('reports')">� ภาพรวม</div>
             <div class="menu-item" onclick="navigate('report_sales')">💰 ยอดขายลูกค้า</div>
             <div class="menu-item" onclick="navigate('report_approval')">⚡ ประสิทธิภาพอนุมัติ</div>
+            <div class="menu-label">ตั้งค่าระบบ</div>
+            <div class="menu-item" onclick="navigate('users')">👥 จัดการผู้ใช้</div>
         </div>
         <div class="sidebar-footer">
             <button class="btn-logout" onclick="doLogout()">🚪 ออกจากระบบ</button>
@@ -708,14 +710,14 @@ function closeSidebar() {
 
 // ==================== MOCK DATA ====================
 const USERS = {
-    somchai:       { id:'u1', username:'somchai',       fullName:'สมชาย ใจดี',       initials:'SC', role:'sales',       avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 1' },
-    somsri:        { id:'u2', username:'somsri',        fullName:'สมศรี รักงาน',     initials:'SS', role:'sales2',      avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 2' },
-    manager_sale:  { id:'u3', username:'manager_sale',  fullName:'วิชัย ขายเก่ง',    initials:'WC', role:'sale_mgr',    avatar:'👔', roleLabel:'Sales Manager' },
-    manager_admin: { id:'u4', username:'manager_admin', fullName:'ปรีชา จัดการ',     initials:'PC', role:'admin_mgr',   avatar:'👔', roleLabel:'Admin Manager' },
-    manager_project:{id:'u5', username:'manager_project',fullName:'นิพนธ์ โปรเจกต์', initials:'NP', role:'project_mgr', avatar:'👔', roleLabel:'Project Manager' },
-    director:      { id:'u6', username:'director',      fullName:'ประยุทธ์ ผู้บริหาร', initials:'PY', role:'director',   avatar:'🏢', roleLabel:'Managing Director' },
-    procurement:   { id:'u7', username:'procurement',   fullName:'มาลี จัดซื้อ',     initials:'ML', role:'procurement', avatar:'🛒', roleLabel:'Procurement' },
-    factory:       { id:'u8', username:'factory',       fullName:'สมบูรณ์ โรงงาน',   initials:'SB', role:'factory',     avatar:'🏭', roleLabel:'ทีมโรงงาน' }
+    somchai:       { id:'u1', username:'somchai',       fullName:'สมชาย ใจดี',       initials:'SC', role:'sales',       avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 1',  lineUserId:'' },
+    somsri:        { id:'u2', username:'somsri',        fullName:'สมศรี รักงาน',     initials:'SS', role:'sales2',      avatar:'🧑‍💼', roleLabel:'เซลล์คนที่ 2',  lineUserId:'' },
+    manager_sale:  { id:'u3', username:'manager_sale',  fullName:'วิชัย ขายเก่ง',    initials:'WC', role:'sale_mgr',    avatar:'👔', roleLabel:'Sales Manager',    lineUserId:'' },
+    manager_admin: { id:'u4', username:'manager_admin', fullName:'ปรีชา จัดการ',     initials:'PC', role:'admin_mgr',   avatar:'👔', roleLabel:'Admin Manager',    lineUserId:'' },
+    manager_project:{id:'u5', username:'manager_project',fullName:'นิพนธ์ โปรเจกต์', initials:'NP', role:'project_mgr', avatar:'👔', roleLabel:'Project Manager',  lineUserId:'' },
+    director:      { id:'u6', username:'director',      fullName:'ประยุทธ์ ผู้บริหาร', initials:'PY', role:'director',   avatar:'🏢', roleLabel:'Managing Director', lineUserId:'' },
+    procurement:   { id:'u7', username:'procurement',   fullName:'มาลี จัดซื้อ',     initials:'ML', role:'procurement', avatar:'🛒', roleLabel:'Procurement',      lineUserId:'' },
+    factory:       { id:'u8', username:'factory',       fullName:'สมบูรณ์ โรงงาน',   initials:'SB', role:'factory',     avatar:'🏭', roleLabel:'ทีมโรงงาน',      lineUserId:'' }
 };
 
 const APPROVAL_STEPS = [
@@ -839,14 +841,15 @@ function doLogout() {
 function navigate(page) {
     document.querySelectorAll('.menu-item').forEach(el => el.classList.remove('active'));
     const items = document.querySelectorAll('.menu-item');
-    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6, report_sales:7, report_approval:8};
+    const map = {dashboard:0, quotations:1, workorders:2, handover:3, pr:4, approvals:5, reports:6, report_sales:7, report_approval:8, users:9};
     if (map[page] !== undefined) items[map[page]]?.classList.add('active');
 
     const titles = {
         dashboard:'Dashboard', quotations:'ใบเสนอราคา (Quotation)',
         workorders:'Work Order', handover:'Hand Over Job',
         pr:'Purchase Request', approvals:'รออนุมัติ', 
-        reports:'สรุปรายงาน', report_sales:'ยอดขายตามลูกค้า', report_approval:'ประสิทธิภาพการอนุมัติ'
+        reports:'สรุปรายงาน', report_sales:'ยอดขายตามลูกค้า', report_approval:'ประสิทธิภาพการอนุมัติ',
+        users:'จัดการผู้ใช้'
     };
     document.getElementById('pageTitle').textContent = titles[page] || page;
     document.getElementById('pageBreadcrumb').textContent = 'หน้าหลัก > ' + (titles[page]||page);
@@ -856,7 +859,8 @@ function navigate(page) {
         workorders: renderWorkOrders, handover: renderHandOver,
         pr: renderPR, approvals: renderApprovals, reports: renderReports,
         report_sales: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[1]; if(tab) switchReportTab('sales',tab); },0); },
-        report_approval: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[2]; if(tab) switchReportTab('approval',tab); },0); }
+        report_approval: () => { renderReports(); setTimeout(()=>{ const tab = document.querySelectorAll('.report-tab')[2]; if(tab) switchReportTab('approval',tab); },0); },
+        users: renderUsers
     };
     if (renderers[page]) renderers[page]();
     updateBadges();
@@ -1346,6 +1350,11 @@ function submitForApproval(docType, docId) {
                 actedAt:new Date().toISOString()
             });
             saveDB();
+            // แจ้ง sales2 (เซลล์คนที่ 2) ว่ามีเอกสารรอตรวจสอบ
+            const nextUser = getNextApprover(0);
+            if (nextUser) simulateLINENotify(nextUser,
+                `📋 มีใบเสนอราคารอตรวจสอบ\n${q.quoNo}\nโครงการ: ${q.project}\nกรุณาเข้าระบบ Green Dii เพื่อ Approve`
+            );
             toast('ส่งใบเสนอราคาเข้าสายอนุมัติแล้ว');
             renderQuotations();
         }
@@ -2206,6 +2215,16 @@ function approveDoc(docType, docId) {
     });
 
     saveDB();
+    // ส่ง LINE แจ้งเตือนผู้อนุมัติคนถัดไป
+    if (doc.status !== 'approved') {
+        const nextUser = getNextApprover(stepIndex);
+        if (nextUser) {
+            const docLabel = docType === 'quotation' ? `Quotation ${doc.quoNo}` : `Work Order ${doc.woNo}`;
+            simulateLINENotify(nextUser,
+                `📋 มีเอกสารรออนุมัติ\n${docLabel}\nโครงการ: ${doc.project}\nกรุณาเข้าระบบ Green Dii เพื่อ Approve`
+            );
+        }
+    }
     if (docType === 'workorder' && step >= APPROVAL_STEPS.length) {
         toast(`อนุมัติและปิดงาน Work Order เรียบร้อย (Step ${step}/${APPROVAL_STEPS.length}) 🎉`);
     } else {
@@ -3021,6 +3040,185 @@ ${companyHeader}
 ${bodyHtml}
 </body></html>`);
     printWin.document.close();
+}
+
+// ==================== USER MANAGEMENT ====================
+function renderUsers() {
+    const userList = Object.values(USERS);
+    document.getElementById('mainContent').innerHTML = `
+        <div class="card" style="margin-bottom:1.5rem;border-left:4px solid #06C755;">
+            <div class="card-header" style="background:#E8F5E9;">
+                <span>💚 LINE Messaging API — การแจ้งเตือนผู้อนุมัติ</span>
+            </div>
+            <div class="card-body" style="font-size:0.88rem;color:var(--gray-dark);">
+                <p>เมื่อเอกสารถูกส่งต่อไปยังผู้อนุมัติคนถัดไป ระบบจะส่งข้อความ LINE แจ้งเตือนอัตโนมัติ</p>
+                <p style="margin-top:0.5rem;">กรุณาให้ผู้ใช้แต่ละคน <strong>Add เพื่อน</strong> กับ Official Account ของระบบ แล้วกรอก <strong>LINE User ID</strong> (เริ่มต้นด้วย U เช่น <code>Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</code>) ในช่องด้านล่าง</p>
+                <div style="margin-top:0.8rem;padding:0.6rem 1rem;background:#f5f5f5;border-radius:8px;font-size:0.8rem;">
+                    ⚙️ <strong>LINE Channel Access Token:</strong>
+                    <input type="text" id="lineChannelToken" placeholder="วาง Channel Access Token ของ LINE Messaging API ที่นี่"
+                        style="width:100%;margin-top:0.4rem;padding:0.5rem 0.8rem;border:1px solid #e0e0e0;border-radius:6px;font-size:0.82rem;"
+                        value="${localStorage.getItem('line_channel_token')||''}"
+                        onchange="localStorage.setItem('line_channel_token',this.value)">
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header" style="background:var(--green-pale);color:var(--green-dark);">
+                👥 รายชื่อผู้ใช้และ LINE User ID
+                <span style="font-size:0.75rem;color:var(--gray);font-weight:400;margin-left:0.5rem;">คลิก ✏️ เพื่อแก้ไข LINE User ID</span>
+            </div>
+            <div class="card-body" style="padding:0;">
+                <table class="data-table" id="usersTable">
+                    <thead>
+                        <tr>
+                            <th>ผู้ใช้</th>
+                            <th>ชื่อ-นามสกุล</th>
+                            <th>ตำแหน่ง</th>
+                            <th>LINE User ID</th>
+                            <th>สถานะ LINE</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${userList.map(u => `
+                        <tr id="userRow_${u.id}">
+                            <td>
+                                <div style="display:flex;align-items:center;gap:0.5rem;">
+                                    <span style="font-size:1.3rem;">${u.avatar}</span>
+                                    <div>
+                                        <div style="font-weight:600;font-size:0.85rem;">${u.username}</div>
+                                        <div style="font-size:0.7rem;color:var(--gray);">[${u.initials}]</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>${u.fullName}</td>
+                            <td><span class="status-badge status-pending" style="background:#E8F5E9;color:#2E7D32;">${u.roleLabel}</span></td>
+                            <td id="lineIdCell_${u.id}">
+                                <span style="font-size:0.8rem;color:${u.lineUserId?'var(--green-dark)':'var(--gray)'};">
+                                    ${u.lineUserId || '<em>ยังไม่ได้กรอก</em>'}
+                                </span>
+                            </td>
+                            <td>
+                                ${u.lineUserId
+                                    ? '<span class="status-badge status-approved">✅ พร้อมรับแจ้งเตือน</span>'
+                                    : '<span class="status-badge status-draft">⚠️ ยังไม่เชื่อมต่อ</span>'}
+                            </td>
+                            <td>
+                                <button class="btn btn-info btn-sm" onclick="editUserLine('${u.id}','${u.username}')">✏️ แก้ไข</button>
+                                ${u.lineUserId ? `<button class="btn btn-primary btn-sm" style="margin-left:0.3rem;" onclick="testLineNotify('${u.id}')">🔔 ทดสอบ</button>` : ''}
+                            </td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card" style="margin-top:1.5rem;">
+            <div class="card-header" style="background:#E3F2FD;color:#1565C0;">📖 วิธีหา LINE User ID</div>
+            <div class="card-body" style="font-size:0.88rem;">
+                <ol style="padding-left:1.5rem;line-height:2;">
+                    <li>ไปที่ <strong>LINE Developers Console</strong> → สร้าง Provider และ Messaging API Channel</li>
+                    <li>เปิดใช้งาน <strong>Webhook</strong> → ระบบจะรับ <code>userId</code> เมื่อผู้ใช้ Add เพื่อน</li>
+                    <li>ให้ผู้อนุมัติแต่ละคน <strong>Add เพื่อน</strong> กับ Official Account ของระบบ</li>
+                    <li>ดู <code>userId</code> จาก Webhook event ประเภท <code>follow</code> → รูปแบบ: <code>Uxxxxxxxxxx...</code></li>
+                    <li>นำ userId มากรอกในตารางด้านบน</li>
+                </ol>
+            </div>
+        </div>
+    `;
+}
+
+function editUserLine(userId, username) {
+    const user = Object.values(USERS).find(u => u.id === userId);
+    if (!user) return;
+    openModal(`
+        <div class="modal-header">
+            <h3>✏️ แก้ไข LINE User ID — ${user.fullName}</h3>
+            <button class="modal-close" onclick="closeModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label>${user.avatar} ${user.fullName} (${user.roleLabel})</label>
+            </div>
+            <div class="form-group">
+                <label>LINE User ID</label>
+                <input type="text" id="fLineUserId" placeholder="Uxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                    value="${user.lineUserId||''}"
+                    style="font-family:monospace;">
+                <div style="font-size:0.75rem;color:var(--gray);margin-top:0.3rem;">
+                    รูปแบบ: ขึ้นต้นด้วย U ตามด้วยตัวเลขและอักษร 32 หลัก
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-outline" onclick="closeModal()">ยกเลิก</button>
+            <button class="btn btn-primary" onclick="saveUserLine('${userId}')">💾 บันทึก</button>
+        </div>
+    `);
+}
+
+function saveUserLine(userId) {
+    const val = document.getElementById('fLineUserId').value.trim();
+    if (val && !val.startsWith('U')) {
+        toast('LINE User ID ต้องขึ้นต้นด้วย U', 'error');
+        return;
+    }
+    const user = Object.values(USERS).find(u => u.id === userId);
+    if (user) {
+        user.lineUserId = val;
+        closeModal();
+        toast(val ? `บันทึก LINE User ID ของ ${user.fullName} แล้ว` : `ลบ LINE User ID ของ ${user.fullName} แล้ว`);
+        renderUsers();
+    }
+}
+
+function testLineNotify(userId) {
+    const user = Object.values(USERS).find(u => u.id === userId);
+    if (!user || !user.lineUserId) return;
+    simulateLINENotify(user, '🔔 [ทดสอบ] นี่คือข้อความทดสอบจากระบบ Green Dii — LINE Notification ทำงานปกติ ✅');
+}
+
+// ==================== LINE NOTIFICATION SIMULATION ====================
+function simulateLINENotify(user, message) {
+    if (!user || !user.lineUserId) return;
+    const token = localStorage.getItem('line_channel_token')||'';
+
+    // แสดง toast แจ้งว่าส่ง LINE notification
+    toast(`📲 ส่ง LINE แจ้ง ${user.fullName} แล้ว`, 'info');
+
+    // ในระบบจริง: เรียก Backend API → POST https://api.line.me/v2/bot/message/push
+    // Backend จะส่ง: { to: user.lineUserId, messages: [{ type: "text", text: message }] }
+    // ใน Demo นี้แสดง simulation popup แทน
+    const popup = document.createElement('div');
+    popup.style.cssText = `
+        position:fixed;bottom:5rem;right:1rem;z-index:400;
+        background:#06C755;color:#fff;border-radius:12px;padding:1rem 1.2rem;
+        box-shadow:0 4px 20px rgba(0,0,0,0.25);max-width:300px;font-size:0.82rem;
+        animation:slideIn 0.3s ease;
+    `;
+    popup.innerHTML = `
+        <div style="font-weight:700;margin-bottom:0.3rem;font-size:0.9rem;">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg"
+                 style="height:16px;vertical-align:middle;margin-right:5px;" onerror="this.style.display='none'">
+            LINE Notification (Demo)
+        </div>
+        <div style="font-size:0.8rem;opacity:0.9;margin-bottom:0.4rem;">ถึง: ${user.fullName}</div>
+        <div>${message}</div>
+        <div style="font-size:0.7rem;opacity:0.7;margin-top:0.5rem;">
+            ${token ? '📡 Channel Token: พร้อม' : '⚠️ ยังไม่มี Channel Token (Demo mode)'}
+        </div>
+    `;
+    document.body.appendChild(popup);
+    setTimeout(() => popup.style.opacity = '0', 4000);
+    setTimeout(() => popup.remove(), 4500);
+}
+
+function getNextApprover(currentStepIndex) {
+    const nextStepIndex = currentStepIndex + 1;
+    if (nextStepIndex >= APPROVAL_STEPS.length) return null;
+    const nextRole = APPROVAL_STEPS[nextStepIndex].role;
+    return Object.values(USERS).find(u => u.role === nextRole) || null;
 }
 
 // ==================== FILE UPLOAD HELPERS ====================

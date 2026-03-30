@@ -606,6 +606,22 @@
             </ul>
         </div>
 
+        <div class="system-card" style="border-top:3px solid #06C755;">
+            <h3><span class="icon" style="background:#E8F5E9;">💚</span> LINE Messaging API</h3>
+            <div class="tech-stack">
+                <span class="tech-badge" style="background:#06C755;">LINE Bot SDK</span>
+                <span class="tech-badge">Push Message</span>
+            </div>
+            <ul style="margin-top:1rem;">
+                <li>แจ้งเตือนผู้อนุมัติเมื่อเอกสารเลื่อน Step</li>
+                <li>Push Message ถึง LINE User ID ของผู้รับ</li>
+                <li>Webhook รับ userId เมื่อผู้ใช้ Add เพื่อน</li>
+                <li>Channel Access Token จัดเก็บใน Backend (.env)</li>
+                <li>ผู้ใช้แต่ละคนมี <code>line_user_id</code> ใน users table</li>
+                <li>จัดการผ่านหน้า Admin: จัดการผู้ใช้</li>
+            </ul>
+        </div>
+
         <div class="system-card">
             <h3><span class="icon">📄</span> PDF Generation</h3>
             <div class="tech-stack">
@@ -767,6 +783,7 @@
                 <div class="field"><span class="fname">role</span><span class="ftype">ENUM</span></div>
                 <div class="field"><span class="fname">avatar_url</span><span class="ftype">VARCHAR(500)</span></div>
                 <div class="field"><span class="fname">email</span><span class="ftype">VARCHAR(100)</span></div>
+                <div class="field"><span class="fname">line_user_id</span><span class="ftype">VARCHAR(50)</span></div>
                 <div class="field"><span class="fname">is_active</span><span class="ftype">BOOLEAN</span></div>
                 <div class="field"><span class="fname">created_at</span><span class="ftype">TIMESTAMP</span></div>
                 <div class="field"><span class="fname">updated_at</span><span class="ftype">TIMESTAMP</span></div>
@@ -953,6 +970,9 @@
                     <tr><td><span class="method-badge method-post">POST</span></td><td>/api/users</td><td>สร้างผู้ใช้ใหม่ (Admin)</td><td>Bearer + Admin</td></tr>
                     <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/users/:id</td><td>แก้ไขผู้ใช้ (Admin)</td><td>Bearer + Admin</td></tr>
                     <tr><td><span class="method-badge method-post">POST</span></td><td>/api/users/:id/avatar</td><td>อัปโหลดรูปผู้ใช้</td><td>Bearer</td></tr>
+                    <tr><td><span class="method-badge method-put">PUT</span></td><td>/api/users/:id/line-id</td><td>อัปเดต LINE User ID ของผู้ใช้ (Admin)</td><td>Bearer + Admin</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/line/notify</td><td>ส่ง LINE แจ้งเตือนผู้อนุมัติ — Push Message ผ่าน LINE Messaging API</td><td>Bearer (Internal)</td></tr>
+                    <tr><td><span class="method-badge method-post">POST</span></td><td>/api/line/webhook</td><td>LINE Webhook รับ follow event เพื่อบันทึก userId</td><td>LINE Signature</td></tr>
                 </tbody>
             </table>
         </div>
@@ -1144,7 +1164,8 @@
                 <li>ใช้ State Machine Pattern</li>
                 <li>บันทึก Log ทุก Step ใน <code>approval_logs</code></li>
                 <li>ตรวจสอบ Role ก่อนอนุมัติ</li>
-                <li>ส่ง Notification อัตโนมัติ</li>
+                <li>ส่ง Notification อัตโนมัติ (อีเมล + LINE)</li>
+                <li>เมื่อ Approve แต่ละ Step → Push LINE ถึงผู้อนุมัติคนถัดไป</li>
                 <li>รองรับ Skip Step (ถ้าผู้อนุมัติไม่ว่าง)</li>
                 <li>Reject → ส่งกลับเซลล์คนที่ 1</li>
                 <li>Timeout Alert (เกิน 3 วัน ไม่อนุมัติ)</li>
