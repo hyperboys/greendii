@@ -50,7 +50,7 @@
             display:flex; align-items:center; justify-content:center; margin:0 auto 1.5rem;
             font-size:2.5rem;
         }
-        .form-group { margin-bottom:1rem; text-align:left; }
+        .form-group { margin-bottom:1.3rem; text-align:left; }
         .form-group label { display:block; font-weight:600; font-size:0.85rem; margin-bottom:0.3rem; color:var(--gray); }
         .form-group input, .form-group select, .form-group textarea {
             width:100%; padding:0.85rem 1.2rem; border:2px solid #e0e0e0; border-radius:8px;
@@ -143,7 +143,7 @@
         .topbar > div { min-width:0; }
         .topbar h2 { font-size:1.3rem; color:var(--green-dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
         .topbar .breadcrumb { font-size:0.8rem; color:var(--gray); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .content { padding:1.5rem 2rem; }
+        .content { padding:2rem 3rem; }
 
         /* ========== DASHBOARD ========== */
         .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:2rem; }
@@ -226,12 +226,19 @@
 
         /* ========== PAGE FORM (แทน Modal) ========== */
         .page-form-wrapper {
-            max-width:1080px; margin:0 auto;
+            max-width:900px; margin:0 auto;
             background:var(--white); border-radius:16px;
             box-shadow:0 4px 24px rgba(0,0,0,0.08);
         }
         .page-form-wrapper .modal-header {
             position:relative; border-radius:16px 16px 0 0;
+            padding:1.4rem 2.5rem;
+        }
+        .page-form-wrapper .modal-body {
+            padding:2rem 2.5rem;
+        }
+        .page-form-wrapper .modal-footer {
+            padding:1.2rem 2.5rem;
         }
         .page-form-wrapper .modal-close {
             width:auto; height:auto; border-radius:8px; padding:0.3rem 0.8rem;
@@ -244,8 +251,8 @@
             width:100%; max-height:none; box-shadow:none;
         }
 
-        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
-        .form-row.three { grid-template-columns:1fr 1fr 1fr; }
+        .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; }
+        .form-row.three { grid-template-columns:1fr 1fr 1fr; gap:1.5rem; }
 
         /* ========== APPROVAL CHAIN ========== */
         .approval-chain {
@@ -316,13 +323,36 @@
 
         /* Items table in forms */
         .items-table { width:100%; border-collapse:collapse; margin:1rem 0; }
-        .items-table th { background:var(--gray-light); padding:0.5rem; font-size:0.75rem; text-align:left; }
+        .items-table th { background:var(--green-pale); color:var(--green-dark); padding:0.6rem 0.5rem; font-size:0.75rem; text-align:left; font-weight:700; letter-spacing:0.3px; }
         .items-table td { padding:0.4rem; border-bottom:1px solid #f0f0f0; }
         .items-table input { width:100%; padding:0.4rem; border:1px solid #e0e0e0; border-radius:4px; font-size:0.82rem; }
         .items-table .remove-row { color:var(--red); cursor:pointer; font-size:1rem; background:none; border:none; }
         .add-row-btn { font-size:0.8rem; color:var(--green-main); cursor:pointer; background:none; border:none; font-weight:600; padding:0.5rem 0; }
         .total-section { text-align:right; padding:1rem 0; font-size:0.95rem; }
         .total-section strong { color:var(--green-dark); }
+
+        /* ========== FORM SECTION TITLE ========== */
+        .form-section-title {
+            font-size:0.8rem; font-weight:700; color:var(--green-dark);
+            text-transform:uppercase; letter-spacing:0.8px;
+            padding:0.6rem 0 0.5rem;
+            border-bottom:2px solid var(--green-pale);
+            margin:1.8rem 0 1.2rem;
+        }
+        /* Total summary box */
+        .total-summary-box {
+            background:var(--green-pale); border-radius:10px;
+            padding:1rem 1.5rem; margin-top:1rem;
+            display:flex; flex-direction:column; align-items:flex-end; gap:0.4rem;
+        }
+        .total-summary-box .t-row {
+            display:flex; justify-content:space-between; width:280px;
+            font-size:0.9rem; color:var(--gray-dark);
+        }
+        .total-summary-box .t-row.final {
+            font-size:1.05rem; font-weight:700; color:var(--green-dark);
+            border-top:2px solid var(--green-light); padding-top:0.5rem; margin-top:0.2rem;
+        }
 
         /* Approval action area */
         .approval-actions {
@@ -1275,10 +1305,18 @@ function openNewQuotation() {
             <button class="modal-close" onclick="goBack()">← กลับ</button>
         </div>
         <div class="modal-body">
-            <div class="form-group">
-                <label>เลขที่ (Auto)</label>
-                <input type="text" id="fQuoNo" value="${autoNo}" readonly style="background:#f5f5f5;">
+            <div class="form-row">
+                <div class="form-group">
+                    <label>เลขที่ (Auto)</label>
+                    <input type="text" id="fQuoNo" value="${autoNo}" readonly style="background:#f5f5f5;">
+                </div>
+                <div class="form-group">
+                    <label>วันที่เสนอราคา</label>
+                    <input type="date" id="fQuoDate" value="${new Date().toISOString().slice(0,10)}">
+                </div>
             </div>
+
+            <div class="form-section-title">👤 ข้อมูลลูกค้า</div>
             <div class="form-row">
                 <div class="form-group">
                     <label>ชื่อลูกค้า *</label>
@@ -1292,7 +1330,6 @@ function openNewQuotation() {
                 <div class="form-group">
                     <label>ผู้ติดต่อ (Attn)</label>
                     <input type="text" id="fAttn" placeholder="ชื่อผู้ติดต่อ">
-                </div>
                 </div>
             </div>
             <div class="form-group">
@@ -1309,6 +1346,8 @@ function openNewQuotation() {
                     <input type="tel" id="fTel" placeholder="02-xxx-xxxx">
                 </div>
             </div>
+
+            <div class="form-section-title">📋 เงื่อนไขการสั่งซื้อ</div>
             <div class="form-row three">
                 <div class="form-group">
                     <label>เงื่อนไขการส่ง</label>
@@ -1352,13 +1391,9 @@ function openNewQuotation() {
                         <option value="60">60 วัน</option>
                     </select>
                 </div>
-                <div class="form-group">
-                    <label>วันที่เสนอราคา</label>
-                    <input type="date" id="fQuoDate" value="${new Date().toISOString().slice(0,10)}" onchange="formatDateInput(this)">
-                </div>
             </div>
 
-            <h4 style="margin:1rem 0 0.5rem;">รายการสินค้า</h4>
+            <div class="form-section-title">📦 รายการสินค้า</div>
             <table class="items-table" id="quoItemsTable">
                 <thead><tr><th style="width:20%">เลือกสินค้า</th><th style="width:30%">รายการ</th><th>จำนวน</th><th>หน่วย</th><th>ราคา/หน่วย</th><th>รวม</th><th></th></tr></thead>
                 <tbody id="quoItemsBody">
@@ -1378,10 +1413,10 @@ function openNewQuotation() {
                 </tbody>
             </table>
             <button class="add-row-btn" onclick="addQuoItem()">+ เพิ่มรายการ</button>
-            <div class="total-section">
-                <div>รวมก่อน VAT: <strong id="quoSubTotal">0.00</strong> บาท</div>
-                <div>VAT 7%: <strong id="quoVat">0.00</strong> บาท</div>
-                <div style="font-size:1.1rem;margin-top:0.3rem;">รวมทั้งสิ้น: <strong id="quoGrandTotal" style="color:var(--green-dark);font-size:1.3rem;">0.00</strong> บาท</div>
+            <div class="total-summary-box">
+                <div class="t-row"><span>รวมก่อน VAT</span><span><strong id="quoSubTotal">0.00</strong> บาท</span></div>
+                <div class="t-row"><span>VAT 7%</span><span><strong id="quoVat">0.00</strong> บาท</span></div>
+                <div class="t-row final"><span>รวมทั้งสิ้น</span><span><strong id="quoGrandTotal">0.00</strong> บาท</span></div>
             </div>
         </div>
         <div class="modal-footer">
