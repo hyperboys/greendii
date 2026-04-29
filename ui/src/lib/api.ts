@@ -38,7 +38,7 @@ http.interceptors.response.use(
 
 export const AuthAPI = {
   login: (username: string, password: string) =>
-    http.post<{ token: string; user: User }>('/auth/login', { username, password }).then(r => r.data),
+    http.post<{ token: string; user: User; mustChangePassword: boolean }>('/auth/login', { username, password }).then(r => r.data),
   me: () => http.get<User>('/auth/me').then(r => r.data),
   changePassword: (oldPassword: string, newPassword: string) =>
     http.post('/auth/change-password', { oldPassword, newPassword }).then(r => r.data),
