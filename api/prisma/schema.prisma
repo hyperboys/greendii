@@ -49,10 +49,11 @@ model User {
   fullName     String
   initials     String   @default("")
   role         UserRole
-  lineUserId   String?
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  lineUserId          String?
+  active              Boolean  @default(true)
+  mustChangePassword  Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   quotations       Quotation[]
   workOrders       WorkOrder[]

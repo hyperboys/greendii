@@ -7,16 +7,19 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { token } = useAuthStore()
+  const { token, user } = useAuthStore()
   const router = useRouter()
 
   useEffect(() => {
     if (!token) {
       router.replace('/login')
+    } else if (user?.mustChangePassword) {
+      router.replace('/change-password')
     }
-  }, [token, router])
+  }, [token, user, router])
 
   if (!token) return null
+  if (user?.mustChangePassword) return null
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">

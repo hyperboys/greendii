@@ -26,6 +26,7 @@ router.post('/login', async (req, res, next) => {
     );
     res.json({
       token,
+      mustChangePassword: user.mustChangePassword,
       user: {
         id: user.id,
         username: user.username,
@@ -33,6 +34,7 @@ router.post('/login', async (req, res, next) => {
         initials: user.initials,
         role: user.role,
         lineUserId: user.lineUserId,
+        mustChangePassword: user.mustChangePassword,
       },
     });
   } catch (e) { next(e); }
@@ -55,7 +57,7 @@ router.post('/change-password', authenticate, async (req, res, next) => {
     if (!valid) return res.status(400).json({ message: 'Old password incorrect' });
     if (newPassword.length < 6) return res.status(400).json({ message: 'Password must be at least 6 characters' });
     const hash = await bcrypt.hash(newPassword, 10);
-    await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: hash } });
+    await prisma.user.update({ where: { id: req.user.id }, data: { passwordHash: hash, mustChangePassword: false } });
     res.json({ message: 'Password changed' });
   } catch (e) { next(e); }
 });

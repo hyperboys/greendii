@@ -21,6 +21,7 @@ export interface User {
 
 export interface AuthUser extends Omit<User, 'active' | 'createdAt'> {
   token?: string
+  mustChangePassword?: boolean
 }
 
 // ─── MASTER DATA ──────────────────────────────────────────────────────────────

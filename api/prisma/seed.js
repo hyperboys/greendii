@@ -9,14 +9,14 @@ async function main() {
   // ── USERS ────────────────────────────────────────────────────────────────
   const defaultPass = await bcrypt.hash('1234', 10);
   const usersData = [
-    { username: 'somchai',        fullName: 'สมชาย ใจดี',        initials: 'SC', role: 'sales' },
-    { username: 'somsri',         fullName: 'สมศรี รักงาน',      initials: 'SS', role: 'sales2' },
-    { username: 'manager_sale',   fullName: 'วิชัย ขายเก่ง',     initials: 'WC', role: 'sale_mgr' },
-    { username: 'manager_admin',  fullName: 'ปรีชา จัดการ',      initials: 'PC', role: 'admin_mgr' },
-    { username: 'manager_project',fullName: 'นิพนธ์ โปรเจกต์',  initials: 'NP', role: 'project_mgr' },
-    { username: 'director',       fullName: 'ประยุทธ์ ผู้บริหาร',initials: 'PY', role: 'director' },
-    { username: 'procurement',    fullName: 'มาลี จัดซื้อ',      initials: 'ML', role: 'procurement' },
-    { username: 'factory',        fullName: 'สมบูรณ์ โรงงาน',   initials: 'SB', role: 'factory' },
+    { username: 'somchai',        fullName: 'สมชาย ใจดี',        initials: 'SC', role: 'sales',       mustChangePassword: true },
+    { username: 'somsri',         fullName: 'สมศรี รักงาน',      initials: 'SS', role: 'sales2',      mustChangePassword: true },
+    { username: 'manager_sale',   fullName: 'วิชัย ขายเก่ง',     initials: 'WC', role: 'sale_mgr',    mustChangePassword: true },
+    { username: 'manager_admin',  fullName: 'ปรีชา จัดการ',      initials: 'PC', role: 'admin_mgr',   mustChangePassword: true },
+    { username: 'manager_project',fullName: 'นิพนธ์ โปรเจกต์',  initials: 'NP', role: 'project_mgr', mustChangePassword: true },
+    { username: 'director',       fullName: 'ประยุทธ์ ผู้บริหาร',initials: 'PY', role: 'director',    mustChangePassword: true },
+    { username: 'procurement',    fullName: 'มาลี จัดซื้อ',      initials: 'ML', role: 'procurement', mustChangePassword: true },
+    { username: 'factory',        fullName: 'สมบูรณ์ โรงงาน',   initials: 'SB', role: 'factory',     mustChangePassword: true },
   ];
 
   for (const u of usersData) {
