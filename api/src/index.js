@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const YAML = require('yamljs');
 const swaggerUi = require('swagger-ui-express');
 
@@ -42,8 +43,21 @@ app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // ─── SWAGGER DOCS ───────────────────────────────────────────────────────────
 try {
-  const swaggerDoc = YAML.load(path.join(__dirname, '../../doc/swagger.yaml'));
+  const swaggerCandidates = [
+    path.join(__dirname, '../../Doc/swagger.yaml'),
+    path.join(__dirname, '../../doc/swagger.yaml'),
+  ];
+  const swaggerPath = swaggerCandidates.find(p => fs.existsSync(p));
+
+  if (!swaggerPath) {
+    throw new Error('swagger.yaml not found');
+  }
+
+  const swaggerDoc = YAML.load(swaggerPath);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
+    customSiteTitle: 'Green Dii API Docs',
+  }));
+  app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
     customSiteTitle: 'Green Dii API Docs',
   }));
   console.log('📚 Swagger UI → http://localhost:' + (process.env.PORT || 4000) + '/docs');
