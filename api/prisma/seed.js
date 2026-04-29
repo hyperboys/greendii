@@ -36,9 +36,7 @@ async function main() {
     { name: 'บริษัท กรีนเทค จำกัด',     contactPerson: 'คุณสมชาย',     tel: '02-555-8888', email: 'info@greentech.co.th',   address: '321 ถ.พระราม 4 กรุงเทพฯ 10500',   taxId: '0105444555666' },
     { name: 'บริษัท สมาร์ทบิลด์ จำกัด', contactPerson: 'คุณประเสริฐ',  tel: '02-777-9999', email: 'contact@smartbuild.co.th',address: '999 ถ.เพชรบุรี กรุงเทพฯ 10310',  taxId: '0105888999000' },
   ];
-  for (const c of customersData) {
-    await prisma.customer.upsert({ where: { name: c.name }, update: {}, create: c });
-  }
+  await prisma.customer.createMany({ data: customersData, skipDuplicates: true });
   console.log('✅ Customers seeded');
 
   // ── PRODUCTS ─────────────────────────────────────────────────────────────
