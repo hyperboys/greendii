@@ -1,0 +1,645 @@
+openapi: 3.0.3
+info:
+  title: Green Dii API
+  description: |
+    REST API for Green Dii Sales Workflow System
+    ระบบจัดการ Sales Workflow — Quotation → Work Order → Hand Over → Purchase Request
+    **Default password for all seeded users: `1234`**
+  version: 1.0.0
+  contact:
+    name: Green Dii Support
+
+servers:
+  - url: http://localhost:4000/api
+    description: Development
+  - url: https://your-domain.com/api
+    description: Production
+
+security:
+  - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:         { type: string }
+        username:   { type: string }
+        fullName:   { type: string }
+        initials:   { type: string }
+        role:       { type: string, enum: [sales, sales2, sale_mgr, admin_mgr, project_mgr, director, procurement, factory] }
+        lineUserId: { type: string }
+        active:     { type: boolean }
+        createdAt:  { type: string, format: date-time }
+
+    Customer:
+      type: object
+      properties:
+        id:            { type: string }
+        name:          { type: string }
+        contactPerson: { type: string }
+        tel:           { type: string }
+        email:         { type: string }
+        address:       { type: string }
+        taxId:         { type: string }
+        type:          { type: string }
+        active:        { type: boolean }
+
+    Product:
+      type: object
+      properties:
+        id:          { type: string }
+        code:        { type: string }
+        name:        { type: string }
+        category:    { type: string }
+        unit:        { type: string }
+        price:       { type: number }
+        cost:        { type: number }
+        description: { type: string }
+        active:      { type: boolean }
+
+    Unit:
+      type: object
+      properties:
+        id:     { type: string }
+        name:   { type: string }
+        active: { type: boolean }
+
+    QuotationItem:
+      type: object
+      properties:
+        desc:   { type: string }
+        qty:    { type: number }
+        unit:   { type: string }
+        price:  { type: number }
+        amount: { type: number }
+
+    Quotation:
+      type: object
+      properties:
+        id:           { type: string }
+        quoNo:        { type: string }
+        salesId:      { type: string }
+        customerName: { type: string }
+        project:      { type: string }
+        grandTotal:   { type: number }
+        status:       { type: string, enum: [draft, pending, approved, rejected, cancelled] }
+        approvalStep: { type: integer }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/QuotationItem' }
+        createdAt:    { type: string, format: date-time }
+
+    WorkOrder:
+      type: object
+      properties:
+        id:           { type: string }
+        woNo:         { type: string }
+        quotationId:  { type: string }
+        project:      { type: string }
+        customerName: { type: string }
+        status:       { type: string, enum: [draft, pending, approved, rejected] }
+        approvalStep: { type: integer }
+        isClosed:     { type: boolean }
+        createdAt:    { type: string, format: date-time }
+
+    HandOverJob:
+      type: object
+      properties:
+        id:          { type: string }
+        hoNo:        { type: string }
+        project:     { type: string }
+        status:      { type: string, enum: [draft, pending, approved] }
+        serviceDate: { type: string, format: date }
+
+    PurchaseRequest:
+      type: object
+      properties:
+        id:          { type: string }
+        prNo:        { type: string }
+        customer:    { type: string }
+        netTotal:    { type: number }
+        status:      { type: string, enum: [draft, pending, approved, rejected] }
+        approvalStep:{ type: integer }
+
+    Error:
+      type: object
+      properties:
+        message: { type: string }
+
+paths:
+  # ── AUTH ────────────────────────────────────────────────────────────────────
+  /auth/login:
+    post:
+      tags: [Auth]
+      security: []
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string, example: somchai }
+                password: { type: string, example: "1234" }
+      responses:
+        "200":
+          description: Login success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user:  { $ref: '#/components/schemas/User' }
+        "401": { description: Invalid credentials, content: { application/json: { schema: { $ref: '#/components/schemas/Error' } } } }
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user
+      responses:
+        "200": { description: Current user, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+
+  /auth/change-password:
+    post:
+      tags: [Auth]
+      summary: Change own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [oldPassword, newPassword]
+              properties:
+                oldPassword: { type: string }
+                newPassword: { type: string }
+      responses:
+        "200": { description: Password changed }
+        "400": { description: Wrong old password }
+
+  # ── USERS ────────────────────────────────────────────────────────────────────
+  /users:
+    get:
+      tags: [Users]
+      summary: List all users
+      responses:
+        "200": { description: User list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/User' } } } } }
+    post:
+      tags: [Users]
+      summary: Create user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password, fullName, role]
+              properties:
+                username: { type: string }
+                password: { type: string }
+                fullName: { type: string }
+                initials: { type: string }
+                role:     { type: string }
+      responses:
+        "201": { description: User created }
+
+  /users/{id}:
+    put:
+      tags: [Users]
+      summary: Update user
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName:   { type: string }
+                lineUserId: { type: string }
+                role:       { type: string }
+                active:     { type: boolean }
+      responses:
+        "200": { description: Updated user }
+    delete:
+      tags: [Users]
+      summary: Deactivate user (admin only)
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: string }
+      responses:
+        "200": { description: Deactivated }
+
+  # ── CUSTOMERS ────────────────────────────────────────────────────────────────
+  /customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      parameters:
+        - in: query
+          name: active
+          schema: { type: boolean }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        "200": { description: Customer list, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/Customer' } } } } }
+    post:
+      tags: [Customers]
+      summary: Create customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Customer' }
+      responses:
+        "201": { description: Customer created }
+
+  /customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Customer }
+    put:
+      tags: [Customers]
+      summary: Update customer
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Customer' }
+      responses:
+        "200": { description: Updated }
+    delete:
+      tags: [Customers]
+      summary: Deactivate customer
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Deactivated }
+
+  # ── PRODUCTS ──────────────────────────────────────────────────────────────────
+  /products:
+    get:
+      tags: [Products]
+      summary: List products
+      parameters:
+        - in: query
+          name: active
+          schema: { type: boolean }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        "200": { description: Product list }
+    post:
+      tags: [Products]
+      summary: Create product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Product' }
+      responses:
+        "201": { description: Created }
+
+  /products/{id}:
+    put:
+      tags: [Products]
+      summary: Update product
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Product' }
+      responses:
+        "200": { description: Updated }
+    delete:
+      tags: [Products]
+      summary: Deactivate product
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Deactivated }
+
+  # ── UNITS ─────────────────────────────────────────────────────────────────────
+  /units:
+    get:
+      tags: [Units]
+      summary: List units
+      responses:
+        "200": { description: Units list }
+    post:
+      tags: [Units]
+      summary: Create unit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, example: แผ่น }
+      responses:
+        "201": { description: Created }
+
+  /units/{id}:
+    put:
+      tags: [Units]
+      summary: Update unit
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:   { type: string }
+                active: { type: boolean }
+      responses:
+        "200": { description: Updated }
+    delete:
+      tags: [Units]
+      summary: Deactivate unit
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Deactivated }
+
+  # ── QUOTATIONS ───────────────────────────────────────────────────────────────
+  /quotations:
+    get:
+      tags: [Quotations]
+      summary: List quotations
+      parameters:
+        - in: query
+          name: status
+          schema: { type: string, enum: [draft, pending, approved, rejected] }
+        - in: query
+          name: q
+          schema: { type: string }
+      responses:
+        "200": { description: Quotation list }
+    post:
+      tags: [Quotations]
+      summary: Create quotation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Quotation' }
+      responses:
+        "201": { description: Created }
+
+  /quotations/{id}:
+    get:
+      tags: [Quotations]
+      summary: Get quotation detail
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Quotation with items and approval logs }
+    put:
+      tags: [Quotations]
+      summary: Update quotation (draft/rejected only)
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/Quotation' }
+      responses:
+        "200": { description: Updated }
+    delete:
+      tags: [Quotations]
+      summary: Cancel quotation
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Cancelled }
+
+  /quotations/{id}/submit:
+    post:
+      tags: [Quotations]
+      summary: Submit for approval (draft → pending)
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Submitted }
+
+  /quotations/{id}/approve:
+    post:
+      tags: [Quotations]
+      summary: Approve at current step
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        "200": { description: Approved }
+
+  /quotations/{id}/reject:
+    post:
+      tags: [Quotations]
+      summary: Reject quotation
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        "200": { description: Rejected }
+
+  # ── WORK ORDERS ──────────────────────────────────────────────────────────────
+  /workorders:
+    get:
+      tags: [WorkOrders]
+      summary: List work orders
+      responses:
+        "200": { description: Work order list }
+    post:
+      tags: [WorkOrders]
+      summary: Create work order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/WorkOrder' }
+      responses:
+        "201": { description: Created }
+
+  /workorders/{id}/approve:
+    post:
+      tags: [WorkOrders]
+      summary: Approve work order step
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        "200": { description: Approved }
+
+  /workorders/{id}/reject:
+    post:
+      tags: [WorkOrders]
+      summary: Reject work order
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Rejected }
+
+  # ── HAND OVER JOBS ────────────────────────────────────────────────────────────
+  /handovers:
+    get:
+      tags: [HandOver]
+      summary: List hand over jobs
+      responses:
+        "200": { description: List }
+    post:
+      tags: [HandOver]
+      summary: Create hand over job
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/HandOverJob' }
+      responses:
+        "201": { description: Created }
+
+  /handovers/{id}:
+    put:
+      tags: [HandOver]
+      summary: Update hand over job
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Updated }
+
+  # ── PURCHASE REQUESTS ─────────────────────────────────────────────────────────
+  /pr:
+    get:
+      tags: [PurchaseRequest]
+      summary: List purchase requests
+      responses:
+        "200": { description: List }
+    post:
+      tags: [PurchaseRequest]
+      summary: Create purchase request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/PurchaseRequest' }
+      responses:
+        "201": { description: Created }
+
+  /pr/{id}/approve:
+    post:
+      tags: [PurchaseRequest]
+      summary: Approve purchase request step
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                comment: { type: string }
+      responses:
+        "200": { description: Approved }
+
+  /pr/{id}/reject:
+    post:
+      tags: [PurchaseRequest]
+      summary: Reject purchase request
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Rejected }
+
+  # ── APPROVALS ─────────────────────────────────────────────────────────────────
+  /approvals/pending:
+    get:
+      tags: [Approvals]
+      summary: Get pending items for current user's role
+      responses:
+        "200":
+          description: Pending items grouped by type
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  quotations:  { type: array, items: { $ref: '#/components/schemas/Quotation' } }
+                  workOrders:  { type: array, items: { $ref: '#/components/schemas/WorkOrder' } }
+                  prs:         { type: array, items: { $ref: '#/components/schemas/PurchaseRequest' } }
+
+  # ── REPORTS ───────────────────────────────────────────────────────────────────
+  /reports/overview:
+    get:
+      tags: [Reports]
+      summary: Overview dashboard stats
+      responses:
+        "200": { description: Overview data }
+
+  /reports/sales:
+    get:
+      tags: [Reports]
+      summary: Sales by customer
+      responses:
+        "200": { description: Sales totals per customer }
+
+  /reports/approval-performance:
+    get:
+      tags: [Reports]
+      summary: Approval performance per user
+      responses:
+        "200": { description: Approve/reject counts per user }
+
+  # ── UPLOAD ────────────────────────────────────────────────────────────────────
+  /upload:
+    post:
+      tags: [Upload]
+      summary: Upload files
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                files:            { type: array, items: { type: string, format: binary } }
+                category:         { type: string }
+                quotationId:      { type: string }
+                workOrderId:      { type: string }
+                handOverJobId:    { type: string }
+                purchaseRequestId:{ type: string }
+      responses:
+        "201": { description: Uploaded file list }
+
+  /upload/{id}:
+    delete:
+      tags: [Upload]
+      summary: Delete file
+      parameters: [ { in: path, name: id, required: true, schema: { type: string } } ]
+      responses:
+        "200": { description: Deleted }

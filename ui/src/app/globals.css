@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --green-dark:  #2d6a2e;
+    --green-main:  #4CAF50;
+    --green-light: #81C784;
+    --green-pale:  #E8F5E9;
+  }
+
+  body {
+    @apply bg-gray-100 text-gray-800 font-sans;
+  }
+
+  * { box-sizing: border-box; }
+}
+
+@layer components {
+  /* ── CARD ── */
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+  }
+
+  /* ── BUTTON BASE ── */
+  .btn {
+    @apply inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-sm
+           transition-all duration-150 cursor-pointer border-0;
+  }
+  .btn-primary  { @apply btn bg-green-main text-white hover:bg-green-dark; }
+  .btn-danger   { @apply btn bg-red-500   text-white hover:bg-red-700; }
+  .btn-warning  { @apply btn bg-orange-400 text-white hover:bg-orange-600; }
+  .btn-blue     { @apply btn bg-blue-600  text-white hover:bg-blue-800; }
+  .btn-outline  { @apply btn bg-transparent border-2 border-green-main text-green-main hover:bg-green-main hover:text-white; }
+  .btn-sm       { @apply px-3 py-1 text-xs; }
+  .btn-block    { @apply w-full justify-center py-2.5; }
+  .btn-disabled { @apply opacity-50 cursor-not-allowed; }
+
+  /* ── FORM ── */
+  .form-label  { @apply block text-sm font-semibold text-gray-500 mb-1; }
+  .form-input  {
+    @apply w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm
+           transition-colors focus:outline-none focus:border-green-main;
+  }
+  .form-error  { @apply text-red-500 text-xs mt-1; }
+
+  /* ── TABLE ── */
+  .data-table { @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow-sm; }
+  .data-table thead { @apply bg-green-dark text-white; }
+  .data-table th    { @apply px-4 py-3 text-left text-xs font-semibold uppercase; }
+  .data-table td    { @apply px-4 py-3 text-sm border-b border-gray-100; }
+  .data-table tbody tr:hover { @apply bg-green-pale; }
+
+  /* ── STATUS BADGE ── */
+  .badge {
+    @apply inline-block px-2 py-0.5 rounded-full text-xs font-semibold;
+  }
+  .badge-draft    { @apply badge bg-gray-100 text-gray-600; }
+  .badge-pending  { @apply badge bg-orange-100 text-orange-700; }
+  .badge-approved { @apply badge bg-green-pale text-green-dark; }
+  .badge-rejected { @apply badge bg-red-100 text-red-700; }
+
+  /* ── PAGE HEADER ── */
+  .page-header {
+    @apply flex items-center justify-between mb-6;
+  }
+  .page-title  { @apply text-xl font-bold text-gray-800; }
+  .page-sub    { @apply text-sm text-gray-500 mt-0.5; }
+
+  /* ── STAT CARD ── */
+  .stat-card {
+    @apply card p-5 cursor-pointer hover:shadow-md transition-shadow;
+  }
+  .stat-value  { @apply text-3xl font-bold mt-2; }
+  .stat-label  { @apply text-sm text-gray-500 mt-1; }
+
+  /* ── TOOLBAR ── */
+  .toolbar { @apply flex items-center gap-2 mb-4 flex-wrap; }
+}

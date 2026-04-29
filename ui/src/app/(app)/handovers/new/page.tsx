@@ -1,0 +1,168 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { HandoversAPI, WorkOrdersAPI } from '@/lib/api'
+import type { WorkOrder } from '@/types'
+import { ArrowLeft } from 'lucide-react'
+import toast from 'react-hot-toast'
+
+interface FormData {
+  workOrderId: string
+  project: string
+  contractor: string
+  location: string
+  contactName: string
+  contactTel: string
+  product: string
+  responsibility: string
+  serviceDate: string
+  qualityProduct: number
+  qualitySales: number
+  qualityInstall: number
+  comment: string
+}
+
+const RatingInput = ({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) => (
+  <div>
+    <label className="form-label">{label}</label>
+    <div className="flex gap-2 mt-1">
+      {[1, 2, 3, 4, 5].map(i => (
+        <button
+          key={i}
+          type="button"
+          onClick={() => onChange(i)}
+          className={`w-10 h-10 rounded-lg font-semibold text-sm transition-colors border-2 ${
+            i <= value ? 'bg-green-main text-white border-green-main' : 'border-gray-200 text-gray-400 hover:border-green-main'
+          }`}
+        >
+          {i}
+        </button>
+      ))}
+    </div>
+  </div>
+)
+
+export default function NewHandoverPage() {
+  const router = useRouter()
+  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [saving, setSaving] = useState(false)
+
+  const [form, setForm] = useState<FormData>({
+    workOrderId: '', project: '', contractor: '', location: '',
+    contactName: '', contactTel: '', product: '', responsibility: '',
+    serviceDate: '', qualityProduct: 5, qualitySales: 5, qualityInstall: 5, comment: '',
+  })
+
+  useEffect(() => {
+    WorkOrdersAPI.list({ status: 'approved' }).then(setWorkOrders)
+  }, [])
+
+  const handleWO = (id: string) => {
+    const w = workOrders.find(x => x.id === id)
+    setForm(f => ({
+      ...f, workOrderId: id,
+      project: w?.project ?? f.project,
+      contactName: w?.contactName ?? f.contactName,
+      contactTel: w?.contactTel ?? f.contactTel,
+      product: w?.products ?? f.product,
+    }))
+  }
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!form.project) { toast.error('กรุณากรอกชื่อโครงการ'); return }
+    setSaving(true)
+    try {
+      const created = await HandoversAPI.create(form)
+      toast.success('สร้างเอกสารส่งมอบงานสำเร็จ')
+      router.replace(`/handovers/${created.id}`)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'บันทึกไม่สำเร็จ')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
+      <div className="flex items-center gap-3">
+        <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
+          <ArrowLeft size={18} />
+        </button>
+        <h2 className="page-title">สร้างเอกสารส่งมอบงาน</h2>
+      </div>
+
+      <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="md:col-span-2">
+          <label className="form-label">อ้างอิงใบสั่งงาน</label>
+          <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
+            <option value="">— ไม่ระบุ —</option>
+            {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">ชื่อโครงการ *</label>
+          <input className="form-input" required value={form.project}
+            onChange={e => setForm(f => ({ ...f, project: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">ผู้รับเหมา</label>
+          <input className="form-input" value={form.contractor}
+            onChange={e => setForm(f => ({ ...f, contractor: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">สถานที่</label>
+          <input className="form-input" value={form.location}
+            onChange={e => setForm(f => ({ ...f, location: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">ผู้ติดต่อ</label>
+          <input className="form-input" value={form.contactName}
+            onChange={e => setForm(f => ({ ...f, contactName: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">โทร</label>
+          <input className="form-input" value={form.contactTel}
+            onChange={e => setForm(f => ({ ...f, contactTel: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">สินค้า/บริการ</label>
+          <input className="form-input" value={form.product}
+            onChange={e => setForm(f => ({ ...f, product: e.target.value }))} />
+        </div>
+        <div>
+          <label className="form-label">ผู้รับผิดชอบ</label>
+          <input className="form-input" value={form.responsibility}
+            onChange={e => setForm(f => ({ ...f, responsibility: e.target.value }))} />
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">วันให้บริการ</label>
+          <input type="date" className="form-input w-48" value={form.serviceDate}
+            onChange={e => setForm(f => ({ ...f, serviceDate: e.target.value }))} />
+        </div>
+      </div>
+
+      <div className="card p-5 space-y-4">
+        <h3 className="font-semibold text-gray-800">การประเมินคุณภาพ</h3>
+        <RatingInput label="คุณภาพสินค้า" value={form.qualityProduct}
+          onChange={v => setForm(f => ({ ...f, qualityProduct: v }))} />
+        <RatingInput label="คุณภาพงานขาย" value={form.qualitySales}
+          onChange={v => setForm(f => ({ ...f, qualitySales: v }))} />
+        <RatingInput label="คุณภาพการติดตั้ง" value={form.qualityInstall}
+          onChange={v => setForm(f => ({ ...f, qualityInstall: v }))} />
+        <div>
+          <label className="form-label">ความคิดเห็น</label>
+          <textarea className="form-input" rows={3} value={form.comment}
+            onChange={e => setForm(f => ({ ...f, comment: e.target.value }))} />
+        </div>
+      </div>
+
+      <div className="flex justify-end gap-3">
+        <button type="button" className="btn-outline" onClick={() => router.back()}>ยกเลิก</button>
+        <button type="submit" className="btn-primary" disabled={saving}>
+          {saving ? 'กำลังบันทึก…' : 'สร้างเอกสาร'}
+        </button>
+      </div>
+    </form>
+  )
+}

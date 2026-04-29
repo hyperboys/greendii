@@ -1,0 +1,341 @@
+// This is your Prisma schema file
+// Learn more: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────────
+
+enum UserRole {
+  sales        // เซลล์คนที่ 1
+  sales2       // เซลล์คนที่ 2
+  sale_mgr     // Sales Manager
+  admin_mgr    // Admin Manager
+  project_mgr  // Project Manager
+  director     // Managing Director
+  procurement  // Procurement
+  factory      // ทีมโรงงาน
+}
+
+enum DocStatus {
+  draft    // แบบร่าง
+  pending  // รออนุมัติ
+  approved // อนุมัติแล้ว
+  rejected // ปฏิเสธ
+  cancelled // ยกเลิก
+}
+
+enum ApprovalAction {
+  approve
+  reject
+}
+
+// ─────────────────────────────────────────────
+// USER
+// ─────────────────────────────────────────────
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  fullName     String
+  initials     String   @default("")
+  role         UserRole
+  lineUserId   String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  quotations       Quotation[]
+  workOrders       WorkOrder[]
+  handOverJobs     HandOverJob[]
+  purchaseRequests PurchaseRequest[]
+  approvalLogs     ApprovalLog[]
+  notifications    Notification[]
+
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// MASTER DATA
+// ─────────────────────────────────────────────
+
+model Customer {
+  id            String   @id @default(cuid())
+  name          String
+  contactPerson String?
+  tel           String?
+  email         String?
+  address       String?
+  taxId         String?
+  type          String   @default("นิติบุคคล")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  quotations Quotation[]
+
+  @@map("customers")
+}
+
+model Product {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  category    String?
+  unit        String?
+  price       Decimal  @default(0) @db.Decimal(12, 2)
+  cost        Decimal  @default(0) @db.Decimal(12, 2)
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("products")
+}
+
+model Unit {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("units")
+}
+
+// ─────────────────────────────────────────────
+// QUOTATION
+// ─────────────────────────────────────────────
+
+model Quotation {
+  id            String    @id @default(cuid())
+  quoNo         String    @unique
+  salesId       String
+  sales         User      @relation(fields: [salesId], references: [id])
+  customerId    String?
+  customer      Customer? @relation(fields: [customerId], references: [id])
+  customerName  String    // keep as text in case not in master
+  attn          String?
+  project       String
+  address       String?
+  tel           String?
+  conditionTerm String?
+  validityDays  Int       @default(30)
+  leadTime      String?
+  paymentTerm   String?
+  subTotal      Decimal   @default(0) @db.Decimal(12, 2)
+  vat           Decimal   @default(0) @db.Decimal(12, 2)
+  grandTotal    Decimal   @default(0) @db.Decimal(12, 2)
+  status        DocStatus @default(draft)
+  approvalStep  Int       @default(0)
+  remark        String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  items        QuotationItem[]
+  workOrders   WorkOrder[]
+  approvalLogs ApprovalLog[]
+  attachments  Attachment[]
+
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  seq         Int       @default(0)
+  desc        String
+  qty         Decimal   @default(0) @db.Decimal(10, 3)
+  unit        String
+  price       Decimal   @default(0) @db.Decimal(12, 2)
+  amount      Decimal   @default(0) @db.Decimal(12, 2)
+
+  @@map("quotation_items")
+}
+
+// ─────────────────────────────────────────────
+// WORK ORDER
+// ─────────────────────────────────────────────
+
+model WorkOrder {
+  id             String    @id @default(cuid())
+  woNo           String    @unique
+  quotationId    String?
+  quotation      Quotation? @relation(fields: [quotationId], references: [id])
+  salesId        String
+  sales          User      @relation(fields: [salesId], references: [id])
+  project        String
+  location       String?
+  products       String?   // text description
+  responsibility String?
+  customerName   String
+  contactName    String?
+  contactTel     String?
+  teamAssignment String?
+  qcDate         DateTime?
+  installDate    DateTime?
+  remark         String?
+  docChecklist   Json      @default("{}")
+  status         DocStatus @default(draft)
+  approvalStep   Int       @default(0)
+  isClosed       Boolean   @default(false)
+  closedAt       DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  handOverJobs     HandOverJob[]
+  purchaseRequests PurchaseRequest[]
+  approvalLogs     ApprovalLog[]
+  attachments      Attachment[]
+
+  @@map("work_orders")
+}
+
+// ─────────────────────────────────────────────
+// HAND OVER JOB
+// ─────────────────────────────────────────────
+
+model HandOverJob {
+  id             String     @id @default(cuid())
+  hoNo           String     @unique
+  workOrderId    String?
+  workOrder      WorkOrder? @relation(fields: [workOrderId], references: [id])
+  salesId        String
+  sales          User       @relation(fields: [salesId], references: [id])
+  project        String
+  contractor     String?
+  location       String?
+  contactName    String?
+  contactTel     String?
+  product        String?
+  responsibility String?
+  serviceDate    DateTime?
+  qualityProduct Int        @default(0)
+  qualitySales   Int        @default(0)
+  qualityInstall Int        @default(0)
+  comment        String?
+  status         DocStatus  @default(draft)
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  attachments Attachment[]
+
+  @@map("hand_over_jobs")
+}
+
+// ─────────────────────────────────────────────
+// PURCHASE REQUEST
+// ─────────────────────────────────────────────
+
+model PurchaseRequest {
+  id           String     @id @default(cuid())
+  prNo         String     @unique
+  workOrderId  String?
+  workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
+  salesId      String
+  sales        User       @relation(fields: [salesId], references: [id])
+  customer     String
+  projectRef   String?
+  dateIssue    DateTime?
+  dateRequired DateTime?
+  subTotal     Decimal    @default(0) @db.Decimal(12, 2)
+  vat          Decimal    @default(0) @db.Decimal(12, 2)
+  netTotal     Decimal    @default(0) @db.Decimal(12, 2)
+  remarks      String?
+  status       DocStatus  @default(draft)
+  approvalStep Int        @default(0)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  items        PurchaseRequestItem[]
+  approvalLogs ApprovalLog[]
+  attachments  Attachment[]
+
+  @@map("purchase_requests")
+}
+
+model PurchaseRequestItem {
+  id                String          @id @default(cuid())
+  purchaseRequestId String
+  purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
+  seq               Int             @default(0)
+  desc              String
+  qty               Decimal         @default(0) @db.Decimal(10, 3)
+  unit              String
+  price             Decimal         @default(0) @db.Decimal(12, 2)
+  amount            Decimal         @default(0) @db.Decimal(12, 2)
+
+  @@map("purchase_request_items")
+}
+
+// ─────────────────────────────────────────────
+// APPROVAL LOG
+// ─────────────────────────────────────────────
+
+model ApprovalLog {
+  id          String         @id @default(cuid())
+  docType     String         // 'quotation' | 'workorder' | 'pr'
+  quotationId String?
+  quotation   Quotation?     @relation(fields: [quotationId], references: [id])
+  workOrderId String?
+  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  prId        String?
+  pr          PurchaseRequest? @relation(fields: [prId], references: [id])
+  approverId  String
+  approver    User           @relation(fields: [approverId], references: [id])
+  step        Int
+  action      ApprovalAction
+  comment     String?
+  actedAt     DateTime       @default(now())
+
+  @@map("approval_logs")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATION
+// ─────────────────────────────────────────────
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  text      String
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// ATTACHMENT
+// ─────────────────────────────────────────────
+
+model Attachment {
+  id              String           @id @default(cuid())
+  filename        String
+  originalName    String
+  mimeType        String
+  size            Int
+  category        String?
+  quotationId     String?
+  quotation       Quotation?       @relation(fields: [quotationId], references: [id])
+  workOrderId     String?
+  workOrder       WorkOrder?       @relation(fields: [workOrderId], references: [id])
+  handOverJobId   String?
+  handOverJob     HandOverJob?     @relation(fields: [handOverJobId], references: [id])
+  purchaseRequestId String?
+  purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  uploadedAt      DateTime         @default(now())
+
+  @@map("attachments")
+}

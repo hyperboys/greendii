@@ -1,0 +1,17 @@
+node_modules/
+ui/node_modules/
+api/node_modules/
+
+.next/
+ui/.next/
+dist/
+build/
+
+.env
+.env.*
+!.env.example
+
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

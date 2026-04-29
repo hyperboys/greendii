@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ใบเสนอราคา Server - Vultr + Coolify + PostgreSQL + Cloudflare R2</title>
+  <style>
+    :root {
+      --green-900: #1b4332;
+      --green-700: #2d6a4f;
+      --green-500: #40916c;
+      --green-100: #d8f3dc;
+      --gray-900: #1f2937;
+      --gray-700: #374151;
+      --gray-500: #6b7280;
+      --gray-200: #e5e7eb;
+      --bg: #f7f8fa;
+      --white: #ffffff;
+      --blue: #1d4ed8;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: "Segoe UI", Tahoma, sans-serif;
+      background: var(--bg);
+      color: var(--gray-900);
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1040px;
+      margin: 24px auto;
+      background: var(--white);
+      border: 1px solid var(--gray-200);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+    }
+
+    .header {
+      background: linear-gradient(135deg, var(--green-900), var(--green-700));
+      color: var(--white);
+      padding: 24px 28px;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 16px;
+      align-items: end;
+    }
+
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      letter-spacing: 0.2px;
+    }
+
+    .header p {
+      margin: 6px 0 0;
+      opacity: 0.95;
+      font-size: 14px;
+    }
+
+    .doc-meta {
+      text-align: right;
+      font-size: 13px;
+      opacity: 0.95;
+    }
+
+    .section {
+      padding: 22px 28px;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .section:last-child {
+      border-bottom: 0;
+    }
+
+    .section h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+      color: var(--green-900);
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--gray-200);
+      border-radius: 10px;
+      padding: 14px;
+      background: #fcfcfd;
+    }
+
+    .card h3 {
+      margin: 0 0 8px;
+      font-size: 15px;
+      color: var(--green-700);
+    }
+
+    .card p {
+      margin: 3px 0;
+      font-size: 14px;
+      color: var(--gray-700);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+
+    thead th {
+      background: var(--green-700);
+      color: var(--white);
+      text-align: left;
+      padding: 10px;
+      font-weight: 600;
+      border: 1px solid var(--green-700);
+    }
+
+    tbody td {
+      border: 1px solid var(--gray-200);
+      padding: 9px 10px;
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) {
+      background: #fafafa;
+    }
+
+    .right { text-align: right; }
+    .center { text-align: center; }
+
+    .plan-name {
+      font-weight: 700;
+      color: var(--green-900);
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--green-100);
+      color: var(--green-900);
+      margin-left: 6px;
+    }
+
+    .summary-box {
+      border: 1px dashed var(--green-500);
+      border-radius: 10px;
+      padding: 14px;
+      background: #f5fbf8;
+      margin-top: 12px;
+      font-size: 14px;
+    }
+
+    .summary-box p {
+      margin: 5px 0;
+    }
+
+    .footer-note {
+      font-size: 13px;
+      color: var(--gray-500);
+    }
+
+    .strong {
+      font-weight: 700;
+      color: var(--gray-900);
+    }
+
+    .print-wrap {
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+    }
+
+    .print-btn {
+      background: var(--blue);
+      color: var(--white);
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 16px;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(29, 78, 216, 0.25);
+    }
+
+    @media (max-width: 840px) {
+      .header { grid-template-columns: 1fr; }
+      .doc-meta { text-align: left; }
+      .grid-2 { grid-template-columns: 1fr; }
+      .container { margin: 0; border-radius: 0; }
+    }
+
+    @media print {
+      body { background: #fff; }
+      .container { margin: 0; border: 0; box-shadow: none; max-width: 100%; }
+      .print-wrap { display: none; }
+      @page { size: A4; margin: 12mm; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div>
+        <h1>ใบเสนอราคา Server Infrastructure</h1>
+        <p>สถาปัตยกรรมที่แนะนำ: Vultr Bangkok + Coolify + PostgreSQL + Cloudflare R2</p>
+      </div>
+      <div class="doc-meta">
+        <div>เลขที่เอกสาร: SVR-2026-04-001</div>
+        <div>วันที่: 1 เมษายน 2026</div>
+        <div>อายุใบเสนอราคา: 30 วัน</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>ข้อมูลลูกค้า</h2>
+      <div class="grid-2">
+        <div class="card">
+          <h3>ผู้ว่าจ้าง</h3>
+          <p>บริษัท: ____________________________</p>
+          <p>ผู้ติดต่อ: __________________________</p>
+          <p>โทรศัพท์: __________________________</p>
+          <p>อีเมล: _____________________________</p>
+        </div>
+        <div class="card">
+          <h3>ผู้เสนอราคา</h3>
+          <p>บริษัท/ผู้ให้บริการ: __________________</p>
+          <p>ผู้ประสานงาน: ______________________</p>
+          <p>โทรศัพท์: __________________________</p>
+          <p>อีเมล: _____________________________</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>สมมติฐานการใช้งาน</h2>
+      <div class="summary-box">
+        <p>1) ผู้ใช้งานระบบพร้อมกันโดยประมาณ 30-50 คน</p>
+        <p>2) มีการอัปโหลดเอกสารเข้าระบบอย่างต่อเนื่อง</p>
+        <p>3) เน้นความเร็วใช้งานเว็บไซต์ระดับพอใช้ได้ถึงดี สำหรับผู้ใช้ในประเทศไทย</p>
+        <p>4) งบประมาณเป้าหมายไม่เกิน 2,000 บาท/เดือน</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>แพ็กเกจที่เสนอ (แยกตามขนาด Database)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th style="width: 21%">แพ็กเกจ</th>
+            <th>องค์ประกอบหลัก</th>
+            <th style="width: 12%" class="center">DB</th>
+            <th style="width: 14%" class="right">ราคารายเดือน</th>
+            <th style="width: 15%" class="right">ราคา/ปี (ประมาณ)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <div class="plan-name">Package A</div>
+              <div>VPS 4GB + DB 50GB</div>
+            </td>
+            <td>
+              Vultr HF Bangkok 4GB (2 vCPU), Coolify, PostgreSQL, Cloudflare R2 (เอกสาร 100GB), Cloudflare CDN/WAF
+            </td>
+            <td class="center">50 GB</td>
+            <td class="right strong">1,416 บาท</td>
+            <td class="right">16,992 บาท</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="plan-name">Package B <span class="badge">แนะนำ</span></div>
+              <div>VPS 4GB + DB 100GB</div>
+            </td>
+            <td>
+              Vultr HF Bangkok 4GB (2 vCPU), Coolify, PostgreSQL, Cloudflare R2 (เอกสาร 100GB), Cloudflare CDN/WAF
+            </td>
+            <td class="center">100 GB</td>
+            <td class="right strong">1,626 บาท</td>
+            <td class="right">19,512 บาท</td>
+          </tr>
+          <tr>
+            <td>
+              <div class="plan-name">Package C</div>
+              <div>VPS 4GB + DB 200GB</div>
+            </td>
+            <td>
+              Vultr HF Bangkok 4GB (2 vCPU), Coolify, PostgreSQL, Cloudflare R2 (เอกสาร 100GB), Cloudflare CDN/WAF
+            </td>
+            <td class="center">200 GB</td>
+            <td class="right strong">2,046 บาท</td>
+            <td class="right">24,552 บาท</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="summary-box">
+        <p><span class="strong">หมายเหตุการคำนวณ:</span> อ้างอิงค่าใช้จ่ายโดยประมาณจาก Vultr HF 4GB Bangkok ~840 บาท/เดือน + Block Storage ~3.5 บาท/GB/เดือน + Cloudflare R2 (Storage + Operation) โดยประมาณ 165 บาท/เดือน สำหรับเอกสาร 100GB</p>
+        <p><span class="strong">ผลลัพธ์:</span> Package A/B อยู่ในงบไม่เกิน 2,000 บาท/เดือน และรองรับผู้ใช้ 30-50 คนได้เหมาะสม</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>รายละเอียดรายการค่าใช้จ่าย (Monthly Breakdown)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>รายการ</th>
+            <th class="right">Package A (DB 50GB)</th>
+            <th class="right">Package B (DB 100GB)</th>
+            <th class="right">Package C (DB 200GB)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Vultr High Frequency 4GB (Bangkok)</td>
+            <td class="right">1,008 บาท</td>
+            <td class="right">1,008 บาท</td>
+            <td class="right">1,008 บาท</td>
+          </tr>
+          <tr>
+            <td>Block Storage สำหรับ PostgreSQL</td>
+            <td class="right">210 บาท</td>
+            <td class="right">420 บาท</td>
+            <td class="right">840 บาท</td>
+          </tr>
+          <tr>
+            <td>Cloudflare R2 (เอกสาร 100GB + operation)</td>
+            <td class="right">198 บาท</td>
+            <td class="right">198 บาท</td>
+            <td class="right">198 บาท</td>
+          </tr>
+          <tr>
+            <td>โดเมนเฉลี่ยต่อเดือน</td>
+            <td class="right">40 บาท</td>
+            <td class="right">40 บาท</td>
+            <td class="right">40 บาท</td>
+          </tr>
+          <tr>
+            <td class="strong">รวมต่อเดือน (ประมาณ)</td>
+            <td class="right strong">1,456 บาท</td>
+            <td class="right strong">1,666 บาท</td>
+            <td class="right strong">2,086 บาท</td>
+          </tr>
+          <tr>
+            <td>เผื่อค่าใช้งานผันแปร (Bandwidth/API/Buffer)</td>
+            <td class="right">-40 บาท</td>
+            <td class="right">-40 บาท</td>
+            <td class="right">-40 บาท</td>
+          </tr>
+          <tr>
+            <td class="strong">ยอดเสนอราคา/เดือน</td>
+            <td class="right strong">1,416 บาท</td>
+            <td class="right strong">1,626 บาท</td>
+            <td class="right strong">2,046 บาท</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section">
+      <h2>ค่าบริการเริ่มต้น (One-time Setup)</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>รายการ</th>
+            <th style="width: 18%" class="right">ราคา</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>ติดตั้งเซิร์ฟเวอร์, Hardening ความปลอดภัย, ตั้งค่า Coolify, ตั้งค่า PostgreSQL, ตั้งค่า Backup, เชื่อม Cloudflare R2, ผูกโดเมน/SSL, และทำ CI/CD deploy จาก Git</td>
+            <td class="right strong">10,200 บาท</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="summary-box">
+        <p><span class="strong">ระยะเวลาติดตั้ง:</span> 1-2 วันทำการ</p>
+        <p><span class="strong">ความง่ายในการ Deploy:</span> หลังติดตั้งแล้ว การปล่อยเวอร์ชันใหม่ทำได้ผ่าน Git push และกด Deploy ใน Coolify</p>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>ข้อเสนอแนะสุดท้าย</h2>
+      <div class="summary-box">
+        <p><span class="strong">แพ็กเกจที่แนะนำ:</span> Package B (Database 100GB) เพราะสมดุลที่สุดระหว่างพื้นที่เก็บข้อมูลและงบประมาณ</p>
+        <p>รองรับผู้ใช้ 30-50 คนได้ดี และยังมีช่องว่างสำหรับการเติบโตของข้อมูลเอกสารในระยะ 12-18 เดือน</p>
+      </div>
+      <p class="footer-note">หมายเหตุ: ราคานี้เป็นประมาณการเพื่อการวางแผนงบประมาณ อาจเปลี่ยนแปลงได้ตามอัตราแลกเปลี่ยนและการใช้งานจริง</p>
+    </div>
+  </div>
+
+  <div class="print-wrap">
+    <button class="print-btn" onclick="window.print()">พิมพ์เอกสาร</button>
+  </div>
+</body>
+</html>

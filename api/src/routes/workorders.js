@@ -1,0 +1,174 @@
+const router = require('express').Router();
+const prisma = require('../lib/prisma');
+const { authenticate } = require('../middleware/auth');
+
+const INCLUDE_FULL = {
+  sales: { select: { id: true, fullName: true, initials: true } },
+  quotation: { select: { id: true, quoNo: true } },
+  approvalLogs: {
+    include: { approver: { select: { id: true, fullName: true, role: true } } },
+    orderBy: { actedAt: 'asc' },
+  },
+  attachments: true,
+};
+
+// GET /api/workorders
+router.get('/', authenticate, async (req, res, next) => {
+  try {
+    const { status, salesId, isClosed, q } = req.query;
+    const where = {};
+    if (status) where.status = status;
+    if (salesId) where.salesId = salesId;
+    if (isClosed !== undefined) where.isClosed = isClosed === 'true';
+    if (q) where.OR = [
+      { woNo: { contains: q, mode: 'insensitive' } },
+      { project: { contains: q, mode: 'insensitive' } },
+      { customerName: { contains: q, mode: 'insensitive' } },
+    ];
+    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
+    if (!managerRoles.includes(req.user.role)) where.salesId = req.user.id;
+
+    const list = await prisma.workOrder.findMany({
+      where,
+      include: { sales: { select: { id: true, fullName: true } } },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.json(list);
+  } catch (e) { next(e); }
+});
+
+// GET /api/workorders/:id
+router.get('/:id', authenticate, async (req, res, next) => {
+  try {
+    const item = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: INCLUDE_FULL,
+    });
+    res.json(item);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders
+router.post('/', authenticate, async (req, res, next) => {
+  try {
+    const {
+      woNo, quotationId, project, location, products, responsibility,
+      customerName, contactName, contactTel, teamAssignment,
+      qcDate, installDate, remark, docChecklist,
+    } = req.body;
+    if (!woNo || !project || !customerName) {
+      return res.status(400).json({ message: 'woNo, project, customerName required' });
+    }
+    const wo = await prisma.workOrder.create({
+      data: {
+        woNo, quotationId, project, location, products, responsibility,
+        customerName, contactName, contactTel, teamAssignment,
+        qcDate: qcDate ? new Date(qcDate) : null,
+        installDate: installDate ? new Date(installDate) : null,
+        remark, docChecklist: docChecklist || {},
+        salesId: req.user.id, status: 'draft',
+      },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'workorder', workOrderId: wo.id,
+        approverId: req.user.id, step: 0,
+        action: 'approve', comment: 'สร้างและส่ง Work Order',
+      },
+    });
+    res.status(201).json(wo);
+  } catch (e) { next(e); }
+});
+
+// PUT /api/workorders/:id
+router.put('/:id', authenticate, async (req, res, next) => {
+  try {
+    const existing = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (existing.isClosed) return res.status(400).json({ message: 'Work order is closed' });
+    const {
+      project, location, products, responsibility,
+      customerName, contactName, contactTel, teamAssignment,
+      qcDate, installDate, remark, docChecklist,
+    } = req.body;
+    const wo = await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: {
+        project, location, products, responsibility,
+        customerName, contactName, contactTel, teamAssignment,
+        qcDate: qcDate ? new Date(qcDate) : null,
+        installDate: installDate ? new Date(installDate) : null,
+        remark, docChecklist: docChecklist || existing.docChecklist,
+      },
+    });
+    res.json(wo);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/submit
+router.post('/:id/submit', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (wo.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    const updated = await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'pending', approvalStep: 1 },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'workorder', workOrderId: wo.id,
+        approverId: req.user.id, step: 0,
+        action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
+      },
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/approve
+router.post('/:id/approve', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    const MAX_STEP = 8;
+    const nextStep = wo.approvalStep + 1;
+    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
+    const isClosed = nextStep > MAX_STEP;
+    const updated = await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: {
+        approvalStep: nextStep, status: newStatus,
+        isClosed, closedAt: isClosed ? new Date() : null,
+      },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'workorder', workOrderId: wo.id,
+        approverId: req.user.id, step: wo.approvalStep,
+        action: 'approve', comment: req.body.comment || '',
+      },
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/reject
+router.post('/:id/reject', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    const updated = await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'rejected' },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'workorder', workOrderId: wo.id,
+        approverId: req.user.id, step: wo.approvalStep,
+        action: 'reject', comment: req.body.comment || '',
+      },
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+module.exports = router;
