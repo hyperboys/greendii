@@ -7,6 +7,9 @@ ui/.next/
 dist/
 build/
 
+*.tsbuildinfo
+ui/tsconfig.tsbuildinfo
+
 .env
 .env.*
 !.env.example
