@@ -4,17 +4,21 @@ const path = require('path');
 const fs = require('fs');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
-  filename: (_req, file, cb) => {
-    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    cb(null, unique + path.extname(file.originalname));
-  },
-});
+// ถ้ามี R2 ให้ใช้ memory storage, ถ้าไม่มีใช้ disk
+const storage = isR2Enabled
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (_req, _file, cb) => cb(null, UPLOAD_DIR),
+      filename: (_req, file, cb) => {
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        cb(null, unique + path.extname(file.originalname));
+      },
+    });
 
 const upload = multer({
   storage,
@@ -34,9 +38,23 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
     const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId } = req.body;
     const saved = [];
     for (const file of req.files || []) {
+      let filename, fileUrl;
+
+      if (isR2Enabled) {
+        // อัพโหลดไป R2
+        const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        const key = unique + path.extname(file.originalname);
+        fileUrl = await uploadToR2(key, file.buffer, file.mimetype);
+        filename = key;
+      } else {
+        // เก็บบน disk (fallback)
+        filename = file.filename;
+        fileUrl = `/uploads/${file.filename}`;
+      }
+
       const attachment = await prisma.attachment.create({
         data: {
-          filename: file.filename,
+          filename,
           originalName: file.originalname,
           mimeType: file.mimetype,
           size: file.size,
@@ -47,7 +65,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           purchaseRequestId: purchaseRequestId || null,
         },
       });
-      saved.push({ ...attachment, url: `/uploads/${file.filename}` });
+      saved.push({ ...attachment, url: fileUrl });
     }
     res.status(201).json(saved);
   } catch (e) { next(e); }
@@ -57,8 +75,12 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
-    const filePath = path.join(UPLOAD_DIR, att.filename);
-    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    if (isR2Enabled) {
+      await deleteFromR2(att.filename).catch(() => {}); // ไม่ block ถ้า R2 fail
+    } else {
+      const filePath = path.join(UPLOAD_DIR, att.filename);
+      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    }
     await prisma.attachment.delete({ where: { id: req.params.id } });
     res.json({ message: 'File deleted' });
   } catch (e) { next(e); }
