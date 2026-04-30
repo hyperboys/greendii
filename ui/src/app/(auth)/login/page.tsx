@@ -19,7 +19,12 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(username, password)
-      router.replace('/dashboard')
+      const user = useAuthStore.getState().user
+      if (user?.mustChangePassword) {
+        router.replace('/change-password')
+      } else {
+        router.replace('/dashboard')
+      }
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'เข้าสู่ระบบไม่สำเร็จ')
     } finally {
@@ -34,11 +39,10 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="flex justify-center mb-3">
-              <Image src="/logo.jpg" alt="GreenDii" width={64} height={64} className="rounded-2xl" />
+            <div className="flex justify-center mb-4">
+              <Image src="/logo.jpg" alt="GreenDii" width={180} height={90} className="object-contain" priority />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">GreenDii</h1>
-            <p className="text-sm text-gray-500 mt-1">Sales Workflow System</p>
+            <p className="text-sm text-gray-500">Sales Workflow System</p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">

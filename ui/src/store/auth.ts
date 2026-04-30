@@ -22,9 +22,6 @@ export const useAuthStore = create<AuthState>()(
         localStorage.setItem('gd_token', data.token)
         localStorage.setItem('gd_user', JSON.stringify(data.user))
         set({ user: data.user as AuthUser, token: data.token })
-        if (data.mustChangePassword) {
-          window.location.href = '/change-password'
-        }
       },
 
       logout: () => {

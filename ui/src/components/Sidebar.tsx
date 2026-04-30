@@ -37,7 +37,7 @@ const MASTER: NavItem[] = [
   { href: '/users', label: 'ผู้ใช้งาน', icon: Users, roles: ['admin_mgr', 'director'] },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
   const [collapsed, setCollapsed] = useState(false)
@@ -46,10 +46,20 @@ export default function Sidebar() {
     !roles || !user || roles.includes(user.role as UserRole)
 
   return (
-    <aside className={clsx(
-      'flex flex-col h-screen bg-green-dark text-white transition-all duration-200 shrink-0',
-      collapsed ? 'w-14' : 'w-56'
-    )}>
+    <>
+      {/* Mobile backdrop */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={onClose}
+        />
+      )}
+      <aside className={clsx(
+        'flex flex-col h-screen bg-green-dark text-white transition-all duration-200 shrink-0',
+        'fixed md:static inset-y-0 left-0 z-50',
+        isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+        collapsed ? 'w-14' : 'w-56'
+      )}>
       {/* Logo */}
       <div className="flex items-center justify-between px-3 py-4 border-b border-green-main/30">
         {!collapsed && (
@@ -147,5 +157,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   )
 }
