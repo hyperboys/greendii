@@ -73,14 +73,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
           />
         )}
         {collapsed && (
-          <Image
-            src="/logo.jpg"
-            alt="GreenDii"
-            width={32}
-            height={32}
-            className="object-contain rounded"
-            priority
-          />
+          <span className="text-sm font-black text-white tracking-wide">GD</span>
         )}
         <button
           onClick={() => setCollapsed(c => !c)}

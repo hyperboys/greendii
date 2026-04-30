@@ -18,7 +18,7 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
             <Menu size={20} />
           </button>
         )}
-        <h1 className="text-lg font-bold text-gray-800">{title || 'GreenDii'}</h1>
+        <h1 className="text-lg font-bold text-gray-800">{title || 'GreenDii - Sales Workflow System'}</h1>
       </div>
       <div className="flex items-center gap-3">
         <button className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500">
