@@ -64,7 +64,7 @@ export default function ProductsPage() {
     } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
   }
 
-  const categories = [...new Set(rows.map(r => r.category).filter(Boolean))] as string[]
+  const categories = Array.from(new Set(rows.map(r => r.category).filter(Boolean))) as string[]
 
   const fmt = (n: number) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
 

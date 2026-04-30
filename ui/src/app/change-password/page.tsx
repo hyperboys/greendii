@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { AuthAPI } from '@/lib/api'
@@ -14,11 +14,12 @@ export default function ChangePasswordPage() {
   const { token, user, logout, refreshMe } = useAuthStore()
   const router = useRouter()
 
-  // ถ้าไม่ได้ login ให้กลับไปหน้า login
-  if (!token) {
-    router.replace('/login')
-    return null
-  }
+  useEffect(() => {
+    if (!token) router.replace('/login')
+  }, [token])
+
+  // ถ้าไม่ได้ login ให้รอ useEffect
+  if (!token) return null
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
