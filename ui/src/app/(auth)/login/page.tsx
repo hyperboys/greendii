@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Image from 'next/image'
 import { useAuthStore } from '@/store/auth'
 import toast from 'react-hot-toast'
 
@@ -33,8 +34,8 @@ export default function LoginPage() {
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           {/* Logo */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-dark text-white text-2xl font-black mb-3">
-              GD
+            <div className="flex justify-center mb-3">
+              <Image src="/logo.jpg" alt="Green Dii" width={64} height={64} className="rounded-2xl" />
             </div>
             <h1 className="text-2xl font-bold text-gray-800">Green Dii</h1>
             <p className="text-sm text-gray-500 mt-1">Sales Workflow System</p>
