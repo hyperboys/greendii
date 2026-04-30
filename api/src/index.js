@@ -18,6 +18,7 @@ const prRoutes = require('./routes/pr');
 const approvalsRoutes = require('./routes/approvals');
 const reportsRoutes = require('./routes/reports');
 const uploadRoutes = require('./routes/upload');
+const settingsRoutes = require('./routes/settings');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -81,6 +82,7 @@ app.use('/api/pr', prRoutes);
 app.use('/api/approvals', approvalsRoutes);
 app.use('/api/reports', reportsRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/settings', settingsRoutes);
 
 // ─── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));

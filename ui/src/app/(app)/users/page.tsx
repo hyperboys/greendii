@@ -251,22 +251,24 @@ export default function UsersPage() {
                 <th className="py-1 px-2 text-center text-gray-500 font-medium">รายงาน</th>
                 <th className="py-1 px-2 text-center text-gray-500 font-medium">Master</th>
                 <th className="py-1 px-2 text-center text-gray-500 font-medium">จัดการ User</th>
+                <th className="py-1 px-2 text-center text-gray-500 font-medium">Settings</th>
               </tr>
             </thead>
             <tbody>
               {[
-                { role: 'sales',       label: 'พนักงานขาย',    q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-' },
-                { role: 'sales2',      label: 'พนักงานขาย 2', q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-' },
-                { role: 'sale_mgr',    label: 'ผู้จัดการฝ่ายขาย', q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '-' },
-                { role: 'admin_mgr',   label: 'ผู้จัดการธุรการ',  q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓' },
-                { role: 'project_mgr', label: 'ผู้จัดการโปรเจกต์',q: '-', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '-',  u: '-' },
-                { role: 'director',    label: 'ผู้อำนวยการ',     q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓' },
-                { role: 'procurement', label: 'จัดซื้อ',          q: '-', wo: '-', ho: '-', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-' },
-                { role: 'factory',     label: 'โรงงาน',           q: '-', wo: '✓', ho: '✓', pr: '-',  ap: '-',  rp: '-',  m: '-',  u: '-' },
+                { role: 'admin',       label: 'System Admin',        q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓', s: '✓' },
+                { role: 'sales',       label: 'พนักงานขาย',          q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
+                { role: 'sales2',      label: 'พนักงานขาย 2',       q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
+                { role: 'sale_mgr',    label: 'ผู้จัดการฝ่ายขาย',    q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '-',  s: '-' },
+                { role: 'admin_mgr',   label: 'ผู้จัดการธุรการ',      q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓', s: '-' },
+                { role: 'project_mgr', label: 'ผู้จัดการโปรเจกต์',   q: '-', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '-',  u: '-',  s: '-' },
+                { role: 'director',    label: 'ผู้อำนวยการ',          q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓', s: '✓' },
+                { role: 'procurement', label: 'จัดซื้อ',              q: '-', wo: '-', ho: '-', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
+                { role: 'factory',     label: 'โรงงาน',               q: '-', wo: '✓', ho: '✓', pr: '-',  ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
               ].map(r => (
-                <tr key={r.role} className="border-t border-gray-100">
-                  <td className="py-1.5 pr-3 font-medium text-gray-700">{r.label}</td>
-                  {[r.q, r.wo, r.ho, r.pr, r.ap, r.rp, r.m, r.u].map((v, i) => (
+                <tr key={r.role} className={`border-t border-gray-100 ${r.role === 'admin' ? 'bg-blue-50' : ''}`}>
+                  <td className={`py-1.5 pr-3 font-medium ${r.role === 'admin' ? 'text-blue-700' : 'text-gray-700'}`}>{r.label}</td>
+                  {[r.q, r.wo, r.ho, r.pr, r.ap, r.rp, r.m, r.u, r.s].map((v, i) => (
                     <td key={i} className={`py-1.5 px-2 text-center font-bold ${v === '✓' ? 'text-green-600' : 'text-gray-300'}`}>{v}</td>
                   ))}
                 </tr>

@@ -1,6 +1,7 @@
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
 export type UserRole =
+  | 'admin'
   | 'sales' | 'sales2' | 'sale_mgr' | 'admin_mgr'
   | 'project_mgr' | 'director' | 'procurement' | 'factory'
 
@@ -57,6 +58,19 @@ export interface Unit {
   name: string
   active: boolean
   createdAt: string
+}
+
+export interface Settings {
+  id: string
+  companyName: string
+  companyNameEn: string
+  address: string
+  taxId: string
+  tel: string
+  email: string
+  website: string
+  logoUrl: string
+  updatedAt: string
 }
 
 // ─── QUOTATION ────────────────────────────────────────────────────────────────
@@ -265,6 +279,7 @@ export const APPROVAL_STEPS = [
 ] as const
 
 export const ROLE_LABELS: Record<UserRole, string> = {
+  admin:       'System Admin',
   sales:       'เซลล์คนที่ 1',
   sales2:      'เซลล์คนที่ 2',
   sale_mgr:    'Sales Manager',

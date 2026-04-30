@@ -15,6 +15,7 @@ datasource db {
 // ─────────────────────────────────────────────
 
 enum UserRole {
+  admin        // System Administrator
   sales        // เซลล์คนที่ 1
   sales2       // เซลล์คนที่ 2
   sale_mgr     // Sales Manager
@@ -111,6 +112,21 @@ model Unit {
   updatedAt DateTime @updatedAt
 
   @@map("units")
+}
+
+model Settings {
+  id            String   @id @default("main")
+  companyName   String   @default("Green Dii Co., Ltd.")
+  companyNameEn String   @default("Green Dii Co., Ltd.")
+  address       String   @default("")
+  taxId         String   @default("")
+  tel           String   @default("")
+  email         String   @default("")
+  website       String   @default("")
+  logoUrl       String   @default("")
+  updatedAt     DateTime @updatedAt
+
+  @@map("settings")
 }
 
 // ─────────────────────────────────────────────

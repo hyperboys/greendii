@@ -29,7 +29,7 @@ router.get('/', authenticate, async (req, res, next) => {
 });
 
 // POST /api/users  (admin/director only)
-router.post('/', authenticate, requireRole('director', 'admin_mgr'), async (req, res, next) => {
+router.post('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
     const { username, password, fullName, initials, role, lineUserId } = req.body;
     if (!username || !password || !fullName || !role) {
@@ -49,7 +49,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
     // Non-admin may only edit themselves (except role)
-    if (req.user.id !== id && !['director', 'admin_mgr'].includes(req.user.role)) {
+    if (req.user.id !== id && !['admin', 'director', 'admin_mgr'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
     const { fullName, initials, lineUserId, role, active } = req.body;
@@ -58,7 +58,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (initials !== undefined) data.initials = initials;
     if (lineUserId !== undefined) data.lineUserId = lineUserId;
     // Only admin can change role/active
-    if (['director', 'admin_mgr'].includes(req.user.role)) {
+    if (['admin', 'director', 'admin_mgr'].includes(req.user.role)) {
       if (role !== undefined) data.role = role;
       if (active !== undefined) data.active = active;
     }
@@ -71,7 +71,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 router.put('/:id/password', authenticate, async (req, res, next) => {
   try {
     const { id } = req.params;
-    const isAdmin = ['director', 'admin_mgr'].includes(req.user.role);
+    const isAdmin = ['admin', 'director', 'admin_mgr'].includes(req.user.role);
     if (req.user.id !== id && !isAdmin) return res.status(403).json({ message: 'Forbidden' });
     const { newPassword } = req.body;
     if (!newPassword || newPassword.length < 6) {
@@ -84,7 +84,7 @@ router.put('/:id/password', authenticate, async (req, res, next) => {
 });
 
 // PUT /api/users/:id/force-change-password  (admin only)
-router.put('/:id/force-change-password', authenticate, requireRole('director', 'admin_mgr'), async (req, res, next) => {
+router.put('/:id/force-change-password', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
     await prisma.user.update({ where: { id: req.params.id }, data: { mustChangePassword: true } });
     res.json({ message: 'User must change password on next login' });
@@ -92,7 +92,7 @@ router.put('/:id/force-change-password', authenticate, requireRole('director', '
 });
 
 // DELETE /api/users/:id  (admin only — soft delete)
-router.delete('/:id', authenticate, requireRole('director', 'admin_mgr'), async (req, res, next) => {
+router.delete('/:id', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
     await prisma.user.update({ where: { id: req.params.id }, data: { active: false } });
     res.json({ message: 'User deactivated' });

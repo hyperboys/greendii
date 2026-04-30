@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  User, Customer, Product, Unit,
+  User, Customer, Product, Unit, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
   Attachment,
@@ -187,4 +187,11 @@ export const UploadAPI = {
     }).then(r => r.data)
   },
   delete: (id: string) => http.delete(`/upload/${id}`).then(r => r.data),
+}
+
+// ─── SETTINGS ────────────────────────────────────────────────────────────────────────────────
+
+export const SettingsAPI = {
+  get: () => http.get<Settings>('/settings').then(r => r.data),
+  update: (data: Partial<Settings>) => http.put<Settings>('/settings', data).then(r => r.data),
 }
