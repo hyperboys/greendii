@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { ProductsAPI } from '@/lib/api'
 import type { Product } from '@/types'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, UserCheck, UserX } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const EMPTY: Partial<Product> = { code: '', name: '', category: '', unit: '', price: 0, cost: 0, description: '' }
@@ -12,13 +12,17 @@ export default function ProductsPage() {
   const [rows, setRows] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterActive, setFilterActive] = useState('true')
   const [editing, setEditing] = useState<Partial<Product> | null>(null)
   const [saving, setSaving] = useState(false)
 
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.search = search
+    if (search) params.q = search
+    if (filterCategory) params.category = filterCategory
+    if (filterActive !== '') params.active = filterActive
     ProductsAPI.list(params)
       .then(setRows)
       .catch(() => toast.error('โหลดไม่สำเร็จ'))
@@ -50,6 +54,18 @@ export default function ProductsPage() {
     catch (err) { toast.error(typeof err === 'string' ? err : 'ลบไม่สำเร็จ') }
   }
 
+  const toggleActive = async (p: Product) => {
+    const action = p.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'
+    if (!confirm(`${action} สินค้า "${p.name}"?`)) return
+    try {
+      await ProductsAPI.update(p.id, { active: !p.active })
+      toast.success(`${action}สำเร็จ`)
+      load()
+    } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
+  }
+
+  const categories = [...new Set(rows.map(r => r.category).filter(Boolean))] as string[]
+
   const fmt = (n: number) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
 
   return (
@@ -61,12 +77,22 @@ export default function ProductsPage() {
         </button>
       </div>
 
-      <div className="toolbar">
-        <div className="relative flex-1 min-w-[200px] max-w-xs">
+      <div className="toolbar flex-wrap gap-2">
+        <div className="relative flex-1 min-w-[180px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="form-input pl-8 py-1.5" placeholder="ค้นหาชื่อ / รหัสสินค้า"
             value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
         </div>
+        <select className="form-input py-1.5 w-40" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
+          <option value="">ทุกหมวด</option>
+          {categories.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select className="form-input py-1.5 w-36" value={filterActive} onChange={e => setFilterActive(e.target.value)}>
+          <option value="">ทุกสถานะ</option>
+          <option value="true">ใช้งาน</option>
+          <option value="false">ปิดใช้</option>
+        </select>
+        <button className="btn-outline py-1.5" onClick={load}>ค้นหา</button>
       </div>
 
       {editing && (
@@ -127,15 +153,21 @@ export default function ProductsPage() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(p => (
-              <tr key={p.id}>
+              <tr key={p.id} className={!p.active ? 'opacity-50' : ''}>
                 <td className="font-mono text-xs text-gray-500">{p.code || '-'}</td>
                 <td className="font-medium">{p.name}</td>
                 <td className="text-xs text-gray-500">{p.category || '-'}</td>
                 <td className="text-right">฿{fmt(p.price)}</td>
-                <td><span className={`badge ${p.active ? 'badge-approved' : 'badge-draft'}`}>{p.active ? 'ใช้งาน' : 'ปิดใช้'}</span></td>
+                <td><span className={`badge ${p.active ? 'badge-approved' : 'badge-cancelled'}`}>{p.active ? 'ใช้งาน' : 'ปิดใช้'}</span></td>
                 <td>
                   <div className="flex gap-1 justify-end">
                     <button className="btn-outline btn-sm" onClick={() => setEditing(p)}><Pencil size={12} /></button>
+                    <button
+                      className={`btn-outline btn-sm ${p.active ? 'hover:text-red-600 hover:border-red-400' : 'hover:text-green-700 hover:border-green-500'}`}
+                      title={p.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                      onClick={() => toggleActive(p)}>
+                      {p.active ? <UserX size={12} /> : <UserCheck size={12} />}
+                    </button>
                     <button className="btn-danger btn-sm" onClick={() => del(p.id)}><Trash2 size={12} /></button>
                   </div>
                 </td>

@@ -9,9 +9,18 @@ const USER_SELECT = {
 };
 
 // GET /api/users
-router.get('/', authenticate, async (_req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
+    const { q, role, active } = req.query;
+    const where = {};
+    if (q) where.OR = [
+      { username: { contains: q, mode: 'insensitive' } },
+      { fullName: { contains: q, mode: 'insensitive' } },
+    ];
+    if (role) where.role = role;
+    if (active !== undefined) where.active = active === 'true';
     const users = await prisma.user.findMany({
+      where,
       select: USER_SELECT,
       orderBy: { createdAt: 'asc' },
     });
@@ -71,6 +80,14 @@ router.put('/:id/password', authenticate, async (req, res, next) => {
     const hash = await bcrypt.hash(newPassword, 10);
     await prisma.user.update({ where: { id }, data: { passwordHash: hash } });
     res.json({ message: 'Password updated' });
+  } catch (e) { next(e); }
+});
+
+// PUT /api/users/:id/force-change-password  (admin only)
+router.put('/:id/force-change-password', authenticate, requireRole('director', 'admin_mgr'), async (req, res, next) => {
+  try {
+    await prisma.user.update({ where: { id: req.params.id }, data: { mustChangePassword: true } });
+    res.json({ message: 'User must change password on next login' });
   } catch (e) { next(e); }
 });
 

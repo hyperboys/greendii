@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { CustomersAPI } from '@/lib/api'
 import type { Customer } from '@/types'
-import { Plus, Pencil, Trash2, Search } from 'lucide-react'
+import { Plus, Pencil, Trash2, Search, UserCheck, UserX } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const EMPTY: Partial<Customer> = { name: '', contactPerson: '', tel: '', email: '', address: '', taxId: '', type: 'company' }
@@ -12,13 +12,15 @@ export default function CustomersPage() {
   const [rows, setRows] = useState<Customer[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [filterActive, setFilterActive] = useState('true')
   const [editing, setEditing] = useState<Partial<Customer> | null>(null)
   const [saving, setSaving] = useState(false)
 
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.search = search
+    if (search) params.q = search
+    if (filterActive !== '') params.active = filterActive
     CustomersAPI.list(params)
       .then(setRows)
       .catch(() => toast.error('โหลดไม่สำเร็จ'))
@@ -58,6 +60,16 @@ export default function CustomersPage() {
     }
   }
 
+  const toggleActive = async (c: Customer) => {
+    const action = c.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'
+    if (!confirm(`${action} ลูกค้า "${c.name}"?`)) return
+    try {
+      await CustomersAPI.update(c.id, { active: !c.active })
+      toast.success(`${action}สำเร็จ`)
+      load()
+    } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
+  }
+
   const f = (key: keyof Customer) => ({
     value: (editing as Record<string, unknown>)?.[key] as string ?? '',
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
@@ -79,6 +91,12 @@ export default function CustomersPage() {
           <input className="form-input pl-8 py-1.5" placeholder="ค้นหาชื่อลูกค้า"
             value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
         </div>
+        <select className="form-input py-1.5 w-36" value={filterActive} onChange={e => setFilterActive(e.target.value)}>
+          <option value="">ทุกสถานะ</option>
+          <option value="true">ใช้งาน</option>
+          <option value="false">ปิดใช้</option>
+        </select>
+        <button className="btn-outline py-1.5" onClick={load}>ค้นหา</button>
       </div>
 
       {/* Edit form (inline) */}
@@ -139,13 +157,13 @@ export default function CustomersPage() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={6} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(c => (
-              <tr key={c.id}>
+              <tr key={c.id} className={!c.active ? 'opacity-50' : ''}>
                 <td className="font-medium">{c.name}</td>
                 <td>{c.contactPerson || '-'}</td>
                 <td>{c.tel || '-'}</td>
                 <td className="text-xs text-gray-500">{c.type}</td>
                 <td>
-                  <span className={`badge ${c.active ? 'badge-approved' : 'badge-draft'}`}>
+                  <span className={`badge ${c.active ? 'badge-approved' : 'badge-cancelled'}`}>
                     {c.active ? 'ใช้งาน' : 'ปิดใช้'}
                   </span>
                 </td>
@@ -153,6 +171,12 @@ export default function CustomersPage() {
                   <div className="flex gap-1 justify-end">
                     <button className="btn-outline btn-sm" onClick={() => setEditing(c)}>
                       <Pencil size={12} />
+                    </button>
+                    <button
+                      className={`btn-outline btn-sm ${c.active ? 'hover:text-red-600 hover:border-red-400' : 'hover:text-green-700 hover:border-green-500'}`}
+                      title={c.active ? 'ปิดใช้งาน' : 'เปิดใช้งาน'}
+                      onClick={() => toggleActive(c)}>
+                      {c.active ? <UserX size={12} /> : <UserCheck size={12} />}
                     </button>
                     <button className="btn-danger btn-sm" onClick={() => del(c.id)}>
                       <Trash2 size={12} />

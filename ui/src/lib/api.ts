@@ -47,13 +47,18 @@ export const AuthAPI = {
 // ─── USERS ────────────────────────────────────────────────────────────────────
 
 export const UsersAPI = {
-  list: () => http.get<User[]>('/users').then(r => r.data),
+  list: (params?: Record<string, string>) =>
+    http.get<User[]>('/users', { params }).then(r => r.data),
   create: (data: Partial<User> & { password: string }) =>
     http.post<User>('/users', data).then(r => r.data),
   update: (id: string, data: Partial<User>) =>
     http.put<User>(`/users/${id}`, data).then(r => r.data),
   setPassword: (id: string, newPassword: string) =>
     http.put(`/users/${id}/password`, { newPassword }).then(r => r.data),
+  toggleActive: (id: string, active: boolean) =>
+    http.put<User>(`/users/${id}`, { active }).then(r => r.data),
+  forceChangePassword: (id: string) =>
+    http.put(`/users/${id}/force-change-password`).then(r => r.data),
   deactivate: (id: string) => http.delete(`/users/${id}`).then(r => r.data),
 }
 
