@@ -1,6 +1,6 @@
 #!/bin/bash
 ################################################################################
-# Green Dii - Database Server Setup Script
+# GreenDii - Database Server Setup Script
 # For: Hetzner Cloud CPX21 or any Ubuntu 22.04 LTS VPS
 # PostgreSQL 15 with Security & Backup Configuration
 ################################################################################
@@ -8,7 +8,7 @@
 set -e
 
 echo "======================================"
-echo "Green Dii Database Server Setup"
+echo "GreenDii Database Server Setup"
 echo "======================================"
 
 # Variables (แก้ไขตามต้องการ)
@@ -47,7 +47,7 @@ cp /etc/postgresql/15/main/pg_hba.conf /etc/postgresql/15/main/pg_hba.conf.backu
 # Update PostgreSQL config for remote connections
 cat >> /etc/postgresql/15/main/postgresql.conf << EOF
 
-# Green Dii Custom Configuration
+# GreenDii Custom Configuration
 listen_addresses = '*'
 max_connections = 100
 shared_buffers = 1GB
@@ -86,7 +86,7 @@ EOF
 # Configure authentication
 cat > /etc/postgresql/15/main/pg_hba.conf << EOF
 # PostgreSQL Client Authentication Configuration File
-# Green Dii Production
+# GreenDii Production
 
 # TYPE  DATABASE        USER            ADDRESS                 METHOD
 

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Green Dii - System</title>
+    <title>GreenDii - System</title>
     <!-- ================================================================
          API Configuration — change API_BASE to match your backend URL
          ================================================================ -->
@@ -1192,7 +1192,7 @@ function renderDashboard() {
     document.getElementById('mainContent').innerHTML = `
         <div class="welcome-banner">
             <h1>${greeting}, ${currentUser.fullName.split(' ')[0]} ${currentUser.avatar}</h1>
-            <p>ยินดีต้อนรับเข้าสู่ระบบ Green Dii — ${currentUser.roleLabel}</p>
+            <p>ยินดีต้อนรับเข้าสู่ระบบ GreenDii — ${currentUser.roleLabel}</p>
             <div class="welcome-date">📅 ${dateStr}</div>
         </div>
 
@@ -1592,7 +1592,7 @@ function submitForApproval(docType, docId) {
             // แจ้ง sales2 (เซลล์คนที่ 2) ว่ามีเอกสารรอตรวจสอบ
             const nextUser = getNextApprover(0);
             if (nextUser) simulateLINENotify(nextUser,
-                `📋 มีใบเสนอราคารอตรวจสอบ\n${q.quoNo}\nโครงการ: ${q.project}\nกรุณาเข้าระบบ Green Dii เพื่อ Approve`
+                `📋 มีใบเสนอราคารอตรวจสอบ\n${q.quoNo}\nโครงการ: ${q.project}\nกรุณาเข้าระบบ GreenDii เพื่อ Approve`
             );
             toast('ส่งใบเสนอราคาเข้าสายอนุมัติแล้ว');
             renderQuotations();
@@ -2498,7 +2498,7 @@ function approveDoc(docType, docId) {
         if (nextUser) {
             const docLabel = docType === 'quotation' ? `Quotation ${doc.quoNo}` : `Work Order ${doc.woNo}`;
             simulateLINENotify(nextUser,
-                `📋 มีเอกสารรออนุมัติ\n${docLabel}\nโครงการ: ${doc.project}\nกรุณาเข้าระบบ Green Dii เพื่อ Approve`
+                `📋 มีเอกสารรออนุมัติ\n${docLabel}\nโครงการ: ${doc.project}\nกรุณาเข้าระบบ GreenDii เพื่อ Approve`
             );
         }
     }
@@ -3453,7 +3453,7 @@ function saveUserLine(userId) {
 function testLineNotify(userId) {
     const user = Object.values(USERS).find(u => u.id === userId);
     if (!user || !user.lineUserId) return;
-    simulateLINENotify(user, '🔔 [ทดสอบ] นี่คือข้อความทดสอบจากระบบ Green Dii — LINE Notification ทำงานปกติ ✅');
+    simulateLINENotify(user, '🔔 [ทดสอบ] นี่คือข้อความทดสอบจากระบบ GreenDii — LINE Notification ทำงานปกติ ✅');
 }
 
 // ==================== LINE NOTIFICATION SIMULATION ====================

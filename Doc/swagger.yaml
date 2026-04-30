@@ -1,13 +1,13 @@
 openapi: 3.0.3
 info:
-  title: Green Dii API
+  title: GreenDii API
   description: |
-    REST API for Green Dii Sales Workflow System
+    REST API for GreenDii Sales Workflow System
     ระบบจัดการ Sales Workflow — Quotation → Work Order → Hand Over → Purchase Request
     **Default password for all seeded users: `1234`**
   version: 1.0.0
   contact:
-    name: Green Dii Support
+    name: GreenDii Support
 
 servers:
   - url: http://localhost:4000/api

@@ -1,4 +1,4 @@
-# Green Dii Database Server Guide
+# GreenDii Database Server Guide
 
 ## 🗄️ แนะนำ Database Server แยกต่างหาก
 

@@ -1,6 +1,6 @@
-# Green Dii — Sales Workflow System
+# GreenDii — Sales Workflow System
 
-ระบบ Sales Workflow สำหรับ Green Dii  
+ระบบ Sales Workflow สำหรับ GreenDii  
 **Quotation → Work Order → Hand Over Job → Purchase Request**
 
 ---

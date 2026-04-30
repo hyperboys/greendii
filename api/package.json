@@ -1,7 +1,7 @@
 {
   "name": "greendii-api",
   "version": "1.0.0",
-  "description": "Green Dii Sales Workflow System - Backend API",
+  "description": "GreenDii Sales Workflow System - Backend API",
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",

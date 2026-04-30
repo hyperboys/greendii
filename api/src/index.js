@@ -55,10 +55,10 @@ try {
 
   const swaggerDoc = YAML.load(swaggerPath);
   app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
-    customSiteTitle: 'Green Dii API Docs',
+    customSiteTitle: 'GreenDii API Docs',
   }));
   app.use('/api/docs', swaggerUi.serve, swaggerUi.setup(swaggerDoc, {
-    customSiteTitle: 'Green Dii API Docs',
+    customSiteTitle: 'GreenDii API Docs',
   }));
   console.log('📚 Swagger UI → http://localhost:' + (process.env.PORT || 4000) + '/docs');
 } catch (e) {
@@ -91,7 +91,7 @@ app.use(errorHandler);
 // ─── START ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
 app.listen(PORT, () => {
-  console.log(`🚀 Green Dii API running → http://localhost:${PORT}`);
+  console.log(`🚀 GreenDii API running → http://localhost:${PORT}`);
   console.log(`   ENV: ${process.env.NODE_ENV || 'development'}`);
 });
 

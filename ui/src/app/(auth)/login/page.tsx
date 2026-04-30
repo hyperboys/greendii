@@ -35,9 +35,9 @@ export default function LoginPage() {
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-3">
-              <Image src="/logo.jpg" alt="Green Dii" width={64} height={64} className="rounded-2xl" />
+              <Image src="/logo.jpg" alt="GreenDii" width={64} height={64} className="rounded-2xl" />
             </div>
-            <h1 className="text-2xl font-bold text-gray-800">Green Dii</h1>
+            <h1 className="text-2xl font-bold text-gray-800">GreenDii</h1>
             <p className="text-sm text-gray-500 mt-1">Sales Workflow System</p>
           </div>
 
@@ -79,7 +79,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-center text-xs text-gray-400 mt-6">
-            Green Dii Co., Ltd. © {new Date().getFullYear()}
+            GreenDii Co., Ltd. © {new Date().getFullYear()}
           </p>
         </div>
       </div>

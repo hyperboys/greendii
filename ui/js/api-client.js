@@ -1,5 +1,5 @@
 /**
- * Green Dii API Client
+ * GreenDii API Client
  * Replaces localStorage with real HTTP calls to the backend API.
  * Usage: include this script before app logic.
  */

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import type { UserRole } from '@/types'
@@ -52,7 +53,24 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="flex items-center justify-between px-3 py-4 border-b border-green-main/30">
         {!collapsed && (
-          <span className="font-bold text-lg tracking-wide">Green Dii</span>
+          <Image
+            src="/logo.jpg"
+            alt="GreenDii Company Limited"
+            width={140}
+            height={60}
+            className="object-contain"
+            priority
+          />
+        )}
+        {collapsed && (
+          <Image
+            src="/logo.jpg"
+            alt="GreenDii"
+            width={32}
+            height={32}
+            className="object-contain rounded"
+            priority
+          />
         )}
         <button
           onClick={() => setCollapsed(c => !c)}
