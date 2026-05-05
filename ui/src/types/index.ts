@@ -167,6 +167,8 @@ export interface HandOverJob {
   qualityInstall: number
   comment?: string
   status: DocStatus
+  approvalStep: number
+  approvalLogs?: ApprovalLog[]
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
@@ -276,6 +278,10 @@ export const APPROVAL_STEPS = [
   { role: 'director',    label: 'Managing Director', step: 6 },
   { role: 'procurement', label: 'Procurement',       step: 7 },
   { role: 'factory',     label: 'ทีมโรงงาน',        step: 8 },
+] as const
+
+export const HANDOVER_APPROVAL_STEPS = [
+  { role: 'project_mgr', label: 'Project Manager', step: 1 },
 ] as const
 
 export const ROLE_LABELS: Record<UserRole, string> = {

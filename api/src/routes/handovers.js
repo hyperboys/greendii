@@ -33,6 +33,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
         sales: { select: { id: true, fullName: true } },
         workOrder: { select: { id: true, woNo: true } },
         attachments: true,
+        approvalLogs: {
+          include: { approver: { select: { id: true, fullName: true, role: true } } },
+          orderBy: { actedAt: 'asc' },
+        },
       },
     });
     res.json(item);
@@ -66,10 +70,12 @@ router.post('/', authenticate, async (req, res, next) => {
 // PUT /api/handovers/:id
 router.put('/:id', authenticate, async (req, res, next) => {
   try {
+    const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (ho.status !== 'draft') return res.status(400).json({ message: 'แก้ไขได้เฉพาะสถานะ Draft เท่านั้น' });
     const {
       project, contractor, location, contactName, contactTel,
       product, responsibility, serviceDate,
-      qualityProduct, qualitySales, qualityInstall, comment, status,
+      qualityProduct, qualitySales, qualityInstall, comment,
     } = req.body;
     const item = await prisma.handOverJob.update({
       where: { id: req.params.id },
@@ -77,10 +83,73 @@ router.put('/:id', authenticate, async (req, res, next) => {
         project, contractor, location, contactName, contactTel,
         product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,
-        qualityProduct, qualitySales, qualityInstall, comment, status,
+        qualityProduct, qualitySales, qualityInstall, comment,
       },
     });
     res.json(item);
+  } catch (e) { next(e); }
+});
+
+// POST /api/handovers/:id/submit
+router.post('/:id/submit', authenticate, async (req, res, next) => {
+  try {
+    const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (ho.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    const updated = await prisma.handOverJob.update({
+      where: { id: req.params.id },
+      data: { status: 'pending', approvalStep: 1 },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'handover', handOverJobId: ho.id,
+        approverId: req.user.id, step: 0,
+        action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
+      },
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/handovers/:id/approve
+router.post('/:id/approve', authenticate, async (req, res, next) => {
+  try {
+    const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    const MAX_STEP = 1;
+    const nextStep = ho.approvalStep + 1;
+    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
+    const updated = await prisma.handOverJob.update({
+      where: { id: req.params.id },
+      data: { approvalStep: nextStep, status: newStatus },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'handover', handOverJobId: ho.id,
+        approverId: req.user.id, step: ho.approvalStep,
+        action: 'approve', comment: req.body.comment || '',
+      },
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/handovers/:id/reject
+router.post('/:id/reject', authenticate, async (req, res, next) => {
+  try {
+    const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    const updated = await prisma.handOverJob.update({
+      where: { id: req.params.id },
+      data: { status: 'rejected' },
+    });
+    await prisma.approvalLog.create({
+      data: {
+        docType: 'handover', handOverJobId: ho.id,
+        approverId: req.user.id, step: ho.approvalStep,
+        action: 'reject', comment: req.body.comment || '',
+      },
+    });
+    res.json(updated);
   } catch (e) { next(e); }
 });
 

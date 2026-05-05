@@ -141,6 +141,12 @@ export const HandoversAPI = {
   create: (data: Partial<HandOverJob>) => http.post<HandOverJob>('/handovers', data).then(r => r.data),
   update: (id: string, data: Partial<HandOverJob>) =>
     http.put<HandOverJob>(`/handovers/${id}`, data).then(r => r.data),
+  submit: (id: string, comment?: string) =>
+    http.post<HandOverJob>(`/handovers/${id}/submit`, { comment }).then(r => r.data),
+  approve: (id: string, comment?: string) =>
+    http.post<HandOverJob>(`/handovers/${id}/approve`, { comment }).then(r => r.data),
+  reject: (id: string, comment?: string) =>
+    http.post<HandOverJob>(`/handovers/${id}/reject`, { comment }).then(r => r.data),
 }
 
 // ─── PURCHASE REQUESTS ────────────────────────────────────────────────────────

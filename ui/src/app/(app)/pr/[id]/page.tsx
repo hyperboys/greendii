@@ -36,6 +36,7 @@ export default function PRDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
+  const canEdit = isMine && doc.status === 'draft'
   const canSubmit = isMine && doc.status === 'draft'
   const nextStep = doc.approvalStep + 1
   const stepDef = APPROVAL_STEPS.find(s => s.step === nextStep)
@@ -69,6 +70,11 @@ export default function PRDetailPage() {
           </div>
           <p className="page-sub">{doc.customer}</p>
         </div>
+        {canEdit && (
+          <button className="btn-outline btn-sm" onClick={() => router.push(`/pr/${id}/edit`)}>
+            <Pencil size={14} /> แก้ไข
+          </button>
+        )}
       </div>
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">

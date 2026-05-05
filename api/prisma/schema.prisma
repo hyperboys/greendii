@@ -242,10 +242,12 @@ model HandOverJob {
   qualityInstall Int        @default(0)
   comment        String?
   status         DocStatus  @default(draft)
+  approvalStep   Int        @default(0)
   createdAt      DateTime   @default(now())
   updatedAt      DateTime   @updatedAt
 
-  attachments Attachment[]
+  attachments  Attachment[]
+  approvalLogs ApprovalLog[]
 
   @@map("hand_over_jobs")
 }
@@ -300,15 +302,17 @@ model PurchaseRequestItem {
 // ─────────────────────────────────────────────
 
 model ApprovalLog {
-  id          String         @id @default(cuid())
-  docType     String         // 'quotation' | 'workorder' | 'pr'
-  quotationId String?
-  quotation   Quotation?     @relation(fields: [quotationId], references: [id])
-  workOrderId String?
-  workOrder   WorkOrder?     @relation(fields: [workOrderId], references: [id])
-  prId        String?
-  pr          PurchaseRequest? @relation(fields: [prId], references: [id])
-  approverId  String
+  id              String         @id @default(cuid())
+  docType         String         // 'quotation' | 'workorder' | 'handover' | 'pr'
+  quotationId     String?
+  quotation       Quotation?     @relation(fields: [quotationId], references: [id])
+  workOrderId     String?
+  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
+  handOverJobId   String?
+  handOverJob     HandOverJob?   @relation(fields: [handOverJobId], references: [id])
+  prId            String?
+  pr              PurchaseRequest? @relation(fields: [prId], references: [id])
+  approverId      String
   approver    User           @relation(fields: [approverId], references: [id])
   step        Int
   action      ApprovalAction

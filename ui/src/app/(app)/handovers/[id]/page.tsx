@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI } from '@/lib/api'
 import type { HandOverJob } from '@/types'
-import { STATUS_LABELS } from '@/types'
+import { STATUS_LABELS, HANDOVER_APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function HandoverDetailPage() {
@@ -15,20 +15,45 @@ export default function HandoverDetailPage() {
   const { user } = useAuthStore()
   const [doc, setDoc] = useState<HandOverJob | null>(null)
   const [loading, setLoading] = useState(true)
+  const [comment, setComment] = useState('')
+  const [acting, setActing] = useState(false)
 
-  useEffect(() => {
+  const load = () => {
     setLoading(true)
     HandoversAPI.get(id)
       .then(setDoc)
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [id])
+  }
+
+  useEffect(() => { load() }, [id])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
   const canEdit = isMine && doc.status === 'draft'
+  const canSubmit = isMine && doc.status === 'draft'
+
+  const nextStep = doc.approvalStep + 1
+  const stepDef = HANDOVER_APPROVAL_STEPS.find(s => s.step === nextStep)
+  const canApprove = doc.status === 'pending' && stepDef?.role === user?.role
+
+  const act = async (action: 'submit' | 'approve' | 'reject') => {
+    setActing(true)
+    try {
+      if (action === 'submit') await HandoversAPI.submit(id, comment)
+      else if (action === 'approve') await HandoversAPI.approve(id, comment)
+      else await HandoversAPI.reject(id, comment)
+      toast.success('ดำเนินการสำเร็จ')
+      load()
+      setComment('')
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด')
+    } finally {
+      setActing(false)
+    }
+  }
 
   const ratingBar = (val: number) => (
     <div className="flex items-center gap-2">
@@ -91,6 +116,70 @@ export default function HandoverDetailPage() {
           </div>
         </div>
       </div>
+
+      {/* Approval chain */}
+      <div className="card p-5">
+        <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
+        <div className="flex flex-wrap gap-2">
+          {HANDOVER_APPROVAL_STEPS.map(s => {
+            const log = doc.approvalLogs?.find(l => l.step === s.step)
+            const isNext = s.step === nextStep && doc.status === 'pending'
+            return (
+              <div key={s.step} className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-xs min-w-[120px]
+                ${log?.action === 'approve' ? 'border-green-300 bg-green-50' :
+                  log?.action === 'reject'  ? 'border-red-300 bg-red-50' :
+                  isNext                    ? 'border-yellow-300 bg-yellow-50' :
+                                              'border-gray-200 bg-gray-50'}`}>
+                <span className="font-medium text-gray-700">{s.label}</span>
+                {log ? (
+                  <>
+                    <span className={log.action === 'approve' ? 'text-green-600' : 'text-red-600'}>
+                      {log.action === 'approve' ? '✓ อนุมัติ' : '✗ ปฏิเสธ'}
+                    </span>
+                    <span className="text-gray-400">{log.approver?.fullName}</span>
+                    {log.comment && <span className="text-gray-500 italic">{log.comment}</span>}
+                  </>
+                ) : isNext ? (
+                  <span className="text-yellow-600">รออนุมัติ</span>
+                ) : (
+                  <span className="text-gray-400">รอดำเนินการ</span>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Action area */}
+      {(canSubmit || canApprove) && (
+        <div className="card p-5 space-y-3">
+          <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
+          <textarea
+            className="form-input"
+            rows={2}
+            placeholder="หมายเหตุ/ความคิดเห็น (ถ้ามี)"
+            value={comment}
+            onChange={e => setComment(e.target.value)}
+          />
+          <div className="flex gap-2">
+            {canSubmit && (
+              <button className="btn-primary" disabled={acting} onClick={() => act('submit')}>
+                <SendHorizonal size={15} /> ส่งอนุมัติ
+              </button>
+            )}
+            {canApprove && (
+              <>
+                <button className="btn-success" disabled={acting} onClick={() => act('approve')}>
+                  <CheckCircle size={15} /> อนุมัติ
+                </button>
+                <button className="btn-danger" disabled={acting} onClick={() => act('reject')}>
+                  <XCircle size={15} /> ปฏิเสธ
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
