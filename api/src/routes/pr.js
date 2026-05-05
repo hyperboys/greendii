@@ -55,11 +55,18 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const {
-      prNo, workOrderId, customer, projectRef,
+      workOrderId, customer, projectRef,
       dateIssue, dateRequired, items = [],
       subTotal, vat, netTotal, remarks,
     } = req.body;
-    if (!prNo || !customer) return res.status(400).json({ message: 'prNo and customer required' });
+    if (!customer) return res.status(400).json({ message: 'customer required' });
+    const year = new Date().getFullYear();
+    const lastPR = await prisma.purchaseRequest.findFirst({
+      where: { prNo: { startsWith: `PR-${year}-` } },
+      orderBy: { prNo: 'desc' },
+    });
+    const seq = lastPR ? (parseInt(lastPR.prNo.split('-')[2], 10) || 0) + 1 : 1;
+    const prNo = `PR-${year}-${String(seq).padStart(4, '0')}`;
     const item = await prisma.purchaseRequest.create({
       data: {
         prNo, workOrderId, customer, projectRef,

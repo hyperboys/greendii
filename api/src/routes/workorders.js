@@ -53,13 +53,20 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const {
-      woNo, quotationId, project, location, products, responsibility,
+      quotationId, project, location, products, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
-    if (!woNo || !project || !customerName) {
-      return res.status(400).json({ message: 'woNo, project, customerName required' });
+    if (!project || !customerName) {
+      return res.status(400).json({ message: 'project and customerName required' });
     }
+    const year = new Date().getFullYear();
+    const lastWO = await prisma.workOrder.findFirst({
+      where: { woNo: { startsWith: `WO-${year}-` } },
+      orderBy: { woNo: 'desc' },
+    });
+    const seq = lastWO ? (parseInt(lastWO.woNo.split('-')[2], 10) || 0) + 1 : 1;
+    const woNo = `WO-${year}-${String(seq).padStart(4, '0')}`;
     const wo = await prisma.workOrder.create({
       data: {
         woNo, quotationId, project, location, products, responsibility,

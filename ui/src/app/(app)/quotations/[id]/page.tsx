@@ -123,7 +123,10 @@ export default function QuotationDetailPage() {
             {doc.items.map((item, i) => (
               <tr key={item.id ?? i}>
                 <td className="text-gray-400">{item.seq ?? i + 1}</td>
-                <td>{item.desc}</td>
+                <td>
+                  {item.desc}
+                  {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                </td>
                 <td className="text-right">{fmtMoney(item.qty)}</td>
                 <td>{item.unit}</td>
                 <td className="text-right">{fmtMoney(item.price)}</td>
