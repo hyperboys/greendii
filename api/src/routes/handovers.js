@@ -79,7 +79,11 @@ router.post('/', authenticate, async (req, res, next) => {
 router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (ho.status !== 'draft') return res.status(400).json({ message: 'แก้ไขได้เฉพาะสถานะ Draft เท่านั้น' });
+    if (ho.status !== 'draft' && ho.status !== 'rejected') return res.status(400).json({ message: 'แก้ไขได้เฉพาะสถานะ Draft หรือ Rejected เท่านั้น' });
+    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
+    if (ho.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
+    }
     const {
       project, contractor, location, contactName, contactTel,
       product, responsibility, serviceDate,
@@ -98,11 +102,30 @@ router.put('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// DELETE /api/handovers/:id
+router.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
+    const managerRoles = ['admin', 'director', 'admin_mgr'];
+    if (ho.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
+    }
+    if (!['draft', 'rejected'].includes(ho.status)) {
+      return res.status(400).json({ message: 'ลบได้เฉพาะเอกสารที่อยู่ในสถานะ Draft หรือ Rejected เท่านั้น' });
+    }
+    await prisma.handOverJob.update({
+      where: { id: req.params.id },
+      data: { status: 'cancelled' },
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 // POST /api/handovers/:id/submit
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (ho.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    if (!['draft', 'rejected'].includes(ho.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const updated = await prisma.handOverJob.update({
       where: { id: req.params.id },
       data: { status: 'pending', approvalStep: 1 },
@@ -111,7 +134,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       data: {
         docType: 'handover', handOverJobId: ho.id,
         approverId: req.user.id, step: 0,
-        action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
+        action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
     await notifyByRole('project_mgr', `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`).catch(() => {});

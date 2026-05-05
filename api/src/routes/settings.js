@@ -2,7 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 
-const ADMIN_ROLES = ['admin', 'director'];
+const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 
 // GET /api/settings  (all authenticated users — needed for company info on docs)
 router.get('/', authenticate, async (_req, res, next) => {

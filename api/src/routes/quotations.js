@@ -132,11 +132,11 @@ router.put('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/quotations/:id/submit  (draft → pending)
+// POST /api/quotations/:id/submit  (draft/rejected → pending)
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (quo.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const updated = await prisma.quotation.update({
       where: { id: req.params.id },
       data: { status: 'pending', approvalStep: 1 },
@@ -145,7 +145,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       data: {
         docType: 'quotation', quotationId: quo.id,
         approverId: req.user.id, step: 0,
-        action: 'approve', comment: req.body.comment || 'ส่งเอกสารเข้าอนุมัติ',
+        action: 'submit', comment: req.body.comment || 'ส่งเอกสารเข้าอนุมัติ',
       },
     });
     await notifyStep(1, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});

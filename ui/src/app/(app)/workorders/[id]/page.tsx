@@ -6,7 +6,7 @@ import { WorkOrdersAPI } from '@/lib/api'
 import type { WorkOrder } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -33,19 +33,24 @@ export default function WorkOrderDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
-  const canEdit = isMine && doc.status === 'draft'
+  const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
+  const canEdit = (isMine || isAdmin) && doc.status === 'draft'
   const canSubmit = isMine && doc.status === 'draft'
+  const canResubmit = isMine && doc.status === 'rejected'
+  const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
 
   const nextStep = doc.approvalStep + 1
   const stepDef = APPROVAL_STEPS.find(s => s.step === nextStep)
   const canApprove = doc.status === 'pending' && stepDef?.role === user?.role
 
-  const act = async (action: 'submit' | 'approve' | 'reject') => {
+  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
+    if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     setActing(true)
     try {
       if (action === 'submit') await WorkOrdersAPI.submit(id, comment)
       else if (action === 'approve') await WorkOrdersAPI.approve(id, comment)
-      else await WorkOrdersAPI.reject(id, comment)
+      else if (action === 'reject') await WorkOrdersAPI.reject(id, comment)
+      else if (action === 'delete') { await WorkOrdersAPI.cancel(id); router.push('/workorders'); return }
       toast.success('ดำเนินการสำเร็จ')
       load()
       setComment('')
@@ -74,6 +79,11 @@ export default function WorkOrderDetailPage() {
         {canEdit && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/${id}/edit`)}>
             <Pencil size={14} /> แก้ไข
+          </button>
+        )}
+        {canDelete && (
+          <button className="btn-danger btn-sm" onClick={() => act('delete')} disabled={acting}>
+            <Trash2 size={14} /> ลบ
           </button>
         )}
         <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
@@ -139,15 +149,15 @@ export default function WorkOrderDetailPage() {
         onRefresh={load}
       />
 
-      {(canSubmit || canApprove) && (
+      {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
           <textarea className="form-input" rows={2} placeholder="ความคิดเห็น (ไม่บังคับ)"
             value={comment} onChange={e => setComment(e.target.value)} />
           <div className="flex gap-2">
-            {canSubmit && (
+            {(canSubmit || canResubmit) && (
               <button className="btn-primary" onClick={() => act('submit')} disabled={acting}>
-                <SendHorizonal size={15} /> ส่งอนุมัติ
+                <SendHorizonal size={15} /> {canResubmit ? 'ส่งอนุมัติอีกครั้ง' : 'ส่งอนุมัติ'}
               </button>
             )}
             {canApprove && (

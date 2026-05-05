@@ -6,7 +6,7 @@ import { PRAPI, WorkOrdersAPI } from '@/lib/api'
 import type { PurchaseRequest } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -37,18 +37,23 @@ export default function PRDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
-  const canEdit = isMine && doc.status === 'draft'
+  const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
+  const canEdit = (isMine || isAdmin) && doc.status === 'draft'
   const canSubmit = isMine && doc.status === 'draft'
+  const canResubmit = isMine && doc.status === 'rejected'
+  const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
   const nextStep = doc.approvalStep + 1
   const stepDef = APPROVAL_STEPS.find(s => s.step === nextStep)
   const canApprove = doc.status === 'pending' && stepDef?.role === user?.role
 
-  const act = async (action: 'submit' | 'approve' | 'reject') => {
+  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
+    if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     setActing(true)
     try {
       if (action === 'submit') await PRAPI.submit(id)
       else if (action === 'approve') await PRAPI.approve(id, comment)
-      else await PRAPI.reject(id, comment)
+      else if (action === 'reject') await PRAPI.reject(id, comment)
+      else if (action === 'delete') { await PRAPI.cancel(id); router.push('/pr'); return }
       toast.success('ดำเนินการสำเร็จ')
       load(); setComment('')
     } catch (err) {
@@ -75,6 +80,11 @@ export default function PRDetailPage() {
           {canEdit && (
             <button className="btn-outline btn-sm" onClick={() => router.push(`/pr/${id}/edit`)}>
               <Pencil size={14} /> แก้ไข
+            </button>
+          )}
+          {canDelete && (
+            <button className="btn-danger btn-sm" onClick={() => act('delete')} disabled={acting}>
+              <Trash2 size={14} /> ลบ
             </button>
           )}
           <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
@@ -149,15 +159,15 @@ export default function PRDetailPage() {
         onRefresh={load}
       />
 
-      {(canSubmit || canApprove) && (
+      {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
           <textarea className="form-input" rows={2} placeholder="ความคิดเห็น"
             value={comment} onChange={e => setComment(e.target.value)} />
           <div className="flex gap-2">
-            {canSubmit && (
+            {(canSubmit || canResubmit) && (
               <button className="btn-primary" onClick={() => act('submit')} disabled={acting}>
-                <SendHorizonal size={15} /> ส่งอนุมัติ
+                <SendHorizonal size={15} /> {canResubmit ? 'ส่งอนุมัติอีกครั้ง' : 'ส่งอนุมัติ'}
               </button>
             )}
             {canApprove && (

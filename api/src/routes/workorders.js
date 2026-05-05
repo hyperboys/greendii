@@ -81,7 +81,7 @@ router.post('/', authenticate, async (req, res, next) => {
       data: {
         docType: 'workorder', workOrderId: wo.id,
         approverId: req.user.id, step: 0,
-        action: 'approve', comment: 'สร้างและส่ง Work Order',
+        action: 'submit', comment: 'สร้างใบสั่งงาน',
       },
     });
     res.status(201).json(wo);
@@ -93,6 +93,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const existing = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (existing.isClosed) return res.status(400).json({ message: 'Work order is closed' });
+    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
+    if (existing.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
+    }
     const {
       project, location, products, responsibility,
       customerName, contactName, contactTel, teamAssignment,
@@ -112,11 +116,30 @@ router.put('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// DELETE /api/workorders/:id
+router.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    const managerRoles = ['admin', 'director', 'admin_mgr'];
+    if (wo.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
+    }
+    if (!['draft', 'rejected'].includes(wo.status)) {
+      return res.status(400).json({ message: 'ลบได้เฉพาะเอกสารที่อยู่ในสถานะ Draft หรือ Rejected เท่านั้น' });
+    }
+    await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: { status: 'cancelled' },
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 // POST /api/workorders/:id/submit
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (wo.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    if (!['draft', 'rejected'].includes(wo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: { status: 'pending', approvalStep: 1 },
@@ -125,7 +148,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       data: {
         docType: 'workorder', workOrderId: wo.id,
         approverId: req.user.id, step: 0,
-        action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
+        action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
     await notifyStep(1, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
@@ -138,7 +161,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const MAX_STEP = 8;
+    const MAX_STEP = 7;
     const nextStep = wo.approvalStep + 1;
     const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
     const isClosed = nextStep > MAX_STEP;

@@ -130,6 +130,7 @@ export const WorkOrdersAPI = {
     http.post<WorkOrder>(`/workorders/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/reject`, { comment }).then(r => r.data),
+  cancel: (id: string) => http.delete(`/workorders/${id}`).then(r => r.data),
 }
 
 // ─── HAND OVER JOBS ───────────────────────────────────────────────────────────
@@ -147,6 +148,7 @@ export const HandoversAPI = {
     http.post<HandOverJob>(`/handovers/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<HandOverJob>(`/handovers/${id}/reject`, { comment }).then(r => r.data),
+  cancel: (id: string) => http.delete(`/handovers/${id}`).then(r => r.data),
 }
 
 // ─── PURCHASE REQUESTS ────────────────────────────────────────────────────────
@@ -164,6 +166,7 @@ export const PRAPI = {
     http.post<PurchaseRequest>(`/pr/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<PurchaseRequest>(`/pr/${id}/reject`, { comment }).then(r => r.data),
+  cancel: (id: string) => http.delete(`/pr/${id}`).then(r => r.data),
 }
 
 // ─── APPROVALS ────────────────────────────────────────────────────────────────

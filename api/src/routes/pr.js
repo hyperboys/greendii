@@ -90,6 +90,11 @@ router.post('/', authenticate, async (req, res, next) => {
 // PUT /api/pr/:id
 router.put('/:id', authenticate, async (req, res, next) => {
   try {
+    const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
+    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
+    if (existing.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
+    }
     const {
       customer, projectRef, dateIssue, dateRequired,
       items = [], subTotal, vat, netTotal, remarks,
@@ -116,11 +121,30 @@ router.put('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// DELETE /api/pr/:id
+router.delete('/:id', authenticate, async (req, res, next) => {
+  try {
+    const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
+    const managerRoles = ['admin', 'director', 'admin_mgr'];
+    if (pr.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
+    }
+    if (!['draft', 'rejected'].includes(pr.status)) {
+      return res.status(400).json({ message: 'ลบได้เฉพาะเอกสารที่อยู่ในสถานะ Draft หรือ Rejected เท่านั้น' });
+    }
+    await prisma.purchaseRequest.update({
+      where: { id: req.params.id },
+      data: { status: 'cancelled' },
+    });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
 // POST /api/pr/:id/submit
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (pr.status !== 'draft') return res.status(400).json({ message: 'Already submitted' });
+    if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const updated = await prisma.purchaseRequest.update({
       where: { id: req.params.id },
       data: { status: 'pending', approvalStep: 1 },
@@ -129,7 +153,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       data: {
         docType: 'pr', prId: pr.id,
         approverId: req.user.id, step: 0,
-        action: 'approve', comment: 'ส่งเข้าอนุมัติ',
+        action: 'submit', comment: 'ส่งเข้าอนุมัติ',
       },
     });
     await notifyStep(1, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});

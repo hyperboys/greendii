@@ -9,7 +9,7 @@ const USER_SELECT = {
 };
 
 // GET /api/users
-router.get('/', authenticate, async (req, res, next) => {
+router.get('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
     const { q, role, active } = req.query;
     const where = {};
