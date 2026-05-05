@@ -202,7 +202,7 @@ export default function QuotationDetailPage() {
         onRefresh={load}
       />
 
-      {/* Actions */}}
+      {/* Actions */}
       {(canSubmit || canApprove) && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
