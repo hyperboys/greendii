@@ -6,7 +6,7 @@ import { HandoversAPI } from '@/lib/api'
 import type { HandOverJob } from '@/types'
 import { STATUS_LABELS, HANDOVER_APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -56,14 +56,27 @@ export default function HandoverDetailPage() {
     }
   }
 
-  const ratingBar = (val: number) => (
-    <div className="flex items-center gap-2">
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map(i => (
-          <div key={i} className={`w-5 h-2 rounded-sm ${i <= val ? 'bg-green-main' : 'bg-gray-200'}`} />
-        ))}
-      </div>
-      <span className="text-sm font-medium">{val}/5</span>
+  const RATING_OPTIONS = [
+    { value: 5, label: 'ดีมาก' },
+    { value: 4, label: 'ดี' },
+    { value: 3, label: 'ปานกลาง' },
+    { value: 2, label: 'พอใช้' },
+    { value: 1, label: 'ปรับปรุง' },
+  ]
+
+  const ratingLabel = (val: number) => {
+    const opt = RATING_OPTIONS.find(o => o.value === val)
+    return opt ? `${opt.label} (${val}/5)` : `${val}/5`
+  }
+
+  const RatingDisplay = ({ val }: { val: number }) => (
+    <div className="flex flex-wrap gap-3 mt-1">
+      {RATING_OPTIONS.map(opt => (
+        <label key={opt.value} className={`flex items-center gap-1.5 text-sm ${val === opt.value ? 'font-semibold text-green-700' : 'text-gray-400'}`}>
+          <input type="radio" readOnly checked={val === opt.value} className="accent-green-600 w-4 h-4" />
+          {opt.label} ({opt.value})
+        </label>
+      ))}
     </div>
   )
 
@@ -80,11 +93,16 @@ export default function HandoverDetailPage() {
           </div>
           <p className="page-sub">{doc.project}</p>
         </div>
+        <div className="flex gap-2">
         {canEdit && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/handovers/${id}/edit`)}>
             <Pencil size={14} /> แก้ไข
           </button>
         )}
+        <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
+          <Printer size={14} /> พิมพ์
+        </button>
+        </div>
       </div>
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -105,15 +123,15 @@ export default function HandoverDetailPage() {
         <div className="space-y-3">
           <div>
             <span className="form-label">คุณภาพสินค้า</span>
-            {ratingBar(doc.qualityProduct)}
+            <RatingDisplay val={doc.qualityProduct} />
           </div>
           <div>
             <span className="form-label">คุณภาพงานขาย</span>
-            {ratingBar(doc.qualitySales)}
+            <RatingDisplay val={doc.qualitySales} />
           </div>
           <div>
             <span className="form-label">คุณภาพการติดตั้ง</span>
-            {ratingBar(doc.qualityInstall)}
+            <RatingDisplay val={doc.qualityInstall} />
           </div>
         </div>
       </div>

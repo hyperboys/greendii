@@ -78,3 +78,10 @@
   /* ── TOOLBAR ── */
   .toolbar { @apply flex items-center gap-2 mb-4 flex-wrap; }
 }
+
+@media print {
+  nav, header, aside, .no-print { display: none !important; }
+  body { background: white !important; }
+  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
+  .max-w-4xl, .max-w-3xl, .max-w-6xl { max-width: 100% !important; }
+}

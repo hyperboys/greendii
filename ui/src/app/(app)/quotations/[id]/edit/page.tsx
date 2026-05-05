@@ -23,7 +23,7 @@ interface FormData {
   items: QuotationItem[]
 }
 
-const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0 })
+const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0 })
 
 const VAT_RATE = 0.07
 
@@ -39,10 +39,10 @@ export default function QuotationFormPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  const [form, setForm] = useState<FormData>({
+  const [form, setForm] = useState<FormData & { specialDiscount: number }>({
     customerId: '', customerName: '', attn: '', project: '',
     address: '', tel: '', conditionTerm: '', validityDays: 30,
-    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()],
+    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0,
   })
 
   useEffect(() => {
@@ -68,6 +68,7 @@ export default function QuotationFormPage() {
             paymentTerm: doc.paymentTerm ?? '',
             remark: doc.remark ?? '',
             items: doc.items.length > 0 ? doc.items : [emptyItem()],
+            specialDiscount: doc.specialDiscount ?? 0,
           })
         })
         .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
@@ -75,14 +76,16 @@ export default function QuotationFormPage() {
     }
   }, [isEdit, params.id])
 
-  const subTotal = form.items.reduce((s, i) => s + (i.qty * i.price), 0)
-  const vat = Math.round(subTotal * VAT_RATE)
-  const grandTotal = subTotal + vat
+  const subTotal = form.items.reduce((s, i) => s + (i.qty * (i.materialPrice + i.labourPrice)), 0)
+  const afterDiscount = subTotal - form.specialDiscount
+  const vat = Math.round(afterDiscount * VAT_RATE)
+  const grandTotal = afterDiscount + vat
 
   const setItem = (idx: number, key: keyof QuotationItem, val: string | number) => {
     setForm(f => {
       const items = [...f.items]
       items[idx] = { ...items[idx], [key]: val }
+      items[idx].price = items[idx].materialPrice + items[idx].labourPrice
       items[idx].amount = items[idx].qty * items[idx].price
       return { ...f, items }
     })
@@ -234,7 +237,8 @@ export default function QuotationFormPage() {
                   <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">จำนวน</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคา/หน่วย</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคาวัสดุ/หน่วย</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ค่าแรง/หน่วย</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวนเงิน</th>
                   <th className="w-8"></th>
                 </tr>
@@ -281,12 +285,20 @@ export default function QuotationFormPage() {
                       <input
                         type="number" min={0} step="any"
                         className="form-input py-1 text-right"
-                        value={item.price}
-                        onChange={e => setItem(i, 'price', +e.target.value)}
+                        value={item.materialPrice}
+                        onChange={e => setItem(i, 'materialPrice', +e.target.value)}
+                      />
+                    </td>
+                    <td className="py-2 px-2">
+                      <input
+                        type="number" min={0} step="any"
+                        className="form-input py-1 text-right"
+                        value={item.labourPrice}
+                        onChange={e => setItem(i, 'labourPrice', +e.target.value)}
                       />
                     </td>
                     <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">
-                      {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(item.qty * item.price)}
+                      {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(item.qty * (item.materialPrice + item.labourPrice))}
                     </td>
                     <td className="py-2.5 px-2 pt-3">
                       {form.items.length > 1 && (
@@ -301,21 +313,29 @@ export default function QuotationFormPage() {
               </tbody>
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr className="bg-gray-50">
-                  <td colSpan={5} className="text-right font-semibold px-2 py-2">ยอดก่อน VAT</td>
+                  <td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td>
                   <td className="text-right font-semibold pr-2">
                     {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(subTotal)}
                   </td>
                   <td></td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td colSpan={5} className="text-right text-gray-500 px-2 py-1">VAT 7%</td>
+                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td>
+                  <td className="text-right pr-2">
+                    <input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block"
+                      value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} />
+                  </td>
+                  <td></td>
+                </tr>
+                <tr className="bg-gray-50">
+                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">VAT 7%</td>
                   <td className="text-right text-gray-500 pr-2">
                     {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(vat)}
                   </td>
                   <td></td>
                 </tr>
                 <tr className="bg-green-pale">
-                  <td colSpan={5} className="text-right font-bold text-green-dark px-2 py-2">ยอดรวม</td>
+                  <td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดรวมทั้งสิ้น</td>
                   <td className="text-right font-bold text-green-dark pr-2 text-base">
                     ฿{new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(grandTotal)}
                   </td>

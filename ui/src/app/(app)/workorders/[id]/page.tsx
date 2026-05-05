@@ -6,7 +6,7 @@ import { WorkOrdersAPI } from '@/lib/api'
 import type { WorkOrder } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -70,11 +70,16 @@ export default function WorkOrderDetailPage() {
           </div>
           <p className="page-sub">{doc.project}</p>
         </div>
+        <div className="flex gap-2">
         {canEdit && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/${id}/edit`)}>
             <Pencil size={14} /> แก้ไข
           </button>
         )}
+        <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
+          <Printer size={14} /> พิมพ์
+        </button>
+        </div>
       </div>
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">

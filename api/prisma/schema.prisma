@@ -150,6 +150,7 @@ model Quotation {
   leadTime      String?
   paymentTerm   String?
   subTotal      Decimal   @default(0) @db.Decimal(12, 2)
+  specialDiscount Decimal @default(0) @db.Decimal(12, 2)
   vat           Decimal   @default(0) @db.Decimal(12, 2)
   grandTotal    Decimal   @default(0) @db.Decimal(12, 2)
   status        DocStatus @default(draft)
@@ -175,6 +176,8 @@ model QuotationItem {
   note        String?   // free-form description / spec
   qty         Decimal   @default(0) @db.Decimal(10, 3)
   unit        String
+  materialPrice Decimal @default(0) @db.Decimal(12, 2)
+  labourPrice   Decimal @default(0) @db.Decimal(12, 2)
   price       Decimal   @default(0) @db.Decimal(12, 2)
   amount      Decimal   @default(0) @db.Decimal(12, 2)
 
@@ -289,6 +292,7 @@ model PurchaseRequestItem {
   purchaseRequestId String
   purchaseRequest   PurchaseRequest @relation(fields: [purchaseRequestId], references: [id], onDelete: Cascade)
   seq               Int             @default(0)
+  partNo            String?
   desc              String
   note              String?         // free-form description / spec
   qty               Decimal         @default(0) @db.Decimal(10, 3)

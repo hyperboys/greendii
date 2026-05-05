@@ -82,6 +82,8 @@ export interface QuotationItem {
   note?: string
   qty: number
   unit: string
+  materialPrice: number
+  labourPrice: number
   price: number
   amount: number
 }
@@ -103,6 +105,7 @@ export interface Quotation {
   leadTime?: string
   paymentTerm?: string
   subTotal: number
+  specialDiscount: number
   vat: number
   grandTotal: number
   status: DocStatus
@@ -180,6 +183,7 @@ export interface HandOverJob {
 export interface PRItem {
   id?: string
   seq?: number
+  partNo?: string
   desc: string
   note?: string
   qty: number

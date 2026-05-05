@@ -6,7 +6,7 @@ import { PRAPI, WorkOrdersAPI } from '@/lib/api'
 import type { PurchaseRequest } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -71,11 +71,16 @@ export default function PRDetailPage() {
           </div>
           <p className="page-sub">{doc.customer}</p>
         </div>
-        {canEdit && (
-          <button className="btn-outline btn-sm" onClick={() => router.push(`/pr/${id}/edit`)}>
-            <Pencil size={14} /> แก้ไข
+        <div className="flex gap-2">
+          {canEdit && (
+            <button className="btn-outline btn-sm" onClick={() => router.push(`/pr/${id}/edit`)}>
+              <Pencil size={14} /> แก้ไข
+            </button>
+          )}
+          <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
+            <Printer size={14} /> พิมพ์
           </button>
-        )}
+        </div>
       </div>
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
@@ -90,12 +95,13 @@ export default function PRDetailPage() {
       <div className="card overflow-x-auto">
         <table className="data-table">
           <thead>
-            <tr><th>#</th><th>รายการ</th><th className="text-right">จำนวน</th><th>หน่วย</th><th className="text-right">ราคา/หน่วย</th><th className="text-right">จำนวนเงิน</th></tr>
+            <tr><th>#</th><th>P/N</th><th>รายการ</th><th className="text-right">จำนวน</th><th>หน่วย</th><th className="text-right">ราคา/หน่วย</th><th className="text-right">จำนวนเงิน</th></tr>
           </thead>
           <tbody>
             {doc.items.map((item, i) => (
               <tr key={item.id ?? i}>
                 <td className="text-gray-400">{item.seq ?? i + 1}</td>
+                <td className="text-gray-500 text-xs">{item.partNo || '-'}</td>
                 <td>
                   {item.desc}
                   {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}

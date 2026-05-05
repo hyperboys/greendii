@@ -6,7 +6,7 @@ import { QuotationsAPI } from '@/lib/api'
 import type { Quotation } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Trash2, Pencil } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Trash2, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -83,6 +83,9 @@ export default function QuotationDetailPage() {
               <Pencil size={14} /> แก้ไข
             </button>
           )}
+          <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
+            <Printer size={14} /> พิมพ์
+          </button>
           {canCancel && (
             <button className="btn-danger btn-sm" onClick={() => act('cancel')} disabled={acting}>
               <Trash2 size={14} /> ยกเลิก
@@ -116,7 +119,8 @@ export default function QuotationDetailPage() {
               <th>รายการ</th>
               <th className="text-right">จำนวน</th>
               <th>หน่วย</th>
-              <th className="text-right">ราคา/หน่วย</th>
+              <th className="text-right">ราคาวัสดุ/หน่วย</th>
+              <th className="text-right">ค่าแรง/หน่วย</th>
               <th className="text-right">จำนวนเงิน</th>
             </tr>
           </thead>
@@ -130,22 +134,29 @@ export default function QuotationDetailPage() {
                 </td>
                 <td className="text-right">{fmtMoney(item.qty)}</td>
                 <td>{item.unit}</td>
-                <td className="text-right">{fmtMoney(item.price)}</td>
+                <td className="text-right">{fmtMoney(item.materialPrice ?? item.price)}</td>
+                <td className="text-right">{fmtMoney(item.labourPrice ?? 0)}</td>
                 <td className="text-right font-medium">{fmtMoney(item.amount)}</td>
               </tr>
             ))}
           </tbody>
           <tfoot>
             <tr className="bg-gray-50">
-              <td colSpan={5} className="text-right font-semibold px-4 py-3">ยอดก่อน VAT</td>
+              <td colSpan={6} className="text-right font-semibold px-4 py-3">ยอดรวม</td>
               <td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td>
             </tr>
+            {doc.specialDiscount > 0 && (
+              <tr className="bg-gray-50">
+                <td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td>
+                <td className="text-right text-red-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td>
+              </tr>
+            )}
             <tr className="bg-gray-50">
-              <td colSpan={5} className="text-right text-gray-500 px-4 py-2">VAT 7%</td>
+              <td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT 7%</td>
               <td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td>
             </tr>
             <tr className="bg-green-pale">
-              <td colSpan={5} className="text-right font-bold text-green-dark px-4 py-3">ยอดรวมทั้งสิ้น</td>
+              <td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดรวมทั้งสิ้น</td>
               <td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.grandTotal)}</td>
             </tr>
           </tfoot>

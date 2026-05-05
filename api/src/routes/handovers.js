@@ -53,13 +53,13 @@ router.post('/', authenticate, async (req, res, next) => {
       serviceDate, qualityProduct, qualitySales, qualityInstall, comment,
     } = req.body;
     if (!project) return res.status(400).json({ message: 'project required' });
-    const year = new Date().getFullYear();
+    const yy = String(new Date().getFullYear()).slice(2);
     const lastHO = await prisma.handOverJob.findFirst({
-      where: { hoNo: { startsWith: `HO-${year}-` } },
+      where: { hoNo: { startsWith: `HO${yy}` } },
       orderBy: { hoNo: 'desc' },
     });
-    const seq = lastHO ? (parseInt(lastHO.hoNo.split('-')[2], 10) || 0) + 1 : 1;
-    const hoNo = `HO-${year}-${String(seq).padStart(4, '0')}`;
+    const seq = lastHO ? (parseInt(lastHO.hoNo.replace(`HO${yy}`, ''), 10) || 0) + 1 : 1;
+    const hoNo = `HO${yy}${String(seq).padStart(3, '0')}`;
     const item = await prisma.handOverJob.create({
       data: {
         hoNo, workOrderId, project, contractor, location,

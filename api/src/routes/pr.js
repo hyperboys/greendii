@@ -60,13 +60,13 @@ router.post('/', authenticate, async (req, res, next) => {
       subTotal, vat, netTotal, remarks,
     } = req.body;
     if (!customer) return res.status(400).json({ message: 'customer required' });
-    const year = new Date().getFullYear();
+    const yy = String(new Date().getFullYear()).slice(2);
     const lastPR = await prisma.purchaseRequest.findFirst({
-      where: { prNo: { startsWith: `PR-${year}-` } },
+      where: { prNo: { startsWith: `PR${yy}` } },
       orderBy: { prNo: 'desc' },
     });
-    const seq = lastPR ? (parseInt(lastPR.prNo.split('-')[2], 10) || 0) + 1 : 1;
-    const prNo = `PR-${year}-${String(seq).padStart(4, '0')}`;
+    const seq = lastPR ? (parseInt(lastPR.prNo.replace(`PR${yy}`, ''), 10) || 0) + 1 : 1;
+    const prNo = `PR${yy}${String(seq).padStart(3, '0')}`;
     const item = await prisma.purchaseRequest.create({
       data: {
         prNo, workOrderId, customer, projectRef,
@@ -76,7 +76,7 @@ router.post('/', authenticate, async (req, res, next) => {
         remarks, salesId: req.user.id, status: 'draft',
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
+            seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },
@@ -105,7 +105,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
         remarks,
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
+            seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },

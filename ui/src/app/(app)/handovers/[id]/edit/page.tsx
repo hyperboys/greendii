@@ -1,9 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { HandoversAPI, WorkOrdersAPI } from '@/lib/api'
-import type { WorkOrder } from '@/types'
+import { useRouter, useParams } from 'next/navigation'
+import { HandoversAPI } from '@/lib/api'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -52,9 +51,11 @@ const RatingCheckbox = ({ label, name, value, onChange }: { label: string; name:
   </div>
 )
 
-export default function NewHandoverPage() {
+export default function EditHandoverPage() {
   const router = useRouter()
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const params = useParams()
+  const id = params.id as string
+  const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
@@ -64,33 +65,44 @@ export default function NewHandoverPage() {
   })
 
   useEffect(() => {
-    WorkOrdersAPI.list({ status: 'approved' }).then(setWorkOrders)
-  }, [])
-
-  const handleWO = (id: string) => {
-    const w = workOrders.find(x => x.id === id)
-    setForm(f => ({
-      ...f, workOrderId: id,
-      project: w?.project ?? f.project,
-      contactName: w?.contactName ?? f.contactName,
-      contactTel: w?.contactTel ?? f.contactTel,
-      product: w?.products ?? f.product,
-    }))
-  }
+    HandoversAPI.get(id).then(doc => {
+      setForm({
+        workOrderId: doc.workOrderId ?? '',
+        project: doc.project ?? '',
+        contractor: doc.contractor ?? '',
+        location: doc.location ?? '',
+        contactName: doc.contactName ?? '',
+        contactTel: doc.contactTel ?? '',
+        product: doc.product ?? '',
+        responsibility: doc.responsibility ?? '',
+        serviceDate: doc.serviceDate ? doc.serviceDate.slice(0, 10) : '',
+        qualityProduct: doc.qualityProduct ?? 5,
+        qualitySales: doc.qualitySales ?? 5,
+        qualityInstall: doc.qualityInstall ?? 5,
+        comment: doc.comment ?? '',
+      })
+      setLoading(false)
+    }).catch(() => {
+      toast.error('โหลดข้อมูลไม่สำเร็จ')
+      router.back()
+    })
+  }, [id])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.project) { toast.error('กรุณากรอกชื่อโครงการ'); return }
     setSaving(true)
     try {
-      const created = await HandoversAPI.create(form)
-      toast.success('สร้างเอกสารส่งมอบงานสำเร็จ')
-      router.replace(`/handovers/${created.id}`)
+      await HandoversAPI.update(id, form)
+      toast.success('บันทึกการแก้ไขสำเร็จ')
+      router.replace(`/handovers/${id}`)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'บันทึกไม่สำเร็จ')
       setSaving(false)
     }
   }
+
+  if (loading) return <div className="p-8 text-gray-400">กำลังโหลด…</div>
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
@@ -98,17 +110,10 @@ export default function NewHandoverPage() {
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="page-title">สร้างเอกสารส่งมอบงาน</h2>
+        <h2 className="page-title">แก้ไขเอกสารส่งมอบงาน</h2>
       </div>
 
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="form-label">อ้างอิงใบสั่งงาน</label>
-          <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
-            {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
-          </select>
-        </div>
         <div className="md:col-span-2">
           <label className="form-label">ชื่อโครงการ *</label>
           <input className="form-input" required value={form.project}
@@ -169,7 +174,7 @@ export default function NewHandoverPage() {
       <div className="flex justify-end gap-3">
         <button type="button" className="btn-outline" onClick={() => router.back()}>ยกเลิก</button>
         <button type="submit" className="btn-primary" disabled={saving}>
-          {saving ? 'กำลังบันทึก…' : 'สร้างเอกสาร'}
+          {saving ? 'กำลังบันทึก…' : 'บันทึกการแก้ไข'}
         </button>
       </div>
     </form>

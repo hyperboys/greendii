@@ -17,7 +17,7 @@ interface FormData {
   items: PRItem[]
 }
 
-const emptyItem = (): PRItem => ({ desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0 })
+const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0 })
 const VAT_RATE = 0.07
 
 export default function NewPRPage() {
@@ -130,6 +130,7 @@ export default function NewPRPage() {
               <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
                 <tr>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-8">#</th>
+                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">P/N</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">จำนวน</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-20">หน่วย</th>
@@ -142,6 +143,10 @@ export default function NewPRPage() {
                 {form.items.map((item, i) => (
                   <tr key={i} className="border-t border-gray-100 align-top">
                     <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
+                    <td className="py-2 px-2">
+                      <input className="form-input py-1 w-full" value={item.partNo ?? ''}
+                        onChange={e => setItem(i, 'partNo', e.target.value)} placeholder="รหัส P/N" />
+                    </td>
                     <td className="py-2 px-2">
                       <input className="form-input py-1 w-full" value={item.desc} required
                         onChange={e => setItem(i, 'desc', e.target.value)} placeholder="ชื่อรายการ *" />

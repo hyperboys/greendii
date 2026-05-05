@@ -60,29 +60,34 @@ router.post('/', authenticate, async (req, res, next) => {
     const {
       customerName, customerId, attn, project, address, tel,
       conditionTerm, validityDays, leadTime, paymentTerm,
-      items = [], subTotal, vat, grandTotal, remark,
+      items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
     if (!project || !customerName) {
       return res.status(400).json({ message: 'project, customerName required' });
     }
-    // Auto-generate quoNo: QUO-YYYY-XXXX
-    const year = new Date().getFullYear();
+    // Auto-generate quoNo: QGD-MMYY-INITIALS+SEQ3 (e.g. QGD-0526-KC001)
+    const now = new Date();
+    const mm = String(now.getMonth() + 1).padStart(2, '0');
+    const yy = String(now.getFullYear()).slice(2);
+    const initials = (req.user.initials || 'XX').toUpperCase();
+    const prefix = `QGD-${mm}${yy}-${initials}`;
     const last = await prisma.quotation.findFirst({
-      where: { quoNo: { startsWith: `QUO-${year}-` } },
+      where: { quoNo: { startsWith: prefix } },
       orderBy: { quoNo: 'desc' },
     });
-    const seq = last ? (parseInt(last.quoNo.split('-')[2], 10) || 0) + 1 : 1;
-    const quoNo = `QUO-${year}-${String(seq).padStart(4, '0')}`;
+    const seq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) + 1 : 1;
+    const quoNo = `${prefix}${String(seq).padStart(3, '0')}`;
     const quo = await prisma.quotation.create({
       data: {
         quoNo, customerName, customerId, attn, project, address, tel,
         conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
-        subTotal: subTotal || 0, vat: vat || 0, grandTotal: grandTotal || 0,
+        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
         remark, salesId: req.user.id, status: 'draft',
         items: {
           create: items.map((it, i) => ({
             seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            price: it.price, amount: it.amount,
+            materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
+            price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
           })),
         },
       },
@@ -102,7 +107,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     const {
       customerName, customerId, attn, project, address, tel,
       conditionTerm, validityDays, leadTime, paymentTerm,
-      items = [], subTotal, vat, grandTotal, remark,
+      items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
     // Delete old items and recreate
     await prisma.quotationItem.deleteMany({ where: { quotationId: req.params.id } });
@@ -111,12 +116,13 @@ router.put('/:id', authenticate, async (req, res, next) => {
       data: {
         customerName, customerId, attn, project, address, tel,
         conditionTerm, validityDays, leadTime, paymentTerm,
-        subTotal: subTotal || 0, vat: vat || 0, grandTotal: grandTotal || 0,
+        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
         remark,
         items: {
           create: items.map((it, i) => ({
             seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            price: it.price, amount: it.amount,
+            materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
+            price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
           })),
         },
       },
