@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { notifyByRole, notifyUser } = require('../lib/notify');
 
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
@@ -106,6 +107,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
+    await notifyByRole('project_mgr', `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -129,6 +131,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
+    await notifyUser(ho.salesId, `ใบส่งมอบงาน ${ho.hoNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -149,7 +152,9 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
         action: 'reject', comment: req.body.comment || '',
       },
     });
+    await notifyUser(ho.salesId, `ใบส่งมอบงาน ${ho.hoNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);
+
   } catch (e) { next(e); }
 });
 

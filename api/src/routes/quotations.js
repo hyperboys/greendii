@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { notifyStep, notifyUser } = require('../lib/notify');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
@@ -57,13 +58,21 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const {
-      quoNo, customerName, customerId, attn, project, address, tel,
+      customerName, customerId, attn, project, address, tel,
       conditionTerm, validityDays, leadTime, paymentTerm,
       items = [], subTotal, vat, grandTotal, remark,
     } = req.body;
-    if (!quoNo || !project || !customerName) {
-      return res.status(400).json({ message: 'quoNo, project, customerName required' });
+    if (!project || !customerName) {
+      return res.status(400).json({ message: 'project, customerName required' });
     }
+    // Auto-generate quoNo: QUO-YYYY-XXXX
+    const year = new Date().getFullYear();
+    const last = await prisma.quotation.findFirst({
+      where: { quoNo: { startsWith: `QUO-${year}-` } },
+      orderBy: { quoNo: 'desc' },
+    });
+    const seq = last ? (parseInt(last.quoNo.split('-')[2], 10) || 0) + 1 : 1;
+    const quoNo = `QUO-${year}-${String(seq).padStart(4, '0')}`;
     const quo = await prisma.quotation.create({
       data: {
         quoNo, customerName, customerId, attn, project, address, tel,
@@ -72,7 +81,7 @@ router.post('/', authenticate, async (req, res, next) => {
         remark, salesId: req.user.id, status: 'draft',
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, qty: it.qty, unit: it.unit,
+            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },
@@ -106,7 +115,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
         remark,
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, qty: it.qty, unit: it.unit,
+            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },
@@ -133,6 +142,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || 'ส่งเอกสารเข้าอนุมัติ',
       },
     });
+    await notifyStep(1, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -156,6 +166,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
+    if (newStatus === 'approved') {
+      await notifyUser(quo.salesId, `ใบเสนอราคา ${quo.quoNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+    } else {
+      await notifyStep(nextStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -176,6 +191,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
         action: 'reject', comment: req.body.comment || '',
       },
     });
+    await notifyUser(quo.salesId, `ใบเสนอราคา ${quo.quoNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });

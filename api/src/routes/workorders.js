@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { notifyStep, notifyUser } = require('../lib/notify');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
@@ -120,6 +121,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
+    await notifyStep(1, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -147,6 +149,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
+    if (newStatus === 'approved') {
+      await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+    } else {
+      await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -167,7 +174,9 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
         action: 'reject', comment: req.body.comment || '',
       },
     });
+    await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);
+
   } catch (e) { next(e); }
 });
 

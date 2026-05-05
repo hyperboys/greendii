@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { notifyStep, notifyUser } = require('../lib/notify');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true } },
@@ -68,7 +69,7 @@ router.post('/', authenticate, async (req, res, next) => {
         remarks, salesId: req.user.id, status: 'draft',
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, qty: it.qty, unit: it.unit,
+            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },
@@ -97,7 +98,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
         remarks,
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, qty: it.qty, unit: it.unit,
+            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
             price: it.price, amount: it.amount,
           })),
         },
@@ -124,6 +125,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'approve', comment: 'ส่งเข้าอนุมัติ',
       },
     });
+    await notifyStep(1, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -146,6 +148,12 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
+    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
+    if (newStatus === 'approved') {
+      await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+    } else {
+      await notifyStep(nextStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -166,7 +174,9 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
         action: 'reject', comment: req.body.comment || '',
       },
     });
+    await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);
+
   } catch (e) { next(e); }
 });
 

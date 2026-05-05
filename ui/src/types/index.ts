@@ -79,6 +79,7 @@ export interface QuotationItem {
   id?: string
   seq?: number
   desc: string
+  note?: string
   qty: number
   unit: string
   price: number
@@ -180,6 +181,7 @@ export interface PRItem {
   id?: string
   seq?: number
   desc: string
+  note?: string
   qty: number
   unit: string
   price: number
@@ -240,6 +242,16 @@ export interface Attachment {
   category?: string
   uploadedAt: string
   url?: string
+}
+
+// ─── NOTIFICATION ────────────────────────────────────────────────────────
+
+export interface AppNotification {
+  id: string
+  userId: string
+  text: string
+  read: boolean
+  createdAt: string
 }
 
 // ─── REPORTS ──────────────────────────────────────────────────────────────────

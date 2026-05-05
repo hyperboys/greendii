@@ -201,3 +201,11 @@ export const SettingsAPI = {
   get: () => http.get<Settings>('/settings').then(r => r.data),
   update: (data: Partial<Settings>) => http.put<Settings>('/settings', data).then(r => r.data),
 }
+
+// ─── NOTIFICATIONS ──────────────────────────────────────────────────────────────────
+
+export const NotificationsAPI = {
+  list: () => http.get<{ notifications: import('@/types').AppNotification[]; unreadCount: number }>('/notifications').then(r => r.data),
+  markRead: (id: string) => http.patch(`/notifications/${id}/read`).then(r => r.data),
+  markAllRead: () => http.patch('/notifications/read-all').then(r => r.data),
+}
