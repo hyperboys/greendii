@@ -20,19 +20,20 @@ router.put('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next
   try {
     const {
       companyName, companyNameEn, address, taxId, tel, email, website, logoUrl,
-      approvalFlowConfig, menuAccessConfig,
+      approvalFlowConfig, menuAccessConfig, rolePermissionsConfig,
     } = req.body;
     const data = {};
-    if (companyName          !== undefined) data.companyName          = companyName;
-    if (companyNameEn        !== undefined) data.companyNameEn        = companyNameEn;
-    if (address              !== undefined) data.address              = address;
-    if (taxId                !== undefined) data.taxId                = taxId;
-    if (tel                  !== undefined) data.tel                  = tel;
-    if (email                !== undefined) data.email                = email;
-    if (website              !== undefined) data.website              = website;
-    if (logoUrl              !== undefined) data.logoUrl              = logoUrl;
-    if (approvalFlowConfig   !== undefined) data.approvalFlowConfig   = approvalFlowConfig;
-    if (menuAccessConfig     !== undefined) data.menuAccessConfig     = menuAccessConfig;
+    if (companyName             !== undefined) data.companyName             = companyName;
+    if (companyNameEn           !== undefined) data.companyNameEn           = companyNameEn;
+    if (address                 !== undefined) data.address                 = address;
+    if (taxId                   !== undefined) data.taxId                   = taxId;
+    if (tel                     !== undefined) data.tel                     = tel;
+    if (email                   !== undefined) data.email                   = email;
+    if (website                 !== undefined) data.website                 = website;
+    if (logoUrl                 !== undefined) data.logoUrl                 = logoUrl;
+    if (approvalFlowConfig      !== undefined) data.approvalFlowConfig      = approvalFlowConfig;
+    if (menuAccessConfig        !== undefined) data.menuAccessConfig        = menuAccessConfig;
+    if (rolePermissionsConfig   !== undefined) data.rolePermissionsConfig   = rolePermissionsConfig;
 
     const settings = await prisma.settings.upsert({
       where: { id: 'main' },

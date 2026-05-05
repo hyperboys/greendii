@@ -139,6 +139,10 @@ export interface Settings {
   logoUrl: string
   approvalFlowConfig?: Record<string, number[]>
   menuAccessConfig?: Record<string, UserRole[]>
+  rolePermissionsConfig?: {
+    roles: { key: string; label: string; description: string }[]
+    permissions: { key: string; label: string; roles: string[] }[]
+  }
   updatedAt: string
 }
 

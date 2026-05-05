@@ -12,7 +12,7 @@ const EMPTY_USER = { username: '', fullName: '', initials: '', role: 'sales' as 
 
 export default function UsersPage() {
   const { user: me } = useAuthStore()
-  const isAdmin = me?.role === 'director' || me?.role === 'admin_mgr'
+  const isAdmin = me?.role === 'admin' || me?.role === 'director' || me?.role === 'admin_mgr'
   const [rows, setRows] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
