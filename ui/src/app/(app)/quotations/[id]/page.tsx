@@ -8,6 +8,7 @@ import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Trash2, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
@@ -193,7 +194,15 @@ export default function QuotationDetailPage() {
         )}
       </div>
 
-      {/* Actions */}
+      {/* Attachments */}
+      <AttachmentsSection
+        attachments={doc.attachments ?? []}
+        docField="quotationId"
+        docId={id}
+        onRefresh={load}
+      />
+
+      {/* Actions */}}
       {(canSubmit || canApprove) && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>

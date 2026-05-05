@@ -240,8 +240,8 @@ export interface Attachment {
   mimeType: string
   size: number
   category?: string
+  fileUrl?: string
   uploadedAt: string
-  url?: string
 }
 
 // ─── NOTIFICATION ────────────────────────────────────────────────────────

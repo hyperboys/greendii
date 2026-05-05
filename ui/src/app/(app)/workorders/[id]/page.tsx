@@ -8,6 +8,7 @@ import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 export default function WorkOrderDetailPage() {
   const router = useRouter()
@@ -125,6 +126,13 @@ export default function WorkOrderDetailPage() {
           </div>
         )}
       </div>
+
+      <AttachmentsSection
+        attachments={doc.attachments ?? []}
+        docField="workOrderId"
+        docId={id}
+        onRefresh={load}
+      />
 
       {(canSubmit || canApprove) && (
         <div className="card p-5 space-y-3">

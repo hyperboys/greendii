@@ -8,6 +8,7 @@ import { STATUS_LABELS, HANDOVER_APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil } from 'lucide-react'
 import toast from 'react-hot-toast'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 export default function HandoverDetailPage() {
   const router = useRouter()
@@ -149,6 +150,13 @@ export default function HandoverDetailPage() {
           })}
         </div>
       </div>
+
+      <AttachmentsSection
+        attachments={doc.attachments ?? []}
+        docField="handOverJobId"
+        docId={id}
+        onRefresh={load}
+      />
 
       {/* Action area */}
       {(canSubmit || canApprove) && (

@@ -58,6 +58,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           originalName: file.originalname,
           mimeType: file.mimetype,
           size: file.size,
+          fileUrl,
           category: category || null,
           quotationId: quotationId || null,
           workOrderId: workOrderId || null,
@@ -65,7 +66,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           purchaseRequestId: purchaseRequestId || null,
         },
       });
-      saved.push({ ...attachment, url: fileUrl });
+      saved.push(attachment);
     }
     res.status(201).json(saved);
   } catch (e) { next(e); }

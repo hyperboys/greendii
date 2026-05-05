@@ -350,6 +350,7 @@ model Attachment {
   mimeType        String
   size            Int
   category        String?
+  fileUrl         String?
   quotationId     String?
   quotation       Quotation?       @relation(fields: [quotationId], references: [id])
   workOrderId     String?
