@@ -3,7 +3,7 @@ import type {
   User, Customer, Product, Unit, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
-  Attachment,
+  Attachment, AuditPage, UserRole,
 } from '@/types'
 
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
@@ -208,4 +208,15 @@ export const NotificationsAPI = {
   list: () => http.get<{ notifications: import('@/types').AppNotification[]; unreadCount: number }>('/notifications').then(r => r.data),
   markRead: (id: string) => http.patch(`/notifications/${id}/read`).then(r => r.data),
   markAllRead: () => http.patch('/notifications/read-all').then(r => r.data),
+}
+
+// ─── ADMIN ────────────────────────────────────────────────────────────────────────────────
+
+export const AdminAPI = {
+  getAuditLog: (params?: Record<string, string>) =>
+    http.get<AuditPage>('/audit', { params }).then(r => r.data),
+  updateApprovalFlow: (config: Record<string, number[]>) =>
+    http.put<Settings>('/settings', { approvalFlowConfig: config }).then(r => r.data),
+  updateMenuAccess: (config: Record<string, UserRole[]>) =>
+    http.put<Settings>('/settings', { menuAccessConfig: config }).then(r => r.data),
 }

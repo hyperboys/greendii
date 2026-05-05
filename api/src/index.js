@@ -20,6 +20,7 @@ const reportsRoutes = require('./routes/reports');
 const uploadRoutes = require('./routes/upload');
 const settingsRoutes = require('./routes/settings');
 const notificationsRoutes = require('./routes/notifications');
+const auditRoutes         = require('./routes/audit');
 const { errorHandler } = require('./middleware/errorHandler');
 
 const app = express();
@@ -85,6 +86,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/audit',         auditRoutes);
 
 // ─── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));

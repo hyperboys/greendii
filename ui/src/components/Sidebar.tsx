@@ -8,7 +8,8 @@ import type { UserRole } from '@/types'
 import {
   LayoutDashboard, FileText, ClipboardList, Handshake,
   ShoppingCart, CheckSquare, BarChart2, Users, Package,
-  Ruler, ChevronLeft, ChevronRight, LogOut, Settings, type LucideIcon
+  Ruler, ChevronLeft, ChevronRight, LogOut, Settings, type LucideIcon,
+  Shield, GitBranch, Lock, ActivitySquare,
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -34,8 +35,15 @@ const MASTER: NavItem[] = [
   { href: '/customers', label: 'ลูกค้า', icon: Users, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
   { href: '/products', label: 'สินค้า', icon: Package, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
   { href: '/units', label: 'หน่วยนับ', icon: Ruler, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/users', label: 'ผู้ใช้งาน', icon: Users, roles: ['admin', 'admin_mgr', 'director'] },
-  { href: '/settings', label: 'ตั้งค่าระบบ', icon: Settings, roles: ['admin', 'director'] },
+]
+
+const ADMIN_MENU: NavItem[] = [
+  { href: '/users',                label: 'ผู้ใช้งาน',       icon: Users,           roles: ['admin', 'admin_mgr', 'director'] },
+  { href: '/admin/approval-flow',  label: 'สายการอนุมัติ',    icon: GitBranch,        roles: ['admin', 'director'] },
+  { href: '/admin/roles',          label: 'บทบาท & สิทธิ์',  icon: Shield,           roles: ['admin', 'director'] },
+  { href: '/admin/menu-access',    label: 'ควบคุมเมนู',       icon: Lock,             roles: ['admin', 'director'] },
+  { href: '/admin/audit-log',      label: 'บันทึกกิจกรรม',   icon: ActivitySquare,   roles: ['admin', 'admin_mgr', 'director'] },
+  { href: '/settings',             label: 'ตั้งค่าระบบ',      icon: Settings,         roles: ['admin', 'director'] },
 ]
 
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -114,6 +122,34 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
             )}
             {MASTER.filter(item => canSee(item.roles)).map(item => {
               const active = pathname.startsWith(item.href)
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  title={item.label}
+                  className={clsx(
+                    'flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors',
+                    active ? 'bg-green-main text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
+                  )}
+                >
+                  <item.icon size={18} className="shrink-0" />
+                  {!collapsed && <span>{item.label}</span>}
+                </Link>
+              )
+            })}
+          </>
+        )}
+
+        {/* Admin section */}
+        {ADMIN_MENU.some(item => canSee(item.roles)) && (
+          <>
+            {!collapsed && (
+              <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase text-white/40 tracking-wider">
+                ผู้ดูแลระบบ
+              </p>
+            )}
+            {ADMIN_MENU.filter(item => canSee(item.roles)).map(item => {
+              const active = pathname === item.href || (item.href !== '/settings' && item.href !== '/users' && pathname.startsWith(item.href))
               return (
                 <Link
                   key={item.href}

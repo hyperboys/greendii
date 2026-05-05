@@ -7,6 +7,73 @@ export type UserRole =
 
 export type DocStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'cancelled'
 
+export const ALL_ROLES: UserRole[] = [
+  'admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr',
+  'project_mgr', 'director', 'procurement', 'factory',
+]
+
+export const ROLE_LABELS: Record<UserRole, string> = {
+  admin:       'System Admin',
+  sales:       'เซลล์',
+  sales2:      'เซลล์ 2',
+  sale_mgr:    'ผู้จัดการฝ่ายขาย',
+  admin_mgr:   'ผู้จัดการฝ่ายบริหาร',
+  project_mgr: 'ผู้จัดการโครงการ',
+  director:    'กรรมการผู้จัดการ',
+  procurement: 'จัดซื้อ',
+  factory:     'โรงงาน/ผลิต',
+}
+
+export const APPROVAL_STEPS = [
+  { step: 1, role: 'sales2'      as UserRole, label: 'เซลล์ 2' },
+  { step: 2, role: 'sale_mgr'    as UserRole, label: 'ผู้จัดการฝ่ายขาย' },
+  { step: 3, role: 'admin_mgr'   as UserRole, label: 'ผู้จัดการฝ่ายบริหาร' },
+  { step: 4, role: 'project_mgr' as UserRole, label: 'ผู้จัดการโครงการ' },
+  { step: 5, role: 'director'    as UserRole, label: 'กรรมการผู้จัดการ' },
+  { step: 6, role: 'procurement' as UserRole, label: 'จัดซื้อ' },
+  { step: 7, role: 'factory'     as UserRole, label: 'โรงงาน/ผลิต' },
+]
+
+export const DOC_TYPES = [
+  { key: 'quotation', label: 'ใบเสนอราคา' },
+  { key: 'workOrder', label: 'ใบสั่งงาน' },
+  { key: 'pr',        label: 'ใบขอซื้อ' },
+  { key: 'handover',  label: 'ส่งมอบงาน' },
+]
+
+export const DEFAULT_APPROVAL_FLOW: Record<string, number[]> = {
+  quotation: [1, 2, 3, 4, 5],
+  workOrder: [3, 4, 5],
+  pr:        [3, 4, 5, 6],
+  handover:  [3, 4, 5],
+}
+
+export const MENU_ITEMS = [
+  { key: 'dashboard',  label: 'Dashboard' },
+  { key: 'quotations', label: 'ใบเสนอราคา' },
+  { key: 'workorders', label: 'ใบสั่งงาน' },
+  { key: 'handovers',  label: 'ส่งมอบงาน' },
+  { key: 'pr',         label: 'ใบขอซื้อ' },
+  { key: 'approvals',  label: 'รออนุมัติ' },
+  { key: 'reports',    label: 'รายงาน' },
+  { key: 'customers',  label: 'ลูกค้า' },
+  { key: 'products',   label: 'สินค้า' },
+  { key: 'units',      label: 'หน่วยนับ' },
+]
+
+export const DEFAULT_MENU_ACCESS: Record<string, UserRole[]> = {
+  dashboard:  ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  quotations: ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director'],
+  workorders: ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  handovers:  ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director'],
+  pr:         ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement'],
+  approvals:  ['admin','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  reports:    ['admin','sale_mgr','admin_mgr','project_mgr','director'],
+  customers:  ['admin','sale_mgr','admin_mgr','director'],
+  products:   ['admin','sale_mgr','admin_mgr','director'],
+  units:      ['admin','sale_mgr','admin_mgr','director'],
+}
+
 // ─── USER ─────────────────────────────────────────────────────────────────────
 
 export interface User {
@@ -70,7 +137,35 @@ export interface Settings {
   email: string
   website: string
   logoUrl: string
+  approvalFlowConfig?: Record<string, number[]>
+  menuAccessConfig?: Record<string, UserRole[]>
   updatedAt: string
+}
+
+export interface ApprovalLogEntry {
+  id: string
+  docType: string
+  quotationId?: string
+  workOrderId?: string
+  handOverJobId?: string
+  prId?: string
+  approverId: string
+  approver?: { fullName: string; role: string }
+  quotation?: { quoNo: string }
+  workOrder?: { woNo: string }
+  handOverJob?: { hoNo: string }
+  pr?: { prNo: string }
+  step: number
+  action: 'submit' | 'approve' | 'reject'
+  comment?: string
+  actedAt: string
+}
+
+export interface AuditPage {
+  rows: ApprovalLogEntry[]
+  total: number
+  page: number
+  limit: number
 }
 
 // ─── QUOTATION ────────────────────────────────────────────────────────────────
@@ -285,32 +380,9 @@ export interface ReportApprovalPerf {
 
 // ─── APPROVAL STEPS ───────────────────────────────────────────────────────────
 
-export const APPROVAL_STEPS = [
-  { role: 'sales',       label: 'เซลล์คนที่ 1',    step: 1 },
-  { role: 'sales2',      label: 'เซลล์คนที่ 2',    step: 2 },
-  { role: 'sale_mgr',    label: 'Sales Manager',    step: 3 },
-  { role: 'admin_mgr',   label: 'Admin Manager',    step: 4 },
-  { role: 'project_mgr', label: 'Project Manager',  step: 5 },
-  { role: 'director',    label: 'Managing Director', step: 6 },
-  { role: 'procurement', label: 'Procurement',       step: 7 },
-  { role: 'factory',     label: 'ทีมโรงงาน',        step: 8 },
-] as const
-
 export const HANDOVER_APPROVAL_STEPS = [
   { role: 'project_mgr', label: 'Project Manager', step: 1 },
 ] as const
-
-export const ROLE_LABELS: Record<UserRole, string> = {
-  admin:       'System Admin',
-  sales:       'เซลล์คนที่ 1',
-  sales2:      'เซลล์คนที่ 2',
-  sale_mgr:    'Sales Manager',
-  admin_mgr:   'Admin Manager',
-  project_mgr: 'Project Manager',
-  director:    'Managing Director',
-  procurement: 'Procurement',
-  factory:     'ทีมโรงงาน',
-}
 
 export const STATUS_LABELS: Record<DocStatus, string> = {
   draft:     'แบบร่าง',
