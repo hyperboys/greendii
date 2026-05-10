@@ -60,6 +60,15 @@ export const UsersAPI = {
   forceChangePassword: (id: string) =>
     http.put(`/users/${id}/force-change-password`).then(r => r.data),
   deactivate: (id: string) => http.delete(`/users/${id}`).then(r => r.data),
+  uploadSignature: (id: string, file: File) => {
+    const form = new FormData()
+    form.append('signature', file)
+    return http.post<User>(`/users/${id}/signature`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data)
+  },
+  deleteSignature: (id: string) =>
+    http.delete<User>(`/users/${id}/signature`).then(r => r.data),
 }
 
 // ─── CUSTOMERS ────────────────────────────────────────────────────────────────

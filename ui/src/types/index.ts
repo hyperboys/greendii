@@ -82,7 +82,12 @@ export interface User {
   fullName: string
   initials: string
   role: UserRole
+  email?: string
+  phone?: string
+  department?: string
+  position?: string
   lineUserId?: string
+  signatureUrl?: string
   active: boolean
   createdAt: string
 }

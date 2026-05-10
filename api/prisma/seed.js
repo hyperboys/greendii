@@ -9,14 +9,28 @@ async function main() {
   // ── USERS ────────────────────────────────────────────────────────────────
   const defaultPass = await bcrypt.hash('1234', 10);
   const usersData = [
-    { username: 'somchai',        fullName: 'สมชาย ใจดี',        initials: 'SC', role: 'sales',       mustChangePassword: true },
-    { username: 'somsri',         fullName: 'สมศรี รักงาน',      initials: 'SS', role: 'sales2',      mustChangePassword: true },
-    { username: 'manager_sale',   fullName: 'วิชัย ขายเก่ง',     initials: 'WC', role: 'sale_mgr',    mustChangePassword: true },
-    { username: 'manager_admin',  fullName: 'ปรีชา จัดการ',      initials: 'PC', role: 'admin_mgr',   mustChangePassword: true },
-    { username: 'manager_project',fullName: 'นิพนธ์ โปรเจกต์',  initials: 'NP', role: 'project_mgr', mustChangePassword: true },
-    { username: 'director',       fullName: 'ประยุทธ์ ผู้บริหาร',initials: 'PY', role: 'director',    mustChangePassword: true },
-    { username: 'procurement',    fullName: 'มาลี จัดซื้อ',      initials: 'ML', role: 'procurement', mustChangePassword: true },
-    { username: 'factory',        fullName: 'สมบูรณ์ โรงงาน',   initials: 'SB', role: 'factory',     mustChangePassword: true },
+    // บริหาร
+    { username: 'sirin.jad',       fullName: 'สิริน จาดเมือง',         initials: 'SJ',  role: 'director',    email: 'sirin@greendii.com',        phone: '',           department: 'บริหาร',    position: 'Managing Director',       lineUserId: '',            mustChangePassword: true },
+    { username: 'sarayut.yuk',     fullName: 'สรายุทธ อยู่เกิด',       initials: 'SY',  role: 'admin_mgr',   email: 'sarayut.yukoet@gmail.com',  phone: '',           department: 'บริหาร',    position: 'Manager',                 lineUserId: 'yut9750',     mustChangePassword: true },
+    { username: 'sindhorn.jad',    fullName: 'สินธร จาดเมือง',         initials: 'SD',  role: 'admin_mgr',   email: 'sindhorn@greendii.com',     phone: '0825588146', department: 'การตลาด',   position: 'Marketing',               lineUserId: 'ice.adisorn', mustChangePassword: true },
+    // ฝ่ายขาย
+    { username: 'natnaleepat.sri', fullName: 'ณัฐบุรีภัทร ศรีวิเชียร', initials: 'NS',  role: 'sales',       email: 'natnaleepat@greendii.com',  phone: '06899009415',department: 'ฝ่ายขาย',   position: 'Senior Sales Executive',  lineUserId: 'applemichi',  mustChangePassword: true },
+    { username: 'harnchai.sri',    fullName: 'หาญชัย ศรีเกษม',         initials: 'HC',  role: 'sale_mgr',    email: 'harnchai@greendii.com',     phone: '08699008935',department: 'ฝ่ายขาย',   position: 'Assistant Manager',       lineUserId: 'mark-greendii',mustChangePassword: true },
+    { username: 'anongporn.yin',   fullName: 'อนงกรณ์ ยิ่งเจริญมาก',  initials: 'AY',  role: 'sales',       email: 'anongporn@greendii.com',    phone: '06899003062',department: 'ฝ่ายขาย',   position: 'Senior Sales Executive',  lineUserId: 'aumaim1809',  mustChangePassword: true },
+    { username: 'kullanit.cha',    fullName: 'กุลนิษฐ์ แจ้งพิพัฒน์',  initials: 'KC',  role: 'sales',       email: 'kullanit@greendii.com',     phone: '0819006685', department: 'ฝ่ายขาย',   position: 'Sales Executive',         lineUserId: 'by-noonjungko',mustChangePassword: true },
+    { username: 'wilailuck.kon',   fullName: 'วิไลลักษณ์ คงพลปาน',    initials: 'WK',  role: 'sales2',      email: 'wilailuck@greendii.com',    phone: '06899008936',department: 'ฝ่ายขาย',   position: 'Sales Executive',         lineUserId: 'kung232981',  mustChangePassword: true },
+    { username: 'siriya.aru',      fullName: 'สิริญา อรุณจิตต์',       initials: 'SA',  role: 'sales2',      email: 'siriya@greendii.com',       phone: '0641018875', department: 'ฝ่ายขาย',   position: 'Sales Executive',         lineUserId: 'nutarunjit',  mustChangePassword: true },
+    { username: 'nattaya.kan',     fullName: 'นาตยา กัญญาพันธ์',       initials: 'NK',  role: 'sales',       email: 'adminsales@greendii.com',   phone: '0922915063', department: 'Admin sale', position: 'Admin sale',              lineUserId: '',            mustChangePassword: true },
+    // ธุรการ / Admin
+    { username: 'sudarat.pro',     fullName: 'สุดารัตน์ พรมสิทธิ์',    initials: 'SP',  role: 'admin_mgr',   email: 'sudaratp@greendii.com',     phone: '0819007925', department: 'ธุรการ',     position: '',                        lineUserId: 'sudarat_gd',  mustChangePassword: true },
+    { username: 'weerayut.bua',    fullName: 'วีระยุทธ บัวใหญ่',       initials: 'WB',  role: 'admin',       email: 'admin2gd@greendii.com',     phone: '0908864373', department: 'ธุรการ',     position: '',                        lineUserId: '',            mustChangePassword: true },
+    { username: 'panida.kri',      fullName: 'พนิดา กฤษณะทรัพย์',      initials: 'PK',  role: 'procurement', email: 'admin1gd@greendii.com',     phone: '0899009413', department: 'ธุรการ',     position: 'จัดซื้อ',                lineUserId: 'mam_greendii',mustChangePassword: true },
+    { username: 'sukanya.pro',     fullName: 'สุกัญญา พรมสิทธิ์',      initials: 'SKP', role: 'admin',       email: 'sukanya@greendii.com',      phone: '0908864373', department: 'ธุรการ',     position: '',                        lineUserId: '',            mustChangePassword: true },
+    { username: 'chaiyaporn.sri',  fullName: 'ชัยพร ศรีบัวบาล',        initials: 'CS',  role: 'admin',       email: 'chaiyaporn@greendii.com',   phone: '',           department: '',           position: '',                        lineUserId: 'mokwankc',    mustChangePassword: true },
+    { username: 'pimchanok.sud',   fullName: 'พิมพ์ชนก สุดรัมย์',      initials: 'PS',  role: 'admin',       email: 'salesco@gng19.com',         phone: '',           department: '',           position: '',                        lineUserId: 'smile59959',  mustChangePassword: true },
+    // โรงงาน
+    { username: 'preecha.fak',     fullName: 'ปรีชา ปักษี',            initials: 'PF',  role: 'factory',     email: 'preecha@greendii.com',      phone: '0899003061', department: 'โรงงาน',    position: 'Factory Manager',         lineUserId: '',            mustChangePassword: true },
+    { username: 'somporn.kan',     fullName: 'สมพร คลังกุล',           initials: 'SK',  role: 'factory',     email: 'admin3gd@greendii.com',     phone: '',           department: 'โรงงาน',    position: '',                        lineUserId: '',            mustChangePassword: true },
   ];
 
   for (const u of usersData) {
