@@ -87,7 +87,7 @@ export interface User {
   department?: string
   position?: string
   lineUserId?: string
-  signatureUrl?: string
+  signatureText?: string
   active: boolean
   createdAt: string
 }

@@ -56,7 +56,7 @@ model User {
   department          String?
   position            String?
   lineUserId          String?
-  signatureUrl        String?
+  signatureText       String?
   active              Boolean  @default(true)
   mustChangePassword  Boolean  @default(false)
   createdAt           DateTime @default(now())
