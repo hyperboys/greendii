@@ -1,6 +1,6 @@
 const prisma = require('./prisma');
 const nodemailer = require('nodemailer');
-const { STEP_ROLE } = require('./approvalFlow');
+const { STEP_ROLE, getStepRoleMapping } = require('./approvalFlow');
 
 // ─── LINE Messaging API ─────────────────────────────────────────────────────
 // Requires env: LINE_CHANNEL_ACCESS_TOKEN
@@ -120,7 +120,8 @@ async function notifyByRole(role, text) {
 
 // Notify approvers for a specific approval step
 async function notifyStep(step, text) {
-  const role = STEP_ROLE[step];
+  const { stepRole } = await getStepRoleMapping();
+  const role = stepRole[step];
   if (!role) return;
   await notifyByRole(role, text);
 }

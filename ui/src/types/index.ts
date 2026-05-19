@@ -56,6 +56,18 @@ export const DEFAULT_PERMISSIONS: PermissionDef[] = [
 export const ALL_ROLES: string[] = DEFAULT_ROLES.map(r => r.key)
 export const ROLE_LABELS: Record<string, string> = Object.fromEntries(DEFAULT_ROLES.map(r => [r.key, r.label]))
 
+// Default step→role mapping (matches api/src/lib/approvalFlow.js defaults)
+// Keys are string numbers because JSON objects always have string keys
+export const DEFAULT_STEP_ROLE: Record<string, string> = {
+  '1': 'sales',
+  '2': 'sale_mgr',
+  '3': 'admin_mgr',
+  '4': 'project_mgr',
+  '5': 'director',
+  '6': 'procurement',
+  '7': 'factory',
+}
+
 export const APPROVAL_STEPS = [
   { step: 1, role: 'sales'       as UserRole, label: 'เซลล์ (ผู้อื่น)' },
   { step: 2, role: 'sale_mgr'    as UserRole, label: 'ผู้จัดการฝ่ายขาย' },
@@ -185,6 +197,7 @@ export interface Settings {
     roles: { key: string; label: string; description: string }[]
     permissions: { key: string; label: string; roles: string[] }[]
   }
+  stepRoleConfig?: Record<string, string>
   updatedAt: string
 }
 

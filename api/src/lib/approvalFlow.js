@@ -19,8 +19,10 @@
 
 const prisma = require('./prisma');
 
-// Role → step number (used to filter "my pending items" for a logged-in user)
-const ROLE_STEP = {
+// ─── DEFAULTS (fallback when DB has no stepRoleConfig) ───────────────────────
+
+// Role → step number
+const DEFAULT_ROLE_STEP = {
   sales:       1,
   sale_mgr:    2,
   admin_mgr:   3,
@@ -30,8 +32,8 @@ const ROLE_STEP = {
   factory:     7,
 };
 
-// Step number → role (used to notify the right people)
-const STEP_ROLE = {
+// Step number → role
+const DEFAULT_STEP_ROLE = {
   1: 'sales',
   2: 'sale_mgr',
   3: 'admin_mgr',
@@ -41,6 +43,10 @@ const STEP_ROLE = {
   7: 'factory',
 };
 
+// Legacy exports (kept for backwards compat — prefer getStepRoleMapping())
+const ROLE_STEP = DEFAULT_ROLE_STEP;
+const STEP_ROLE = DEFAULT_STEP_ROLE;
+
 // Default flow used when settings.approvalFlowConfig is not set
 const DEFAULT_FLOW = {
   quotation: [1, 2, 3, 4, 5],
@@ -48,6 +54,35 @@ const DEFAULT_FLOW = {
   pr:        [3, 4, 5, 6],
   handover:  [3, 4, 5],
 };
+
+/**
+ * Load step↔role mappings from DB settings.stepRoleConfig.
+ * Falls back to DEFAULT_ROLE_STEP / DEFAULT_STEP_ROLE if not configured.
+ *
+ * stepRoleConfig in DB is stored as: { "1": "sales", "2": "sale_mgr", ... }
+ *
+ * Returns { stepRole, roleStep }:
+ *   stepRole  = { 1: 'sales', 2: 'sale_mgr', ... }   (number key)
+ *   roleStep  = { sales: 1, sale_mgr: 2, ... }
+ */
+async function getStepRoleMapping() {
+  const settings = await prisma.settings.findUnique({ where: { id: 'main' } });
+  const raw = settings?.stepRoleConfig;
+
+  if (!raw || typeof raw !== 'object' || Object.keys(raw).length === 0) {
+    return { stepRole: { ...DEFAULT_STEP_ROLE }, roleStep: { ...DEFAULT_ROLE_STEP } };
+  }
+
+  // raw keys are strings ("1", "2", ...) — convert to numbers for stepRole
+  const stepRole = {};
+  const roleStep = {};
+  for (const [stepStr, role] of Object.entries(raw)) {
+    const step = Number(stepStr);
+    stepRole[step] = role;
+    roleStep[role] = step;
+  }
+  return { stepRole, roleStep };
+}
 
 /**
  * Read approval steps for a doc type from DB settings.
@@ -79,4 +114,4 @@ async function getNextStep(docType, currentStep) {
   return steps[idx + 1];
 }
 
-module.exports = { ROLE_STEP, STEP_ROLE, DEFAULT_FLOW, getFlowSteps, getFirstStep, getNextStep };
+module.exports = { ROLE_STEP, STEP_ROLE, DEFAULT_FLOW, getFlowSteps, getFirstStep, getNextStep, getStepRoleMapping };

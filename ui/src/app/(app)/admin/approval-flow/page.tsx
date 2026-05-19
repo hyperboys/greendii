@@ -2,29 +2,81 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { SettingsAPI, AdminAPI } from '@/lib/api'
-import { APPROVAL_STEPS, DOC_TYPES, DEFAULT_APPROVAL_FLOW } from '@/types'
-import { GripVertical, Plus, Save, RefreshCw, X } from 'lucide-react'
+import { DOC_TYPES, DEFAULT_APPROVAL_FLOW, DEFAULT_STEP_ROLE } from '@/types'
+import { useSettingsStore } from '@/store/settings'
+import { GripVertical, Plus, Save, RefreshCw, X, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function ApprovalFlowPage() {
+  const { rolePermissionsConfig, fetchSettings } = useSettingsStore()
+  const allRoles = rolePermissionsConfig.roles
+
+  // approvalFlowConfig: { quotation: [1,2,3], workOrder: [3,4], ... }
   const [config, setConfig] = useState<Record<string, number[]>>(DEFAULT_APPROVAL_FLOW)
+  // stepRoleConfig: { "1": "sales", "2": "sale_mgr", ... }
+  const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
+  // for adding a new step→role mapping
+  const [newStepNum, setNewStepNum] = useState('')
+  const [newStepRole, setNewStepRole] = useState('')
+
   useEffect(() => {
+    fetchSettings()
     SettingsAPI.get().then(s => {
       if (s.approvalFlowConfig) setConfig(s.approvalFlowConfig as Record<string, number[]>)
+      if (s.stepRoleConfig)     setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
     }).finally(() => setLoading(false))
   }, [])
 
+  // ── step→role helpers ──────────────────────────────────────────────────────
+  // sorted step entries for display
+  const stepEntries = Object.entries(stepRoleConfig)
+    .map(([s, r]) => ({ step: Number(s), role: r }))
+    .sort((a, b) => a.step - b.step)
+
+  const getRoleLabel = (roleKey: string) =>
+    allRoles.find(r => r.key === roleKey)?.label ?? roleKey
+
+  const getStepLabel = (stepNum: number) => {
+    const roleKey = stepRoleConfig[String(stepNum)]
+    return roleKey ? `${getRoleLabel(roleKey)}` : `Step ${stepNum}`
+  }
+
+  const addStepMapping = () => {
+    const n = parseInt(newStepNum)
+    if (!n || n < 1 || !newStepRole) { toast.error('กรุณาระบุหมายเลขขั้นตอนและบทบาท'); return }
+    if (stepRoleConfig[String(n)]) { toast.error(`ขั้นที่ ${n} มีบทบาทอยู่แล้ว`); return }
+    setStepRoleConfig(prev => ({ ...prev, [String(n)]: newStepRole }))
+    setNewStepNum('')
+    setNewStepRole('')
+  }
+
+  const removeStepMapping = (step: number) => {
+    // Also remove this step from all flow configs
+    setConfig(prev => {
+      const next = { ...prev }
+      for (const key of Object.keys(next)) {
+        next[key] = next[key].filter(s => s !== step)
+      }
+      return next
+    })
+    setStepRoleConfig(prev => {
+      const next = { ...prev }
+      delete next[String(step)]
+      return next
+    })
+  }
+
+  // ── flow config helpers ───────────────────────────────────────────────────
   const addStep = (docKey: string, step: number) => {
     setConfig(prev => ({ ...prev, [docKey]: [...(prev[docKey] ?? []), step] }))
   }
-
-  const removeStep = (docKey: string, step: number) => {
+  const removeDocStep = (docKey: string, step: number) => {
     setConfig(prev => ({ ...prev, [docKey]: (prev[docKey] ?? []).filter(s => s !== step) }))
   }
-
   const reorder = (docKey: string, fromIdx: number, toIdx: number) => {
     setConfig(prev => {
       const arr = [...(prev[docKey] ?? [])]
@@ -34,10 +86,14 @@ export default function ApprovalFlowPage() {
     })
   }
 
+  // ── save & reset ──────────────────────────────────────────────────────────
   const save = async () => {
     setSaving(true)
     try {
-      await AdminAPI.updateApprovalFlow(config)
+      await Promise.all([
+        AdminAPI.updateApprovalFlow(config),
+        SettingsAPI.update({ stepRoleConfig }),
+      ])
       toast.success('บันทึกการตั้งค่าสายอนุมัติสำเร็จ')
     } catch {
       toast.error('บันทึกไม่สำเร็จ')
@@ -48,6 +104,7 @@ export default function ApprovalFlowPage() {
 
   const reset = () => {
     setConfig(DEFAULT_APPROVAL_FLOW)
+    setStepRoleConfig(DEFAULT_STEP_ROLE)
     toast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
   }
 
@@ -58,7 +115,7 @@ export default function ApprovalFlowPage() {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="page-title">สายการอนุมัติ</h2>
-          <p className="page-sub">กำหนดและเรียงลำดับขั้นตอนการอนุมัติสำหรับเอกสารแต่ละประเภท</p>
+          <p className="page-sub">กำหนดขั้นตอน บทบาท และลำดับการอนุมัติสำหรับเอกสารแต่ละประเภท</p>
         </div>
         <div className="flex gap-2">
           <button className="btn-outline btn-sm" onClick={reset}>
@@ -70,6 +127,84 @@ export default function ApprovalFlowPage() {
         </div>
       </div>
 
+      {/* ── Section 1: Step → Role mapping ─────────────────────────────────── */}
+      <div className="card p-5">
+        <h3 className="font-semibold text-gray-800 mb-1">ตารางขั้นตอน → บทบาทผู้อนุมัติ</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          กำหนดว่าขั้นตอนหมายเลขใดให้ใครเป็นผู้อนุมัติ
+          ขั้นที่ 1 เป็นขั้นตรวจสอบเพื่อน (peer review) จะไม่อนุมัติเอกสารของตัวเอง
+        </p>
+
+        <table className="w-full text-sm mb-4">
+          <thead>
+            <tr className="bg-gray-50 text-gray-600">
+              <th className="text-left px-3 py-2 font-semibold w-24">ขั้นที่</th>
+              <th className="text-left px-3 py-2 font-semibold">บทบาทผู้อนุมัติ</th>
+              <th className="w-12"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {stepEntries.map(({ step, role }) => (
+              <tr key={step} className="border-t border-gray-100">
+                <td className="px-3 py-2">
+                  <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-green-100 text-green-800 text-xs font-bold">
+                    {step}
+                  </span>
+                </td>
+                <td className="px-3 py-2">
+                  <select
+                    className="form-input py-1 text-sm w-64"
+                    value={role}
+                    onChange={e => setStepRoleConfig(prev => ({ ...prev, [String(step)]: e.target.value }))}
+                  >
+                    {allRoles.map(r => (
+                      <option key={r.key} value={r.key}>{r.label} ({r.key})</option>
+                    ))}
+                  </select>
+                </td>
+                <td className="px-3 py-2 text-center">
+                  <button
+                    onClick={() => removeStepMapping(step)}
+                    className="text-gray-400 hover:text-red-500 transition-colors p-1"
+                    title="ลบขั้นตอนนี้"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        {/* Add new step mapping */}
+        <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
+          <span className="text-xs text-gray-500 shrink-0">เพิ่มขั้นตอนใหม่:</span>
+          <input
+            type="number"
+            min={1}
+            className="form-input py-1 text-sm w-24"
+            placeholder="ขั้นที่"
+            value={newStepNum}
+            onChange={e => setNewStepNum(e.target.value)}
+          />
+          <select
+            className="form-input py-1 text-sm w-52"
+            value={newStepRole}
+            onChange={e => setNewStepRole(e.target.value)}
+          >
+            <option value="">เลือกบทบาท…</option>
+            {allRoles
+              .filter(r => !Object.values(stepRoleConfig).includes(r.key))
+              .map(r => <option key={r.key} value={r.key}>{r.label} ({r.key})</option>)
+            }
+          </select>
+          <button className="btn-outline btn-sm" onClick={addStepMapping}>
+            <Plus size={14} /> เพิ่ม
+          </button>
+        </div>
+      </div>
+
+      {/* ── Section 2: Flow per doc type ────────────────────────────────────── */}
       <div className="card p-4 bg-blue-50 border-blue-100 text-sm text-blue-700 flex items-start gap-2">
         <GripVertical size={16} className="mt-0.5 shrink-0" />
         <span>
@@ -86,8 +221,10 @@ export default function ApprovalFlowPage() {
             key={doc.key}
             label={doc.label}
             activeSteps={config[doc.key] ?? []}
+            stepEntries={stepEntries}
+            getStepLabel={getStepLabel}
             onAdd={step => addStep(doc.key, step)}
-            onRemove={step => removeStep(doc.key, step)}
+            onRemove={step => removeDocStep(doc.key, step)}
             onReorder={(from, to) => reorder(doc.key, from, to)}
           />
         ))}
@@ -99,12 +236,16 @@ export default function ApprovalFlowPage() {
 function DocFlowCard({
   label,
   activeSteps,
+  stepEntries,
+  getStepLabel,
   onAdd,
   onRemove,
   onReorder,
 }: {
   label: string
   activeSteps: number[]
+  stepEntries: { step: number; role: string }[]
+  getStepLabel: (step: number) => string
   onAdd: (step: number) => void
   onRemove: (step: number) => void
   onReorder: (from: number, to: number) => void
@@ -112,7 +253,7 @@ function DocFlowCard({
   const dragIdx = useRef<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
 
-  const available = APPROVAL_STEPS.filter(s => !activeSteps.includes(s.step))
+  const available = stepEntries.filter(s => !activeSteps.includes(s.step))
 
   return (
     <div className="card p-5">
@@ -127,43 +268,40 @@ function DocFlowCard({
             เซลล์ (ผู้สร้าง)
           </div>
 
-          {activeSteps.map((stepNum, idx) => {
-            const stepDef = APPROVAL_STEPS.find(s => s.step === stepNum)
-            if (!stepDef) return null
-            return (
-              <div key={stepNum} className="flex items-center gap-1.5">
-                <span className="text-gray-300 text-sm">→</span>
-                <div
-                  draggable
-                  onDragStart={() => { dragIdx.current = idx }}
-                  onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
-                  onDragLeave={() => setDragOver(null)}
-                  onDrop={() => {
-                    if (dragIdx.current !== null && dragIdx.current !== idx) {
-                      onReorder(dragIdx.current, idx)
-                    }
-                    dragIdx.current = null
-                    setDragOver(null)
-                  }}
-                  onDragEnd={() => { dragIdx.current = null; setDragOver(null) }}
-                  className={`flex items-center gap-1 px-2.5 py-2 rounded-lg border-2 text-xs font-semibold cursor-grab active:cursor-grabbing transition-all select-none ${
-                    dragOver === idx
-                      ? 'border-green-main bg-green-50 shadow-md scale-105'
-                      : 'border-green-200 bg-white text-gray-700 hover:border-green-400'
-                  }`}
+          {activeSteps.map((stepNum, idx) => (
+            <div key={stepNum} className="flex items-center gap-1.5">
+              <span className="text-gray-300 text-sm">→</span>
+              <div
+                draggable
+                onDragStart={() => { dragIdx.current = idx }}
+                onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
+                onDragLeave={() => setDragOver(null)}
+                onDrop={() => {
+                  if (dragIdx.current !== null && dragIdx.current !== idx) {
+                    onReorder(dragIdx.current, idx)
+                  }
+                  dragIdx.current = null
+                  setDragOver(null)
+                }}
+                onDragEnd={() => { dragIdx.current = null; setDragOver(null) }}
+                className={`flex items-center gap-1 px-2.5 py-2 rounded-lg border-2 text-xs font-semibold cursor-grab active:cursor-grabbing transition-all select-none ${
+                  dragOver === idx
+                    ? 'border-green-main bg-green-50 shadow-md scale-105'
+                    : 'border-green-200 bg-white text-gray-700 hover:border-green-400'
+                }`}
+              >
+                <GripVertical size={13} className="text-gray-400" />
+                <span className="text-[10px] text-gray-400 font-normal mr-0.5">#{stepNum}</span>
+                {getStepLabel(stepNum)}
+                <button
+                  onClick={() => onRemove(stepNum)}
+                  className="ml-1 text-gray-400 hover:text-red-500 transition-colors"
                 >
-                  <GripVertical size={13} className="text-gray-400" />
-                  {stepDef.label}
-                  <button
-                    onClick={() => onRemove(stepNum)}
-                    className="ml-1 text-gray-400 hover:text-red-500 transition-colors"
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
+                  <X size={12} />
+                </button>
               </div>
-            )
-          })}
+            </div>
+          ))}
 
           {activeSteps.length === 0 && (
             <span className="text-xs text-gray-400">ไม่มีขั้นตอนอนุมัติ (อนุมัติอัตโนมัติ)</span>
@@ -183,7 +321,7 @@ function DocFlowCard({
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border-2 border-dashed border-gray-300 text-xs text-gray-500 hover:border-green-main hover:text-green-700 hover:bg-green-50 transition-all"
               >
                 <Plus size={12} />
-                {s.label}
+                #{s.step} {getStepLabel(s.step)}
               </button>
             ))}
           </div>
@@ -192,3 +330,4 @@ function DocFlowCard({
     </div>
   )
 }
+
