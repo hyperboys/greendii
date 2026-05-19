@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { notifyUser } = require('../lib/notify');
 
 const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 
@@ -41,6 +42,28 @@ router.put('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next
       create: { id: 'main', ...data },
     });
     res.json(settings);
+  } catch (e) { next(e); }
+});
+
+// POST /api/settings/test-notify  (admin only — ทดสอบส่ง Email + LINE)
+router.post('/test-notify', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { fullName: true, email: true, lineUserId: true },
+    });
+
+    const msg = `🔔 ทดสอบระบบแจ้งเตือน GreenDii\n\nส่งถึง: ${user.fullName}\nวันที่: ${new Date().toLocaleString('th-TH')}\n\nระบบทำงานปกติครับ ✅`;
+
+    await notifyUser(userId, msg);
+
+    res.json({
+      ok: true,
+      sentTo: user.fullName,
+      email: user.email || null,
+      lineUserId: user.lineUserId || null,
+    });
   } catch (e) { next(e); }
 });
 
