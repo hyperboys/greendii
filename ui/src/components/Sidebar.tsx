@@ -24,18 +24,18 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/quotations', label: 'ใบเสนอราคา (QO)', icon: FileText },
-  { href: '/workorders', label: 'ใบสั่งงาน (WO)', icon: ClipboardList },
-  { href: '/handovers', label: 'ส่งมอบงาน (HO)', icon: Handshake },
-  { href: '/pr', label: 'ใบขอซื้อ (PR)', icon: ShoppingCart },
-  { href: '/approvals', label: 'รออนุมัติ', icon: CheckSquare },
-  { href: '/reports', label: 'รายงาน', icon: BarChart2, roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/quotations', label: '📋 ใบเสนอราคา (Quotation)', icon: FileText },
+  { href: '/workorders', label: '🔧 ใบสั่งงาน (Work Order)', icon: ClipboardList },
+  { href: '/handovers', label: '🤝 ส่งมอบงาน (Handover)', icon: Handshake },
+  { href: '/pr', label: '🛒 ใบขอซื้อ (Purchase Request)', icon: ShoppingCart },
+  { href: '/approvals', label: '✅ รออนุมัติ', icon: CheckSquare },
+  { href: '/reports', label: '📊 รายงาน', icon: BarChart2, roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
 ]
 
 const MASTER: NavItem[] = [
-  { href: '/customers', label: 'ลูกค้า', icon: Users, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/products', label: 'สินค้า', icon: Package, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/units', label: 'หน่วยนับ', icon: Ruler, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/customers', label: '👥 ลูกค้า', icon: Users, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/products', label: '📦 สินค้า', icon: Package, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/units', label: '📏 หน่วยนับ', icon: Ruler, roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
 ]
 
 const ADMIN_MENU: NavItem[] = [
