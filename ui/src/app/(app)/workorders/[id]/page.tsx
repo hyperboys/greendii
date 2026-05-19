@@ -65,6 +65,7 @@ export default function WorkOrderDetailPage() {
   }
 
   return (
+    <>
     <div className="max-w-4xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
@@ -213,5 +214,6 @@ export default function WorkOrderDetailPage() {
     </div>
 
     <WorkOrderPrint doc={doc} settings={settings} />
+    </>
   )
 }
