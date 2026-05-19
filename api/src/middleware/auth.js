@@ -11,7 +11,13 @@ async function authenticate(req, res, next) {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
       where: { id: payload.sub },
-      select: { id: true, username: true, fullName: true, role: true, active: true },
+      select: {
+        id: true, username: true, fullName: true, initials: true,
+        role: true, active: true, mustChangePassword: true,
+        firstName: true, lastName: true, firstNameEn: true, lastNameEn: true,
+        email: true, phone: true, department: true, position: true,
+        lineUserId: true, signatureUrl: true,
+      },
     });
     if (!user || !user.active) {
       return res.status(401).json({ message: 'User not found or inactive' });
