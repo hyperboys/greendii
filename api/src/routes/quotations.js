@@ -102,8 +102,8 @@ router.post('/', authenticate, async (req, res, next) => {
 router.put('/:id', authenticate, async (req, res, next) => {
   try {
     const existing = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (existing.status !== 'draft' && existing.status !== 'rejected') {
-      return res.status(400).json({ message: 'Can only edit draft/rejected quotations' });
+    if (existing.status === 'cancelled') {
+      return res.status(400).json({ message: 'ไม่สามารถแก้ไขใบเสนอราคาที่ยกเลิกแล้วได้' });
     }
     const {
       customerName, customerId, attn, project, address, tel,
