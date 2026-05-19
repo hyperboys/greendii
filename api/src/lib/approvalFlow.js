@@ -2,7 +2,7 @@
  * approvalFlow.js — Single source of truth for approval flow logic
  *
  * Step → Role mapping (must match APPROVAL_STEPS in ui/src/types/index.ts):
- *   Step 1 = sales2       (เซลล์ 2 — first reviewer, different person from creator)
+ *   Step 1 = sales       (เซลล์คนอื่น — ต้องไม่ใช่ผู้สร้างเอกสาร)
  *   Step 2 = sale_mgr     (ผู้จัดการฝ่ายขาย)
  *   Step 3 = admin_mgr    (ผู้จัดการฝ่ายบริหาร)
  *   Step 4 = project_mgr  (ผู้จัดการโครงการ)
@@ -10,8 +10,7 @@
  *   Step 6 = procurement  (จัดซื้อ)
  *   Step 7 = factory      (โรงงาน/ผลิต)
  *
- * NOTE: 'sales' role is the document CREATOR — not an approver.
- *       'sales2' is a different person who acts as step-1 approver.
+ * NOTE: Step 1 approver must be a 'sales' user who is NOT the document creator.
  *
  * Flow config is stored in settings.approvalFlowConfig (JSON) per doc type.
  * Example: { quotation:[1,2,3,4,5], workOrder:[3,4,5], pr:[3,4,5,6], handover:[3,4,5] }
@@ -22,7 +21,7 @@ const prisma = require('./prisma');
 
 // Role → step number (used to filter "my pending items" for a logged-in user)
 const ROLE_STEP = {
-  sales2:      1,
+  sales:       1,
   sale_mgr:    2,
   admin_mgr:   3,
   project_mgr: 4,
@@ -33,7 +32,7 @@ const ROLE_STEP = {
 
 // Step number → role (used to notify the right people)
 const STEP_ROLE = {
-  1: 'sales2',
+  1: 'sales',
   2: 'sale_mgr',
   3: 'admin_mgr',
   4: 'project_mgr',

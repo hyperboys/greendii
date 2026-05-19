@@ -9,24 +9,27 @@ router.get('/pending', authenticate, async (req, res, next) => {
     const myStep = ROLE_STEP[req.user.role];
     if (!myStep) return res.json({ quotations: [], workOrders: [], prs: [], handovers: [] });
 
+    // sales at step 1 can approve other people's docs (not their own)
+    const notOwn = req.user.role === 'sales' ? { NOT: { salesId: req.user.id } } : {};
+
     const [quotations, workOrders, prs, handovers] = await Promise.all([
       prisma.quotation.findMany({
-        where: { status: 'pending', approvalStep: myStep },
+        where: { status: 'pending', approvalStep: myStep, ...notOwn },
         include: { sales: { select: { id: true, fullName: true } } },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.workOrder.findMany({
-        where: { status: 'pending', approvalStep: myStep },
+        where: { status: 'pending', approvalStep: myStep, ...notOwn },
         include: { sales: { select: { id: true, fullName: true } } },
         orderBy: { createdAt: 'asc' },
       }),
       prisma.purchaseRequest.findMany({
-        where: { status: 'pending', approvalStep: myStep },
+        where: { status: 'pending', approvalStep: myStep, ...notOwn },
         include: { sales: { select: { id: true, fullName: true } } },
         orderBy: { createdAt: 'asc' },
       }),
-      prisma.handover.findMany({
-        where: { status: 'pending', approvalStep: myStep },
+      prisma.handOverJob.findMany({
+        where: { status: 'pending', approvalStep: myStep, ...notOwn },
         include: { sales: { select: { id: true, fullName: true } } },
         orderBy: { createdAt: 'asc' },
       }),

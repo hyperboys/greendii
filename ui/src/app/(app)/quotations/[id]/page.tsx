@@ -45,9 +45,11 @@ export default function QuotationDetailPage() {
   const canCancel = isMine && (doc.status === 'draft' || doc.status === 'rejected')
 
   // Approval: user's role must match next approval step
+  // For step 1 (sales): any sales user can approve EXCEPT the document creator
   const nextStep = doc.approvalStep + 1
   const stepDef = APPROVAL_STEPS.find(s => s.step === nextStep)
-  const canApprove = doc.status === 'pending' && stepDef?.role === user?.role
+  const canApprove = doc.status === 'pending' && stepDef?.role === user?.role &&
+    (user?.role !== 'sales' || doc.salesId !== user?.id)
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'cancel') => {
     setActing(true)

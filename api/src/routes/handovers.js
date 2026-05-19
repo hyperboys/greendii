@@ -33,7 +33,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         sales: { select: { id: true, fullName: true } },
-        workOrder: { select: { id: true, woNo: true } },
+        workOrder: { select: { id: true, woNo: true, quotation: { select: { quoNo: true } } } },
         attachments: true,
         approvalLogs: {
           include: { approver: { select: { id: true, fullName: true, role: true } } },

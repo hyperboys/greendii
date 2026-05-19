@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { HandoversAPI } from '@/lib/api'
-import type { HandOverJob } from '@/types'
+import { HandoversAPI, SettingsAPI } from '@/lib/api'
+import type { HandOverJob, Settings } from '@/types'
 import { STATUS_LABELS, HANDOVER_APPROVAL_STEPS } from '@/types'
+import HandoverPrint from '@/components/HandoverPrint'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -18,6 +19,7 @@ export default function HandoverDetailPage() {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -28,6 +30,7 @@ export default function HandoverDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -86,7 +89,9 @@ export default function HandoverDetailPage() {
   )
 
   return (
-    <div className="max-w-3xl mx-auto space-y-5">
+    <>
+    <HandoverPrint doc={doc} settings={settings} />
+    <div className="screen-only max-w-3xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
@@ -217,5 +222,6 @@ export default function HandoverDetailPage() {
         </div>
       )}
     </div>
+    </>
   )
 }

@@ -16,8 +16,7 @@ datasource db {
 
 enum UserRole {
   admin        // System Administrator
-  sales        // เซลล์คนที่ 1
-  sales2       // เซลล์คนที่ 2
+  sales        // เซลล์
   sale_mgr     // Sales Manager
   admin_mgr    // Admin Manager
   project_mgr  // Project Manager

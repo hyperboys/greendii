@@ -2,20 +2,19 @@
 
 export type UserRole =
   | 'admin'
-  | 'sales' | 'sales2' | 'sale_mgr' | 'admin_mgr'
+  | 'sales' | 'sale_mgr' | 'admin_mgr'
   | 'project_mgr' | 'director' | 'procurement' | 'factory'
 
 export type DocStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'cancelled'
 
 export const ALL_ROLES: UserRole[] = [
-  'admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr',
+  'admin', 'sales', 'sale_mgr', 'admin_mgr',
   'project_mgr', 'director', 'procurement', 'factory',
 ]
 
 export const ROLE_LABELS: Record<UserRole, string> = {
   admin:       'System Admin',
   sales:       'เซลล์',
-  sales2:      'เซลล์ 2',
   sale_mgr:    'ผู้จัดการฝ่ายขาย',
   admin_mgr:   'ผู้จัดการฝ่ายบริหาร',
   project_mgr: 'ผู้จัดการโครงการ',
@@ -25,7 +24,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 }
 
 export const APPROVAL_STEPS = [
-  { step: 1, role: 'sales2'      as UserRole, label: 'เซลล์ 2' },
+  { step: 1, role: 'sales'       as UserRole, label: 'เซลล์ (ผู้อื่น)' },
   { step: 2, role: 'sale_mgr'    as UserRole, label: 'ผู้จัดการฝ่ายขาย' },
   { step: 3, role: 'admin_mgr'   as UserRole, label: 'ผู้จัดการฝ่ายบริหาร' },
   { step: 4, role: 'project_mgr' as UserRole, label: 'ผู้จัดการโครงการ' },
@@ -62,12 +61,12 @@ export const MENU_ITEMS = [
 ]
 
 export const DEFAULT_MENU_ACCESS: Record<string, UserRole[]> = {
-  dashboard:  ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
-  quotations: ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director'],
-  workorders: ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
-  handovers:  ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director'],
-  pr:         ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement'],
-  approvals:  ['admin','sales2','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  dashboard:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  quotations: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'],
+  workorders: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  handovers:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'],
+  pr:         ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement'],
+  approvals:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
   reports:    ['admin','sale_mgr','admin_mgr','project_mgr','director'],
   customers:  ['admin','sale_mgr','admin_mgr','director'],
   products:   ['admin','sale_mgr','admin_mgr','director'],
@@ -264,7 +263,7 @@ export interface HandOverJob {
   id: string
   hoNo: string
   workOrderId?: string
-  workOrder?: { id: string; woNo: string }
+  workOrder?: { id: string; woNo: string; quotation?: { quoNo: string } | null }
   salesId: string
   sales?: { id: string; fullName: string }
   project: string
