@@ -84,15 +84,20 @@
 
 @page {
   size: A4 portrait;
-  margin: 12mm 15mm 12mm 15mm;
+  margin: 8mm 12mm 8mm 12mm;
 }
 
 @media print {
   nav, header, aside, .no-print, .screen-only { display: none !important; }
-  body { background: white !important; }
+  html, body {
+    background: white !important;
+    overflow: hidden !important;
+    height: auto !important;
+  }
   .print-sheet {
     display: block !important;
     width: 100%;
     background: white;
+    overflow: hidden;
   }
 }

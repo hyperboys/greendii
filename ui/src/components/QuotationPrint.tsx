@@ -9,7 +9,7 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 4 }).format(n)
 }
 
-const MIN_ROWS = 15
+const MIN_ROWS = 13
 
 interface Props {
   doc: Quotation
@@ -102,31 +102,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
         <tbody>
           <tr>
             {/* Logo — spans all 6 header rows */}
-            <td rowSpan={6} style={{ width: '110px', verticalAlign: 'top', paddingRight: '12px', paddingTop: '4px' }}>
-              <div style={{
-                border: '2px solid #2d5a2d',
-                width: '100px',
-                textAlign: 'center',
-                fontFamily: '"Arial Black", Arial, sans-serif',
-                overflow: 'hidden',
-                borderRadius: '2px',
-              }}>
-                <div style={{
-                  background: '#fff', color: '#2d7a2d',
-                  fontSize: '15pt', fontWeight: '900',
-                  padding: '4px 4px 2px', letterSpacing: '1px', lineHeight: '1.1',
-                }}>GREEN</div>
-                <div style={{
-                  background: '#4a8a4a', color: '#fff',
-                  fontSize: '6.5pt', padding: '3px 4px',
-                  fontFamily: 'Arial, sans-serif', lineHeight: '1.1',
-                }}>Company Limited</div>
-                <div style={{
-                  background: '#1a3d1a', color: '#fff',
-                  fontSize: '18pt', fontWeight: '900',
-                  padding: '4px 4px 3px', letterSpacing: '2px', lineHeight: '1.1',
-                }}>Dii</div>
-              </div>
+            <td rowSpan={6} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '12px' }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
             </td>
             {/* Row 1: Thai company name — FIRST line */}
             <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>
