@@ -1,16 +1,16 @@
 ﻿'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { UsersAPI } from '@/lib/api'
 import type { User, UserRole } from '@/types'
 import { ROLE_LABELS } from '@/types'
-import { Plus, Pencil, KeyRound, Search, UserCheck, UserX, RefreshCw, ImagePlus, Trash2 } from 'lucide-react'
+import { Plus, Pencil, KeyRound, Search, UserCheck, UserX, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import toast from 'react-hot-toast'
 
 const EMPTY_USER = {
   username: '', fullName: '', initials: '', role: 'sales' as UserRole,
-  password: '', lineUserId: '', email: '', phone: '', department: '', position: '', signatureText: '',
+  password: '', lineUserId: '', email: '', phone: '', department: '', position: '',
   firstName: '', lastName: '', firstNameEn: '', lastNameEn: '',
 }
 
@@ -24,9 +24,7 @@ export default function UsersPage() {
   const [filterActive, setFilterActive] = useState('')
   const [editing, setEditing] = useState<typeof EMPTY_USER & { id?: string } | null>(null)
   const [pwdModal, setPwdModal] = useState<{ id: string; pw: string } | null>(null)
-  const [sigModal, setSigModal] = useState<{ user: User } | null>(null)
   const [saving, setSaving] = useState(false)
-  const sigInputRef = useRef<HTMLInputElement>(null)
 
   const load = () => {
     setLoading(true)
@@ -93,30 +91,7 @@ export default function UsersPage() {
     } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
   }
 
-  const uploadSignature = async (file: File) => {
-    if (!sigModal) return
-    setSaving(true)
-    try {
-      const updated = await UsersAPI.uploadSignature(sigModal.user.id, file)
-      toast.success('อัพโหลดลายเซ็นสำเร็จ')
-      setSigModal({ user: updated })
-      load()
-    } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
-    finally { setSaving(false) }
-  }
 
-  const deleteSignature = async () => {
-    if (!sigModal) return
-    if (!confirm('ลบลายเซ็นของผู้ใช้นี้?')) return
-    setSaving(true)
-    try {
-      const updated = await UsersAPI.deleteSignature(sigModal.user.id)
-      toast.success('ลบลายเซ็นสำเร็จ')
-      setSigModal({ user: updated })
-      load()
-    } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
-    finally { setSaving(false) }
-  }
 
   return (
     <div>
@@ -250,37 +225,7 @@ export default function UsersPage() {
         </div>
       )}
 
-      {/* Signature modal */}
-      {sigModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
-            <h3 className="font-semibold text-gray-800 mb-1">ลายเซ็น</h3>
-            <p className="text-sm text-gray-500 mb-4">{sigModal.user.fullName}</p>
-            {sigModal.user.signatureUrl ? (
-              <div className="border rounded-lg p-3 bg-gray-50 flex flex-col items-center gap-3 mb-4">
-                <img src={sigModal.user.signatureUrl} alt="ลายเซ็น" className="max-h-32 object-contain" />
-                <button className="btn-outline text-red-600 border-red-300 hover:bg-red-50 flex items-center gap-1 text-xs"
-                  onClick={deleteSignature} disabled={saving}>
-                  <Trash2 size={12} /> ลบลายเซ็น
-                </button>
-              </div>
-            ) : (
-              <div className="border-2 border-dashed border-gray-200 rounded-lg p-6 text-center text-gray-400 text-sm mb-4">
-                ยังไม่มีลายเซ็น
-              </div>
-            )}
-            <input ref={sigInputRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-              onChange={e => { if (e.target.files?.[0]) uploadSignature(e.target.files[0]) }} />
-            <div className="flex gap-2">
-              <button className="btn-primary flex-1 flex items-center justify-center gap-1" disabled={saving}
-                onClick={() => sigInputRef.current?.click()}>
-                <ImagePlus size={14} /> {sigModal.user.signatureUrl ? 'เปลี่ยนรูป' : 'อัพโหลดลายเซ็น'}
-              </button>
-              <button className="btn-outline flex-1" onClick={() => setSigModal(null)}>ปิด</button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       <div className="card overflow-x-auto">
         <table className="data-table">
@@ -292,7 +237,6 @@ export default function UsersPage() {
               <th>สิทธิ์</th>
               <th className="hidden lg:table-cell">แผนก</th>
               <th className="hidden lg:table-cell">ตำแหน่ง</th>
-              <th className="hidden md:table-cell">ลายเซ็น</th>
               <th>สถานะ</th>
               {isAdmin && <th></th>}
             </tr>
@@ -319,14 +263,6 @@ export default function UsersPage() {
                 </td>
                 <td className="hidden lg:table-cell text-sm text-gray-600">{u.department || '-'}</td>
                 <td className="hidden lg:table-cell text-sm text-gray-600">{u.position || '-'}</td>
-                <td className="hidden md:table-cell">
-                  {u.signatureUrl ? (
-                    <img src={u.signatureUrl} alt="sig" className="h-8 object-contain cursor-pointer"
-                      onClick={() => setSigModal({ user: u })} title="คลิกเพื่อจัดการลายเซ็น" />
-                  ) : (
-                    <span className="text-xs text-gray-300">-</span>
-                  )}
-                </td>
                 <td>
                   <span className={`badge ${u.active ? 'badge-approved' : 'badge-cancelled'}`}>
                     {u.active ? 'ใช้งาน' : 'ปิดใช้'}
@@ -340,15 +276,10 @@ export default function UsersPage() {
                           id: u.id, username: u.username, fullName: u.fullName, initials: u.initials,
                           role: u.role, password: '', lineUserId: u.lineUserId ?? '',
                           email: u.email ?? '', phone: u.phone ?? '', department: u.department ?? '', position: u.position ?? '',
-                          signatureText: u.signatureText ?? '',
                           firstName: u.firstName ?? '', lastName: u.lastName ?? '',
                           firstNameEn: u.firstNameEn ?? '', lastNameEn: u.lastNameEn ?? '',
                         })}>
                         <Pencil size={12} />
-                      </button>
-                      <button className="btn-outline btn-sm" title="จัดการลายเซ็น"
-                        onClick={() => setSigModal({ user: u })}>
-                        <ImagePlus size={12} />
                       </button>
                       <button className="btn-outline btn-sm" title="เปลี่ยนรหัสผ่าน"
                         onClick={() => setPwdModal({ id: u.id, pw: '' })}>

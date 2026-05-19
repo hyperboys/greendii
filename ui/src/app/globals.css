@@ -79,9 +79,20 @@
   .toolbar { @apply flex items-center gap-2 mb-4 flex-wrap; }
 }
 
+/* Print sheet – hidden on screen, shown when printing */
+.print-sheet { display: none; }
+
+@page {
+  size: A4 portrait;
+  margin: 12mm 15mm 12mm 15mm;
+}
+
 @media print {
-  nav, header, aside, .no-print { display: none !important; }
+  nav, header, aside, .no-print, .screen-only { display: none !important; }
   body { background: white !important; }
-  .card { box-shadow: none !important; border: 1px solid #e5e7eb !important; }
-  .max-w-4xl, .max-w-3xl, .max-w-6xl { max-width: 100% !important; }
+  .print-sheet {
+    display: block !important;
+    width: 100%;
+    background: white;
+  }
 }

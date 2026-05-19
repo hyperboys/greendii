@@ -16,6 +16,9 @@ export default function ProfilePage() {
     email: '', phone: '',
   })
 
+  // Fetch fresh user data on mount
+  useEffect(() => { refreshMe().catch(() => {}) }, [])
+
   useEffect(() => {
     if (!me) return
     setForm({

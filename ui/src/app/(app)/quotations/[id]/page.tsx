@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI } from '@/lib/api'
-import type { Quotation } from '@/types'
+import { QuotationsAPI, SettingsAPI } from '@/lib/api'
+import type { Quotation, Settings } from '@/types'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Trash2, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
+import QuotationPrint from '@/components/QuotationPrint'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
@@ -22,6 +23,7 @@ export default function QuotationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -32,6 +34,7 @@ export default function QuotationDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -64,7 +67,9 @@ export default function QuotationDetailPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-5">
+    <>
+    <QuotationPrint doc={doc} settings={settings} />
+    <div className="screen-only max-w-4xl mx-auto space-y-5">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
@@ -244,5 +249,6 @@ export default function QuotationDetailPage() {
         </div>
       )}
     </div>
+    </>
   )
 }
