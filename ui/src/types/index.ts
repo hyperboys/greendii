@@ -278,7 +278,7 @@ export interface WorkOrder {
   id: string
   woNo: string
   quotationId?: string
-  quotation?: { id: string; quoNo: string }
+  quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
   salesId: string
   sales?: { id: string; fullName: string }
   project: string

@@ -6,7 +6,12 @@ const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
-  quotation: { select: { id: true, quoNo: true } },
+  quotation: {
+    select: {
+      id: true, quoNo: true,
+      items: { orderBy: { seq: 'asc' } },
+    },
+  },
   approvalLogs: {
     include: { approver: { select: { id: true, fullName: true, role: true } } },
     orderBy: { actedAt: 'asc' },

@@ -215,7 +215,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
         <tbody>
           {rows.map((item, i) => (
             <tr key={i}>
-              <td style={{ ...tdS, textAlign: 'center' }}>{item ? (item.seq ?? i + 1) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'center' }}>{item ? (item.seq !== undefined ? item.seq + 1 : i + 1) : ''}</td>
               <td style={tdS}>
                 {item?.desc ?? ''}
                 {item?.note

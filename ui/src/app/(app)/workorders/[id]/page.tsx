@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI } from '@/lib/api'
-import type { WorkOrder } from '@/types'
+import { WorkOrdersAPI, SettingsAPI } from '@/lib/api'
+import type { WorkOrder, Settings } from '@/types'
+import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
@@ -15,6 +16,7 @@ export default function WorkOrderDetailPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
   const [doc, setDoc] = useState<WorkOrder | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
@@ -28,6 +30,7 @@ export default function WorkOrderDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -107,6 +110,40 @@ export default function WorkOrderDetailPage() {
         {doc.remark && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>}
       </div>
 
+      {/* Quotation items / Details of Work */}
+      {doc.quotation?.items && doc.quotation.items.length > 0 && (
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-3">
+            รายการงาน — อ้างอิงจากใบเสนอราคา {doc.quotation.quoNo}
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-gray-50 text-gray-600 text-xs">
+                  <th className="border px-2 py-1.5 w-8 text-center">#</th>
+                  <th className="border px-2 py-1.5 text-left">รายละเอียด</th>
+                  <th className="border px-2 py-1.5 w-16 text-right">จำนวน</th>
+                  <th className="border px-2 py-1.5 w-16 text-center">หน่วย</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doc.quotation.items.map((item, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
+                    <td className="border px-2 py-1.5">
+                      <div>{item.desc}</div>
+                      {item.note && <div className="text-xs text-gray-400">{item.note}</div>}
+                    </td>
+                    <td className="border px-2 py-1.5 text-right">{item.qty}</td>
+                    <td className="border px-2 py-1.5 text-center">{item.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
       {/* Approval chain */}
       <div className="card p-5">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
@@ -174,5 +211,7 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
     </div>
+
+    <WorkOrderPrint doc={doc} settings={settings} />
   )
 }
