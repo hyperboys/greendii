@@ -28,6 +28,14 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   const totalAmount = doc.subTotal - doc.specialDiscount
 
+  // Signature name: "FirstName L." from fullName
+  const sigName = (() => {
+    const name = doc.sales?.fullName?.trim()
+    if (!name) return ''
+    const parts = name.split(/\s+/)
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
+  })()
+
   // Pad rows to minimum
   const rows: (typeof doc.items[0] | null)[] = [
     ...doc.items,
@@ -95,7 +103,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   return (
-    <div className="print-sheet" style={{ fontFamily: 'Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
+    <div className="print-sheet" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
@@ -112,8 +120,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
             </td>
           </tr>
           <tr>
-            {/* Row 2: English company name — single line */}
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.4' }}>
+            {/* Row 2: English company name — Gothic style */}
+            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.3', fontFamily: 'Impact, "Arial Narrow", Arial, sans-serif', letterSpacing: '1.5px' }}>
               {companyNameEn}
             </td>
           </tr>
@@ -282,7 +290,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
                 marginBottom: '2px',
                 lineHeight: 1,
               }}>
-                {doc.sales?.initials || doc.sales?.fullName || ''}
+                {sigName}
               </div>
               <div>{doc.sales?.fullName || ''}</div>
             </td>
