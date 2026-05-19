@@ -24,6 +24,7 @@ const settingsRoutes = require('./routes/settings');
 const notificationsRoutes = require('./routes/notifications');
 const auditRoutes         = require('./routes/audit');
 const activityLogsRoutes  = require('./routes/activity-logs');
+const lineRoutes          = require('./routes/line');
 const { errorHandler } = require('./middleware/errorHandler');
 const { activityLogger } = require('./middleware/activityLogger');
 
@@ -42,7 +43,11 @@ app.use(cors({
 }));
 
 // ─── BODY PARSER ────────────────────────────────────────────────────────────
-app.use(express.json({ limit: '10mb' }));
+// Save raw body buffer for LINE webhook signature verification
+app.use(express.json({
+  limit: '10mb',
+  verify: (req, _res, buf) => { req.rawBody = buf; },
+}));
 app.use(express.urlencoded({ extended: true }));
 
 // ─── HTTP ACCESS LOGGING (Morgan) ───────────────────────────────────────────
@@ -108,6 +113,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/line',          lineRoutes);
 app.use('/api/audit',         auditRoutes);
 app.use('/api/activity-logs', activityLogsRoutes);
 
