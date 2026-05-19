@@ -68,6 +68,7 @@ model User {
   purchaseRequests PurchaseRequest[]
   approvalLogs     ApprovalLog[]
   notifications    Notification[]
+  activityLogs     ActivityLog[]
 
   @@map("users")
 }
@@ -350,6 +351,29 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// ACTIVITY LOG
+// ─────────────────────────────────────────────
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  username   String?  // snapshot ชื่อ user ณ เวลานั้น
+  method     String   // GET POST PUT PATCH DELETE
+  path       String   // /api/quotations/xxx
+  statusCode Int      // 200 201 400 401 403 500
+  ipAddress  String?
+  userAgent  String?
+  durationMs Int      // milliseconds
+  createdAt  DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([statusCode])
+  @@map("activity_logs")
 }
 
 // ─────────────────────────────────────────────

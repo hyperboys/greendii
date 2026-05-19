@@ -3,7 +3,7 @@ import type {
   User, Customer, Product, Unit, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
-  Attachment, AuditPage, UserRole,
+  Attachment, AuditPage, UserRole, ActivityLogPage,
 } from '@/types'
 
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
@@ -218,6 +218,8 @@ export const NotificationsAPI = {
 export const AdminAPI = {
   getAuditLog: (params?: Record<string, string>) =>
     http.get<AuditPage>('/audit', { params }).then(r => r.data),
+  getActivityLogs: (params?: Record<string, string>) =>
+    http.get<ActivityLogPage>('/activity-logs', { params }).then(r => r.data),
   updateApprovalFlow: (config: Record<string, number[]>) =>
     http.put<Settings>('/settings', { approvalFlowConfig: config }).then(r => r.data),
   updateMenuAccess: (config: Record<string, UserRole[]>) =>

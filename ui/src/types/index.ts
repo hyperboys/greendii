@@ -387,6 +387,29 @@ export interface ReportApprovalPerf {
   reject: number
 }
 
+// ─── ACTIVITY LOG ─────────────────────────────────────────────────────────────
+
+export interface ActivityLog {
+  id: string
+  userId: string | null
+  username: string | null
+  method: string
+  path: string
+  statusCode: number
+  ipAddress: string | null
+  userAgent: string | null
+  durationMs: number
+  createdAt: string
+  user?: { fullName: string; role: string } | null
+}
+
+export interface ActivityLogPage {
+  rows: ActivityLog[]
+  total: number
+  page: number
+  limit: number
+}
+
 // ─── APPROVAL STEPS ───────────────────────────────────────────────────────────
 
 export const HANDOVER_APPROVAL_STEPS = [

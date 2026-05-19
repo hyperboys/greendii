@@ -5,6 +5,8 @@ const path = require('path');
 const fs = require('fs');
 const YAML = require('yamljs');
 const swaggerUi = require('swagger-ui-express');
+const morgan = require('morgan');
+const rfs = require('rotating-file-stream');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -21,7 +23,9 @@ const uploadRoutes = require('./routes/upload');
 const settingsRoutes = require('./routes/settings');
 const notificationsRoutes = require('./routes/notifications');
 const auditRoutes         = require('./routes/audit');
+const activityLogsRoutes  = require('./routes/activity-logs');
 const { errorHandler } = require('./middleware/errorHandler');
+const { activityLogger } = require('./middleware/activityLogger');
 
 const app = express();
 
@@ -40,6 +44,24 @@ app.use(cors({
 // ─── BODY PARSER ────────────────────────────────────────────────────────────
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// ─── HTTP ACCESS LOGGING (Morgan) ───────────────────────────────────────────
+const logsDir = path.join(__dirname, '..', 'logs');
+if (!fs.existsSync(logsDir)) fs.mkdirSync(logsDir, { recursive: true });
+
+// Rotating file: one file per day, keep 30 days
+const accessLogStream = rfs.createStream('access.log', {
+  interval: '1d',
+  maxFiles: 30,
+  path: logsDir,
+});
+app.use(morgan('combined', { stream: accessLogStream }));
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev')); // coloured console log in dev
+}
+
+// ─── ACTIVITY LOGGER (DB) ───────────────────────────────────────────────────
+app.use(activityLogger);
 
 // ─── STATIC UPLOADS ─────────────────────────────────────────────────────────
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
@@ -87,6 +109,7 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/settings', settingsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/audit',         auditRoutes);
+app.use('/api/activity-logs', activityLogsRoutes);
 
 // ─── 404 ────────────────────────────────────────────────────────────────────
 app.use((_req, res) => res.status(404).json({ message: 'Route not found' }));

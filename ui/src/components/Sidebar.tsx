@@ -9,7 +9,7 @@ import {
   LayoutDashboard, FileText, ClipboardList, Handshake,
   ShoppingCart, CheckSquare, BarChart2, Users, Package,
   Ruler, ChevronLeft, ChevronRight, LogOut, Settings, type LucideIcon,
-  Shield, GitBranch, Lock, ActivitySquare,
+  Shield, GitBranch, Lock, ActivitySquare, ScrollText,
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
@@ -43,6 +43,7 @@ const ADMIN_MENU: NavItem[] = [
   { href: '/admin/roles',          label: 'บทบาท & สิทธิ์',  icon: Shield,           roles: ['admin', 'director'] },
   { href: '/admin/menu-access',    label: 'ควบคุมเมนู',       icon: Lock,             roles: ['admin', 'director'] },
   { href: '/admin/audit-log',      label: 'บันทึกกิจกรรม',   icon: ActivitySquare,   roles: ['admin', 'admin_mgr', 'director'] },
+  { href: '/admin/activity-log',   label: 'Activity Log',     icon: ScrollText,        roles: ['admin', 'director'] },
   { href: '/settings',             label: 'ตั้งค่าระบบ',      icon: Settings,         roles: ['admin', 'director'] },
 ]
 
