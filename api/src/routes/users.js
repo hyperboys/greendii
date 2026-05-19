@@ -1,13 +1,28 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const multer = require('multer');
+const path = require('path');
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
+const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 
 const USER_SELECT = {
   id: true, username: true, fullName: true, initials: true,
   role: true, email: true, phone: true, department: true, position: true,
-  lineUserId: true, signatureText: true, active: true, createdAt: true,
+  lineUserId: true, signatureText: true, signatureUrl: true, active: true, createdAt: true,
 };
+
+const sigUpload = multer({
+  storage: isR2Enabled ? multer.memoryStorage() : multer.diskStorage({
+    destination: require('path').join(__dirname, '../../uploads'),
+    filename: (_req, file, cb) => cb(null, Date.now() + path.extname(file.originalname)),
+  }),
+  limits: { fileSize: 2 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (/jpeg|jpg|png|webp/.test(file.mimetype)) cb(null, true);
+    else cb(new Error('Only jpg/png/webp allowed'));
+  },
+});
 
 // GET /api/users
 router.get('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
@@ -107,6 +122,43 @@ router.delete('/:id', authenticate, requireRole('admin', 'director', 'admin_mgr'
   try {
     await prisma.user.update({ where: { id: req.params.id }, data: { active: false } });
     res.json({ message: 'User deactivated' });
+  } catch (e) { next(e); }
+});
+
+// POST /api/users/:id/signature  (upload signature image)
+router.post('/:id/signature', authenticate, requireRole('admin', 'director', 'admin_mgr'),
+  sigUpload.single('file'), async (req, res, next) => {
+  try {
+    let signatureUrl;
+    if (isR2Enabled) {
+      const key = `signatures/${req.params.id}-${Date.now()}${path.extname(req.file.originalname)}`;
+      signatureUrl = await uploadToR2(key, req.file.buffer, req.file.mimetype);
+    } else {
+      signatureUrl = `/uploads/${req.file.filename}`;
+    }
+    const user = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { signatureUrl },
+      select: USER_SELECT,
+    });
+    res.json(user);
+  } catch (e) { next(e); }
+});
+
+// DELETE /api/users/:id/signature  (remove signature image)
+router.delete('/:id/signature', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
+  try {
+    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.params.id }, select: { signatureUrl: true } });
+    if (user.signatureUrl && isR2Enabled) {
+      const key = user.signatureUrl.split('/').pop();
+      await deleteFromR2(`signatures/${key}`).catch(() => {});
+    }
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { signatureUrl: null },
+      select: USER_SELECT,
+    });
+    res.json(updated);
   } catch (e) { next(e); }
 });
 

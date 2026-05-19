@@ -88,6 +88,7 @@ export interface User {
   position?: string
   lineUserId?: string
   signatureText?: string
+  signatureUrl?: string | null
   active: boolean
   createdAt: string
 }
