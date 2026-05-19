@@ -2,16 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { SettingsAPI, AdminAPI } from '@/lib/api'
-import { ALL_ROLES, ROLE_LABELS, MENU_ITEMS, DEFAULT_MENU_ACCESS, type UserRole } from '@/types'
+import { MENU_ITEMS, DEFAULT_MENU_ACCESS, type UserRole } from '@/types'
+import { useSettingsStore } from '@/store/settings'
 import { Save, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function MenuAccessPage() {
+  const { rolePermissionsConfig, fetchSettings } = useSettingsStore()
+  const allRoles = rolePermissionsConfig.roles
   const [config, setConfig] = useState<Record<string, UserRole[]>>(DEFAULT_MENU_ACCESS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
+    fetchSettings()
     SettingsAPI.get().then(s => {
       if (s.menuAccessConfig) setConfig(s.menuAccessConfig as Record<string, UserRole[]>)
     }).finally(() => setLoading(false))
@@ -28,7 +32,7 @@ export default function MenuAccessPage() {
   }
 
   const toggleAll = (menuKey: string, checked: boolean) => {
-    setConfig(prev => ({ ...prev, [menuKey]: checked ? [...ALL_ROLES] : [] }))
+    setConfig(prev => ({ ...prev, [menuKey]: checked ? allRoles.map(r => r.key) : [] }))
   }
 
   const save = async () => {
@@ -78,10 +82,10 @@ export default function MenuAccessPage() {
             <thead>
               <tr className="bg-green-dark text-white">
                 <th className="text-left px-4 py-3 font-semibold min-w-36">เมนู</th>
-                {ALL_ROLES.map(r => (
-                  <th key={r} className="px-2 py-3 text-center text-xs">
-                    <div className="font-semibold">{ROLE_LABELS[r]}</div>
-                    <div className="font-normal opacity-70 text-[10px]">{r}</div>
+                {allRoles.map(r => (
+                  <th key={r.key} className="px-2 py-3 text-center text-xs">
+                    <div className="font-semibold">{r.label}</div>
+                    <div className="font-normal opacity-70 text-[10px]">{r.key}</div>
                   </th>
                 ))}
                 <th className="px-2 py-3 text-center text-xs">ทั้งหมด</th>
@@ -90,16 +94,16 @@ export default function MenuAccessPage() {
             <tbody>
               {MENU_ITEMS.map((menu, i) => {
                 const cur = config[menu.key] ?? []
-                const allChecked = ALL_ROLES.every(r => cur.includes(r))
+                const allChecked = allRoles.every(r => cur.includes(r.key))
                 return (
                   <tr key={menu.key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     <td className="px-4 py-2.5 font-medium text-gray-700">{menu.label}</td>
-                    {ALL_ROLES.map(role => (
-                      <td key={role} className="px-2 py-2.5 text-center">
+                    {allRoles.map(role => (
+                      <td key={role.key} className="px-2 py-2.5 text-center">
                         <input
                           type="checkbox"
-                          checked={cur.includes(role)}
-                          onChange={() => toggle(menu.key, role)}
+                          checked={cur.includes(role.key)}
+                          onChange={() => toggle(menu.key, role.key)}
                           className="w-4 h-4 accent-green-600 cursor-pointer"
                         />
                       </td>

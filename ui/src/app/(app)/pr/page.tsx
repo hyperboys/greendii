@@ -6,6 +6,7 @@ import { PRAPI } from '@/lib/api'
 import type { PurchaseRequest, DocStatus } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -21,6 +22,7 @@ function fmtMoney(n: number) {
 export default function PRPage() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<PurchaseRequest[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -39,7 +41,7 @@ export default function PRPage() {
 
   useEffect(() => { load() }, [statusFilter])
 
-  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'procurement'].includes(user?.role ?? '')
+  const canCreate = hasPerm('pr_create', user?.role ?? '')
 
   return (
     <div>

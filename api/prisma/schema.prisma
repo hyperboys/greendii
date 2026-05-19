@@ -14,16 +14,8 @@ datasource db {
 // ENUMS
 // ─────────────────────────────────────────────
 
-enum UserRole {
-  admin        // System Administrator
-  sales        // เซลล์
-  sale_mgr     // Sales Manager
-  admin_mgr    // Admin Manager
-  project_mgr  // Project Manager
-  director     // Managing Director
-  procurement  // Procurement
-  factory      // ทีมโรงงาน
-}
+// UserRole was an enum — now stored as String to allow dynamic roles from UI
+// Valid values are managed via Settings > บทบาท & สิทธิ์
 
 enum DocStatus {
   draft    // แบบร่าง
@@ -49,7 +41,7 @@ model User {
   passwordHash String
   fullName     String
   initials     String   @default("")
-  role         UserRole
+  role         String   @default("sales")
   email               String?
   phone               String?
   department          String?

@@ -2,20 +2,22 @@
 
 import { useEffect, useState } from 'react'
 import { UsersAPI } from '@/lib/api'
-import type { User, UserRole } from '@/types'
-import { ROLE_LABELS } from '@/types'
+import type { User } from '@/types'
 import { Plus, Pencil, KeyRound, Search, UserCheck, UserX, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import toast from 'react-hot-toast'
 
 const EMPTY_USER = {
-  username: '', fullName: '', initials: '', role: 'sales' as UserRole,
+  username: '', fullName: '', initials: '', role: 'sales',
   password: '', lineUserId: '', email: '', phone: '', department: '', position: '',
   firstName: '', lastName: '', firstNameEn: '', lastNameEn: '',
 }
 
 export default function UsersPage() {
   const { user: me } = useAuthStore()
+  const { rolePermissionsConfig, fetchSettings, getRoleLabel } = useSettingsStore()
+  const dynamicRoles = rolePermissionsConfig.roles
   const isAdmin = me?.role === 'admin' || me?.role === 'director' || me?.role === 'admin_mgr'
   const [rows, setRows] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
@@ -25,6 +27,8 @@ export default function UsersPage() {
   const [editing, setEditing] = useState<typeof EMPTY_USER & { id?: string } | null>(null)
   const [pwdModal, setPwdModal] = useState<{ id: string; pw: string } | null>(null)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => { fetchSettings() }, [])
 
   const load = () => {
     setLoading(true)
@@ -113,7 +117,7 @@ export default function UsersPage() {
         </div>
         <select className="form-input py-1.5 w-44" value={filterRole} onChange={e => setFilterRole(e.target.value)}>
           <option value="">ทุกตำแหน่ง</option>
-          {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+          {dynamicRoles.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
         </select>
         <select className="form-input py-1.5 w-36" value={filterActive} onChange={e => setFilterActive(e.target.value)}>
           <option value="">ทุกสถานะ</option>
@@ -166,8 +170,8 @@ export default function UsersPage() {
             <div>
               <label className="form-label">สิทธิ์ / Role</label>
               <select className="form-input" value={editing.role}
-                onChange={e => setEditing(v => v ? { ...v, role: e.target.value as UserRole } : v)}>
-                {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                onChange={e => setEditing(v => v ? { ...v, role: e.target.value } : v)}>
+                {dynamicRoles.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
               </select>
             </div>
             <div>
@@ -259,7 +263,7 @@ export default function UsersPage() {
                   </span>
                 </td>
                 <td>
-                  <span className="badge badge-draft text-xs">{ROLE_LABELS[u.role]}</span>
+                  <span className="badge badge-draft text-xs">{getRoleLabel(u.role)}</span>
                 </td>
                 <td className="hidden lg:table-cell text-sm text-gray-600">{u.department || '-'}</td>
                 <td className="hidden lg:table-cell text-sm text-gray-600">{u.position || '-'}</td>

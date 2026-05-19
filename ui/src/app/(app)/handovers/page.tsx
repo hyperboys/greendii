@@ -6,12 +6,14 @@ import { HandoversAPI } from '@/lib/api'
 import type { HandOverJob } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function HandoversPage() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<HandOverJob[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -28,7 +30,7 @@ export default function HandoversPage() {
 
   useEffect(() => { load() }, [])
 
-  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
+  const canCreate = hasPerm('ho_create', user?.role ?? '')
 
   return (
     <div>

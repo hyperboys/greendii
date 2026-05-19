@@ -2,48 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { SettingsAPI } from '@/lib/api'
+import { DEFAULT_ROLES, DEFAULT_PERMISSIONS, type RoleDef, type PermissionDef } from '@/types'
 import { Save, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-
-interface RoleDef {
-  key: string
-  label: string
-  description: string
-}
-
-interface PermissionDef {
-  key: string
-  label: string
-  roles: string[]
-}
-
-const DEFAULT_ROLES: RoleDef[] = [
-  { key: 'admin',       label: 'System Admin',          description: 'ผู้ดูแลระบบสูงสุด เข้าถึงได้ทุกส่วน' },
-  { key: 'sales',       label: 'พนักงานขาย',            description: 'ฝ่ายขาย สร้างและจัดการเอกสารขาย' },
-  { key: 'sales2',      label: 'พนักงานขาย 2',          description: 'ฝ่ายขาย 2 รับผิดชอบขั้นตอนแรกของการอนุมัติ' },
-  { key: 'sale_mgr',    label: 'ผู้จัดการฝ่ายขาย',       description: 'ผู้จัดการฝ่ายขาย อนุมัติใบเสนอราคา' },
-  { key: 'admin_mgr',   label: 'ผู้จัดการฝ่ายบริหาร',    description: 'ผู้จัดการฝ่ายบริหาร อนุมัติเอกสารหลายประเภท' },
-  { key: 'project_mgr', label: 'ผู้จัดการโครงการ',        description: 'ผู้จัดการโครงการ ดูแลการดำเนินงาน' },
-  { key: 'director',    label: 'กรรมการผู้จัดการ',         description: 'กรรมการผู้จัดการ อนุมัติขั้นสุดท้าย' },
-  { key: 'procurement', label: 'ฝ่ายจัดซื้อ',             description: 'ฝ่ายจัดซื้อ รับใบขอซื้อที่อนุมัติแล้ว' },
-  { key: 'factory',     label: 'ฝ่ายโรงงาน/ผลิต',         description: 'ฝ่ายโรงงาน/ผลิต รับงานที่ผ่านการอนุมัติ' },
-]
-
-const DEFAULT_PERMISSIONS: PermissionDef[] = [
-  { key: 'quo_create',    label: 'สร้างใบเสนอราคา',   roles: ['admin','sales','sales2','sale_mgr'] },
-  { key: 'quo_edit',      label: 'แก้ไขใบเสนอราคา',   roles: ['admin','sales','sales2','sale_mgr'] },
-  { key: 'quo_approve',   label: 'อนุมัติใบเสนอราคา', roles: ['admin','sales2','sale_mgr','admin_mgr','project_mgr','director'] },
-  { key: 'wo_create',     label: 'สร้างใบสั่งงาน',    roles: ['admin','sales','sales2','sale_mgr','admin_mgr'] },
-  { key: 'wo_approve',    label: 'อนุมัติใบสั่งงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
-  { key: 'pr_create',     label: 'สร้างใบขอซื้อ',     roles: ['admin','sales','sales2','sale_mgr','admin_mgr','project_mgr'] },
-  { key: 'pr_approve',    label: 'อนุมัติใบขอซื้อ',   roles: ['admin','admin_mgr','project_mgr','director','procurement'] },
-  { key: 'ho_create',     label: 'สร้างส่งมอบงาน',    roles: ['admin','sales','sales2','sale_mgr'] },
-  { key: 'ho_approve',    label: 'อนุมัติส่งมอบงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
-  { key: 'view_reports',  label: 'ดูรายงาน',          roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
-  { key: 'manage_users',  label: 'จัดการผู้ใช้',       roles: ['admin','admin_mgr','director'] },
-  { key: 'manage_master', label: 'จัดการข้อมูลหลัก',   roles: ['admin','sale_mgr','admin_mgr','director'] },
-  { key: 'admin_settings',label: 'ตั้งค่าระบบ/Admin', roles: ['admin','director'] },
-]
 
 const EMPTY_ROLE: RoleDef = { key: '', label: '', description: '' }
 const EMPTY_PERM: PermissionDef = { key: '', label: '', roles: [] }

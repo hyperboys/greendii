@@ -1,27 +1,60 @@
 // ─── ENUMS ───────────────────────────────────────────────────────────────────
 
-export type UserRole =
-  | 'admin'
-  | 'sales' | 'sale_mgr' | 'admin_mgr'
-  | 'project_mgr' | 'director' | 'procurement' | 'factory'
+// UserRole is now a plain string — roles are managed dynamically via Admin UI
+export type UserRole = string
 
 export type DocStatus = 'draft' | 'pending' | 'approved' | 'rejected' | 'cancelled'
 
-export const ALL_ROLES: UserRole[] = [
-  'admin', 'sales', 'sale_mgr', 'admin_mgr',
-  'project_mgr', 'director', 'procurement', 'factory',
+// ─── ROLE / PERMISSION TYPES ─────────────────────────────────────────────────
+
+export interface RoleDef {
+  key: string
+  label: string
+  description: string
+}
+
+export interface PermissionDef {
+  key: string
+  label: string
+  roles: string[]
+}
+
+export interface RolePermissionsConfig {
+  roles: RoleDef[]
+  permissions: PermissionDef[]
+}
+
+// Default roles — kept as fallback when settings haven't loaded yet
+export const DEFAULT_ROLES: RoleDef[] = [
+  { key: 'admin',       label: 'System Admin',          description: 'ผู้ดูแลระบบสูงสุด เข้าถึงได้ทุกส่วน' },
+  { key: 'sales',       label: 'พนักงานขาย',            description: 'ฝ่ายขาย สร้างและจัดการเอกสารขาย' },
+  { key: 'sale_mgr',    label: 'ผู้จัดการฝ่ายขาย',       description: 'ผู้จัดการฝ่ายขาย อนุมัติใบเสนอราคา' },
+  { key: 'admin_mgr',   label: 'ผู้จัดการฝ่ายบริหาร',    description: 'ผู้จัดการฝ่ายบริหาร อนุมัติเอกสารหลายประเภท' },
+  { key: 'project_mgr', label: 'ผู้จัดการโครงการ',        description: 'ผู้จัดการโครงการ ดูแลการดำเนินงาน' },
+  { key: 'director',    label: 'กรรมการผู้จัดการ',         description: 'กรรมการผู้จัดการ อนุมัติขั้นสุดท้าย' },
+  { key: 'procurement', label: 'ฝ่ายจัดซื้อ',             description: 'ฝ่ายจัดซื้อ รับใบขอซื้อที่อนุมัติแล้ว' },
+  { key: 'factory',     label: 'ฝ่ายโรงงาน/ผลิต',         description: 'ฝ่ายโรงงาน/ผลิต รับงานที่ผ่านการอนุมัติ' },
 ]
 
-export const ROLE_LABELS: Record<UserRole, string> = {
-  admin:       'System Admin',
-  sales:       'เซลล์',
-  sale_mgr:    'ผู้จัดการฝ่ายขาย',
-  admin_mgr:   'ผู้จัดการฝ่ายบริหาร',
-  project_mgr: 'ผู้จัดการโครงการ',
-  director:    'กรรมการผู้จัดการ',
-  procurement: 'จัดซื้อ',
-  factory:     'โรงงาน/ผลิต',
-}
+export const DEFAULT_PERMISSIONS: PermissionDef[] = [
+  { key: 'quo_create',    label: 'สร้างใบเสนอราคา',   roles: ['admin','sales','sale_mgr'] },
+  { key: 'quo_edit',      label: 'แก้ไขใบเสนอราคา',   roles: ['admin','sales','sale_mgr'] },
+  { key: 'quo_approve',   label: 'อนุมัติใบเสนอราคา', roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
+  { key: 'wo_create',     label: 'สร้างใบสั่งงาน',    roles: ['admin','sales','sale_mgr','admin_mgr'] },
+  { key: 'wo_approve',    label: 'อนุมัติใบสั่งงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
+  { key: 'pr_create',     label: 'สร้างใบขอซื้อ',     roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr'] },
+  { key: 'pr_approve',    label: 'อนุมัติใบขอซื้อ',   roles: ['admin','admin_mgr','project_mgr','director','procurement'] },
+  { key: 'ho_create',     label: 'สร้างส่งมอบงาน',    roles: ['admin','sales','sale_mgr'] },
+  { key: 'ho_approve',    label: 'อนุมัติส่งมอบงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
+  { key: 'view_reports',  label: 'ดูรายงาน',          roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
+  { key: 'manage_users',  label: 'จัดการผู้ใช้',       roles: ['admin','admin_mgr','director'] },
+  { key: 'manage_master', label: 'จัดการข้อมูลหลัก',   roles: ['admin','sale_mgr','admin_mgr','director'] },
+  { key: 'admin_settings',label: 'ตั้งค่าระบบ/Admin', roles: ['admin','director'] },
+]
+
+// Fallback label lookup for when settings haven't loaded
+export const ALL_ROLES: string[] = DEFAULT_ROLES.map(r => r.key)
+export const ROLE_LABELS: Record<string, string> = Object.fromEntries(DEFAULT_ROLES.map(r => [r.key, r.label]))
 
 export const APPROVAL_STEPS = [
   { step: 1, role: 'sales'       as UserRole, label: 'เซลล์ (ผู้อื่น)' },

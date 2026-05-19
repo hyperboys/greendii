@@ -6,6 +6,7 @@ import { WorkOrdersAPI } from '@/lib/api'
 import type { WorkOrder, DocStatus } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -17,6 +18,7 @@ const STATUS_COLORS: Record<DocStatus, string> = {
 export default function WorkOrdersPage() {
   const router = useRouter()
   const { user } = useAuthStore()
+  const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -35,7 +37,7 @@ export default function WorkOrdersPage() {
 
   useEffect(() => { load() }, [statusFilter])
 
-  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
+  const canCreate = hasPerm('wo_create', user?.role ?? '')
 
   return (
     <div>
