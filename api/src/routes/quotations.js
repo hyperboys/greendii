@@ -133,24 +133,30 @@ router.put('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
-// POST /api/quotations/:id/submit  (draft/rejected → pending)
+// POST /api/quotations/:id/submit  (draft/rejected → approved directly, no approval flow)
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('quotation');
+    // If no approval steps configured, auto-approve immediately
+    const autoApprove = firstStep === null;
     const updated = await prisma.quotation.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: firstStep },
+      data: { status: autoApprove ? 'approved' : 'pending', approvalStep: firstStep ?? 0 },
+      include: INCLUDE_FULL,
     });
     await prisma.approvalLog.create({
       data: {
         docType: 'quotation', quotationId: quo.id,
         approverId: req.user.id, step: 0,
-        action: 'submit', comment: req.body.comment || 'ส่งเอกสารเข้าอนุมัติ',
+        action: autoApprove ? 'approve' : 'submit',
+        comment: req.body.comment || (autoApprove ? 'อนุมัติอัตโนมัติ' : 'ส่งเอกสารเข้าอนุมัติ'),
       },
     });
-    await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    if (!autoApprove) {
+      await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });

@@ -48,8 +48,9 @@ const ROLE_STEP = DEFAULT_ROLE_STEP;
 const STEP_ROLE = DEFAULT_STEP_ROLE;
 
 // Default flow used when settings.approvalFlowConfig is not set
+// quotation: [] means no approval steps — submit auto-approves
 const DEFAULT_FLOW = {
-  quotation: [1, 2, 3, 4, 5],
+  quotation: [],
   workOrder: [3, 4, 5],
   pr:        [3, 4, 5, 6],
   handover:  [3, 4, 5],

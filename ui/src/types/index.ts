@@ -86,7 +86,7 @@ export const DOC_TYPES = [
 ]
 
 export const DEFAULT_APPROVAL_FLOW: Record<string, number[]> = {
-  quotation: [1, 2, 3, 4, 5],
+  quotation: [],
   workOrder: [3, 4, 5],
   pr:        [3, 4, 5, 6],
   handover:  [3, 4, 5],

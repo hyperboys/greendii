@@ -4,9 +4,9 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, SettingsAPI } from '@/lib/api'
 import type { Quotation, Settings } from '@/types'
-import { STATUS_LABELS, APPROVAL_STEPS } from '@/types'
+import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Trash2, Pencil, Printer } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import QuotationPrint from '@/components/QuotationPrint'
@@ -43,13 +43,6 @@ export default function QuotationDetailPage() {
   const canEdit = isMine && doc.status === 'draft'
   const canSubmit = isMine && doc.status === 'draft'
   const canCancel = isMine && (doc.status === 'draft' || doc.status === 'rejected')
-
-  // Approval: user's role must match next approval step
-  // For step 1 (sales): any sales user can approve EXCEPT the document creator
-  const nextStep = doc.approvalStep + 1
-  const stepDef = APPROVAL_STEPS.find(s => s.step === nextStep)
-  const canApprove = doc.status === 'pending' && stepDef?.role === user?.role &&
-    (user?.role !== 'sales' || doc.salesId !== user?.id)
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'cancel') => {
     setActing(true)
@@ -170,47 +163,7 @@ export default function QuotationDetailPage() {
         </table>
       </div>
 
-      {/* Approval chain */}
-      <div className="card p-5">
-        <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
-        <div className="flex flex-wrap gap-2">
-          {APPROVAL_STEPS.slice(0, 6).map(s => {
-            const log = doc.approvalLogs?.find(l => l.step === s.step)
-            const isNext = s.step === nextStep && doc.status === 'pending'
-            return (
-              <div
-                key={s.step}
-                className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
-                  log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
-                  log?.action === 'reject' ? 'bg-red-50 border-red-300 text-red-700' :
-                  isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
-                  'bg-gray-50 border-gray-200 text-gray-500'
-                }`}
-              >
-                <span className="font-semibold">{s.label}</span>
-                {log ? (
-                  <span>{log.action === 'approve' ? '✓' : '✕'}</span>
-                ) : isNext ? (
-                  <span>รออนุมัติ</span>
-                ) : null}
-              </div>
-            )
-          })}
-        </div>
-        {doc.approvalLogs && doc.approvalLogs.length > 0 && (
-          <div className="mt-3 space-y-1">
-            {doc.approvalLogs.map(log => (
-              <div key={log.id} className="text-xs text-gray-500 flex gap-2">
-                <span className={log.action === 'approve' ? 'text-green-dark' : 'text-red-500'}>
-                  {log.action === 'approve' ? '✓' : '✕'}
-                </span>
-                <span>{log.approver?.fullName ?? log.approverId}</span>
-                {log.comment && <span className="text-gray-400">— {log.comment}</span>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+
 
       {/* Attachments */}
       <AttachmentsSection
@@ -221,32 +174,13 @@ export default function QuotationDetailPage() {
       />
 
       {/* Actions */}
-      {(canSubmit || canApprove) && (
+      {canSubmit && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
-          <textarea
-            className="form-input"
-            rows={2}
-            placeholder="ความคิดเห็น (ไม่บังคับ)"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-          />
           <div className="flex gap-2 flex-wrap">
-            {canSubmit && (
-              <button className="btn-primary" onClick={() => act('submit')} disabled={acting}>
-                <SendHorizonal size={15} /> ส่งอนุมัติ
-              </button>
-            )}
-            {canApprove && (
-              <>
-                <button className="btn-primary" onClick={() => act('approve')} disabled={acting}>
-                  <CheckCircle size={15} /> อนุมัติ
-                </button>
-                <button className="btn-danger" onClick={() => act('reject')} disabled={acting}>
-                  <XCircle size={15} /> ปฏิเสธ
-                </button>
-              </>
-            )}
+            <button className="btn-primary" onClick={() => act('submit')} disabled={acting}>
+              <CheckCircle size={15} /> ยืนยันใบเสนอราคา
+            </button>
           </div>
         </div>
       )}
