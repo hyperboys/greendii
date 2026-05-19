@@ -8,12 +8,13 @@ import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { token, user } = useAuthStore()
+  const { token, user, _hasHydrated } = useAuthStore()
   const { fetchSettings } = useSettingsStore()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
+    if (!_hasHydrated) return
     if (!token) {
       router.replace('/login')
     } else if (user?.mustChangePassword) {
@@ -21,8 +22,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     } else {
       fetchSettings()
     }
-  }, [token, user, router, fetchSettings])
+  }, [token, user, _hasHydrated, router, fetchSettings])
 
+  if (!_hasHydrated) return null
   if (!token) return null
   if (user?.mustChangePassword) return null
 

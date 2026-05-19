@@ -6,6 +6,8 @@ import { AuthAPI } from '@/lib/api'
 interface AuthState {
   user: AuthUser | null
   token: string | null
+  _hasHydrated: boolean
+  setHasHydrated: (v: boolean) => void
   login: (username: string, password: string) => Promise<void>
   logout: () => void
   refreshMe: () => Promise<void>
@@ -16,6 +18,8 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       user: null,
       token: null,
+      _hasHydrated: false,
+      setHasHydrated: (v) => set({ _hasHydrated: v }),
 
       login: async (username, password) => {
         const data = await AuthAPI.login(username, password)
@@ -39,6 +43,9 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'gd-auth',
       partialize: (s) => ({ user: s.user, token: s.token }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true)
+      },
     }
   )
 )
