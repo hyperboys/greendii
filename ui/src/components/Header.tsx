@@ -1,20 +1,24 @@
 'use client'
 
 import { useEffect, useRef, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { ROLE_LABELS } from '@/types'
 import type { AppNotification } from '@/types'
 import { NotificationsAPI } from '@/lib/api'
-import { Bell, Menu } from 'lucide-react'
+import { Bell, Menu, User, KeyRound, LogOut, ChevronDown } from 'lucide-react'
 
 const POLL_INTERVAL = 30_000 // 30 seconds
 
 export default function Header({ title, onMenuClick }: { title?: string; onMenuClick?: () => void }) {
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
+  const router = useRouter()
   const [notifications, setNotifications] = useState<AppNotification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [open, setOpen] = useState(false)
+  const [userMenuOpen, setUserMenuOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
+  const userMenuRef = useRef<HTMLDivElement>(null)
 
   const fetchNotifications = useCallback(() => {
     if (!user) return
@@ -35,9 +39,8 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
   // Close dropdown when clicking outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setOpen(false)
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -133,14 +136,44 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
         </div>
 
         {user && (
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-green-main text-white flex items-center justify-center text-sm font-bold shrink-0">
-              {user.initials || user.fullName?.charAt(0)}
-            </div>
-            <div className="hidden sm:block">
-              <p className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</p>
-              <p className="text-xs text-gray-400">{ROLE_LABELS[user.role] ?? user.role}</p>
-            </div>
+          <div className="relative" ref={userMenuRef}>
+            <button
+              onClick={() => setUserMenuOpen(v => !v)}
+              className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
+            >
+              <div className="w-8 h-8 rounded-full bg-green-main text-white flex items-center justify-center text-sm font-bold shrink-0">
+                {user.initials || user.fullName?.charAt(0)}
+              </div>
+              <div className="hidden sm:block text-left">
+                <p className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</p>
+                <p className="text-xs text-gray-400">{ROLE_LABELS[user.role] ?? user.role}</p>
+              </div>
+              <ChevronDown size={14} className="hidden sm:block text-gray-400" />
+            </button>
+
+            {userMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden py-1">
+                <button
+                  onClick={() => { setUserMenuOpen(false); router.push('/profile') }}
+                  className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <User size={15} className="text-gray-400" /> โปรไฟล์ของฉัน
+                </button>
+                <button
+                  onClick={() => { setUserMenuOpen(false); router.push('/change-password') }}
+                  className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50"
+                >
+                  <KeyRound size={15} className="text-gray-400" /> เปลี่ยนรหัสผ่าน
+                </button>
+                <div className="border-t border-gray-100 my-1" />
+                <button
+                  onClick={logout}
+                  className="w-full text-left flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"
+                >
+                  <LogOut size={15} /> ออกจากระบบ
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>
