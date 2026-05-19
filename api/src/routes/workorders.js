@@ -2,6 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { notifyStep, notifyUser } = require('../lib/notify');
+const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
@@ -140,9 +141,10 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(wo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
+    const firstStep = await getFirstStep('workOrder');
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: 1 },
+      data: { status: 'pending', approvalStep: firstStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -151,7 +153,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(1, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -161,14 +163,13 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const MAX_STEP = 7;
-    const nextStep = wo.approvalStep + 1;
-    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
-    const isClosed = nextStep > MAX_STEP;
+    const nextStep = await getNextStep('workOrder', wo.approvalStep);
+    const newStatus = nextStep === null ? 'approved' : 'pending';
+    const isClosed = nextStep === null;
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: {
-        approvalStep: nextStep, status: newStatus,
+        approvalStep: nextStep ?? wo.approvalStep, status: newStatus,
         isClosed, closedAt: isClosed ? new Date() : null,
       },
     });

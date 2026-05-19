@@ -13,6 +13,7 @@ import {
 } from 'lucide-react'
 import { useState } from 'react'
 import clsx from 'clsx'
+import { useSettingsStore } from '@/store/settings'
 
 interface NavItem {
   href: string
@@ -50,8 +51,18 @@ const ADMIN_MENU: NavItem[] = [
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
+  const { menuAccessConfig } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
+  // For NAV/MASTER menus: check against DB-driven menuAccessConfig (falls back to hardcoded roles)
+  const canSeeMenu = (menuKey: string, fallbackRoles?: UserRole[]) => {
+    if (!user) return false
+    const configRoles = menuAccessConfig[menuKey]
+    const roles = configRoles ?? fallbackRoles
+    return !roles || roles.includes(user.role as UserRole)
+  }
+
+  // Admin menu always uses hardcoded roles (never DB-configurable)
   const canSee = (roles?: UserRole[]) =>
     !roles || !user || roles.includes(user.role as UserRole)
 
@@ -95,7 +106,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
 
       {/* Nav */}
       <nav className="flex-1 overflow-y-auto py-2">
-        {NAV.filter(item => canSee(item.roles)).map(item => {
+        {NAV.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
           const active = pathname.startsWith(item.href)
           return (
             <Link
@@ -114,14 +125,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         })}
 
         {/* Master Data section */}
-        {MASTER.some(item => canSee(item.roles)) && (
+        {MASTER.some(item => canSeeMenu(item.href.replace('/', ''), item.roles)) && (
           <>
             {!collapsed && (
               <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase text-white/40 tracking-wider">
                 ข้อมูลหลัก
               </p>
             )}
-            {MASTER.filter(item => canSee(item.roles)).map(item => {
+            {MASTER.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
               const active = pathname.startsWith(item.href)
               return (
                 <Link

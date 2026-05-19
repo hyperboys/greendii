@@ -1,14 +1,10 @@
 const prisma = require('./prisma');
-
-const STEP_ROLE = {
-  1: 'sales', 2: 'sales2', 3: 'sale_mgr', 4: 'admin_mgr',
-  5: 'project_mgr', 6: 'director', 7: 'procurement', 8: 'factory',
-};
+const { STEP_ROLE } = require('./approvalFlow');
 
 // Notify all active users that match a given role
 async function notifyByRole(role, text) {
   const users = await prisma.user.findMany({
-    where: { role, isActive: true },
+    where: { role, active: true },   // fixed: 'active' not 'isActive'
     select: { id: true },
   });
   if (!users.length) return;
@@ -22,7 +18,7 @@ async function notifyUser(userId, text) {
   await prisma.notification.create({ data: { userId, text } });
 }
 
-// Notify the approver(s) for a given approval step (standard 8-step flow)
+// Notify the approver(s) for a given approval step
 async function notifyStep(step, text) {
   const role = STEP_ROLE[step];
   if (!role) return;

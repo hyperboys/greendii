@@ -3,11 +3,13 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import Sidebar from '@/components/Sidebar'
 import Header from '@/components/Header'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { token, user } = useAuthStore()
+  const { fetchSettings } = useSettingsStore()
   const router = useRouter()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -16,8 +18,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace('/login')
     } else if (user?.mustChangePassword) {
       router.replace('/change-password')
+    } else {
+      fetchSettings()
     }
-  }, [token, user, router])
+  }, [token, user, router, fetchSettings])
 
   if (!token) return null
   if (user?.mustChangePassword) return null

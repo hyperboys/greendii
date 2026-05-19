@@ -2,6 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { notifyStep, notifyUser } = require('../lib/notify');
+const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
@@ -137,9 +138,10 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
+    const firstStep = await getFirstStep('quotation');
     const updated = await prisma.quotation.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: 1 },
+      data: { status: 'pending', approvalStep: firstStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -148,7 +150,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเอกสารเข้าอนุมัติ',
       },
     });
-    await notifyStep(1, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -158,12 +160,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (quo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const MAX_STEP = 6; // 6 approval roles after sales
-    const nextStep = quo.approvalStep + 1;
-    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
+    const nextStep = await getNextStep('quotation', quo.approvalStep);
+    const newStatus = nextStep === null ? 'approved' : 'pending';
     const updated = await prisma.quotation.update({
       where: { id: req.params.id },
-      data: { approvalStep: nextStep, status: newStatus },
+      data: { approvalStep: nextStep ?? quo.approvalStep, status: newStatus },
     });
     await prisma.approvalLog.create({
       data: {

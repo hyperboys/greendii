@@ -67,9 +67,9 @@ export default function MenuAccessPage() {
         </div>
       </div>
 
-      <div className="card p-4 bg-yellow-50 border-yellow-100 text-sm text-yellow-800">
-        <strong>หมายเหตุ:</strong> การตั้งค่านี้จะมีผลหลังจาก Redeploy หรือรีสตาร์ทระบบ
-        เมนู Admin จะแสดงเฉพาะ admin/director เสมอ
+      <div className="card p-4 bg-blue-50 border-blue-100 text-sm text-blue-800">
+        <strong>หมายเหตุ:</strong> การเปลี่ยนแปลงจะมีผลทันทีเมื่อผู้ใช้รีเฟรชหน้า
+        เมนู Admin (ผู้ดูแลระบบ) จะแสดงเฉพาะ admin/director เสมอโดยไม่ขึ้นกับการตั้งค่านี้
       </div>
 
       <div className="card overflow-hidden">

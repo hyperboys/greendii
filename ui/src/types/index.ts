@@ -337,6 +337,7 @@ export interface PendingApprovals {
   quotations: Quotation[]
   workOrders: WorkOrder[]
   prs: PurchaseRequest[]
+  handovers: HandOverJob[]
 }
 
 // ─── ATTACHMENT ───────────────────────────────────────────────────────────────

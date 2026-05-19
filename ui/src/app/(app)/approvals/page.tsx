@@ -19,7 +19,7 @@ export default function ApprovalsPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  const total = (data?.quotations.length ?? 0) + (data?.workOrders.length ?? 0) + (data?.prs.length ?? 0)
+  const total = (data?.quotations.length ?? 0) + (data?.workOrders.length ?? 0) + (data?.prs.length ?? 0) + (data?.handovers.length ?? 0)
 
   return (
     <div>
@@ -97,6 +97,26 @@ export default function ApprovalsPage() {
                       <td>{p.customer}</td>
                       <td className="text-right">฿{new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(p.netTotal)}</td>
                       <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('th-TH')}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {(data?.handovers.length ?? 0) > 0 && (
+            <div className="card p-5">
+              <h3 className="font-semibold text-gray-800 mb-3">ส่งมอบงาน ({data!.handovers.length})</h3>
+              <table className="data-table">
+                <thead>
+                  <tr><th>เลขที่</th><th>โครงการ</th><th>วันที่</th></tr>
+                </thead>
+                <tbody>
+                  {data!.handovers.map(h => (
+                    <tr key={h.id} className="cursor-pointer" onClick={() => router.push(`/handovers/${h.id}`)}>
+                      <td className="font-mono text-xs font-semibold text-orange-700">{h.hoNo}</td>
+                      <td>{h.project}</td>
+                      <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('th-TH')}</td>
                     </tr>
                   ))}
                 </tbody>

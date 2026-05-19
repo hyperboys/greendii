@@ -2,6 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { notifyStep, notifyUser } = require('../lib/notify');
+const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true } },
@@ -145,9 +146,10 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
+    const firstStep = await getFirstStep('pr');
     const updated = await prisma.purchaseRequest.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: 1 },
+      data: { status: 'pending', approvalStep: firstStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -156,7 +158,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(1, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    await notifyStep(firstStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -166,11 +168,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
     if (pr.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const MAX_STEP = 6;
-    const nextStep = pr.approvalStep + 1;
+    const nextStep = await getNextStep('pr', pr.approvalStep);
+    const newStatus = nextStep === null ? 'approved' : 'pending';
     const updated = await prisma.purchaseRequest.update({
       where: { id: req.params.id },
-      data: { approvalStep: nextStep, status: nextStep > MAX_STEP ? 'approved' : 'pending' },
+      data: { approvalStep: nextStep ?? pr.approvalStep, status: newStatus },
     });
     await prisma.approvalLog.create({
       data: {
@@ -179,7 +181,6 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
-    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
     if (newStatus === 'approved') {
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {

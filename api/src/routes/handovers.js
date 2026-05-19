@@ -1,7 +1,8 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
-const { notifyByRole, notifyUser } = require('../lib/notify');
+const { notifyStep, notifyUser } = require('../lib/notify');
+const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
@@ -126,9 +127,10 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(ho.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
+    const firstStep = await getFirstStep('handover');
     const updated = await prisma.handOverJob.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: 1 },
+      data: { status: 'pending', approvalStep: firstStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -137,7 +139,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyByRole('project_mgr', `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    await notifyStep(firstStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -147,12 +149,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const MAX_STEP = 1;
-    const nextStep = ho.approvalStep + 1;
-    const newStatus = nextStep > MAX_STEP ? 'approved' : 'pending';
+    const nextStep = await getNextStep('handover', ho.approvalStep);
+    const newStatus = nextStep === null ? 'approved' : 'pending';
     const updated = await prisma.handOverJob.update({
       where: { id: req.params.id },
-      data: { approvalStep: nextStep, status: newStatus },
+      data: { approvalStep: nextStep ?? ho.approvalStep, status: newStatus },
     });
     await prisma.approvalLog.create({
       data: {
@@ -161,7 +162,11 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
         action: 'approve', comment: req.body.comment || '',
       },
     });
-    await notifyUser(ho.salesId, `ใบส่งมอบงาน ${ho.hoNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+    if (newStatus === 'approved') {
+      await notifyUser(ho.salesId, `ใบส่งมอบงาน ${ho.hoNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+    } else {
+      await notifyStep(nextStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });
