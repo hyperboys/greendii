@@ -35,10 +35,13 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-dark to-green-main flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-[#1b5e20] via-[#2d6a2e] to-[#1e6b3a] flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Card */}
-        <div className="bg-white rounded-2xl shadow-2xl p-8">
+        <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+          {/* Green accent top bar */}
+          <div className="h-1.5 bg-gradient-to-r from-green-main via-green-light to-green-main" />
+          <div className="p-8">
           {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
@@ -97,6 +100,7 @@ export default function LoginPage() {
           <p className="text-center text-xs text-gray-400 mt-6">
             GreenDii Co., Ltd. © {new Date().getFullYear()}
           </p>
+          </div>
         </div>
       </div>
     </div>

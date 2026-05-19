@@ -56,10 +56,12 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="stat-card" onClick={() => router.push('/quotations')}>
-          <div className="flex items-center gap-2 text-gray-500">
-            <FileText size={18} />
-            <span className="text-sm font-medium">ใบเสนอราคา (QO)</span>
+        <div className="stat-card border-l-4 border-green-main" onClick={() => router.push('/quotations')}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-green-pale rounded-lg shrink-0">
+              <FileText size={18} className="text-green-dark" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">ใบเสนอราคา (QO)</span>
           </div>
           <div className="stat-value text-green-dark">{overview?.quotations.total ?? '-'}</div>
           <div className="stat-label">
@@ -70,10 +72,12 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card" onClick={() => router.push('/workorders')}>
-          <div className="flex items-center gap-2 text-gray-500">
-            <ClipboardList size={18} />
-            <span className="text-sm font-medium">ใบสั่งงาน (WO)</span>
+        <div className="stat-card border-l-4 border-blue-500" onClick={() => router.push('/workorders')}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-blue-50 rounded-lg shrink-0">
+              <ClipboardList size={18} className="text-blue-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">ใบสั่งงาน (WO)</span>
           </div>
           <div className="stat-value text-blue-600">{overview?.workOrders.total ?? '-'}</div>
           <div className="stat-label">
@@ -81,19 +85,23 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="stat-card" onClick={() => router.push('/handovers')}>
-          <div className="flex items-center gap-2 text-gray-500">
-            <Handshake size={18} />
-            <span className="text-sm font-medium">ส่งมอบงาน (HO)</span>
+        <div className="stat-card border-l-4 border-orange-400" onClick={() => router.push('/handovers')}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-orange-50 rounded-lg shrink-0">
+              <Handshake size={18} className="text-orange-500" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">ส่งมอบงาน (HO)</span>
           </div>
           <div className="stat-value text-orange-500">{overview?.handOverJobs.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>
         </div>
 
-        <div className="stat-card" onClick={() => router.push('/pr')}>
-          <div className="flex items-center gap-2 text-gray-500">
-            <ShoppingCart size={18} />
-            <span className="text-sm font-medium">ใบขอซื้อ (PR)</span>
+        <div className="stat-card border-l-4 border-purple-500" onClick={() => router.push('/pr')}>
+          <div className="flex items-center gap-3">
+            <div className="p-2 bg-purple-50 rounded-lg shrink-0">
+              <ShoppingCart size={18} className="text-purple-600" />
+            </div>
+            <span className="text-sm font-medium text-gray-600">ใบขอซื้อ (PR)</span>
           </div>
           <div className="stat-value text-purple-600">{overview?.purchaseRequests.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>

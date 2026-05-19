@@ -20,7 +20,7 @@
 @layer components {
   /* ── CARD ── */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-100;
+    @apply bg-white rounded-xl shadow border border-gray-100;
   }
 
   /* ── BUTTON BASE ── */
@@ -46,7 +46,7 @@
   .form-error  { @apply text-red-500 text-xs mt-1; }
 
   /* ── TABLE ── */
-  .data-table { @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow-sm; }
+  .data-table { @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow; }
   .data-table thead { @apply bg-green-dark text-white; }
   .data-table th    { @apply px-4 py-3 text-left text-xs font-semibold uppercase; }
   .data-table td    { @apply px-4 py-3 text-sm border-b border-gray-100; }
@@ -70,7 +70,7 @@
 
   /* ── STAT CARD ── */
   .stat-card {
-    @apply card p-5 cursor-pointer hover:shadow-md transition-shadow;
+    @apply card p-5 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200;
   }
   .stat-value  { @apply text-3xl font-bold mt-2; }
   .stat-label  { @apply text-sm text-gray-500 mt-1; }

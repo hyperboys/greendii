@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
-import type { UserRole } from '@/types'
+import { type UserRole, ROLE_LABELS } from '@/types'
 import {
   LayoutDashboard, FileText, ClipboardList, Handshake,
   ShoppingCart, CheckSquare, BarChart2, Users, Package,
@@ -54,6 +54,19 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const { menuAccessConfig } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
+  const navClass = (active: boolean) =>
+    collapsed
+      ? clsx(
+          'flex items-center justify-center p-2.5 rounded-lg mx-1 transition-all duration-200',
+          active ? 'bg-white/20 text-white' : 'text-white/60 hover:bg-white/10 hover:text-white'
+        )
+      : clsx(
+          'flex items-center gap-3 py-2.5 pr-4 pl-3 text-sm font-medium transition-all duration-200 border-l-[3px] rounded-r-xl',
+          active
+            ? 'bg-white/15 text-white border-green-light'
+            : 'border-transparent text-white/70 hover:bg-white/10 hover:text-white hover:border-white/10'
+        )
+
   // For NAV/MASTER menus: check against DB-driven menuAccessConfig (falls back to hardcoded roles)
   const canSeeMenu = (menuKey: string, fallbackRoles?: UserRole[]) => {
     if (!user) return false
@@ -76,7 +89,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         />
       )}
       <aside className={clsx(
-        'flex flex-col h-screen bg-green-dark text-white transition-all duration-200 shrink-0',
+        'flex flex-col h-screen bg-gradient-to-b from-[#1b5e20] via-[#2d6a2e] to-[#264e27] text-white transition-all duration-200 shrink-0',
         'fixed md:static inset-y-0 left-0 z-50',
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
         collapsed ? 'w-14' : 'w-56'
@@ -105,7 +118,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-2">
+      <nav className="flex-1 overflow-y-auto py-2 space-y-0.5">
+        {!collapsed && (
+          <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+            <div className="h-px flex-1 bg-white/10" />
+            <span className="text-[10px] font-semibold uppercase text-white/40 tracking-widest">เมนูหลัก</span>
+            <div className="h-px flex-1 bg-white/10" />
+          </div>
+        )}
         {NAV.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
           const active = pathname.startsWith(item.href)
           return (
@@ -113,10 +133,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
               key={item.href}
               href={item.href}
               title={item.label}
-              className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors',
-                active ? 'bg-green-main text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-              )}
+              className={navClass(active)}
             >
               <item.icon size={18} className="shrink-0" />
               {!collapsed && <span>{item.label}</span>}
@@ -128,9 +145,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         {MASTER.some(item => canSeeMenu(item.href.replace('/', ''), item.roles)) && (
           <>
             {!collapsed && (
-              <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase text-white/40 tracking-wider">
-                ข้อมูลหลัก
-              </p>
+              <div className="flex items-center gap-2 px-3 pt-4 pb-1">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] font-semibold uppercase text-white/40 tracking-widest">ข้อมูลหลัก</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
             )}
             {MASTER.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
               const active = pathname.startsWith(item.href)
@@ -139,10 +158,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                   key={item.href}
                   href={item.href}
                   title={item.label}
-                  className={clsx(
-                    'flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors',
-                    active ? 'bg-green-main text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  )}
+                  className={navClass(active)}
                 >
                   <item.icon size={18} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -156,9 +172,11 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         {ADMIN_MENU.some(item => canSee(item.roles)) && (
           <>
             {!collapsed && (
-              <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase text-white/40 tracking-wider">
-                ผู้ดูแลระบบ
-              </p>
+              <div className="flex items-center gap-2 px-3 pt-4 pb-1">
+                <div className="h-px flex-1 bg-white/10" />
+                <span className="text-[10px] font-semibold uppercase text-white/40 tracking-widest">ผู้ดูแลระบบ</span>
+                <div className="h-px flex-1 bg-white/10" />
+              </div>
             )}
             {ADMIN_MENU.filter(item => canSee(item.roles)).map(item => {
               const active = pathname === item.href || (item.href !== '/settings' && item.href !== '/users' && pathname.startsWith(item.href))
@@ -167,10 +185,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                   key={item.href}
                   href={item.href}
                   title={item.label}
-                  className={clsx(
-                    'flex items-center gap-3 px-3 py-2.5 mx-1 rounded-lg text-sm font-medium transition-colors',
-                    active ? 'bg-green-main text-white' : 'text-white/70 hover:bg-white/10 hover:text-white'
-                  )}
+                  className={navClass(active)}
                 >
                   <item.icon size={18} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
@@ -182,17 +197,27 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       </nav>
 
       {/* User + Logout */}
-      <div className="border-t border-green-main/30 p-3">
-        {!collapsed && user && (
-          <div className="mb-2 px-1">
-            <p className="text-sm font-semibold truncate">{user.fullName}</p>
-            <p className="text-xs text-white/50 truncate">{user.role}</p>
+      <div className="border-t border-white/10 p-3 space-y-2">
+        {user && (
+          <div className={clsx('flex items-center gap-2.5', collapsed && 'justify-center')}>
+            <div className="w-8 h-8 rounded-full bg-green-main/40 border border-green-light/40 flex items-center justify-center text-xs font-bold shrink-0">
+              {user.initials || user.fullName?.charAt(0)?.toUpperCase() || '?'}
+            </div>
+            {!collapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold truncate">{user.fullName}</p>
+                <p className="text-xs text-white/50 truncate">{ROLE_LABELS[user.role] ?? user.role}</p>
+              </div>
+            )}
           </div>
         )}
         <button
           onClick={logout}
           title="ออกจากระบบ"
-          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm text-white/70 hover:bg-red-500/20 hover:text-red-300 transition-colors"
+          className={clsx(
+            'flex items-center gap-3 w-full rounded-lg text-sm text-white/70 hover:bg-red-500/20 hover:text-red-300 transition-colors',
+            collapsed ? 'justify-center p-2' : 'px-3 py-2'
+          )}
         >
           <LogOut size={18} className="shrink-0" />
           {!collapsed && <span>ออกจากระบบ</span>}

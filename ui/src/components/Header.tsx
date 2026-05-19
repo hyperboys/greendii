@@ -73,7 +73,7 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0">
+    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm">
       <div className="flex items-center gap-2">
         {onMenuClick && (
           <button
@@ -83,7 +83,7 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
             <Menu size={20} />
           </button>
         )}
-        <h1 className="text-lg font-bold text-gray-800">{title || 'GreenDii - Sales Workflow System'}</h1>
+        <h1 className="text-lg font-bold text-green-dark">{title || 'GreenDii - Sales Workflow System'}</h1>
       </div>
       <div className="flex items-center gap-3">
         {/* Notification Bell */}
