@@ -59,7 +59,7 @@ export default function DashboardPage() {
         <div className="stat-card" onClick={() => router.push('/quotations')}>
           <div className="flex items-center gap-2 text-gray-500">
             <FileText size={18} />
-            <span className="text-sm font-medium">ใบเสนอราคา</span>
+            <span className="text-sm font-medium">ใบเสนอราคา (QO)</span>
           </div>
           <div className="stat-value text-green-dark">{overview?.quotations.total ?? '-'}</div>
           <div className="stat-label">
@@ -73,7 +73,7 @@ export default function DashboardPage() {
         <div className="stat-card" onClick={() => router.push('/workorders')}>
           <div className="flex items-center gap-2 text-gray-500">
             <ClipboardList size={18} />
-            <span className="text-sm font-medium">ใบสั่งงาน</span>
+            <span className="text-sm font-medium">ใบสั่งงาน (WO)</span>
           </div>
           <div className="stat-value text-blue-600">{overview?.workOrders.total ?? '-'}</div>
           <div className="stat-label">
@@ -84,7 +84,7 @@ export default function DashboardPage() {
         <div className="stat-card" onClick={() => router.push('/handovers')}>
           <div className="flex items-center gap-2 text-gray-500">
             <Handshake size={18} />
-            <span className="text-sm font-medium">ส่งมอบงาน</span>
+            <span className="text-sm font-medium">ส่งมอบงาน (HO)</span>
           </div>
           <div className="stat-value text-orange-500">{overview?.handOverJobs.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>
@@ -93,7 +93,7 @@ export default function DashboardPage() {
         <div className="stat-card" onClick={() => router.push('/pr')}>
           <div className="flex items-center gap-2 text-gray-500">
             <ShoppingCart size={18} />
-            <span className="text-sm font-medium">ใบขอซื้อ</span>
+            <span className="text-sm font-medium">ใบขอซื้อ (PR)</span>
           </div>
           <div className="stat-value text-purple-600">{overview?.purchaseRequests.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>

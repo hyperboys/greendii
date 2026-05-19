@@ -150,7 +150,7 @@ export default function QuotationFormPage() {
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="page-title">{isEdit ? 'แก้ไขใบเสนอราคา' : 'สร้างใบเสนอราคาใหม่'}</h2>
+        <h2 className="page-title">{isEdit ? 'แก้ไขใบเสนอราคา (QO)' : 'สร้างใบเสนอราคา (QO) ใหม่'}</h2>
       </div>
 
       {/* Header info */}

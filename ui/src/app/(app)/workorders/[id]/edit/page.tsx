@@ -110,7 +110,7 @@ export default function EditWorkOrderPage() {
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="page-title">แก้ไขใบสั่งงาน</h2>
+        <h2 className="page-title">แก้ไขใบสั่งงาน (WO)</h2>
       </div>
 
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">

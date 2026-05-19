@@ -93,7 +93,7 @@ export default function NewQuotationPage() {
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
-        <h2 className="page-title">สร้างใบเสนอราคาใหม่</h2>
+        <h2 className="page-title">สร้างใบเสนอราคา (QO) ใหม่</h2>
       </div>
 
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">

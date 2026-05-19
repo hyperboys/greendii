@@ -28,13 +28,13 @@ export default function HandoversPage() {
 
   useEffect(() => { load() }, [])
 
-  const canCreate = ['sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
+  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ส่งมอบงาน</h2>
+          <h2 className="page-title">ส่งมอบงาน (HO)</h2>
           <p className="page-sub">รายการส่งมอบงานทั้งหมด</p>
         </div>
         {canCreate && (

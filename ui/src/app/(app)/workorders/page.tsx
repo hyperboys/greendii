@@ -35,13 +35,13 @@ export default function WorkOrdersPage() {
 
   useEffect(() => { load() }, [statusFilter])
 
-  const canCreate = ['sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
+  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ใบสั่งงาน</h2>
+          <h2 className="page-title">ใบสั่งงาน (WO)</h2>
           <p className="page-sub">รายการใบสั่งงานทั้งหมด</p>
         </div>
         {canCreate && (

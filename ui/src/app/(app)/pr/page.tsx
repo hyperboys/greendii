@@ -39,7 +39,7 @@ export default function PRPage() {
 
   useEffect(() => { load() }, [statusFilter])
 
-  const canCreate = ['sales', 'sales2', 'sale_mgr', 'procurement'].includes(user?.role ?? '')
+  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'procurement'].includes(user?.role ?? '')
 
   return (
     <div>

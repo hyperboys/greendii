@@ -42,13 +42,13 @@ export default function QuotationsPage() {
 
   useEffect(() => { load() }, [statusFilter])
 
-  const canCreate = ['sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
+  const canCreate = ['admin', 'sales', 'sales2', 'sale_mgr', 'admin_mgr'].includes(user?.role ?? '')
 
   return (
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ใบเสนอราคา</h2>
+          <h2 className="page-title">ใบเสนอราคา (QO)</h2>
           <p className="page-sub">รายการใบเสนอราคาทั้งหมด</p>
         </div>
         {canCreate && (

@@ -24,10 +24,10 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { href: '/quotations', label: 'ใบเสนอราคา', icon: FileText },
-  { href: '/workorders', label: 'ใบสั่งงาน', icon: ClipboardList },
-  { href: '/handovers', label: 'ส่งมอบงาน', icon: Handshake },
-  { href: '/pr', label: 'ใบขอซื้อ', icon: ShoppingCart },
+  { href: '/quotations', label: 'ใบเสนอราคา (QO)', icon: FileText },
+  { href: '/workorders', label: 'ใบสั่งงาน (WO)', icon: ClipboardList },
+  { href: '/handovers', label: 'ส่งมอบงาน (HO)', icon: Handshake },
+  { href: '/pr', label: 'ใบขอซื้อ (PR)', icon: ShoppingCart },
   { href: '/approvals', label: 'รออนุมัติ', icon: CheckSquare },
   { href: '/reports', label: 'รายงาน', icon: BarChart2, roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
 ]

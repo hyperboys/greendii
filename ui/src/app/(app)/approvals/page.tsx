@@ -41,7 +41,7 @@ export default function ApprovalsPage() {
         <div className="space-y-6">
           {(data?.quotations.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบเสนอราคา ({data!.quotations.length})</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">ใบเสนอราคา (QO) · {data!.quotations.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th className="text-right">ยอดรวม</th><th>วันที่</th></tr>
@@ -63,7 +63,7 @@ export default function ApprovalsPage() {
 
           {(data?.workOrders.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบสั่งงาน ({data!.workOrders.length})</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">ใบสั่งงาน (WO) · {data!.workOrders.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th>วันติดตั้ง</th><th>วันที่</th></tr>
@@ -85,7 +85,7 @@ export default function ApprovalsPage() {
 
           {(data?.prs.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบขอซื้อ ({data!.prs.length})</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">ใบขอซื้อ (PR) · {data!.prs.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th className="text-right">ยอดสุทธิ</th><th>วันที่</th></tr>
@@ -106,7 +106,7 @@ export default function ApprovalsPage() {
 
           {(data?.handovers.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ส่งมอบงาน ({data!.handovers.length})</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">ส่งมอบงาน (HO) · {data!.handovers.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>โครงการ</th><th>วันที่</th></tr>

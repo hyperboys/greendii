@@ -1,0 +1,897 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Greendii — Flow การทำงานของระบบ</title>
+<style>
+  :root {
+    --green:    #2d7a45;
+    --green-lt: #e8f5ec;
+    --blue:     #1d6fa4;
+    --blue-lt:  #e8f3fb;
+    --purple:   #6b3fa0;
+    --purple-lt:#f3eefb;
+    --orange:   #c2640a;
+    --orange-lt:#fff3e8;
+    --gray:     #4b5563;
+    --gray-lt:  #f3f4f6;
+    --border:   #d1d5db;
+    --red:      #b91c1c;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Segoe UI', Tahoma, sans-serif;
+    font-size: 14px;
+    color: #111827;
+    background: #f9fafb;
+    line-height: 1.6;
+  }
+  /* ── Header ── */
+  .hero {
+    background: linear-gradient(135deg, #1a4d2e 0%, #2d7a45 60%, #3d9e5c 100%);
+    color: white;
+    padding: 48px 40px 36px;
+  }
+  .hero h1 { font-size: 28px; font-weight: 700; margin-bottom: 6px; }
+  .hero p  { opacity: .8; font-size: 15px; }
+  .hero .badge {
+    display: inline-block; margin-top: 16px; padding: 4px 12px;
+    background: rgba(255,255,255,.15); border-radius: 20px;
+    font-size: 12px; letter-spacing: .5px;
+  }
+
+  /* ── Layout ── */
+  .wrap { max-width: 1100px; margin: 0 auto; padding: 40px 24px 80px; }
+  .section { margin-bottom: 56px; }
+  h2 {
+    font-size: 20px; font-weight: 700;
+    border-left: 4px solid var(--green);
+    padding-left: 12px; margin-bottom: 24px; color: #111827;
+  }
+  h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+
+  /* ── Doc cards ── */
+  .doc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    gap: 16px;
+  }
+  .doc-card {
+    background: white; border-radius: 12px; border: 1px solid var(--border);
+    padding: 20px 18px; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .doc-card .icon { font-size: 28px; margin-bottom: 10px; }
+  .doc-card .title { font-size: 16px; font-weight: 700; margin-bottom: 4px; }
+  .doc-card .docno { font-size: 12px; font-family: monospace; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px; margin-bottom: 8px; display: inline-block; }
+  .doc-card .desc { font-size: 13px; color: var(--gray); }
+
+  .card-green  { border-top: 3px solid var(--green); }
+  .card-blue   { border-top: 3px solid var(--blue); }
+  .card-purple { border-top: 3px solid var(--purple); }
+  .card-orange { border-top: 3px solid var(--orange); }
+
+  .badge-green  { background: var(--green-lt);  color: var(--green); }
+  .badge-blue   { background: var(--blue-lt);   color: var(--blue); }
+  .badge-purple { background: var(--purple-lt); color: var(--purple); }
+  .badge-orange { background: var(--orange-lt); color: var(--orange); }
+
+  /* ── Overall flow diagram ── */
+  .flow-chain {
+    display: flex; align-items: stretch; gap: 0;
+    background: white; border-radius: 12px; border: 1px solid var(--border);
+    overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .fc-box {
+    flex: 1; padding: 20px 16px; text-align: center;
+    border-right: 1px solid var(--border);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px;
+    position: relative;
+  }
+  .fc-box:last-child { border-right: none; }
+  .fc-box .icon { font-size: 26px; }
+  .fc-box .lbl  { font-weight: 700; font-size: 13px; }
+  .fc-box .sub  { font-size: 11px; color: var(--gray); }
+  .fc-arrow {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 4px; color: var(--border); font-size: 22px; user-select: none;
+  }
+  .fc-optional {
+    position: absolute; top: 6px; right: 8px;
+    font-size: 10px; color: #9ca3af; font-style: italic;
+  }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; flex-direction: column; gap: 0; }
+  .step-row {
+    display: flex; align-items: stretch; gap: 0;
+  }
+  .step-connector {
+    width: 40px; display: flex; flex-direction: column;
+    align-items: center;
+  }
+  .step-dot {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 700; color: white; flex-shrink: 0; z-index: 1;
+  }
+  .step-line {
+    width: 2px; flex: 1; background: var(--border); margin: 0 auto;
+  }
+  .step-body {
+    flex: 1; padding: 6px 0 24px 16px;
+  }
+  .step-card {
+    background: white; border-radius: 10px; border: 1px solid var(--border);
+    padding: 16px 18px; box-shadow: 0 1px 3px rgba(0,0,0,.05);
+  }
+  .step-card h4 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+  .step-card ul { padding-left: 16px; color: var(--gray); font-size: 13px; }
+  .step-card ul li { margin-bottom: 3px; }
+  .step-card .who {
+    display: inline-flex; align-items: center; gap: 5px;
+    font-size: 12px; font-weight: 600;
+    background: var(--gray-lt); color: var(--gray);
+    border-radius: 4px; padding: 2px 8px; margin-bottom: 8px;
+  }
+
+  /* ── Status badges ── */
+  .status-grid { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 8px; }
+  .status-tag {
+    padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .s-draft    { background: #f3f4f6; color: #6b7280; }
+  .s-pending  { background: #fef9c3; color: #b45309; }
+  .s-approved { background: #dcfce7; color: #166534; }
+  .s-rejected { background: #fee2e2; color: #991b1b; }
+  .s-cancelled{ background: #f3f4f6; color: #9ca3af; }
+
+  /* ── Approval flow table ── */
+  .approval-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .approval-table th {
+    background: var(--green); color: white; padding: 10px 14px;
+    text-align: left; font-weight: 600;
+  }
+  .approval-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); }
+  .approval-table tr:last-child td { border-bottom: none; }
+  .approval-table tr:nth-child(even) td { background: #f9fafb; }
+  .step-pill {
+    display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 11px; font-weight: 700; margin: 1px;
+    background: var(--green-lt); color: var(--green);
+  }
+
+  /* ── Role table ── */
+  .role-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .role-table th { background: #1e3a5f; color: white; padding: 10px 14px; text-align: left; }
+  .role-table td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .role-table tr:nth-child(even) td { background: #f9fafb; }
+  .role-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: monospace; background: #e0e7ff; color: #1d4ed8; }
+
+  /* ── Notify ── */
+  .info-box {
+    display: flex; gap: 12px; align-items: flex-start;
+    background: var(--blue-lt); border: 1px solid #bfdbfe;
+    border-radius: 10px; padding: 16px 18px; margin-top: 16px; font-size: 13px;
+  }
+  .info-box .ico { font-size: 20px; flex-shrink: 0; }
+  .warn-box {
+    background: #fffbeb; border-color: #fde68a; color: #92400e;
+  }
+
+  /* ── Relationship diagram ── */
+  .rel-diagram {
+    background: white; border: 1px solid var(--border); border-radius: 12px;
+    padding: 28px 24px; overflow-x: auto;
+  }
+  .rel-inner { display: flex; gap: 32px; align-items: center; min-width: 640px; }
+  .rel-box {
+    border-radius: 10px; padding: 14px 18px; text-align: center; min-width: 120px;
+    font-weight: 700; font-size: 13px; border: 2px solid;
+  }
+  .rel-arrow { font-size: 26px; color: var(--border); flex-shrink: 0; }
+  .rel-opt   { font-size: 11px; font-weight: 400; display: block; color: #6b7280; margin-top: 2px; }
+
+  /* ── API endpoint list ── */
+  .api-list { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .api-list li {
+    display: flex; align-items: center; gap: 10px;
+    background: white; border: 1px solid var(--border); border-radius: 8px;
+    padding: 10px 14px; font-size: 13px;
+  }
+  .method {
+    font-family: monospace; font-weight: 700; font-size: 11px;
+    padding: 2px 7px; border-radius: 4px; flex-shrink: 0; min-width: 50px; text-align: center;
+  }
+  .m-get    { background: #dcfce7; color: #166534; }
+  .m-post   { background: #dbeafe; color: #1e40af; }
+  .m-put    { background: #fef9c3; color: #854d0e; }
+  .m-delete { background: #fee2e2; color: #991b1b; }
+  .ep-path  { font-family: monospace; color: #374151; flex: 1; }
+  .ep-desc  { color: var(--gray); font-size: 12px; }
+
+  /* ── Notification flow ── */
+  .notif-row { display: flex; flex-direction: column; gap: 8px; }
+  .notif-item {
+    display: flex; align-items: center; gap: 12px;
+    background: white; border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px;
+  }
+  .notif-item .trigger { min-width: 130px; font-size: 12px; font-weight: 700; }
+  .notif-item .arrow   { color: #9ca3af; font-size: 16px; }
+  .notif-item .target  { font-size: 13px; color: var(--gray); }
+
+  @media (max-width: 700px) {
+    .flow-chain { flex-direction: column; }
+    .fc-box { border-right: none; border-bottom: 1px solid var(--border); }
+    .rel-inner { flex-direction: column; }
+    .rel-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════ HERO ════════════════════════════════ -->
+<div class="hero">
+  <h1>🌿 Greendii — Flow การทำงานของระบบ</h1>
+  <p>เอกสารอธิบายกระบวนการทำงาน, สายการอนุมัติ, และความสัมพันธ์ของเอกสารทั้งหมด</p>
+  <span class="badge">อัปเดต: พฤษภาคม 2569 · v1.0</span>
+</div>
+
+<div class="wrap">
+
+<!-- ════════════════════════ 1. ภาพรวมเอกสาร ════════════════════════ -->
+<div class="section">
+  <h2>1. เอกสารทั้งหมดในระบบ</h2>
+  <div class="doc-grid">
+
+    <div class="doc-card card-green">
+      <div class="icon">📋</div>
+      <div class="title">ใบเสนอราคา</div>
+      <div class="docno badge-green">QGD-MMYY-IIINNN</div>
+      <div class="desc">เอกสารแรกในกระบวนการขาย ระบุราคาวัสดุ + ค่าแรง แยกตามรายการสินค้า/บริการ</div>
+    </div>
+
+    <div class="doc-card card-blue">
+      <div class="icon">🔧</div>
+      <div class="title">ใบสั่งงาน (Work Order)</div>
+      <div class="docno badge-blue">WOYYNNN</div>
+      <div class="desc">สั่งดำเนินงานติดตั้ง/ผลิต อ้างอิงจากใบเสนอราคา กำหนดทีมงาน วันติดตั้ง และ Checklist</div>
+    </div>
+
+    <div class="doc-card card-purple">
+      <div class="icon">🛒</div>
+      <div class="title">ใบขอซื้อ (PR)</div>
+      <div class="docno badge-purple">PRYYNNN</div>
+      <div class="desc">ขออนุมัติจัดซื้อวัสดุ/อุปกรณ์ อ้างอิงจากใบสั่งงาน ส่งให้ฝ่ายจัดซื้อดำเนินการ</div>
+    </div>
+
+    <div class="doc-card card-orange">
+      <div class="icon">✅</div>
+      <div class="title">ใบส่งมอบงาน (Handover)</div>
+      <div class="docno badge-orange">HOYYNNN</div>
+      <div class="desc">บันทึกผลการส่งมอบงาน ประเมินคุณภาพ (สินค้า / เซลล์ / ติดตั้ง) อ้างอิงจากใบสั่งงาน</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════ 2. ความสัมพันธ์เอกสาร ════════════════════════ -->
+<div class="section">
+  <h2>2. ความสัมพันธ์ระหว่างเอกสาร</h2>
+  <div class="rel-diagram">
+    <div class="rel-inner">
+
+      <div class="rel-box" style="border-color: var(--green); color: var(--green); background: var(--green-lt);">
+        📋 ใบเสนอราคา<br/>
+        <span class="rel-opt">QGD-…</span>
+      </div>
+
+      <div class="rel-arrow">→</div>
+
+      <div style="display:flex; flex-direction:column; gap:16px; align-items:center;">
+        <div style="font-size:11px; color:#9ca3af; font-style:italic;">อ้างอิงจาก Quotation</div>
+        <div class="rel-box" style="border-color: var(--blue); color: var(--blue); background: var(--blue-lt);">
+          🔧 ใบสั่งงาน<br/>
+          <span class="rel-opt">WO…</span>
+        </div>
+      </div>
+
+      <div class="rel-arrow">→</div>
+
+      <div style="display:flex; flex-direction:column; gap:16px;">
+        <div class="rel-box" style="border-color: var(--purple); color: var(--purple); background: var(--purple-lt);">
+          🛒 ใบขอซื้อ<br/>
+          <span class="rel-opt">PR… (ต่อ WO)</span>
+        </div>
+        <div class="rel-box" style="border-color: var(--orange); color: var(--orange); background: var(--orange-lt);">
+          ✅ ใบส่งมอบ<br/>
+          <span class="rel-opt">HO… (ต่อ WO)</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="info-box" style="margin-top:16px;">
+    <div class="ico">ℹ️</div>
+    <div>
+      ทุกเอกสารสามารถสร้างแบบ <strong>อิสระ</strong> ได้ (ไม่บังคับอ้างอิง)<br/>
+      แต่เพื่อ traceability ที่ดี ควรเชื่อมโยง WO → QUO, PR → WO, HO → WO เสมอ
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 3. Status ════════════════════════ -->
+<div class="section">
+  <h2>3. สถานะเอกสาร (DocStatus)</h2>
+  <div class="status-grid">
+    <div class="status-tag s-draft">    ⬜ draft     — แบบร่าง / ยังไม่ส่ง</div>
+    <div class="status-tag s-pending">  🟡 pending   — รออนุมัติ (อยู่ในสายอนุมัติ)</div>
+    <div class="status-tag s-approved"> 🟢 approved  — อนุมัติแล้ว</div>
+    <div class="status-tag s-rejected"> 🔴 rejected  — ถูกปฏิเสธ (แก้ไขแล้วส่งใหม่ได้)</div>
+    <div class="status-tag s-cancelled">⚫ cancelled — ยกเลิก (ลบแบบ soft-delete)</div>
+  </div>
+  <div class="info-box warn-box" style="margin-top: 16px;">
+    <div class="ico">⚠️</div>
+    <div>
+      ลบ/ยกเลิกได้เฉพาะเอกสารที่อยู่ในสถานะ <strong>draft</strong> หรือ <strong>rejected</strong> เท่านั้น<br/>
+      WorkOrder ที่ถูก <strong>approved</strong> ครั้งสุดท้ายจะถูก set <code>isClosed = true</code> และมี <code>closedAt</code>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 4. Flow ใบเสนอราคา ════════════════════════ -->
+<div class="section">
+  <h2>4. Flow — ใบเสนอราคา (Quotation)</h2>
+
+  <div class="step-flow">
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--green);">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>สร้างใบเสนอราคา</h4>
+          <ul>
+            <li>กรอกชื่อลูกค้า, โครงการ, รายการสินค้า/บริการ (ราคาวัสดุ + ค่าแรง)</li>
+            <li>ระบุส่วนลดพิเศษ, VAT, Grand Total</li>
+            <li>รหัสเอกสารออกอัตโนมัติ: <code>QGD-MMYY-INITIALS+SEQ</code> (เช่น QGD-0526-KC001)</li>
+            <li>สถานะเริ่มต้น: <span class="status-tag s-draft" style="display:inline-flex; font-size:11px; padding:2px 8px;">draft</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--blue);">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>ส่งเข้าอนุมัติ (Submit)</h4>
+          <ul>
+            <li>กดปุ่ม "ส่งอนุมัติ" → status เปลี่ยนเป็น <strong>pending</strong></li>
+            <li>ระบบดึง <strong>firstStep</strong> จาก approvalFlowConfig (default: Step 1 = เซลล์คนอื่น)</li>
+            <li>ส่ง LINE Notification แจ้ง approver ขั้นแรก</li>
+            <li>บันทึก ApprovalLog action = <code>submit</code></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--orange);">3</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">🔄 Approver ตามสายอนุมัติ</div>
+          <h4>สายอนุมัติ (Multi-step Approval)</h4>
+          <ul>
+            <li>Default flow: <span class="step-pill">Step 1 เซลล์อื่น</span> <span class="step-pill">Step 2 ผจก.ขาย</span> <span class="step-pill">Step 3 ผจก.บริหาร</span> <span class="step-pill">Step 4 ผจก.โครงการ</span> <span class="step-pill">Step 5 กรรมการ</span></li>
+            <li>แต่ละขั้น: approver กด <strong>อนุมัติ</strong> → ระบบหา nextStep → notify ขั้นถัดไป</li>
+            <li>ถ้า reject → status = <strong>rejected</strong>, แจ้ง Sales ให้แก้ไข</li>
+            <li>ถ้าเป็น Step สุดท้าย → status = <strong>approved</strong>, แจ้ง Sales</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: #166534;">4</div>
+        <div class="step-line" style="background: transparent;"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card" style="border-left: 3px solid var(--green);">
+          <div class="who">✅ ระบบ</div>
+          <h4>อนุมัติสมบูรณ์ / ปฏิเสธ</h4>
+          <ul>
+            <li><strong>Approved:</strong> เอกสารพร้อมนำไปสร้าง Work Order ต่อได้</li>
+            <li><strong>Rejected:</strong> Sales แก้ไขและส่งใหม่ได้ (status กลับเป็น draft หลังแก้ไข)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════ 5. Flow Work Order ════════════════════════ -->
+<div class="section">
+  <h2>5. Flow — ใบสั่งงาน (Work Order)</h2>
+
+  <div class="step-flow">
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--blue);">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>สร้างใบสั่งงาน</h4>
+          <ul>
+            <li>เลือก Quotation อ้างอิง (optional) + กรอกโครงการ, ที่ตั้ง, สินค้า</li>
+            <li>กำหนดทีมงาน, วัน QC, วันติดตั้ง, รายการ Checklist เอกสาร</li>
+            <li>รหัส: <code>WOYYNNN</code> เช่น WO26001</li>
+            <li>status เริ่มต้น: <span class="status-tag s-draft" style="display:inline-flex; font-size:11px; padding:2px 8px;">draft</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--blue);">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>ส่งเข้าอนุมัติ</h4>
+          <ul>
+            <li>Default flow: <span class="step-pill">Step 3 ผจก.บริหาร</span> <span class="step-pill">Step 4 ผจก.โครงการ</span> <span class="step-pill">Step 5 กรรมการ</span></li>
+            <li>ส่ง LINE Notification แจ้งผู้อนุมัติขั้นแรก</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--orange);">3</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">🔄 Approver ตามสายอนุมัติ</div>
+          <h4>อนุมัติแบบ Multi-step</h4>
+          <ul>
+            <li>เหมือน Quotation — เดินสายจนครบทุก Step</li>
+            <li>Step สุดท้าย approve → status = <strong>approved</strong> + <code>isClosed = true</code> + <code>closedAt = now()</code></li>
+            <li>WO ที่ closed แล้ว <strong>ไม่สามารถแก้ไข</strong>ได้อีก</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: #166534;">4</div>
+        <div class="step-line" style="background: transparent;"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card" style="border-left: 3px solid var(--blue);">
+          <div class="who">👤 เซลล์ / ทีมงาน</div>
+          <h4>ดำเนินงานและสร้างเอกสารต่อเนื่อง</h4>
+          <ul>
+            <li>สร้าง <strong>ใบขอซื้อ (PR)</strong> เพื่อจัดหาวัสดุ</li>
+            <li>สร้าง <strong>ใบส่งมอบงาน (Handover)</strong> หลังงานเสร็จ</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════ 6. Flow PR ════════════════════════ -->
+<div class="section">
+  <h2>6. Flow — ใบขอซื้อ (Purchase Request)</h2>
+
+  <div class="step-flow">
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--purple);">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>สร้างใบขอซื้อ</h4>
+          <ul>
+            <li>เลือก Work Order อ้างอิง (optional) + กรอกรายการสินค้าที่ต้องการจัดซื้อ</li>
+            <li>ระบุ Part No, รายละเอียด, จำนวน, ราคา, วันที่ต้องการ</li>
+            <li>รหัส: <code>PRYYNNN</code> เช่น PR26001</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--purple);">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">🔄 Approver ตามสายอนุมัติ</div>
+          <h4>ส่งเข้าอนุมัติ + สายอนุมัติ</h4>
+          <ul>
+            <li>Default flow: <span class="step-pill">Step 3 ผจก.บริหาร</span> <span class="step-pill">Step 4 ผจก.โครงการ</span> <span class="step-pill">Step 5 กรรมการ</span> <span class="step-pill">Step 6 จัดซื้อ</span></li>
+            <li>ขั้นตอน Procurement (Step 6) รับเรื่องและดำเนินการจัดซื้อ</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: #166534;">3</div>
+        <div class="step-line" style="background:transparent;"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card" style="border-left: 3px solid var(--purple);">
+          <div class="who">✅ ฝ่ายจัดซื้อ (Procurement)</div>
+          <h4>อนุมัติสมบูรณ์</h4>
+          <ul>
+            <li>ฝ่ายจัดซื้อเป็น Approver ขั้นสุดท้ายใน default flow</li>
+            <li>หลัง approved → ฝ่ายจัดซื้อดำเนินการสั่งซื้อต่อ (นอกระบบ)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════ 7. Flow Handover ════════════════════════ -->
+<div class="section">
+  <h2>7. Flow — ใบส่งมอบงาน (Hand Over Job)</h2>
+
+  <div class="step-flow">
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--orange);">1</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">👤 เซลล์ (Sales)</div>
+          <h4>สร้างใบส่งมอบงาน</h4>
+          <ul>
+            <li>เลือก Work Order อ้างอิง + กรอกข้อมูลผู้รับมอบ, ผู้รับเหมา, สถานที่</li>
+            <li>ประเมินคะแนน: คุณภาพสินค้า / การขาย / การติดตั้ง (0–5)</li>
+            <li>บันทึก Comment จากลูกค้า</li>
+            <li>รหัส: <code>HOYYNNN</code> เช่น HO26001</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: var(--orange);">2</div>
+        <div class="step-line"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card">
+          <div class="who">🔄 Approver ตามสายอนุมัติ</div>
+          <h4>ส่งเข้าอนุมัติ + สายอนุมัติ</h4>
+          <ul>
+            <li>Default flow: <span class="step-pill">Step 3 ผจก.บริหาร</span> <span class="step-pill">Step 4 ผจก.โครงการ</span> <span class="step-pill">Step 5 กรรมการ</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-row">
+      <div class="step-connector">
+        <div class="step-dot" style="background: #166534;">3</div>
+        <div class="step-line" style="background:transparent;"></div>
+      </div>
+      <div class="step-body">
+        <div class="step-card" style="border-left: 3px solid var(--orange);">
+          <div class="who">✅ ระบบ</div>
+          <h4>อนุมัติสมบูรณ์ — งานปิดสมบูรณ์</h4>
+          <ul>
+            <li>งานโครงการนั้นถือว่าปิดสมบูรณ์แล้ว</li>
+            <li>ข้อมูลคะแนนความพึงพอใจถูกบันทึกเพื่อใช้ใน Reports</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ════════════════════════ 8. Approval Flow ════════════════════════ -->
+<div class="section">
+  <h2>8. สายการอนุมัติ (Approval Flow)</h2>
+
+  <table class="approval-table">
+    <thead>
+      <tr>
+        <th>ประเภทเอกสาร</th>
+        <th>สายอนุมัติ Default</th>
+        <th>หมายเหตุ</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>📋 ใบเสนอราคา</strong></td>
+        <td>
+          <span class="step-pill">1 เซลล์อื่น</span>
+          <span class="step-pill">2 ผจก.ขาย</span>
+          <span class="step-pill">3 ผจก.บริหาร</span>
+          <span class="step-pill">4 ผจก.โครงการ</span>
+          <span class="step-pill">5 กรรมการ</span>
+        </td>
+        <td>Step 1 ต้องเป็น Sales ที่ไม่ใช่ผู้สร้าง</td>
+      </tr>
+      <tr>
+        <td><strong>🔧 ใบสั่งงาน</strong></td>
+        <td>
+          <span class="step-pill">3 ผจก.บริหาร</span>
+          <span class="step-pill">4 ผจก.โครงการ</span>
+          <span class="step-pill">5 กรรมการ</span>
+        </td>
+        <td>Step สุดท้าย → WO closed</td>
+      </tr>
+      <tr>
+        <td><strong>🛒 ใบขอซื้อ</strong></td>
+        <td>
+          <span class="step-pill">3 ผจก.บริหาร</span>
+          <span class="step-pill">4 ผจก.โครงการ</span>
+          <span class="step-pill">5 กรรมการ</span>
+          <span class="step-pill">6 จัดซื้อ</span>
+        </td>
+        <td>ฝ่ายจัดซื้อเป็น Approver ขั้นสุดท้าย</td>
+      </tr>
+      <tr>
+        <td><strong>✅ ใบส่งมอบ</strong></td>
+        <td>
+          <span class="step-pill">3 ผจก.บริหาร</span>
+          <span class="step-pill">4 ผจก.โครงการ</span>
+          <span class="step-pill">5 กรรมการ</span>
+        </td>
+        <td>ปรับได้จากหน้า Admin → สายอนุมัติ</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="info-box" style="margin-top: 16px;">
+    <div class="ico">⚙️</div>
+    <div>
+      <strong>ปรับสายอนุมัติได้จาก:</strong> Admin → สายการอนุมัติ<br/>
+      ค่า config เก็บใน <code>settings.approvalFlowConfig</code> (JSON) ใน Database<br/>
+      ตัวอย่าง: <code>{ "quotation": [1,2,3,4,5], "workOrder": [3,4,5], "pr": [3,4,5,6], "handover": [3,4,5] }</code>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 9. Step → Role Mapping ════════════════════════ -->
+<div class="section">
+  <h2>9. Step → Role Mapping</h2>
+
+  <table class="approval-table">
+    <thead>
+      <tr><th>Step</th><th>Role (ภาษาไทย)</th><th>Role Key</th><th>หน้าที่</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><span class="step-pill">Step 1</span></td><td>เซลล์ (ผู้อื่น)</td><td><span class="role-tag">sales</span></td><td>ตรวจสอบเบื้องต้นโดยเพื่อนร่วมทีม ≠ ผู้สร้าง</td></tr>
+      <tr><td><span class="step-pill">Step 2</span></td><td>ผู้จัดการฝ่ายขาย</td><td><span class="role-tag">sale_mgr</span></td><td>อนุมัติระดับหัวหน้าฝ่ายขาย</td></tr>
+      <tr><td><span class="step-pill">Step 3</span></td><td>ผู้จัดการฝ่ายบริหาร</td><td><span class="role-tag">admin_mgr</span></td><td>อนุมัติด้านงบประมาณและนโยบาย</td></tr>
+      <tr><td><span class="step-pill">Step 4</span></td><td>ผู้จัดการโครงการ</td><td><span class="role-tag">project_mgr</span></td><td>อนุมัติด้านเทคนิคและแผนงาน</td></tr>
+      <tr><td><span class="step-pill">Step 5</span></td><td>กรรมการผู้จัดการ</td><td><span class="role-tag">director</span></td><td>อนุมัติสูงสุด (MD Approval)</td></tr>
+      <tr><td><span class="step-pill">Step 6</span></td><td>จัดซื้อ</td><td><span class="role-tag">procurement</span></td><td>รับ PR และดำเนินการจัดซื้อ</td></tr>
+      <tr><td><span class="step-pill">Step 7</span></td><td>โรงงาน / ผลิต</td><td><span class="role-tag">factory</span></td><td>รับงานผลิต/ติดตั้งจากทีมโรงงาน</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════ 10. Roles ════════════════════════ -->
+<div class="section">
+  <h2>10. บทบาทผู้ใช้ (User Roles)</h2>
+  <table class="role-table">
+    <thead>
+      <tr><th>Role</th><th>ชื่อ</th><th>สิทธิ์หลัก</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="role-tag">admin</span></td>
+        <td>System Admin</td>
+        <td>จัดการผู้ใช้, ตั้งค่าระบบ, ดูข้อมูลทุกอย่าง, ไม่อยู่ในสายอนุมัติ</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">sales</span></td>
+        <td>เซลล์</td>
+        <td>สร้างและจัดการเอกสารของตัวเอง, อนุมัติขั้น Step 1 ของคนอื่น</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">sale_mgr</span></td>
+        <td>ผู้จัดการฝ่ายขาย</td>
+        <td>ดูเอกสารทีมขายทุกคน, อนุมัติ Step 2, เข้าถึง Reports</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">admin_mgr</span></td>
+        <td>ผู้จัดการฝ่ายบริหาร</td>
+        <td>อนุมัติ Step 3, ดูข้อมูลทุกเอกสาร, เข้าถึง Reports</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">project_mgr</span></td>
+        <td>ผู้จัดการโครงการ</td>
+        <td>อนุมัติ Step 4, ดูงานทุกโครงการ</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">director</span></td>
+        <td>กรรมการผู้จัดการ</td>
+        <td>อนุมัติ Step 5 (สูงสุด), ดูข้อมูลทุกอย่าง, Reports ทุกประเภท</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">procurement</span></td>
+        <td>จัดซื้อ</td>
+        <td>อนุมัติ Step 6, ดูใบขอซื้อทั้งหมด</td>
+      </tr>
+      <tr>
+        <td><span class="role-tag">factory</span></td>
+        <td>โรงงาน/ผลิต</td>
+        <td>ดูใบสั่งงานทั้งหมด, อนุมัติ Step 7 (ถ้ากำหนด)</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ════════════════════════ 11. Notification ════════════════════════ -->
+<div class="section">
+  <h2>11. การแจ้งเตือน (LINE Notification)</h2>
+  <div class="notif-row">
+    <div class="notif-item">
+      <div class="trigger s-pending status-tag" style="display:inline-flex; font-size:12px;">📤 Submit</div>
+      <div class="arrow">→</div>
+      <div class="target">แจ้ง Approver ขั้นแรก: <em>"เอกสาร [DocNo] รอการอนุมัติจากคุณ"</em></div>
+    </div>
+    <div class="notif-item">
+      <div class="trigger" style="background:#dcfce7; color:#166534; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:700;">✅ Approve (ไม่ใช่ขั้นสุดท้าย)</div>
+      <div class="arrow">→</div>
+      <div class="target">แจ้ง Approver ขั้นถัดไป: <em>"เอกสาร [DocNo] รอการอนุมัติจากคุณ"</em></div>
+    </div>
+    <div class="notif-item">
+      <div class="trigger" style="background:#dcfce7; color:#166534; padding:3px 10px; border-radius:12px; font-size:12px; font-weight:700;">🎉 Approve (ขั้นสุดท้าย)</div>
+      <div class="arrow">→</div>
+      <div class="target">แจ้ง Sales เจ้าของเอกสาร: <em>"เอกสาร [DocNo] ได้รับการอนุมัติแล้ว"</em></div>
+    </div>
+    <div class="notif-item">
+      <div class="trigger s-rejected status-tag" style="display:inline-flex; font-size:12px;">❌ Reject</div>
+      <div class="arrow">→</div>
+      <div class="target">แจ้ง Sales เจ้าของเอกสาร: <em>"เอกสาร [DocNo] ถูกปฏิเสธ"</em></div>
+    </div>
+  </div>
+  <div class="info-box" style="margin-top:16px;">
+    <div class="ico">📱</div>
+    <div>
+      การแจ้งเตือนใช้ <strong>LINE Messaging API</strong> — ผู้ใช้ต้องผูก <code>lineUserId</code> ในโปรไฟล์<br/>
+      ระบบ notify แบบ fire-and-forget (<code>.catch(() => {})</code>) — ถ้า LINE ล้มเหลวจะไม่กระทบการอนุมัติ
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════ 12. API Endpoints ════════════════════════ -->
+<div class="section">
+  <h2>12. API Endpoints หลัก</h2>
+
+  <h3 style="margin-bottom:10px; color: var(--green);">📋 Quotations <code style="font-size:12px; color:#6b7280;">/api/quotations</code></h3>
+  <ul class="api-list" style="margin-bottom:24px;">
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/quotations</span>          <span class="ep-desc">รายการ (filter: status, salesId, q)</span></li>
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/quotations/:id</span>       <span class="ep-desc">รายละเอียดพร้อม items, approvalLogs, attachments</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/quotations</span>          <span class="ep-desc">สร้างใหม่ (status: draft)</span></li>
+    <li><span class="method m-put">PUT</span>    <span class="ep-path">/api/quotations/:id</span>       <span class="ep-desc">แก้ไข (เฉพาะ draft/rejected)</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/quotations/:id/submit</span> <span class="ep-desc">ส่งเข้าอนุมัติ → pending</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/quotations/:id/approve</span><span class="ep-desc">อนุมัติ (ขยับ step หรือ approved)</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/quotations/:id/reject</span> <span class="ep-desc">ปฏิเสธ → rejected</span></li>
+    <li><span class="method m-delete">DEL</span> <span class="ep-path">/api/quotations/:id</span>       <span class="ep-desc">ยกเลิก (เฉพาะ draft/rejected)</span></li>
+  </ul>
+
+  <h3 style="margin-bottom:10px; color: var(--blue);">🔧 Work Orders <code style="font-size:12px; color:#6b7280;">/api/workorders</code></h3>
+  <ul class="api-list" style="margin-bottom:24px;">
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/workorders</span>           <span class="ep-desc">รายการ (filter: status, salesId, isClosed, q)</span></li>
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/workorders/:id</span>        <span class="ep-desc">รายละเอียด</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/workorders</span>           <span class="ep-desc">สร้างใหม่</span></li>
+    <li><span class="method m-put">PUT</span>    <span class="ep-path">/api/workorders/:id</span>        <span class="ep-desc">แก้ไข (ถ้า isClosed จะ error)</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/workorders/:id/submit</span>  <span class="ep-desc">ส่งอนุมัติ</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/workorders/:id/approve</span> <span class="ep-desc">อนุมัติ (ขั้นสุดท้าย → isClosed=true)</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/workorders/:id/reject</span>  <span class="ep-desc">ปฏิเสธ</span></li>
+    <li><span class="method m-delete">DEL</span> <span class="ep-path">/api/workorders/:id</span>        <span class="ep-desc">ยกเลิก (เฉพาะ draft/rejected)</span></li>
+  </ul>
+
+  <h3 style="margin-bottom:10px; color: var(--purple);">🛒 Purchase Requests <code style="font-size:12px; color:#6b7280;">/api/pr</code></h3>
+  <ul class="api-list" style="margin-bottom:24px;">
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/pr</span>           <span class="ep-desc">รายการ</span></li>
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/pr/:id</span>        <span class="ep-desc">รายละเอียด</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/pr</span>           <span class="ep-desc">สร้างใหม่</span></li>
+    <li><span class="method m-put">PUT</span>    <span class="ep-path">/api/pr/:id</span>        <span class="ep-desc">แก้ไข</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/pr/:id/submit</span>  <span class="ep-desc">ส่งอนุมัติ</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/pr/:id/approve</span> <span class="ep-desc">อนุมัติ</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/pr/:id/reject</span>  <span class="ep-desc">ปฏิเสธ</span></li>
+    <li><span class="method m-delete">DEL</span> <span class="ep-path">/api/pr/:id</span>        <span class="ep-desc">ยกเลิก</span></li>
+  </ul>
+
+  <h3 style="margin-bottom:10px; color: var(--orange);">✅ Handovers <code style="font-size:12px; color:#6b7280;">/api/handovers</code></h3>
+  <ul class="api-list">
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/handovers</span>           <span class="ep-desc">รายการ</span></li>
+    <li><span class="method m-get">GET</span>    <span class="ep-path">/api/handovers/:id</span>        <span class="ep-desc">รายละเอียด + คะแนนประเมิน</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/handovers</span>           <span class="ep-desc">สร้างใหม่ + ประเมินคะแนน 3 ด้าน</span></li>
+    <li><span class="method m-put">PUT</span>    <span class="ep-path">/api/handovers/:id</span>        <span class="ep-desc">แก้ไข (เฉพาะ draft/rejected)</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/handovers/:id/submit</span>  <span class="ep-desc">ส่งอนุมัติ</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/handovers/:id/approve</span> <span class="ep-desc">อนุมัติ</span></li>
+    <li><span class="method m-post">POST</span>  <span class="ep-path">/api/handovers/:id/reject</span>  <span class="ep-desc">ปฏิเสธ</span></li>
+    <li><span class="method m-delete">DEL</span> <span class="ep-path">/api/handovers/:id</span>        <span class="ep-desc">ยกเลิก</span></li>
+  </ul>
+</div>
+
+<!-- ════════════════════════ 13. Number Format ════════════════════════ -->
+<div class="section">
+  <h2>13. รูปแบบรหัสเอกสาร</h2>
+  <table class="approval-table">
+    <thead>
+      <tr><th>เอกสาร</th><th>รูปแบบ</th><th>ตัวอย่าง</th><th>อธิบาย</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ใบเสนอราคา</td>
+        <td><code>QGD-MMYY-IIINNN</code></td>
+        <td><code>QGD-0526-KC001</code></td>
+        <td>MM=เดือน, YY=ปี, III=Initials, NNN=ลำดับ</td>
+      </tr>
+      <tr>
+        <td>ใบสั่งงาน</td>
+        <td><code>WOYYNNN</code></td>
+        <td><code>WO26001</code></td>
+        <td>YY=ปี 2 หลัก, NNN=ลำดับ 3 หลัก</td>
+      </tr>
+      <tr>
+        <td>ใบขอซื้อ</td>
+        <td><code>PRYYNNN</code></td>
+        <td><code>PR26001</code></td>
+        <td>YY=ปี 2 หลัก, NNN=ลำดับ 3 หลัก</td>
+      </tr>
+      <tr>
+        <td>ใบส่งมอบ</td>
+        <td><code>HOYYNNN</code></td>
+        <td><code>HO26001</code></td>
+        <td>YY=ปี 2 หลัก, NNN=ลำดับ 3 หลัก</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- footer -->
+<div style="text-align:center; color:#9ca3af; font-size:12px; padding-top:24px; border-top: 1px solid var(--border);">
+  Greendii System — Flow Documentation · สร้างจาก source code จริง · พฤษภาคม 2569
+</div>
+
+</div><!-- /wrap -->
+</body>
+</html>
