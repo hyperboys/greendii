@@ -8,7 +8,6 @@ import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer } from 'lucide-react'
 import toast from 'react-hot-toast'
-import AttachmentsSection from '@/components/AttachmentsSection'
 import QuotationPrint from '@/components/QuotationPrint'
 
 function fmtMoney(n: number) {
@@ -164,14 +163,6 @@ export default function QuotationDetailPage() {
       </div>
 
 
-
-      {/* Attachments */}
-      <AttachmentsSection
-        attachments={doc.attachments ?? []}
-        docField="quotationId"
-        docId={id}
-        onRefresh={load}
-      />
 
       {/* Actions */}
       {canSubmit && (
