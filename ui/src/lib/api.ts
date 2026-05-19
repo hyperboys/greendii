@@ -21,11 +21,12 @@ http.interceptors.request.use((cfg) => {
   return cfg
 })
 
-// Handle 401 → redirect to login
+// Handle 401 → redirect to login (ยกเว้น login endpoint เพื่อให้แสดง error ได้)
 http.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 && typeof window !== 'undefined') {
+    const isLoginEndpoint = err.config?.url?.includes('/auth/login')
+    if (err.response?.status === 401 && !isLoginEndpoint && typeof window !== 'undefined') {
       localStorage.removeItem('gd_token')
       localStorage.removeItem('gd_user')
       window.location.href = '/login'
