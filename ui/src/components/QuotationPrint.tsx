@@ -9,7 +9,7 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 4 }).format(n)
 }
 
-const MIN_ROWS = 12
+const MIN_ROWS = 15
 
 interface Props {
   doc: Quotation
@@ -18,12 +18,13 @@ interface Props {
 
 export default function QuotationPrint({ doc, settings }: Props) {
   const dateStr = new Date(doc.createdAt).toLocaleDateString('en-GB')
-  const companyName   = settings?.companyName   || 'บริษัท กรีนดิอี จำกัด'
+  const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREEN Dii CO., LTD'
   const address       = settings?.address       || '98 Moo 6 T.Klong Sii A.Klongluang Pathumtani 12120'
   const taxId         = settings?.taxId         || '0135549009942'
   const tel           = settings?.tel           || '+662 150 7694-6'
   const email         = settings?.email         || 'kullanit@greendii.com'
+  const addressTh     = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-6 แฟกซ์. +662 150 7697 HP - 081 900 6685'
 
   const totalAmount = doc.subTotal - doc.specialDiscount
 
@@ -33,7 +34,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     ...Array(Math.max(0, MIN_ROWS - doc.items.length)).fill(null),
   ]
 
-  const border = '1px solid #aaa'
+  const border = '1px solid #000'
 
   const thS: React.CSSProperties = {
     border,
@@ -54,22 +55,43 @@ export default function QuotationPrint({ doc, settings }: Props) {
     height: '20px',
   }
 
-  const labelS: React.CSSProperties = {
+  // Customer info table cell styles
+  const ciLabelS: React.CSSProperties = {
+    border,
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
-    paddingRight: '4px',
-    paddingBottom: '3px',
+    padding: '3px 6px',
     fontSize: '9pt',
-    verticalAlign: 'top',
+    verticalAlign: 'middle',
+    width: '55px',
   }
 
-  const valueS: React.CSSProperties = {
-    borderBottom: '1px solid #999',
+  const ciValueS: React.CSSProperties = {
+    border,
     fontSize: '9pt',
-    paddingBottom: '2px',
-    paddingLeft: '4px',
-    verticalAlign: 'top',
-    width: '100%',
+    padding: '3px 6px',
+    verticalAlign: 'middle',
+    height: '22px',
+  }
+
+  const ciRightLabelS: React.CSSProperties = {
+    border,
+    fontWeight: 'bold',
+    whiteSpace: 'nowrap',
+    padding: '3px 6px',
+    fontSize: '9pt',
+    verticalAlign: 'middle',
+    width: '55px',
+    textAlign: 'right',
+  }
+
+  const ciRightValueS: React.CSSProperties = {
+    border,
+    fontSize: '9pt',
+    padding: '3px 6px',
+    verticalAlign: 'middle',
+    height: '22px',
+    width: '110px',
   }
 
   return (
@@ -79,8 +101,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
         <tbody>
           <tr>
-            {/* Logo */}
-            <td rowSpan={5} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '12px' }}>
+            {/* Logo — spans all 6 header rows */}
+            <td rowSpan={6} style={{ width: '110px', verticalAlign: 'top', paddingRight: '12px', paddingTop: '4px' }}>
               <div style={{
                 border: '2px solid #2d5a2d',
                 width: '100px',
@@ -106,26 +128,37 @@ export default function QuotationPrint({ doc, settings }: Props) {
                 }}>Dii</div>
               </div>
             </td>
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '13pt', lineHeight: '1.5' }}>
+            {/* Row 1: Thai company name — FIRST line */}
+            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>
               {companyName}
             </td>
           </tr>
           <tr>
+            {/* Row 2: English company name — single line */}
             <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.4' }}>
               {companyNameEn}
             </td>
           </tr>
           <tr>
+            {/* Row 3: English address */}
             <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
               {address}&nbsp;&nbsp;Tel {tel}&nbsp;&nbsp;Fax +662 150 7697
             </td>
           </tr>
           <tr>
+            {/* Row 4: Thai address */}
+            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
+              {addressTh}
+            </td>
+          </tr>
+          <tr>
+            {/* Row 5: TAX ID */}
             <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
               TAX ID : {taxId}
             </td>
           </tr>
           <tr>
+            {/* Row 6: Email */}
             <td style={{ textAlign: 'center', fontSize: '8pt', color: '#cc0000', lineHeight: '1.4' }}>
               E-Mail : {email}
             </td>
@@ -141,54 +174,44 @@ export default function QuotationPrint({ doc, settings }: Props) {
         QUOTATION
       </div>
 
-      {/* ═══ Customer Info ═══ */}
+      {/* ═══ Customer Info — bordered table ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
         <tbody>
           <tr>
-            <td style={labelS}>To</td>
-            <td style={valueS}>{doc.customerName}</td>
-            <td style={{ width: '12px' }}></td>
-            <td style={{ ...labelS, textAlign: 'right' }}>Date</td>
-            <td style={{ ...valueS, width: '120px' }}>{dateStr}</td>
+            <td style={ciLabelS}>To</td>
+            <td style={ciValueS}>{doc.customerName}</td>
+            <td style={ciRightLabelS}>Date</td>
+            <td style={ciRightValueS}>{dateStr}</td>
           </tr>
           <tr>
-            <td style={{ ...labelS, paddingTop: '3px' }}>Attn</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}>{doc.attn || ''}</td>
-            <td></td>
-            <td style={{ ...labelS, textAlign: 'right', paddingTop: '3px' }}>Page</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}>1</td>
+            <td style={ciLabelS}>Attn</td>
+            <td style={ciValueS}>{doc.attn || ''}</td>
+            <td style={ciRightLabelS}>Page</td>
+            <td style={ciRightValueS}>1</td>
           </tr>
           <tr>
-            <td style={{ ...labelS, paddingTop: '3px' }}>Address</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}>{doc.address || ''}</td>
-            <td></td>
-            <td style={{ ...labelS, textAlign: 'right', paddingTop: '3px' }}>Tel</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}>{doc.tel || ''}</td>
+            <td style={ciLabelS}>Address</td>
+            <td style={ciValueS}>{doc.address || ''}</td>
+            <td style={ciRightLabelS}>Tel</td>
+            <td style={ciRightValueS}>{doc.tel || ''}</td>
           </tr>
           <tr>
-            <td></td>
-            <td style={{ borderBottom: '1px solid #999', height: '18px' }}></td>
-            <td></td>
-            <td style={{ ...labelS, textAlign: 'right', paddingTop: '3px' }}>Fax</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}></td>
+            <td style={{ ...ciLabelS, borderRight: 'none' }}></td>
+            <td style={{ ...ciValueS, borderLeft: 'none' }}></td>
+            <td style={ciRightLabelS}>Fax</td>
+            <td style={ciRightValueS}></td>
           </tr>
           <tr>
-            <td></td>
-            <td style={{ borderBottom: '1px solid #999', height: '18px' }}></td>
-            <td></td>
-            <td style={{ ...labelS, textAlign: 'right', paddingTop: '3px' }}>Quo.No</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}>{doc.quoNo}</td>
+            <td style={{ ...ciLabelS, borderRight: 'none' }}></td>
+            <td style={{ ...ciValueS, borderLeft: 'none' }}></td>
+            <td style={ciRightLabelS}>Quo.No</td>
+            <td style={ciRightValueS}>{doc.quoNo}</td>
           </tr>
           <tr>
-            <td></td>
-            <td style={{ borderBottom: '1px solid #999', height: '18px' }}></td>
-            <td></td>
-            <td style={{ ...labelS, textAlign: 'right', paddingTop: '3px' }}>HP</td>
-            <td style={{ ...valueS, paddingTop: '3px' }}></td>
-          </tr>
-          <tr>
-            <td style={{ ...labelS, paddingTop: '3px' }}>Project</td>
-            <td colSpan={4} style={{ ...valueS, paddingTop: '3px' }}>{doc.project}</td>
+            <td style={ciLabelS}>Project</td>
+            <td style={ciValueS}>{doc.project}</td>
+            <td style={ciRightLabelS}>HP</td>
+            <td style={ciRightValueS}></td>
           </tr>
         </tbody>
       </table>
@@ -197,13 +220,18 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr>
-            <th style={{ ...thS, width: '5%' }}>Item</th>
-            <th style={{ ...thS, width: '37%' }}>Description</th>
-            <th style={{ ...thS, width: '6%' }}>Q&apos;ty</th>
-            <th style={{ ...thS, width: '7%' }}>Unit</th>
-            <th style={{ ...thS, width: '14%' }}>(Material Price)<br />Unit Price</th>
-            <th style={{ ...thS, width: '14%' }}>(Labour Price)<br />Unit Price</th>
-            <th style={{ ...thS, width: '17%' }}>(Total Amount)<br />Thai Baht</th>
+            <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
+            <th rowSpan={2} style={{ ...thS, width: '37%' }}>Description</th>
+            <th rowSpan={2} style={{ ...thS, width: '6%' }}>Q&apos;ty</th>
+            <th rowSpan={2} style={{ ...thS, width: '7%' }}>Unit</th>
+            <th style={{ ...thS, width: '14%' }}>(Material Price)</th>
+            <th style={{ ...thS, width: '14%' }}>(Labour Price)</th>
+            <th style={{ ...thS, width: '17%' }}>(Total Amount)</th>
+          </tr>
+          <tr>
+            <th style={thS}>Unit Price</th>
+            <th style={thS}>Unit Price</th>
+            <th style={thS}>Thai Baht</th>
           </tr>
         </thead>
         <tbody>
@@ -230,10 +258,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red' }}>Special Discount</td>
-            <td style={{ ...tdS, textAlign: 'right', color: 'red' }}>
-              {doc.specialDiscount > 0 ? fmtAmt(doc.specialDiscount) : ''}
-            </td>
+            <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red', fontWeight: 'bold' }}>Special Discount</td>
+            <td style={{ ...tdS, textAlign: 'right', color: 'red' }}>{fmtAmt(doc.specialDiscount)}</td>
           </tr>
           <tr>
             <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>Total Amount</td>
@@ -260,18 +286,19 @@ export default function QuotationPrint({ doc, settings }: Props) {
                 <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
               </div>
               <div style={{ marginBottom: '4px' }}>
-                <strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays} Days
+                <strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}
               </div>
               <div style={{ marginBottom: '4px' }}>
                 <strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}
               </div>
               <div style={{ marginBottom: '20px' }}>
                 <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
-                <span style={{ color: 'red' }}>{doc.paymentTerm || ''}</span>
+                <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
               </div>
               <div>Your Faithfully</div>
               <div style={{
                 fontFamily: 'cursive',
+                fontStyle: 'italic',
                 fontSize: '18pt',
                 marginTop: '8px',
                 marginBottom: '2px',
@@ -279,37 +306,35 @@ export default function QuotationPrint({ doc, settings }: Props) {
               }}>
                 {doc.sales?.initials || doc.sales?.fullName || ''}
               </div>
-              <div style={{ fontWeight: 'bold' }}>{doc.sales?.fullName || ''}</div>
+              <div>{doc.sales?.fullName || ''}</div>
             </td>
 
             {/* Right: Customer Confirmation */}
             <td style={{
               width: '50%',
-              border: '1px solid #aaa',
+              border: '1px solid #000',
               padding: '10px 16px',
               verticalAlign: 'top',
             }}>
               <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '26px', fontSize: '10pt' }}>
                 Customer&nbsp;&nbsp;Confirmation
               </div>
-              <div style={{ marginBottom: '26px', lineHeight: '1.5' }}>
-                Signature&nbsp;:&nbsp;
-                <span style={{
-                  borderBottom: '1px solid #555',
-                  display: 'inline-block',
-                  width: '180px',
-                  verticalAlign: 'bottom',
-                }}></span>
-              </div>
-              <div style={{ lineHeight: '1.5' }}>
-                Approval Date&nbsp;:&nbsp;
-                <span style={{
-                  borderBottom: '1px solid #555',
-                  display: 'inline-block',
-                  width: '155px',
-                  verticalAlign: 'bottom',
-                }}></span>
-              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '26px' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Signature&nbsp;:&nbsp;</td>
+                    <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '18px' }}></td>
+                  </tr>
+                </tbody>
+              </table>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <tr>
+                    <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Approval Date&nbsp;:&nbsp;</td>
+                    <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '18px' }}></td>
+                  </tr>
+                </tbody>
+              </table>
             </td>
           </tr>
         </tbody>
