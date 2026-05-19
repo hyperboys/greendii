@@ -9,6 +9,7 @@ const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 const USER_SELECT = {
   id: true, username: true, fullName: true, initials: true,
   role: true, email: true, phone: true, department: true, position: true,
+  firstName: true, lastName: true, firstNameEn: true, lastNameEn: true,
   lineUserId: true, signatureText: true, signatureUrl: true, active: true, createdAt: true,
 };
 
@@ -47,7 +48,8 @@ router.get('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), asy
 // POST /api/users  (admin/director only)
 router.post('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
-    const { username, password, fullName, initials, role, lineUserId, email, phone, department, position, signatureText } = req.body;
+    const { username, password, fullName, initials, role, lineUserId, email, phone, department, position, signatureText,
+            firstName, lastName, firstNameEn, lastNameEn } = req.body;
     if (!username || !password || !fullName || !role) {
       return res.status(400).json({ message: 'username, password, fullName, role required' });
     }
@@ -58,6 +60,8 @@ router.post('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), as
         lineUserId: lineUserId || null, email: email || null,
         phone: phone || null, department: department || null, position: position || null,
         signatureText: signatureText || null,
+        firstName: firstName || null, lastName: lastName || null,
+        firstNameEn: firstNameEn || null, lastNameEn: lastNameEn || null,
       },
       select: USER_SELECT,
     });
@@ -73,7 +77,8 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (req.user.id !== id && !['admin', 'director', 'admin_mgr'].includes(req.user.role)) {
       return res.status(403).json({ message: 'Forbidden' });
     }
-    const { fullName, initials, lineUserId, email, phone, department, position, signatureText, role, active } = req.body;
+    const { fullName, initials, lineUserId, email, phone, department, position, signatureText, role, active,
+            firstName, lastName, firstNameEn, lastNameEn } = req.body;
     const data = {};
     if (fullName !== undefined) data.fullName = fullName;
     if (initials !== undefined) data.initials = initials;
@@ -83,6 +88,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (department !== undefined) data.department = department;
     if (position !== undefined) data.position = position;
     if (signatureText !== undefined) data.signatureText = signatureText;
+    if (firstName !== undefined) data.firstName = firstName;
+    if (lastName !== undefined) data.lastName = lastName;
+    if (firstNameEn !== undefined) data.firstNameEn = firstNameEn;
+    if (lastNameEn !== undefined) data.lastNameEn = lastNameEn;
     // Only admin can change role/active
     if (['admin', 'director', 'admin_mgr'].includes(req.user.role)) {
       if (role !== undefined) data.role = role;

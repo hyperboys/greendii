@@ -86,6 +86,10 @@ export interface User {
   phone?: string
   department?: string
   position?: string
+  firstName?: string
+  lastName?: string
+  firstNameEn?: string
+  lastNameEn?: string
   lineUserId?: string
   signatureText?: string
   signatureUrl?: string | null

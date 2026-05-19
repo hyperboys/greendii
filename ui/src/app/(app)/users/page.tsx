@@ -11,6 +11,7 @@ import toast from 'react-hot-toast'
 const EMPTY_USER = {
   username: '', fullName: '', initials: '', role: 'sales' as UserRole,
   password: '', lineUserId: '', email: '', phone: '', department: '', position: '', signatureText: '',
+  firstName: '', lastName: '', firstNameEn: '', lastNameEn: '',
 }
 
 export default function UsersPage() {
@@ -168,6 +169,26 @@ export default function UsersPage() {
                 onChange={e => setEditing(v => v ? { ...v, initials: e.target.value } : v)} />
             </div>
             <div>
+              <label className="form-label">ชื่อ (TH)</label>
+              <input className="form-input" value={editing.firstName ?? ''}
+                onChange={e => setEditing(v => v ? { ...v, firstName: e.target.value } : v)} />
+            </div>
+            <div>
+              <label className="form-label">นามสกุล (TH)</label>
+              <input className="form-input" value={editing.lastName ?? ''}
+                onChange={e => setEditing(v => v ? { ...v, lastName: e.target.value } : v)} />
+            </div>
+            <div>
+              <label className="form-label">First Name (EN)</label>
+              <input className="form-input" value={editing.firstNameEn ?? ''}
+                onChange={e => setEditing(v => v ? { ...v, firstNameEn: e.target.value } : v)} />
+            </div>
+            <div>
+              <label className="form-label">Last Name (EN)</label>
+              <input className="form-input" value={editing.lastNameEn ?? ''}
+                onChange={e => setEditing(v => v ? { ...v, lastNameEn: e.target.value } : v)} />
+            </div>
+            <div>
               <label className="form-label">สิทธิ์ / Role</label>
               <select className="form-input" value={editing.role}
                 onChange={e => setEditing(v => v ? { ...v, role: e.target.value as UserRole } : v)}>
@@ -320,6 +341,8 @@ export default function UsersPage() {
                           role: u.role, password: '', lineUserId: u.lineUserId ?? '',
                           email: u.email ?? '', phone: u.phone ?? '', department: u.department ?? '', position: u.position ?? '',
                           signatureText: u.signatureText ?? '',
+                          firstName: u.firstName ?? '', lastName: u.lastName ?? '',
+                          firstNameEn: u.firstNameEn ?? '', lastNameEn: u.lastNameEn ?? '',
                         })}>
                         <Pencil size={12} />
                       </button>

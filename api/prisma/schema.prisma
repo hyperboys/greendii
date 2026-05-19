@@ -55,6 +55,10 @@ model User {
   phone               String?
   department          String?
   position            String?
+  firstName           String?
+  lastName            String?
+  firstNameEn         String?
+  lastNameEn          String?
   lineUserId          String?
   signatureText       String?
   signatureUrl        String?
