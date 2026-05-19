@@ -35,6 +35,15 @@ router.post('/login', async (req, res, next) => {
         role: user.role,
         lineUserId: user.lineUserId,
         mustChangePassword: user.mustChangePassword,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        firstNameEn: user.firstNameEn,
+        lastNameEn: user.lastNameEn,
+        email: user.email,
+        phone: user.phone,
+        department: user.department,
+        position: user.position,
+        signatureUrl: user.signatureUrl,
       },
     });
   } catch (e) { next(e); }
