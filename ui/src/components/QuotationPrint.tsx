@@ -121,7 +121,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           </tr>
           <tr>
             {/* Row 2: English company name — Gothic style */}
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.3', fontFamily: 'Impact, "Arial Narrow", Arial, sans-serif', letterSpacing: '1.5px' }}>
+            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>
               {companyNameEn}
             </td>
           </tr>

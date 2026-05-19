@@ -97,10 +97,10 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
             </td>
             {/* Title */}
             <td style={{ width: '200px', textAlign: 'center', borderLeft: '2px solid #555', paddingLeft: '12px', verticalAlign: 'middle' }}>
-              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#1a3a5c', letterSpacing: '1px' }}>
+              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
                 PROJECT
               </div>
-              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#1a3a5c', letterSpacing: '1px' }}>
+              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
                 WORK FORM
               </div>
             </td>
@@ -225,18 +225,20 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
         <tbody>
           <tr>
             <td style={{ ...tdS, fontWeight: 'bold', width: '200px', whiteSpace: 'nowrap' }}>
-              QC Date / วันที่ผ่านการ QC :
+              QC Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ผ่านการ QC)</span>
             </td>
             <td style={tdS}>{qcDateStr}</td>
           </tr>
           <tr>
             <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-              Installation Date / วันที่ติดตั้งแล้ว :
+              Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ติดตั้งแล้ว)</span>
             </td>
             <td style={tdS}>{installDateStr}</td>
           </tr>
           <tr>
-            <td style={{ ...tdS, fontWeight: 'bold' }}>Remark / หมายเหตุ :</td>
+            <td style={{ ...tdS, fontWeight: 'bold' }}>
+              Remark<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(หมายเหตุ)</span>
+            </td>
             <td style={{ ...tdS, height: '30px' }}></td>
           </tr>
         </tbody>
@@ -244,33 +246,52 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
 
       {/* ═══ Document Checklist ═══ */}
       <div style={{ border, padding: '6px 8px', marginBottom: '10px' }}>
-        <div style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '5px' }}>Document Checklist</div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-          <Checkbox label="PO"              checked={chk('doc_po')} />
-          <Checkbox label="Quotation"       checked={chk('doc_quotation')} />
-          <Checkbox label="Drawing Confirm" checked={chk('doc_drawing_confirm')} />
-          <Checkbox label="Hand Over Job"   checked={chk('doc_handover')} />
-          <Checkbox label="PR"              checked={chk('doc_pr')} />
-          <Checkbox label="Min"             checked={chk('doc_min')} />
-          <Checkbox label="Waiting Confirm" checked={chk('doc_waiting_confirm')} />
-          <Checkbox label="Check List"      checked={chk('doc_checklist')} />
-        </div>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <tbody>
+            {[
+              { left: { label: 'PO', key: 'doc_po' }, right: { label: 'PR', key: 'doc_pr' } },
+              { left: { label: 'Quotation', key: 'doc_quotation' }, right: { label: 'Min', key: 'doc_min' } },
+              { left: { label: 'Drawing Confirm', key: 'doc_drawing_confirm' }, right: { label: 'Waiting Confirm', key: 'doc_waiting_confirm' } },
+              { left: { label: 'Hand Over Job', key: 'doc_handover' }, right: { label: 'Check List', key: 'doc_checklist' } },
+            ].map(({ left, right }) => (
+              <tr key={left.key}>
+                <td style={{ padding: '2px 8px 2px 0', width: '50%' }}>
+                  <Checkbox label={left.label} checked={chk(left.key)} />
+                </td>
+                <td style={{ padding: '2px 0', width: '50%' }}>
+                  <Checkbox label={right.label} checked={chk(right.key)} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* ═══ Signature Row ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-        <tbody>
-          <tr>
-            {['Sales', 'Sales Manager', 'Admin Manager', 'Project Manager', 'Managing Director'].map(role => (
-              <td key={role} style={{ border, padding: '4px 6px', textAlign: 'center', width: '20%' }}>
-                <div style={{ fontSize: '8.5pt', fontWeight: 'bold', marginBottom: '28px' }}>{role}</div>
-                <div style={{ borderTop: '1px dotted #555', marginBottom: '3px' }} />
-                <div style={{ fontSize: '8pt', color: '#555' }}>(…………………………)</div>
-              </td>
-            ))}
-          </tr>
-        </tbody>
-      </table>
+      {(() => {
+        const sigCols = [
+          { role: 'Sales',             name: doc.sales?.fullName ?? '' },
+          { role: 'Sales Manager',     name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
+          { role: 'Admin Manager',     name: doc.approvalLogs?.find(l => l.step === 3)?.approver?.fullName ?? '' },
+          { role: 'Project Manager',   name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
+          { role: 'Managing Director', name: doc.approvalLogs?.find(l => l.step === 5)?.approver?.fullName ?? '' },
+        ]
+        return (
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                {sigCols.map(({ role, name }) => (
+                  <td key={role} style={{ border, padding: '4px 6px', textAlign: 'center', width: '20%' }}>
+                    <div style={{ fontSize: '8.5pt', fontWeight: 'bold', marginBottom: '28px' }}>{role}</div>
+                    <div style={{ borderTop: '1px dotted #555', marginBottom: '3px' }} />
+                    <div style={{ fontSize: '8pt' }}>{name || '(…………………………)'}</div>
+                  </td>
+                ))}
+              </tr>
+            </tbody>
+          </table>
+        )
+      })()}
 
     </div>
   )
