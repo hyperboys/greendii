@@ -42,8 +42,8 @@ export default function NewQuotationPage() {
       .then(([c, u]) => { setCustomers(c); setUnits(u) })
   }, [])
 
-  const subTotal = form.items.reduce((s, i) => s + i.qty * (i.materialPrice + i.labourPrice), 0)
-  const afterDiscount = subTotal - form.specialDiscount
+  const subTotal = form.items.reduce((s, i) => s + Number(i.qty) * (Number(i.materialPrice) + Number(i.labourPrice)), 0)
+  const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = Math.round(afterDiscount * VAT_RATE)
   const grandTotal = afterDiscount + vat
 
@@ -51,8 +51,8 @@ export default function NewQuotationPage() {
     setForm(f => {
       const items = [...f.items]
       items[idx] = { ...items[idx], [key]: val }
-      items[idx].price = items[idx].materialPrice + items[idx].labourPrice
-      items[idx].amount = items[idx].qty * items[idx].price
+      items[idx].price = Number(items[idx].materialPrice) + Number(items[idx].labourPrice)
+      items[idx].amount = Number(items[idx].qty) * items[idx].price
       return { ...f, items }
     })
   }
@@ -213,7 +213,7 @@ export default function NewQuotationPage() {
                       <input type="number" min={0} step="any" className="form-input py-1 text-right"
                         value={item.labourPrice} onChange={e => setItem(i, 'labourPrice', +e.target.value)} />
                     </td>
-                    <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(item.qty * (item.materialPrice + item.labourPrice))}</td>
+                    <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(Number(item.qty) * (Number(item.materialPrice) + Number(item.labourPrice)))}</td>
                     <td className="py-2.5 px-2 pt-3">
                       {form.items.length > 1 && (
                         <button type="button" onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))}

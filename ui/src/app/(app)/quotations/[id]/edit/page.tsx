@@ -67,8 +67,15 @@ export default function QuotationFormPage() {
             leadTime: doc.leadTime ?? '',
             paymentTerm: doc.paymentTerm ?? '',
             remark: doc.remark ?? '',
-            items: doc.items.length > 0 ? doc.items : [emptyItem()],
-            specialDiscount: doc.specialDiscount ?? 0,
+            items: doc.items.length > 0 ? doc.items.map(it => ({
+              ...it,
+              qty: Number(it.qty),
+              materialPrice: Number(it.materialPrice),
+              labourPrice: Number(it.labourPrice),
+              price: Number(it.price),
+              amount: Number(it.amount),
+            })) : [emptyItem()],
+            specialDiscount: Number(doc.specialDiscount ?? 0),
           })
         })
         .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
@@ -76,8 +83,8 @@ export default function QuotationFormPage() {
     }
   }, [isEdit, params.id])
 
-  const subTotal = form.items.reduce((s, i) => s + (i.qty * (i.materialPrice + i.labourPrice)), 0)
-  const afterDiscount = subTotal - form.specialDiscount
+  const subTotal = form.items.reduce((s, i) => s + Number(i.qty) * (Number(i.materialPrice) + Number(i.labourPrice)), 0)
+  const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = Math.round(afterDiscount * VAT_RATE)
   const grandTotal = afterDiscount + vat
 
@@ -85,8 +92,8 @@ export default function QuotationFormPage() {
     setForm(f => {
       const items = [...f.items]
       items[idx] = { ...items[idx], [key]: val }
-      items[idx].price = items[idx].materialPrice + items[idx].labourPrice
-      items[idx].amount = items[idx].qty * items[idx].price
+      items[idx].price = Number(items[idx].materialPrice) + Number(items[idx].labourPrice)
+      items[idx].amount = Number(items[idx].qty) * items[idx].price
       return { ...f, items }
     })
   }
@@ -298,7 +305,7 @@ export default function QuotationFormPage() {
                       />
                     </td>
                     <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">
-                      {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(item.qty * (item.materialPrice + item.labourPrice))}
+                      {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(Number(item.qty) * (Number(item.materialPrice) + Number(item.labourPrice)))}
                     </td>
                     <td className="py-2.5 px-2 pt-3">
                       {form.items.length > 1 && (
