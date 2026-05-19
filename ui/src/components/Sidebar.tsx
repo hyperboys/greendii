@@ -23,10 +23,10 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: '📊 Dashboard'  },
-  { href: '/quotations', label: ' 📋 ใบเสนอราคา (Quotation)' },
-  { href: '/workorders', label: ' 🔧 ใบสั่งงาน (Work Order)' },
-  { href: '/handovers', label: ' 🤝 ส่งมอบงาน (Handover)' },
-  { href: '/pr', label: ' 🛒 ใบขอซื้อ (Purchase Request)' },
+  { href: '/quotations', label: ' 📋 ใบเสนอราคา' },
+  { href: '/workorders', label: ' 🔧 Work Order' },
+  { href: '/handovers', label: ' 🤝 Handover' },
+  { href: '/pr', label: ' 🛒 Purchase Request' },
   { href: '/approvals', label: ' ✅ รออนุมัติ' },
   { href: '/reports', label: ' 📊 รายงาน', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
 ]
