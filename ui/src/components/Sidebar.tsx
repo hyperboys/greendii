@@ -192,21 +192,8 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         )}
       </nav>
 
-      {/* User + Logout */}
-      <div className="border-t border-white/10 p-3 space-y-2">
-        {user && (
-          <div className={clsx('flex items-center gap-2.5', collapsed && 'justify-center')}>
-            <div className="w-8 h-8 rounded-full bg-green-main/40 border border-green-light/40 flex items-center justify-center text-xs font-bold shrink-0">
-              {user.initials || user.fullName?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold truncate">{user.fullName}</p>
-                <p className="text-xs text-white/50 truncate">{ROLE_LABELS[user.role] ?? user.role}</p>
-              </div>
-            )}
-          </div>
-        )}
+      {/* Logout */}
+      <div className="border-t border-white/10 p-3">
         <button
           onClick={logout}
           title="ออกจากระบบ"

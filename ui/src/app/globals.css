@@ -91,7 +91,7 @@
   nav, header, aside, .no-print, .screen-only { display: none !important; }
   html, body {
     background: white !important;
-    overflow: hidden !important;
+    overflow: visible !important;
     height: auto !important;
   }
   .print-sheet {

@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI } from '@/lib/api'
-import type { PurchaseRequest } from '@/types'
+import { PRAPI, SettingsAPI } from '@/lib/api'
+import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
-import AttachmentsSection from '@/components/AttachmentsSection'
+import PRPrint from '@/components/PRPrint'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -21,6 +21,7 @@ export default function PRDetailPage() {
   const { user } = useAuthStore()
   const { stepRoleConfig, getRoleLabel } = useSettingsStore()
   const [doc, setDoc] = useState<PurchaseRequest | null>(null)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
@@ -34,6 +35,7 @@ export default function PRDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -67,7 +69,8 @@ export default function PRDetailPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-5">
-      <div className="flex items-center gap-3">
+      <PRPrint doc={doc} settings={settings} />
+      <div className="flex items-center gap-3 no-print">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
         </button>
@@ -95,7 +98,7 @@ export default function PRDetailPage() {
         </div>
       </div>
 
-      <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm no-print">
         <div><span className="form-label">ลูกค้า</span><p>{doc.customer}</p></div>
         <div><span className="form-label">โครงการอ้างอิง</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
@@ -104,7 +107,7 @@ export default function PRDetailPage() {
         {doc.remarks && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remarks}</p></div>}
       </div>
 
-      <div className="card overflow-x-auto">
+      <div className="card overflow-x-auto no-print">
         <table className="data-table">
           <thead>
             <tr><th>#</th><th>P/N</th><th>รายการ</th><th className="text-right">จำนวน</th><th>หน่วย</th><th className="text-right">ราคา/หน่วย</th><th className="text-right">จำนวนเงิน</th></tr>
@@ -136,7 +139,7 @@ export default function PRDetailPage() {
         </table>
       </div>
 
-      <div className="card p-5">
+      <div className="card p-5 no-print">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
         <div className="flex flex-wrap gap-2">
           {Object.entries(stepRoleConfig)
@@ -160,15 +163,8 @@ export default function PRDetailPage() {
         </div>
       </div>
 
-      <AttachmentsSection
-        attachments={doc.attachments ?? []}
-        docField="purchaseRequestId"
-        docId={id}
-        onRefresh={load}
-      />
-
       {(canSubmit || canResubmit || canApprove) && (
-        <div className="card p-5 space-y-3">
+        <div className="card p-5 space-y-3 no-print">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
           <textarea className="form-input" rows={2} placeholder="ความคิดเห็น"
             value={comment} onChange={e => setComment(e.target.value)} />

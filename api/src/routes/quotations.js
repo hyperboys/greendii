@@ -5,7 +5,7 @@ const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
-  sales: { select: { id: true, fullName: true, initials: true } },
+  sales: { select: { id: true, fullName: true, initials: true, email: true } },
   customer: { select: { id: true, name: true } },
   items: { orderBy: { seq: 'asc' } },
   approvalLogs: {

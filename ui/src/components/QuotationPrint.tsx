@@ -9,7 +9,7 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
-const MIN_ROWS = 13
+const MIN_ROWS = 10
 
 interface Props {
   doc: Quotation
@@ -23,7 +23,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
   const address       = settings?.address       || '98 Moo 6 T.Klong Sii A.Klongluang Pathumtani 12120'
   const taxId         = settings?.taxId         || '0135549009942'
   const tel           = settings?.tel           || '+662 150 7694-6'
-  const email         = settings?.email         || 'kullanit@greendii.com'
+  const email = doc.sales?.email || settings?.email || 'admin2gd@greendii.com'
   const addressTh     = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-6 แฟกซ์. +662 150 7697 HP - 081 900 6685'
 
   const totalAmount = doc.subTotal - doc.specialDiscount
@@ -61,6 +61,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontSize: '8.5pt',
     verticalAlign: 'top',
     height: '20px',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
   }
 
   // Customer info table cell styles
@@ -240,7 +242,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             </tr>
           ))}
         </tbody>
-        <tfoot>
+        <tfoot style={{ pageBreakInside: 'avoid' }}>
           <tr>
             <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>Total</td>
             <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
@@ -265,7 +267,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
 
       {/* ═══ Terms + Signatures ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '9pt' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '9pt', pageBreakInside: 'avoid' }}>
         <tbody>
           <tr>
             {/* Left: Terms + Sales signature */}
