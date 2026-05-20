@@ -272,7 +272,6 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
         const sigCols = [
           { role: 'Sales',             name: doc.sales?.fullName ?? '' },
           { role: 'Sales Manager',     name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
-          { role: 'Admin Manager',     name: doc.approvalLogs?.find(l => l.step === 3)?.approver?.fullName ?? '' },
           { role: 'Project Manager',   name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
           { role: 'Managing Director', name: doc.approvalLogs?.find(l => l.step === 5)?.approver?.fullName ?? '' },
         ]
@@ -281,7 +280,7 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
             <tbody>
               <tr>
                 {sigCols.map(({ role, name }) => (
-                  <td key={role} style={{ border, padding: '4px 6px', textAlign: 'center', width: '20%' }}>
+                  <td key={role} style={{ border, padding: '4px 6px', textAlign: 'center', width: '25%' }}>
                     <div style={{ fontSize: '8.5pt', fontWeight: 'bold', marginBottom: '28px' }}>{role}</div>
                     <div style={{ borderTop: '1px dotted #555', marginBottom: '3px' }} />
                     <div style={{ fontSize: '8pt' }}>{name || '(…………………………)'}</div>
