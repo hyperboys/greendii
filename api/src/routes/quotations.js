@@ -80,7 +80,7 @@ router.post('/', authenticate, async (req, res, next) => {
     const quoNo = `${prefix}${String(seq).padStart(3, '0')}`;
     const quo = await prisma.quotation.create({
       data: {
-        quoNo, customerName, customerId, attn, project, address, tel,
+        quoNo, customerName, customerId: customerId || null, attn, project, address, tel,
         conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
         remark, salesId: req.user.id, status: 'draft',
@@ -115,7 +115,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     const quo = await prisma.quotation.update({
       where: { id: req.params.id },
       data: {
-        customerName, customerId, attn, project, address, tel,
+        customerName, customerId: customerId || null, attn, project, address, tel,
         conditionTerm, validityDays, leadTime, paymentTerm,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
         remark,

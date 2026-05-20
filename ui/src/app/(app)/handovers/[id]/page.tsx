@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, SettingsAPI } from '@/lib/api'
 import type { HandOverJob, Settings } from '@/types'
-import { STATUS_LABELS, HANDOVER_APPROVAL_STEPS } from '@/types'
+import { STATUS_LABELS } from '@/types'
+import { useSettingsStore } from '@/store/settings'
 import HandoverPrint from '@/components/HandoverPrint'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
@@ -15,6 +16,7 @@ export default function HandoverDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
+  const { stepRoleConfig, getRoleLabel } = useSettingsStore()
   const [doc, setDoc] = useState<HandOverJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -43,8 +45,8 @@ export default function HandoverDetailPage() {
   const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
 
   const nextStep = doc.approvalStep + 1
-  const stepDef = HANDOVER_APPROVAL_STEPS.find(s => s.step === nextStep)
-  const canApprove = doc.status === 'pending' && stepDef?.role === user?.role
+  const nextStepRole = stepRoleConfig[String(nextStep)]
+  const canApprove = doc.status === 'pending' && nextStepRole === user?.role
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -155,7 +157,10 @@ export default function HandoverDetailPage() {
       <div className="card p-5">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
         <div className="flex flex-wrap gap-2">
-          {HANDOVER_APPROVAL_STEPS.map(s => {
+          {Object.entries(stepRoleConfig)
+            .map(([step, role]) => ({ step: Number(step), role, label: getRoleLabel(role) }))
+            .sort((a, b) => a.step - b.step)
+            .map(s => {
             const log = doc.approvalLogs?.find(l => l.step === s.step)
             const isNext = s.step === nextStep && doc.status === 'pending'
             return (
