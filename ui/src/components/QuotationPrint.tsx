@@ -56,7 +56,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   const tdS: React.CSSProperties = {
-    border,
+    borderLeft: border,
+    borderRight: border,
     padding: '3px 5px',
     fontSize: '8.5pt',
     verticalAlign: 'top',
@@ -244,8 +245,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </tbody>
         <tfoot style={{ pageBreakInside: 'avoid' }}>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>Total</td>
-            <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
+            <td colSpan={6} style={{ ...tdS, borderTop: border, textAlign: 'right', fontWeight: 'bold' }}>Total</td>
+            <td style={{ ...tdS, borderTop: border, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
             <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red', fontWeight: 'bold' }}>Special Discount</td>
@@ -260,8 +261,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.vat)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>Grand Total Amount</td>
-            <td style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.grandTotal)}</td>
+            <td colSpan={6} style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold' }}>Grand Total Amount</td>
+            <td style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.grandTotal)}</td>
           </tr>
         </tfoot>
       </table>
