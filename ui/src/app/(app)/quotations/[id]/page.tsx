@@ -110,24 +110,24 @@ export default function QuotationDetailPage() {
       </div>
 
       {/* Items */}
-      <div className="card overflow-x-auto">
-        <table className="data-table">
+      <div className="card">
+        <table className="data-table table-fixed w-full">
           <thead>
             <tr>
-              <th>#</th>
+              <th className="w-10">#</th>
               <th>Description</th>
-              <th className="text-right">Q'ty</th>
-              <th>Unit</th>
-              <th className="text-right">Material Price / Unit</th>
-              <th className="text-right">Labour Price / Unit</th>
-              <th className="text-right">Total Amount</th>
+              <th className="text-right w-20">Q'ty</th>
+              <th className="w-20">Unit</th>
+              <th className="text-right w-36">Material Price / Unit</th>
+              <th className="text-right w-32">Labour Price / Unit</th>
+              <th className="text-right w-32">Total Amount</th>
             </tr>
           </thead>
           <tbody>
             {doc.items.map((item, i) => (
               <tr key={item.id ?? i}>
                 <td className="text-gray-400">{(item.seq ?? i) + 1}</td>
-                <td>
+                <td className="break-words">
                   {item.desc}
                   {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
                 </td>
