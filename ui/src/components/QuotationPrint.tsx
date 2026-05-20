@@ -19,17 +19,18 @@ interface Props {
 export default function QuotationPrint({ doc, settings }: Props) {
   const dateStr = new Date(doc.createdAt).toLocaleDateString('en-GB')
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREEN Dii CO., LTD'
-  const address       = settings?.address       || '98 Moo 6 T.Klong Sii A.Klongluang Pathumtani 12120'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
+  const address       = settings?.address       || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId         = settings?.taxId         || '0135549009942'
   const tel           = settings?.tel           || '+662 150 7694-6'
   const email = doc.sales?.email || settings?.email || 'admin2gd@greendii.com'
-  const addressTh     = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-6 แฟกซ์. +662 150 7697 HP - 081 900 6685'
+  const addressTh     = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
 
   const totalAmount = doc.subTotal - doc.specialDiscount
 
-  // Signature name: "FirstName L." from fullName
+  // Signature text: use signatureText if set, otherwise derive "FirstName L." from fullName
   const sigName = (() => {
+    if (doc.sales?.signatureText?.trim()) return doc.sales.signatureText.trim()
     const name = doc.sales?.fullName?.trim()
     if (!name) return ''
     const parts = name.split(/\s+/)

@@ -246,7 +246,7 @@ export interface Quotation {
   id: string
   quoNo: string
   salesId: string
-  sales?: { id: string; fullName: string; initials: string; email?: string }
+  sales?: { id: string; fullName: string; initials: string; email?: string; signatureText?: string }
   customerId?: string
   customer?: { id: string; name: string }
   customerName: string
