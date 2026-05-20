@@ -115,12 +115,12 @@ export default function QuotationDetailPage() {
           <thead>
             <tr>
               <th>#</th>
-              <th>รายการ</th>
-              <th className="text-right">จำนวน</th>
-              <th>หน่วย</th>
-              <th className="text-right">ราคาวัสดุ/หน่วย</th>
-              <th className="text-right">ค่าแรง/หน่วย</th>
-              <th className="text-right">จำนวนเงิน</th>
+              <th>Description</th>
+              <th className="text-right">Q'ty</th>
+              <th>Unit</th>
+              <th className="text-right">Material Price / Unit</th>
+              <th className="text-right">Labour Price / Unit</th>
+              <th className="text-right">Total Amount</th>
             </tr>
           </thead>
           <tbody>
