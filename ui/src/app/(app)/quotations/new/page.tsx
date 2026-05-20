@@ -170,12 +170,12 @@ export default function NewQuotationPage() {
               <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
                 <tr>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-8">#</th>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">จำนวน</th>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคาวัสดุ/หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ค่าแรง/หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวนเงิน</th>
+                  <th className="text-left py-2 px-2 text-xs text-gray-500">Description / Additional Details</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">Q'ty</th>
+                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">Unit</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">Material Price / Unit</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">Labour Price / Unit</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">Total Amount</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
