@@ -135,7 +135,7 @@ export default function NewPRPage() {
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-8">#</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">P/N</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">จำนวน</th>
+                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวน</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-20">หน่วย</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคา/หน่วย</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวนเงิน</th>
@@ -151,7 +151,7 @@ export default function NewPRPage() {
                         onChange={e => setItem(i, 'partNo', e.target.value)} placeholder="รหัส P/N" />
                     </td>
                     <td className="py-2 px-2">
-                      <input className="form-input py-1 w-full" value={item.desc} required
+                      <input className="form-input py-1 w-full" value={item.desc} required autoComplete="off"
                         onChange={e => setItem(i, 'desc', e.target.value)} placeholder="ชื่อรายการ *" />
                       <textarea
                         className="form-input py-1 mt-1.5 text-xs resize-none w-full text-gray-600"

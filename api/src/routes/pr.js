@@ -70,7 +70,7 @@ router.post('/', authenticate, async (req, res, next) => {
     const prNo = `PR${yy}${String(seq).padStart(3, '0')}`;
     const item = await prisma.purchaseRequest.create({
       data: {
-        prNo, workOrderId, customer, projectRef,
+        prNo, workOrderId: workOrderId || null, customer, projectRef,
         dateIssue: dateIssue ? new Date(dateIssue) : null,
         dateRequired: dateRequired ? new Date(dateRequired) : null,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
