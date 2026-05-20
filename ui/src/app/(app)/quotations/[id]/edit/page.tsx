@@ -272,7 +272,7 @@ export default function QuotationFormPage() {
                     </td>
                     <td className="py-2 px-2">
                       <input
-                        type="number" min={0} step="any"
+                        type="number" min={0} max={99999} step="any"
                         className="form-input py-1 text-right"
                         value={item.qty}
                         onChange={e => setItem(i, 'qty', +e.target.value)}
@@ -305,7 +305,7 @@ export default function QuotationFormPage() {
                       />
                     </td>
                     <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">
-                      {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(Number(item.qty) * (Number(item.materialPrice) + Number(item.labourPrice)))}
+                      {new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(item.qty) * (Number(item.materialPrice) + Number(item.labourPrice)))}
                     </td>
                     <td className="py-2.5 px-2 pt-3">
                       {form.items.length > 1 && (
@@ -322,7 +322,7 @@ export default function QuotationFormPage() {
                 <tr className="bg-gray-50">
                   <td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td>
                   <td className="text-right font-semibold pr-2">
-                    {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(subTotal)}
+                    {new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(subTotal)}
                   </td>
                   <td></td>
                 </tr>
@@ -337,14 +337,14 @@ export default function QuotationFormPage() {
                 <tr className="bg-gray-50">
                   <td colSpan={6} className="text-right text-gray-500 px-2 py-1">VAT 7%</td>
                   <td className="text-right text-gray-500 pr-2">
-                    {new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(vat)}
+                    {new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(vat)}
                   </td>
                   <td></td>
                 </tr>
                 <tr className="bg-green-pale">
                   <td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดรวมทั้งสิ้น</td>
                   <td className="text-right font-bold text-green-dark pr-2 text-base">
-                    ฿{new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(grandTotal)}
+                    ฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(grandTotal)}
                   </td>
                   <td></td>
                 </tr>

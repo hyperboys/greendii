@@ -12,7 +12,7 @@ import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
 function fmtMoney(n: number) {
-  return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
+  return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
 export default function PRDetailPage() {

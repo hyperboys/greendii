@@ -52,7 +52,7 @@ export default function ApprovalsPage() {
                       <td className="font-mono text-xs font-semibold text-green-dark">{q.quoNo}</td>
                       <td>{q.customerName}</td>
                       <td>{q.project}</td>
-                      <td className="text-right">฿{new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(q.grandTotal)}</td>
+                      <td className="text-right">฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(q.grandTotal)}</td>
                       <td className="text-xs text-gray-500">{new Date(q.createdAt).toLocaleDateString('th-TH')}</td>
                     </tr>
                   ))}
@@ -95,7 +95,7 @@ export default function ApprovalsPage() {
                     <tr key={p.id} className="cursor-pointer" onClick={() => router.push(`/pr/${p.id}`)}>
                       <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
                       <td>{p.customer}</td>
-                      <td className="text-right">฿{new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(p.netTotal)}</td>
+                      <td className="text-right">฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p.netTotal)}</td>
                       <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('th-TH')}</td>
                     </tr>
                   ))}

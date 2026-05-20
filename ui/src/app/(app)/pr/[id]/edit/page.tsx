@@ -105,7 +105,7 @@ export default function EditPRPage() {
     }
   }
 
-  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
+  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
@@ -195,7 +195,7 @@ export default function EditPRPage() {
                         placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
                     </td>
                     <td className="py-2 px-2">
-                      <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                      <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
                         value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
                     </td>
                     <td className="py-2 px-2">

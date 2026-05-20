@@ -1,12 +1,12 @@
 import type { Quotation, Settings } from '@/types'
 
 function fmtAmt(n: number | null | undefined): string {
-  if (n == null || n === 0) return '-'
-  return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+  if (n == null) return ''
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
 function fmtQty(n: number): string {
-  return new Intl.NumberFormat('th-TH', { maximumFractionDigits: 4 }).format(n)
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
 const MIN_ROWS = 13
@@ -80,6 +80,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     padding: '3px 6px',
     verticalAlign: 'middle',
     height: '22px',
+    wordBreak: 'break-word',
+    overflowWrap: 'break-word',
   }
 
   const ciRightLabelS: React.CSSProperties = {
@@ -203,12 +205,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
 
       {/* ═══ Items Table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
-            <th rowSpan={2} style={{ ...thS, width: '37%' }}>Description</th>
-            <th rowSpan={2} style={{ ...thS, width: '6%' }}>Q&apos;ty</th>
+            <th rowSpan={2} style={{ ...thS, width: '33%' }}>Description</th>
+            <th rowSpan={2} style={{ ...thS, width: '8%' }}>Q&apos;ty</th>
             <th rowSpan={2} style={{ ...thS, width: '7%' }}>Unit</th>
             <th style={{ ...thS, width: '14%' }}>(Material Price)</th>
             <th style={{ ...thS, width: '14%' }}>(Labour Price)</th>
@@ -224,7 +226,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           {rows.map((item, i) => (
             <tr key={i}>
               <td style={{ ...tdS, textAlign: 'center' }}>{item ? (item.seq !== undefined ? item.seq + 1 : i + 1) : ''}</td>
-              <td style={tdS}>
+              <td style={{ ...tdS, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {item?.desc ?? ''}
                 {item?.note
                   ? <span style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>{item.note}</span>

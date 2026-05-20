@@ -66,7 +66,7 @@ export default function ProductsPage() {
 
   const categories = Array.from(new Set(rows.map(r => r.category).filter(Boolean))) as string[]
 
-  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
+  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
   return (
     <div>

@@ -73,7 +73,7 @@ export default function NewPRPage() {
     }
   }
 
-  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { maximumFractionDigits: 0 }).format(n)
+  const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
   return (
     <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-5">
@@ -161,7 +161,7 @@ export default function NewPRPage() {
                         placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
                     </td>
                     <td className="py-2 px-2">
-                      <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                      <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
                         value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
                     </td>
                     <td className="py-2 px-2">
