@@ -58,7 +58,7 @@ router.post('/', authenticate, async (req, res, next) => {
     const {
       workOrderId, customer, projectRef,
       dateIssue, dateRequired, items = [],
-      subTotal, vat, netTotal, remarks,
+      subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
     if (!customer) return res.status(400).json({ message: 'customer required' });
     const yy = String(new Date().getFullYear()).slice(2);
@@ -73,7 +73,7 @@ router.post('/', authenticate, async (req, res, next) => {
         prNo, workOrderId, customer, projectRef,
         dateIssue: dateIssue ? new Date(dateIssue) : null,
         dateRequired: dateRequired ? new Date(dateRequired) : null,
-        subTotal: subTotal || 0, vat: vat || 0, netTotal: netTotal || 0,
+        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
         remarks, salesId: req.user.id, status: 'draft',
         items: {
           create: items.map((it, i) => ({
@@ -98,7 +98,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
     const {
       customer, projectRef, dateIssue, dateRequired,
-      items = [], subTotal, vat, netTotal, remarks,
+      items = [], subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
     await prisma.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: req.params.id } });
     const item = await prisma.purchaseRequest.update({
@@ -107,7 +107,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
         customer, projectRef,
         dateIssue: dateIssue ? new Date(dateIssue) : null,
         dateRequired: dateRequired ? new Date(dateRequired) : null,
-        subTotal: subTotal || 0, vat: vat || 0, netTotal: netTotal || 0,
+        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
         remarks,
         items: {
           create: items.map((it, i) => ({

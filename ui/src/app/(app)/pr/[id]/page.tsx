@@ -124,7 +124,10 @@ export default function PRDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-gray-50"><td colSpan={5} className="text-right font-semibold px-4 py-3">ยอดก่อน VAT</td><td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td></tr>
+            <tr className="bg-gray-50"><td colSpan={5} className="text-right font-semibold px-4 py-3">ยอดรวม</td><td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td></tr>
+            {Number(doc.specialDiscount) > 0 && (
+              <tr className="bg-gray-50"><td colSpan={5} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td><td className="text-right text-gray-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td></tr>
+            )}
             <tr className="bg-gray-50"><td colSpan={5} className="text-right text-gray-500 px-4 py-2">VAT 7%</td><td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td></tr>
             <tr className="bg-green-pale"><td colSpan={5} className="text-right font-bold text-green-dark px-4 py-3">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.netTotal)}</td></tr>
           </tfoot>

@@ -358,6 +358,7 @@ export interface PurchaseRequest {
   dateIssue?: string
   dateRequired?: string
   subTotal: number
+  specialDiscount: number
   vat: number
   netTotal: number
   remarks?: string

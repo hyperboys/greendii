@@ -277,10 +277,11 @@ model PurchaseRequest {
   projectRef   String?
   dateIssue    DateTime?
   dateRequired DateTime?
-  subTotal     Decimal    @default(0) @db.Decimal(12, 2)
-  vat          Decimal    @default(0) @db.Decimal(12, 2)
-  netTotal     Decimal    @default(0) @db.Decimal(12, 2)
-  remarks      String?
+  subTotal        Decimal    @default(0) @db.Decimal(12, 2)
+  specialDiscount Decimal    @default(0) @db.Decimal(12, 2)
+  vat             Decimal    @default(0) @db.Decimal(12, 2)
+  netTotal        Decimal    @default(0) @db.Decimal(12, 2)
+  remarks         String?
   status       DocStatus  @default(draft)
   approvalStep Int        @default(0)
   createdAt    DateTime   @default(now())
