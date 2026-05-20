@@ -84,7 +84,7 @@
 
 @page {
   size: A4 portrait;
-  margin: 10mm 12mm 10mm 12mm;
+  margin: 10mm 15mm 10mm 12mm;
 }
 
 @media print {
@@ -106,6 +106,8 @@
     top: 0 !important;
     left: 0 !important;
     width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
     overflow: visible !important;
     background: white !important;
   }
