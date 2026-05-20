@@ -84,20 +84,29 @@
 
 @page {
   size: A4 portrait;
-  margin: 8mm 12mm 8mm 12mm;
+  margin: 10mm 12mm 10mm 12mm;
 }
 
 @media print {
-  nav, header, aside, .no-print, .screen-only { display: none !important; }
-  html, body {
-    background: white !important;
-    overflow: visible !important;
-    height: auto !important;
+  /* Hide everything on the page first */
+  body * {
+    visibility: hidden !important;
   }
+
+  /* Then reveal only the print sheet and its descendants */
+  .print-sheet,
+  .print-sheet * {
+    visibility: visible !important;
+  }
+
+  /* Pull the print-sheet out of all overflow containers */
   .print-sheet {
     display: block !important;
-    width: 100%;
-    background: white;
-    overflow: hidden;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    overflow: visible !important;
+    background: white !important;
   }
 }
