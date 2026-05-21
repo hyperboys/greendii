@@ -67,9 +67,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     overflowWrap: 'break-word',
   }
 
-  // Customer info table cell styles
+  // Customer info table cell styles (no borders)
   const ciLabelS: React.CSSProperties = {
-    border,
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     padding: '3px 6px',
@@ -79,7 +78,6 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   const ciValueS: React.CSSProperties = {
-    border,
     fontSize: '9pt',
     padding: '3px 6px',
     verticalAlign: 'middle',
@@ -89,18 +87,16 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   const ciRightLabelS: React.CSSProperties = {
-    border,
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     padding: '3px 6px',
     fontSize: '9pt',
     verticalAlign: 'middle',
     width: '55px',
-    textAlign: 'right',
+    textAlign: 'left',
   }
 
   const ciRightValueS: React.CSSProperties = {
-    border,
     fontSize: '9pt',
     padding: '3px 6px',
     verticalAlign: 'middle',
@@ -112,51 +108,25 @@ export default function QuotationPrint({ doc, settings }: Props) {
     <div className="print-sheet" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-        <tbody>
-          <tr>
-            {/* Logo — spans all 6 header rows */}
-            <td rowSpan={6} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '12px' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
-            </td>
-            {/* Row 1: Thai company name — FIRST line */}
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>
-              {companyName}
-            </td>
-          </tr>
-          <tr>
-            {/* Row 2: English company name — Gothic style */}
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>
-              {companyNameEn}
-            </td>
-          </tr>
-          <tr>
-            {/* Row 3: English address */}
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
-              {address}&nbsp;&nbsp;Tel {tel}&nbsp;&nbsp;Fax +662 150 7697
-            </td>
-          </tr>
-          <tr>
-            {/* Row 4: Thai address */}
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
-              {addressTh}
-            </td>
-          </tr>
-          <tr>
-            {/* Row 5: TAX ID */}
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
-              TAX ID : {taxId}
-            </td>
-          </tr>
-          <tr>
-            {/* Row 6: Email */}
-            <td style={{ textAlign: 'center', fontSize: '8pt', color: '#cc0000', lineHeight: '1.4' }}>
-              E-Mail : {email}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <div style={{ position: 'relative', marginBottom: '8px', textAlign: 'center', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif" }}>
+        {/* Logo — absolutely positioned so it does not affect text centering */}
+        <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
+        </div>
+        {/* Thai company name */}
+        <div style={{ fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>{companyName}</div>
+        {/* English company name */}
+        <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway, "Broadway BT", fantasy' }}>{companyNameEn}</div>
+        {/* English address */}
+        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{address}&nbsp;&nbsp;Tel {tel}&nbsp;&nbsp;Fax +662 150 7697</div>
+        {/* Thai address */}
+        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{addressTh}</div>
+        {/* TAX ID */}
+        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>TAX ID : {taxId}</div>
+        {/* Email */}
+        <div style={{ fontSize: '9pt', color: '#cc0000', lineHeight: '1.4' }}>E-Mail : {email}</div>
+      </div>
 
       {/* ═══ QUOTATION title ═══ */}
       <div style={{
@@ -273,7 +243,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
         <tbody>
           <tr>
             {/* Left: Terms + Sales signature */}
-            <td style={{ width: '50%', verticalAlign: 'top', paddingRight: '10px' }}>
+            <td style={{ width: '60%', verticalAlign: 'top', paddingRight: '10px' }}>
               <div style={{ marginBottom: '4px' }}>
                 <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
               </div>
@@ -289,9 +259,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
               </div>
               <div>Your Faithfully</div>
               <div style={{
-                fontFamily: 'cursive',
+                fontFamily: '"Brush Script MT", "Brush Script Std", cursive',
                 fontStyle: 'italic',
-                fontSize: '18pt',
+                fontSize: '22pt',
                 marginTop: '8px',
                 marginBottom: '2px',
                 lineHeight: 1,
@@ -303,7 +273,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
             {/* Right: Customer Confirmation */}
             <td style={{
-              width: '50%',
+              width: '40%',
               border: '1px solid #000',
               padding: '10px 16px',
               verticalAlign: 'top',
