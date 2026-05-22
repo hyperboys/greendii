@@ -9,7 +9,7 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
-const MIN_ROWS = 10
+const MIN_ROWS = 3
 
 interface Props {
   doc: Quotation
@@ -105,7 +105,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   return (
-    <div className="print-sheet" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
+    <div className="print-sheet" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt', display: 'flex', flexDirection: 'column', minHeight: '277mm' }}>
 
       {/* ═══ Company Header ═══ */}
       <div style={{ position: 'relative', marginBottom: '8px', textAlign: 'center', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif" }}>
@@ -179,7 +179,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
 
       {/* ═══ Items Table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <div style={{ flex: 1, overflow: 'visible' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', height: '100%' }}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
@@ -237,6 +238,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           </tr>
         </tfoot>
       </table>
+      </div>
 
       {/* ═══ Terms + Signatures ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '9pt', pageBreakInside: 'avoid' }}>
