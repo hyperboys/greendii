@@ -115,29 +115,29 @@ export default function QuotationPrint({ doc, settings }: Props) {
           <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
         </div>
         {/* Thai company name */}
-        <div style={{ fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>{companyName}</div>
+        <div style={{ fontWeight: 'bold', fontSize: '28pt', lineHeight: '1.5', fontFamily:'Cordia New' }}>{companyName}</div>
         {/* English company name */}
         <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway, "Broadway BT", fantasy' }}>{companyNameEn}</div>
         {/* English address */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{address}&nbsp;&nbsp;Tel {tel}&nbsp;&nbsp;Fax +662 150 7697</div>
+        <div style={{ fontSize: '24pt', lineHeight: '1.5', fontFamily:'Cordia New' }}>{address}&nbsp;&nbsp;Tel {tel}</div>
         {/* Thai address */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{addressTh}</div>
+        <div style={{ fontSize: '24pt', lineHeight: '1.5' ,fontFamily:'Cordia New' }}>{addressTh}</div>
         {/* TAX ID */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>TAX ID : {taxId}</div>
+        <div style={{ fontSize: '24pt', lineHeight: '1.5',fontFamily:'Cordia New' }}>TAX ID : {taxId}</div>
         {/* Email */}
-        <div style={{ fontSize: '9pt', color: '#cc0000', lineHeight: '1.4' }}>E-Mail : {email}</div>
+        <div style={{ fontSize: '24pt', color: '#cc0000', lineHeight: '1.5',fontFamily:'Cordia New' }}>E-Mail : {email}</div>
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
       <div style={{
-        textAlign: 'center', fontWeight: 'bold', fontSize: '11pt',
-        textDecoration: 'underline', marginBottom: '8px',
+        textAlign: 'center', fontWeight: 'bold', fontSize: '16pt',
+        textDecoration: 'underline', marginBottom: '8px',fontFamily:'Century Gothic'
       }}>
         QUOTATION
       </div>
 
       {/* ═══ Customer Info — bordered table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', fontFamily:'Century Gothic',fontSize: '16pt' }}>
         <tbody>
           <tr>
             <td style={ciLabelS}>To</td>
@@ -183,58 +183,58 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', height: '100%' }}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
-            <th rowSpan={2} style={{ ...thS, width: '33%' }}>Description</th>
-            <th rowSpan={2} style={{ ...thS, width: '8%' }}>Q&apos;ty</th>
-            <th rowSpan={2} style={{ ...thS, width: '7%' }}>Unit</th>
-            <th style={{ ...thS, width: '14%' }}>(Material Price)</th>
-            <th style={{ ...thS, width: '14%' }}>(Labour Price)</th>
-            <th style={{ ...thS, width: '17%' }}>(Total Amount)</th>
+            <th rowSpan={2} style={{ ...thS, width: '5%', fontFamily:'Century Gothic',fontSize: '16pt' }}>Item</th>
+            <th rowSpan={2} style={{ ...thS, width: '33%', fontFamily:'Century Gothic',fontSize: '16pt' }}>Description</th>
+            <th rowSpan={2} style={{ ...thS, width: '8%', fontFamily:'Century Gothic',fontSize: '16pt' }}>Q&apos;ty</th>
+            <th rowSpan={2} style={{ ...thS, width: '7%', fontFamily:'Century Gothic',fontSize: '16pt' }}>Unit</th>
+            <th style={{ ...thS, width: '14%', fontFamily:'Century Gothic',fontSize: '16pt' }}>(Material Price)</th>
+            <th style={{ ...thS, width: '14%', fontFamily:'Century Gothic',fontSize: '16pt' }}>(Labour Price)</th>
+            <th style={{ ...thS, width: '17%', fontFamily:'Century Gothic',fontSize: '16pt' }}>(Total Amount)</th>
           </tr>
           <tr>
-            <th style={thS}>Unit Price</th>
-            <th style={thS}>Unit Price</th>
-            <th style={thS}>Thai Baht</th>
+            <th style={{ ...thS, fontFamily:'Century Gothic',fontSize: '16pt' }}>Unit Price</th>
+            <th style={{ ...thS, fontFamily:'Century Gothic',fontSize: '16pt' }}>Unit Price</th>
+            <th style={{ ...thS, fontFamily:'Century Gothic',fontSize: '16pt' }}>Thai Baht</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((item, i) => (
             <tr key={i}>
-              <td style={{ ...tdS, textAlign: 'center' }}>{item ? (item.seq !== undefined ? item.seq + 1 : i + 1) : ''}</td>
-              <td style={{ ...tdS, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
+              <td style={{ ...tdS, textAlign: 'center', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item ? (item.seq !== undefined ? item.seq + 1 : i + 1) : ''}</td>
+              <td style={{ ...tdS, wordBreak: 'break-word', overflowWrap: 'break-word', fontFamily:'Century Gothic',fontSize: '14pt' }}>
                 {item?.desc ?? ''}
                 {item?.note
-                  ? <span style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>{item.note}</span>
+                  ? <span style={{ color: '#555', fontFamily:'Century Gothic',fontSize: '7.5pt', display: 'block' }}>{item.note}</span>
                   : null}
               </td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.materialPrice) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.labourPrice) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.amount) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item ? fmtQty(item.qty) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'center', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item?.unit ?? ''}</td>
+              <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item ? fmtAmt(item.materialPrice) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item ? fmtAmt(item.labourPrice) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '14pt' }}>{item ? fmtAmt(item.amount) : ''}</td>
             </tr>
           ))}
         </tbody>
         <tfoot style={{ pageBreakInside: 'avoid' }}>
           <tr>
-            <td colSpan={6} style={{ ...tdS, borderTop: border, textAlign: 'right', fontWeight: 'bold' }}>Total</td>
-            <td style={{ ...tdS, borderTop: border, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
+            <td colSpan={6} style={{ ...tdS, borderTop: border, textAlign: 'right', fontWeight: 'bold', fontFamily:'Century Gothic',fontSize: '14pt' }}>Total</td>
+            <td style={{ ...tdS, borderTop: border, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '16pt' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red', fontWeight: 'bold' }}>Special Discount</td>
-            <td style={{ ...tdS, textAlign: 'right', color: 'red' }}>{fmtAmt(doc.specialDiscount)}</td>
+            <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red', fontWeight: 'bold', fontFamily:'Century Gothic',fontSize: '14pt' }}>Special Discount</td>
+            <td style={{ ...tdS, textAlign: 'right', color: 'red', fontFamily:'Century Gothic',fontSize: '16pt' }}>{fmtAmt(doc.specialDiscount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>Total Amount</td>
-            <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(totalAmount)}</td>
+            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold', fontFamily:'Century Gothic',fontSize: '14pt' }}>Total Amount</td>
+            <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '16pt' }}>{fmtAmt(totalAmount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right' }}>Vat 7%</td>
-            <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.vat)}</td>
+            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '14pt' }}>Vat 7%</td>
+            <td style={{ ...tdS, textAlign: 'right', fontFamily:'Century Gothic',fontSize: '16pt' }}>{fmtAmt(doc.vat)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold' }}>Grand Total Amount</td>
-            <td style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.grandTotal)}</td>
+            <td colSpan={6} style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontFamily:'Century Gothic',fontSize: '14pt' }}>Grand Total Amount</td>
+            <td style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontFamily:'Century Gothic',fontSize: '16pt' }}>{fmtAmt(doc.grandTotal)}</td>
           </tr>
         </tfoot>
       </table>
@@ -259,7 +259,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
                 <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
                 <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
               </div>
-              <div>Your Faithfully</div>
+              <div style={{ fontFamily: "'Century Gothic', Tahoma, sans-serif", fontSize: '16pt' }}>Your Faithfully</div>
               <div style={{
                 fontFamily: '"Brush Script MT", "Brush Script Std", cursive',
                 fontStyle: 'italic',
@@ -270,7 +270,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
               }}>
                 {sigName}
               </div>
-              <div>{doc.sales?.fullName || ''}</div>
+              <div style={{ fontFamily: "'Century Gothic', Tahoma, sans-serif", fontSize: '16pt' }}>{doc.sales?.fullName || ''}</div>
             </td>
 
             {/* Right: Customer Confirmation */}
