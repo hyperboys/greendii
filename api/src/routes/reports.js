@@ -5,14 +5,15 @@ const { authenticate } = require('../middleware/auth');
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
   try {
+    const userId = req.user.id;
     const [
       quoTotal, quoApproved, quoGrandTotal,
       woTotal, woApproved, woPending,
       hoTotal, prTotal, recentLogs,
     ] = await Promise.all([
-      prisma.quotation.count(),
-      prisma.quotation.count({ where: { status: 'approved' } }),
-      prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { status: 'approved' } }),
+      prisma.quotation.count({ where: { salesId: userId } }),
+      prisma.quotation.count({ where: { salesId: userId, status: 'approved' } }),
+      prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { salesId: userId, status: 'approved' } }),
       prisma.workOrder.count(),
       prisma.workOrder.count({ where: { status: 'approved' } }),
       prisma.workOrder.count({ where: { status: 'pending' } }),
