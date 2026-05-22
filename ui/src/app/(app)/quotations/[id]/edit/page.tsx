@@ -238,15 +238,15 @@ export default function QuotationFormPage() {
         <div className="overflow-x-auto">
           <div className="max-h-[520px] overflow-y-auto border border-gray-100 rounded-lg">
             <table className="w-full text-sm min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
+              <thead className="sticky top-0 z-10 bg-green-dark text-white">
                 <tr>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-8">#</th>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-20">จำนวน</th>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคาวัสดุ/หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ค่าแรง/หน่วย</th>
-                  <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวนเงิน</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase w-8">#</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase">Description</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-20">Q&apos;ty</th>
+                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase w-24">Unit</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Material Price / Unit</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Labour Price / Unit</th>
+                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Total Amount</th>
                   <th className="w-8"></th>
                 </tr>
               </thead>
