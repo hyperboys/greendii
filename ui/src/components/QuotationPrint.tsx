@@ -16,6 +16,13 @@ interface Props {
   settings: Settings | null
 }
 
+function splitDescriptionLines(note?: string): string[] {
+  return (note ?? '')
+    .split('\n')
+    .map(v => v.trim())
+    .filter(Boolean)
+}
+
 export default function QuotationPrint({ doc, settings }: Props) {
   const dateStr = new Date(doc.createdAt).toLocaleDateString('en-GB')
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
@@ -203,9 +210,11 @@ export default function QuotationPrint({ doc, settings }: Props) {
               <td style={{ ...tdS, textAlign: 'center' }}>{item ? (item.seq !== undefined ? item.seq + 1 : i + 1) : ''}</td>
               <td style={{ ...tdS, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {item?.desc ?? ''}
-                {item?.note
-                  ? <span style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>{item.note}</span>
-                  : null}
+                {splitDescriptionLines(item?.note).map((line, idx) => (
+                  <span key={idx} style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>
+                    {line}
+                  </span>
+                ))}
               </td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>

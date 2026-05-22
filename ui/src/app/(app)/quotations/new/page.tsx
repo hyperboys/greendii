@@ -25,6 +25,13 @@ interface FormData {
 const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0 })
 const VAT_RATE = 0.07
 
+const parseDescLines = (note?: string): string[] => {
+  const lines = (note ?? '').split('\n')
+  return lines.length > 0 ? lines : ['']
+}
+
+const stringifyDescLines = (lines: string[]): string => lines.join('\n')
+
 export default function NewQuotationPage() {
   const router = useRouter()
   const [customers, setCustomers] = useState<Customer[]>([])
@@ -65,6 +72,41 @@ export default function NewQuotationPage() {
       address: c?.address ?? f.address,
       tel: c?.tel ?? f.tel,
     }))
+  }
+
+  const setDescriptionLine = (itemIdx: number, lineIdx: number, value: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const lines = parseDescLines(items[itemIdx].note)
+      while (lines.length <= lineIdx) lines.push('')
+      lines[lineIdx] = value
+      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
+      return { ...f, items }
+    })
+  }
+
+  const addDescriptionLine = (itemIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const lines = parseDescLines(items[itemIdx].note)
+      lines.push('')
+      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
+      return { ...f, items }
+    })
+  }
+
+  const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const lines = parseDescLines(items[itemIdx].note)
+      if (lines.length <= 1) {
+        items[itemIdx] = { ...items[itemIdx], note: '' }
+      } else {
+        lines.splice(lineIdx, 1)
+        items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
+      }
+      return { ...f, items }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -169,14 +211,17 @@ export default function NewQuotationPage() {
             <table className="w-full text-sm min-w-[700px]">
               <thead className="sticky top-0 z-10 bg-green-dark text-white">
                 <tr>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase w-8">#</th>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase">Description</th>
-                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-20">Q&apos;ty</th>
-                  <th className="text-left py-2.5 px-2 text-xs font-semibold uppercase w-24">Unit</th>
-                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Material Price / Unit</th>
-                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Labour Price / Unit</th>
-                  <th className="text-right py-2.5 px-2 text-xs font-semibold uppercase w-28">Total Amount</th>
-                  <th className="w-8"></th>
+                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase w-8 align-middle">#</th>
+                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase align-middle">Description</th>
+                  <th rowSpan={2} className="text-right py-2 px-2 text-xs font-semibold uppercase w-20 align-middle">Q&apos;ty</th>
+                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase w-24 align-middle">Unit</th>
+                  <th colSpan={2} className="text-center py-2 px-2 text-xs font-semibold uppercase tracking-wide">Pricing / Unit</th>
+                  <th rowSpan={2} className="text-right py-2 px-2 text-xs font-semibold uppercase w-32 align-middle">Total Amount</th>
+                  <th rowSpan={2} className="w-8"></th>
+                </tr>
+                <tr>
+                  <th className="text-right py-1.5 px-2 text-[11px] font-semibold uppercase w-32">Material</th>
+                  <th className="text-right py-1.5 px-2 text-[11px] font-semibold uppercase w-32">Labour</th>
                 </tr>
               </thead>
               <tbody>
@@ -187,12 +232,33 @@ export default function NewQuotationPage() {
                       <input className="form-input py-1 w-full" value={item.desc} required
                         onChange={e => setItem(i, 'desc', e.target.value)}
                         placeholder="ชื่อสินค้า/บริการ *" />
-                      <textarea
-                        className="form-input py-1 mt-1.5 text-xs resize-none w-full text-gray-600"
-                        rows={2}
-                        value={item.note ?? ''}
-                        onChange={e => setItem(i, 'note', e.target.value)}
-                        placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
+                      <div className="mt-1.5 space-y-1.5">
+                        {parseDescLines(item.note).map((line, lineIdx) => (
+                          <div key={lineIdx} className="flex items-center gap-1.5">
+                            <input
+                              className="form-input py-1 text-xs w-full text-gray-700"
+                              value={line}
+                              onChange={e => setDescriptionLine(i, lineIdx, e.target.value)}
+                              placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                            />
+                            <button
+                              type="button"
+                              className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                              onClick={() => removeDescriptionLine(i, lineIdx)}
+                              title="ลบบรรทัด"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
+                          onClick={() => addDescriptionLine(i)}
+                        >
+                          <Plus size={12} /> เพิ่มบรรทัด Description
+                        </button>
+                      </div>
                     </td>
                     <td className="py-2 px-2">
                       <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"

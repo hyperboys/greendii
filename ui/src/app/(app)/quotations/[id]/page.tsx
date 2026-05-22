@@ -14,6 +14,13 @@ function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+function splitDescriptionLines(note?: string): string[] {
+  return (note ?? '')
+    .split('\n')
+    .map(v => v.trim())
+    .filter(Boolean)
+}
+
 export default function QuotationDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -129,7 +136,9 @@ export default function QuotationDetailPage() {
                 <td className="text-gray-400">{(item.seq ?? i) + 1}</td>
                 <td className="break-words">
                   {item.desc}
-                  {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                  {splitDescriptionLines(item.note).map((line, idx) => (
+                    <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
+                  ))}
                 </td>
                 <td className="text-right">{fmtMoney(item.qty)}</td>
                 <td>{item.unit}</td>
