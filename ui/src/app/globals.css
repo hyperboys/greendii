@@ -82,12 +82,27 @@
 /* Print sheet – hidden on screen, shown when printing */
 .print-sheet { display: none; }
 
+@media screen {
+  .print-sheet {
+    display: none !important;
+  }
+}
+
 @page {
   size: A4 portrait;
-  margin: 10mm 15mm 10mm 12mm;
+  margin: 10mm;
 }
 
 @media print {
+  html,
+  body {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+
   /* Hide everything on the page first */
   body * {
     visibility: hidden !important;
@@ -104,13 +119,16 @@
     display: flex !important;
     flex-direction: column !important;
     min-height: 277mm !important;
-    position: absolute !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    position: fixed !important;
     top: 0 !important;
     left: 0 !important;
-    width: 100% !important;
-    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
     box-sizing: border-box !important;
     overflow: visible !important;
     background: white !important;
+    box-shadow: none !important;
   }
 }
