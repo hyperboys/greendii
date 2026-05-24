@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect } from 'react'
 import type { WorkOrder, Settings } from '@/types'
 
 const MIN_ROWS = 12
@@ -8,8 +11,24 @@ interface Props {
 }
 
 export default function WorkOrderPrint({ doc, settings }: Props) {
-  const companyName   = settings?.companyName   || 'บริษัท กรีนดิอี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREEN Dii CO., LTD.'
+  useEffect(() => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`
+    const printTitle = `${doc.woNo}_${stamp}`
+    const original = document.title
+    const onBefore = () => { document.title = printTitle }
+    const onAfter  = () => { document.title = original }
+    window.addEventListener('beforeprint', onBefore)
+    window.addEventListener('afterprint',  onAfter)
+    return () => {
+      window.removeEventListener('beforeprint', onBefore)
+      window.removeEventListener('afterprint',  onAfter)
+    }
+  }, [doc.woNo])
+
+  const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address       = settings?.address       || '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120'
   const tel           = settings?.tel           || '+662 150 7694-6'
 

@@ -8,8 +8,8 @@ interface Props {
 }
 
 export default function HandoverPrint({ doc, settings }: Props) {
-  const companyName   = settings?.companyName   || 'บริษัท กรีนดิอี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREEN Dii CO., LTD.'
+  const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address       = settings?.address       || '98 Moo. 6, T.Khlong Sii, A.Khlongluang, Pathumtani 12120'
   const taxId         = settings?.taxId         || '0135549009942'
   const tel           = settings?.tel           || '+66 2150 7694-6'
@@ -98,15 +98,8 @@ export default function HandoverPrint({ doc, settings }: Props) {
           <tr>
             {/* Logo */}
             <td rowSpan={4} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '12px' }}>
-              <div style={{
-                border: '2px solid #2d5a2d', width: '100px',
-                textAlign: 'center', fontFamily: '"Arial Black", Arial, sans-serif',
-                overflow: 'hidden', borderRadius: '2px',
-              }}>
-                <div style={{ background: '#fff', color: '#2d7a2d', fontSize: '15pt', fontWeight: '900', padding: '4px 4px 2px', letterSpacing: '1px', lineHeight: '1.1' }}>GREEN</div>
-                <div style={{ background: '#4a8a4a', color: '#fff', fontSize: '6.5pt', padding: '3px 4px', lineHeight: '1.1' }}>Company Limited</div>
-                <div style={{ background: '#1a3d1a', color: '#fff', fontSize: '18pt', fontWeight: '900', padding: '4px 4px 3px', letterSpacing: '2px', lineHeight: '1.1' }}>Dii</div>
-              </div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
             </td>
             <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '13pt', lineHeight: '1.5' }}>{companyName}</td>
           </tr>

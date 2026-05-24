@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 
 function fmtAmt(n: number | null | undefined): string {
@@ -26,8 +29,24 @@ interface Props {
 }
 
 export default function PRPrint({ doc, settings }: Props) {
+  useEffect(() => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`
+    const printTitle = `${doc.prNo}_${stamp}`
+    const original = document.title
+    const onBefore = () => { document.title = printTitle }
+    const onAfter  = () => { document.title = original }
+    window.addEventListener('beforeprint', onBefore)
+    window.addEventListener('afterprint',  onAfter)
+    return () => {
+      window.removeEventListener('beforeprint', onBefore)
+      window.removeEventListener('afterprint',  onAfter)
+    }
+  }, [doc.prNo])
+
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREEN Dii CO., LTD'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address       = settings?.address       || '98 Moo 6 T.Klongsii, A.KlongLuang, Pathumthani 12120'
   const addressTh     = '98 หมู่ 6 ต. คลองสี่ อ. คลองหลวง จ. ปทุมธานี  12120'
   const tel           = settings?.tel           || '662 150 7694 - 7  662 577 0907'

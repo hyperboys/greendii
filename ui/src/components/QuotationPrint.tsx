@@ -1,3 +1,6 @@
+'use client'
+
+import { useEffect } from 'react'
 import type { Quotation, Settings } from '@/types'
 
 function fmtAmt(n: number | null | undefined): string {
@@ -24,6 +27,22 @@ function splitDescriptionLines(note?: string): string[] {
 }
 
 export default function QuotationPrint({ doc, settings }: Props) {
+  useEffect(() => {
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const now = new Date()
+    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`
+    const printTitle = `${doc.quoNo}_${stamp}`
+    const original = document.title
+    const onBefore = () => { document.title = printTitle }
+    const onAfter  = () => { document.title = original }
+    window.addEventListener('beforeprint', onBefore)
+    window.addEventListener('afterprint',  onAfter)
+    return () => {
+      window.removeEventListener('beforeprint', onBefore)
+      window.removeEventListener('afterprint',  onAfter)
+    }
+  }, [doc.quoNo])
+
   const dateStr = new Date(doc.createdAt).toLocaleDateString('en-GB')
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
