@@ -29,9 +29,14 @@ export default function QuotationPrint({ doc, settings }: Props) {
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address       = settings?.address       || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId         = settings?.taxId         || '0135549009942'
-  const tel           = settings?.tel           || '+662 150 7694-6'
+  const tel           = settings?.tel           || '+662 150 7694-5'
+  const website       = settings?.website      || 'www.greendiicompany.com'
   const email = doc.sales?.email || settings?.email || 'admin2gd@greendii.com'
+  const salesHp = doc.sales?.phone?.trim()
   const addressTh     = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
+  const currentPage = Number.isFinite(Number(doc.page)) && Number(doc.page) > 0 ? Number(doc.page) : 1
+  const totalPages = Number.isFinite(Number(doc.totalPages)) && Number(doc.totalPages) > 0 ? Number(doc.totalPages) : 1
+  const pageText = `${currentPage}/${Math.max(currentPage, totalPages)}`
 
   const totalAmount = doc.subTotal - doc.specialDiscount
 
@@ -82,6 +87,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontSize: '9pt',
     verticalAlign: 'middle',
     width: '55px',
+    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
   }
 
   const ciValueS: React.CSSProperties = {
@@ -89,8 +95,10 @@ export default function QuotationPrint({ doc, settings }: Props) {
     padding: '3px 6px',
     verticalAlign: 'middle',
     height: '22px',
+    width: '54%',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
+    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
   }
 
   const ciRightLabelS: React.CSSProperties = {
@@ -99,8 +107,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
     padding: '3px 6px',
     fontSize: '9pt',
     verticalAlign: 'middle',
-    width: '55px',
+    width: '12%',
     textAlign: 'left',
+    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
   }
 
   const ciRightValueS: React.CSSProperties = {
@@ -108,7 +117,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     padding: '3px 6px',
     verticalAlign: 'middle',
     height: '22px',
-    width: '110px',
+    width: '22%',
+    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
   }
 
   return (
@@ -117,22 +127,24 @@ export default function QuotationPrint({ doc, settings }: Props) {
       {/* ═══ Company Header ═══ */}
       <div style={{ position: 'relative', marginBottom: '8px', textAlign: 'center', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif" }}>
         {/* Logo — absolutely positioned so it does not affect text centering */}
-        <div style={{ position: 'absolute', left: 0, top: '50%', transform: 'translateY(-50%)' }}>
+        <div style={{ position: 'absolute', left: '0px', top: '20%', transform: 'translateY(-50%)' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
+          <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
         </div>
         {/* Thai company name */}
-        <div style={{ fontWeight: 'bold', fontSize: '12pt', lineHeight: '1.5' }}>{companyName}</div>
+        <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '22pt', lineHeight: '1.5' }}>{companyName}</div>
         {/* English company name */}
         <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway, "Broadway BT", fantasy' }}>{companyNameEn}</div>
         {/* English address */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{address}&nbsp;&nbsp;Tel {tel}&nbsp;&nbsp;Fax +662 150 7697</div>
+        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{address}&nbsp;&nbsp;Tel {tel}</div>
         {/* Thai address */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>{addressTh}</div>
+        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}</div>
+        {/* Website */}
+        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{website}</div>
         {/* TAX ID */}
-        <div style={{ fontSize: '9pt', lineHeight: '1.4' }}>TAX ID : {taxId}</div>
+        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>TAX ID : {taxId}</div>
         {/* Email */}
-        <div style={{ fontSize: '9pt', color: '#cc0000', lineHeight: '1.4' }}>E-Mail : {email}</div>
+        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', color: '#cc0000', lineHeight: '1.2' }}>E-Mail : {email}</div>
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
@@ -144,7 +156,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </div>
 
       {/* ═══ Customer Info — bordered table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px' }}>
         <tbody>
           <tr>
             <td style={ciLabelS}>To</td>
@@ -156,7 +168,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={ciLabelS}>Attn</td>
             <td style={ciValueS}>{doc.attn || ''}</td>
             <td style={ciRightLabelS}>Page</td>
-            <td style={ciRightValueS}>1</td>
+            <td style={ciRightValueS}>{pageText}</td>
           </tr>
           <tr>
             <td style={ciLabelS}>Address</td>
@@ -249,69 +261,67 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
       </div>
 
-      {/* ═══ Terms + Signatures ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '10px', fontSize: '9pt', pageBreakInside: 'avoid' }}>
-        <tbody>
-          <tr>
-            {/* Left: Terms + Sales signature */}
-            <td style={{ width: '60%', verticalAlign: 'top', paddingRight: '10px' }}>
-              <div style={{ marginBottom: '4px' }}>
-                <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
-              </div>
-              <div style={{ marginBottom: '4px' }}>
-                <strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}
-              </div>
-              <div style={{ marginBottom: '4px' }}>
-                <strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}
-              </div>
-              <div style={{ marginBottom: '20px' }}>
-                <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
-                <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
-              </div>
-              <div style={{ fontSize: '10pt' }}>Your Faithfully</div>
-              <div style={{
-                fontFamily: '"Brush Script MT", "Brush Script Std", cursive',
-                fontStyle: 'italic',
-                fontSize: '22pt',
-                marginTop: '8px',
-                marginBottom: '2px',
-                lineHeight: 1,
-              }}>
-                {sigName}
-              </div>
-              <div style={{ fontSize: '10pt' }}>{doc.sales?.fullName || ''}</div>
-            </td>
+      <div style={{ flex: '1 1 auto', minHeight: '8mm' }} />
 
-            {/* Right: Customer Confirmation */}
-            <td style={{
-              width: '40%',
-              border: '1px solid #000',
-              padding: '10px 16px',
-              verticalAlign: 'top',
-            }}>
-              <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '26px', fontSize: '10pt' }}>
-                Customer&nbsp;&nbsp;Confirmation
-              </div>
-              <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '26px' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Signature&nbsp;:&nbsp;</td>
-                    <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '18px' }}></td>
-                  </tr>
-                </tbody>
-              </table>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Approval Date&nbsp;:&nbsp;</td>
-                    <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '18px' }}></td>
-                  </tr>
-                </tbody>
-              </table>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* ═══ Terms + Signatures ═══ */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 0, fontSize: '9pt', pageBreakInside: 'avoid' }}>
+        {/* Left: Terms + Sales signature */}
+        <div style={{ width: '64%', paddingRight: '8px' }}>
+          <div style={{ marginBottom: '4px' }}>
+            <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
+          </div>
+          <div style={{ marginBottom: '4px' }}>
+            <strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}
+          </div>
+          <div style={{ marginBottom: '4px' }}>
+            <strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}
+          </div>
+          <div style={{ marginBottom: '15px' }}>
+            <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
+            <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
+          </div>
+          <div style={{ fontSize: '10pt' }}>Your Faithfully</div>
+          <div style={{
+            fontFamily: '"Brush Script MT", "Brush Script Std", cursive',
+            fontStyle: 'italic',
+            fontSize: '22pt',
+            marginTop: '8px',
+            marginBottom: '2px',
+            lineHeight: 1,
+          }}>
+            {sigName}
+          </div>
+          <div style={{ fontSize: '10pt' }}>{doc.sales?.fullName || ''}</div>
+        </div>
+
+        {/* Right: Customer Confirmation */}
+        <div style={{
+          width: '34%',
+          border: '1px solid #000',
+          padding: '3px 6px',
+          alignSelf: 'flex-start',
+        }}>
+          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', fontSize: '10pt' }}>
+            Customer&nbsp;&nbsp;Confirmation
+          </div>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+            <tbody>
+              <tr>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Signature&nbsp;:&nbsp;</td>
+                <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '30px' }}></td>
+              </tr>
+            </tbody>
+          </table>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <tbody>
+              <tr>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Approval Date&nbsp;:&nbsp;</td>
+                <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '30px' }}></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* ═══ Bottom Note ═══ */}
       <div style={{
@@ -323,7 +333,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
         borderTop: '1px solid #555',
         paddingTop: '5px',
       }}>
-        If you do not clear information or not get all price of papers, please notify us immediately&nbsp;&nbsp;HP : 081 900 6685
+        If you do not clear information or not get all price of papers, please notify us immediately
+        {salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
       </div>
 
     </div>

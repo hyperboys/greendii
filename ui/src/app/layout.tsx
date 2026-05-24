@@ -6,7 +6,7 @@ import { Toaster } from 'react-hot-toast'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'GreenDii Sales',
+  title: 'GreenDii Sales Workflow System',
   description: 'GreenDii Sales Workflow System',
   icons: {
     icon: '/logo.ico',

@@ -5,7 +5,7 @@ const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const INCLUDE_FULL = {
-  sales: { select: { id: true, fullName: true, initials: true, email: true, signatureText: true } },
+  sales: { select: { id: true, fullName: true, initials: true, email: true, phone: true, signatureText: true } },
   customer: { select: { id: true, name: true } },
   items: { orderBy: { seq: 'asc' } },
   approvalLogs: {
@@ -35,7 +35,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const list = await prisma.quotation.findMany({
       where,
       include: {
-        sales: { select: { id: true, fullName: true } },
+        sales: { select: { id: true, fullName: true, phone: true } },
         items: true,
       },
       orderBy: { createdAt: 'desc' },
