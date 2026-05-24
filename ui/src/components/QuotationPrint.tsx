@@ -122,7 +122,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   return (
-    <div className="print-sheet" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
+    <div className="print-sheet quotation-print" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
       <div style={{ position: 'relative', marginBottom: '8px', textAlign: 'center', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif" }}>
@@ -198,8 +198,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
 
       {/* ═══ Items Table ═══ */}
-      <div style={{ flex: 1, overflow: 'visible' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', height: '100%' }}>
+      <div style={{ overflow: 'visible' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
@@ -261,10 +261,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </table>
       </div>
 
-      <div style={{ flex: '1 1 auto', minHeight: '8mm' }} />
-
       {/* ═══ Terms + Signatures ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 0, fontSize: '9pt', pageBreakInside: 'avoid' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 0, fontSize: '9pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
         {/* Left: Terms + Sales signature */}
         <div style={{ width: '64%', paddingRight: '8px' }}>
           <div style={{ marginBottom: '4px' }}>
@@ -332,6 +330,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
         fontWeight: 'bold',
         borderTop: '1px solid #555',
         paddingTop: '5px',
+        pageBreakInside: 'avoid',
+        breakInside: 'avoid-page',
       }}>
         If you do not clear information or not get all price of papers, please notify us immediately
         {salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}

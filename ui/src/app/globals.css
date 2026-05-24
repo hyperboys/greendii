@@ -97,7 +97,6 @@
   html,
   body {
     width: 210mm;
-    min-height: 297mm;
     margin: 0 !important;
     padding: 0 !important;
     background: #fff !important;
@@ -108,13 +107,13 @@
     visibility: hidden !important;
   }
 
-  /* Then reveal only the print sheet and its descendants */
+  /* Reveal print sheet and its children */
   .print-sheet,
   .print-sheet * {
     visibility: visible !important;
   }
 
-  /* Pull the print-sheet out of all overflow containers */
+  /* Single-page print sheets (PR, HandOver, WorkOrder, etc.) */
   .print-sheet {
     display: flex !important;
     flex-direction: column !important;
@@ -130,5 +129,23 @@
     overflow: visible !important;
     background: white !important;
     box-shadow: none !important;
+  }
+
+  /* Quotation: multi-page flow — absolute (not fixed) allows spanning across pages */
+  body {
+    position: relative !important;
+  }
+
+  .print-sheet.quotation-print {
+    display: block !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 190mm !important;
+    max-width: 190mm !important;
+    padding: 0 !important;
+    margin: 0 !important;
   }
 }
