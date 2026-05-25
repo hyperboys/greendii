@@ -58,7 +58,9 @@ async function renderUrlToPdf(url, opts = {}) {
       preferCSSPageSize: true,
       margin,
     });
-    return pdf;
+    // Puppeteer returns Uint8Array on recent versions; convert to Buffer so
+    // Express sends raw bytes (not JSON-serialized typed array object).
+    return Buffer.from(pdf);
   } finally {
     await page.close().catch(() => {});
   }
