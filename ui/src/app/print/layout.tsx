@@ -2,44 +2,113 @@
 
 /**
  * Print layout — no sidebar/header. Forces print-sheet visible on screen,
- * embeds Google Fonts for cross-OS rendering parity, and provides a hook
- * (window.__printReady) that Puppeteer waits on.
+ * and provides a hook (window.__printReady) that Puppeteer waits on.
+ *
+ * This layout is prepared for locally embedded font files under /public/fonts.
+ * If the files are present, Puppeteer will render the original look more closely
+ * without depending on OS-installed fonts.
  */
-import { Sarabun, Inter, Bebas_Neue, Dancing_Script } from 'next/font/google'
 
-const sarabun = Sarabun({ subsets: ['thai', 'latin'], weight: ['400', '700'], variable: '--font-sarabun', display: 'swap' })
-const inter = Inter({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-inter', display: 'swap' })
-const bebas = Bebas_Neue({ subsets: ['latin'], weight: ['400'], variable: '--font-bebas', display: 'swap' })
-const dancing = Dancing_Script({ subsets: ['latin'], weight: ['400', '700'], variable: '--font-dancing', display: 'swap' })
+const printFontCss = `
+  @font-face {
+    font-family: 'Cordia New';
+    src:
+      url('/fonts/CordiaNew.woff2') format('woff2'),
+      url('/fonts/CordiaNew.ttf') format('truetype'),
+      url('/fonts/cordia.ttc') format('truetype');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Cordia New';
+    src:
+      url('/fonts/CordiaNew-Bold.woff2') format('woff2'),
+      url('/fonts/CordiaNew-Bold.ttf') format('truetype'),
+      url('/fonts/cordia.ttc') format('truetype');
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Century Gothic';
+    src:
+      url('/fonts/CenturyGothic.woff2') format('woff2'),
+      url('/fonts/CenturyGothic.ttf') format('truetype'),
+      url('/fonts/GOTHIC.TTF') format('truetype');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Century Gothic';
+    src:
+      url('/fonts/CenturyGothic-Bold.woff2') format('woff2'),
+      url('/fonts/CenturyGothic-Bold.ttf') format('truetype'),
+      url('/fonts/GOTHICB.TTF') format('truetype');
+    font-style: normal;
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Broadway';
+    src:
+      url('/fonts/Broadway.woff2') format('woff2'),
+      url('/fonts/Broadway.ttf') format('truetype'),
+      url('/fonts/BROADW.TTF') format('truetype');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Brush Script MT';
+    src:
+      url('/fonts/BrushScriptMT.woff2') format('woff2'),
+      url('/fonts/BrushScriptMT.ttf') format('truetype'),
+      url('/fonts/BRUSHSCI.TTF') format('truetype');
+    font-style: normal;
+    font-weight: 400;
+    font-display: swap;
+  }
+
+  :root {
+    --font-body: 'Cordia New', 'Sarabun', 'Noto Sans Thai', sans-serif;
+    --font-thai: 'Cordia New';
+    --font-en: 'Century Gothic', 'Inter', sans-serif;
+    --font-display: 'Broadway', 'Bebas Neue', sans-serif;
+    --font-signature: 'Brush Script MT', 'Dancing Script', cursive;
+  }
+`
 
 export default function PrintLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      className={`${sarabun.variable} ${inter.variable} ${bebas.variable} ${dancing.variable}`}
-      style={{ background: '#fff' }}
-    >
+    <div style={{ background: '#fff' }}>
       <style>{`
+        ${printFontCss}
+
         /* Force print sheet visible on screen for this route only */
         .print-sheet { display: block !important; }
         body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
-        /* Map legacy font names used in print templates to embedded Google Fonts.
-           This ensures Mac/Win/Linux render identically. */
+        /* Map legacy font names used in print templates to local embedded fonts. */
         [style*="Cordia New"], [style*="'Cordia New'"] {
-          font-family: var(--font-sarabun), 'Cordia New', 'Sarabun', sans-serif !important;
+          font-family: var(--font-thai) !important;
         }
-        [style*="Century Gothic"] {
-          font-family: var(--font-inter), 'Century Gothic', 'Inter', sans-serif !important;
+        [style*="Century Gothic"],
+        [style*="Arial"],
+        [style*="Tahoma"] {
+          font-family: var(--font-body) !important;
         }
         [style*="Broadway"] {
-          font-family: var(--font-bebas), 'Broadway', 'Bebas Neue', sans-serif !important;
+          font-family: var(--font-display) !important;
           letter-spacing: 0.02em;
         }
         [style*="Brush Script MT"], [style*="Brush Script Std"] {
-          font-family: var(--font-dancing), 'Brush Script MT', 'Dancing Script', cursive !important;
+          font-family: var(--font-signature) !important;
         }
-        /* Tahoma fallback chain — use Sarabun (Thai-capable) when system Tahoma differs */
-        [style*="Tahoma"] {
-          font-family: var(--font-sarabun), 'Tahoma', 'Sarabun', sans-serif !important;
+        /* Make Thai text render consistently in headless Chromium on Linux/Windows */
+        .print-sheet, .print-sheet * {
+          -webkit-font-smoothing: antialiased;
+          text-rendering: geometricPrecision;
         }
       `}</style>
       {children}

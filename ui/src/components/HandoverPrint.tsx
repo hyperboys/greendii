@@ -90,7 +90,7 @@ export default function HandoverPrint({ doc, settings }: Props) {
   )
 
   return (
-    <div className="print-sheet" style={{ fontFamily: 'Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
+    <div className="print-sheet" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>

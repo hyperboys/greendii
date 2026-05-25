@@ -114,48 +114,47 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   // Customer info table cell styles (no borders)
   const ciLabelS: React.CSSProperties = {
-    fontWeight: 'bold',
+    fontFamily: 'var(--font-en)',
+    fontSize: '10pt',
     whiteSpace: 'nowrap',
-    padding: '3px 6px',
-    fontSize: '9pt',
+    textAlign: 'left',
     verticalAlign: 'middle',
-    width: '55px',
-    fontFamily: "Century Gothic",
+    padding: '3px 6px',
+    width: '12%',
   }
 
   const ciValueS: React.CSSProperties = {
+    fontFamily: 'var(--font-en)',
     fontSize: '9pt',
-    padding: '3px 6px',
     verticalAlign: 'middle',
-    height: '22px',
+    padding: '3px 6px',
     width: '54%',
+    height: '22px',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
-    fontFamily: "Century Gothic",
   }
 
   const ciRightLabelS: React.CSSProperties = {
-    fontWeight: 'bold',
+    fontFamily: 'var(--font-en)',
+    fontSize: '10pt',
     whiteSpace: 'nowrap',
-    padding: '3px 6px',
-    fontSize: '9pt',
-    verticalAlign: 'middle',
-    width: '12%',
     textAlign: 'left',
-    fontFamily: "Century Gothic",
+    verticalAlign: 'middle',
+    padding: '3px 6px',
+    width: '12%',
   }
 
   const ciRightValueS: React.CSSProperties = {
+    fontFamily: 'var(--font-en)',
     fontSize: '9pt',
-    padding: '3px 6px',
     verticalAlign: 'middle',
-    height: '22px',
+    padding: '3px 6px',
     width: '22%',
-    fontFamily: "Century Gothic",
+    height: '22px',
   }
 
   return (
-    <div className="print-sheet quotation-print" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
+    <div className="print-sheet quotation-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '18pt' }}>
 
       {/* ═══ Company Header ═══ */}
       {/* Row 1: Logo (left cell) + Company names (center cell) */}
@@ -165,7 +164,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           gridTemplateColumns: '120px 1fr 120px',
           columnGap: 0,
           alignItems: 'center',
-          fontFamily: "'Cordia New', Tahoma, Arial, sans-serif",
+          fontFamily: 'var(--font-thai)',
         }}
       >
         <div>
@@ -173,29 +172,29 @@ export default function QuotationPrint({ doc, settings }: Props) {
           <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
         </div>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New'", fontSize: '22pt', lineHeight: '1.4' }}>{companyName}</div>
-          <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.4', fontFamily: 'Broadway' }}>{companyNameEn}</div>
+          <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '22pt', lineHeight: '1.4' }}>{companyName}</div>
+          <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.4', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
         </div>
         <div />
       </div>
 
       {/* Row 2: Contact details — full-width centered, no column constraint */}
-      <div style={{ textAlign: 'center', fontFamily: "'Cordia New'", marginBottom: '6px' }}>
-        <div style={{ fontSize: '14pt', lineHeight: '1.4' }}>
+      <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '6px' }}>
+        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
           {address}&nbsp;&nbsp;Tel {tel}
         </div>
-        <div style={{ fontSize: '14pt', lineHeight: '1.4' }}>
+        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
           {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
         </div>
         <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>{website}</div>
-        <div style={{ fontSize: '14pt', lineHeight: '1.3' }}>TAX ID : {taxId}</div>
-        <div style={{ fontSize: '14pt', lineHeight: '1.3', color: '#cc0000' }}>E-Mail : {email}</div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>TAX ID : {taxId}</div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.3', color: '#cc0000' }}>E-Mail : {email}</div>
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
       <div style={{
-        textAlign: 'center', fontWeight: 'bold', fontSize: '11pt',
-        textDecoration: 'underline', marginBottom: '8px',
+        textAlign: 'center', fontWeight: 'bold', fontSize: '16pt',
+        textDecoration: 'underline', marginBottom: '8px', fontFamily: 'var(--font-thai)',
       }}>
         QUOTATION
       </div>
@@ -241,16 +240,16 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
       {/* ═══ Items Table ═══ */}
       <div style={{ overflow: 'visible' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' ,fontFamily: 'var(--font-en)' ,fontSize: '10pt'}}>
         <thead>
           <tr>
-            <th rowSpan={2} style={{ ...thS, width: '5%' }}>Item</th>
-            <th rowSpan={2} style={{ ...thS, width: '33%' }}>Description</th>
-            <th rowSpan={2} style={{ ...thS, width: '8%' }}>Q&apos;ty</th>
-            <th rowSpan={2} style={{ ...thS, width: '7%' }}>Unit</th>
-            <th style={{ ...thS, width: '14%' }}>(Material Price)</th>
-            <th style={{ ...thS, width: '14%' }}>(Labour Price)</th>
-            <th style={{ ...thS, width: '17%' }}>(Total Amount)</th>
+            <th rowSpan={2} style={{ ...thS, width: '5%' ,fontWeight: 'bold'}}>Item</th>
+            <th rowSpan={2} style={{ ...thS, width: '33%',fontWeight: 'bold' }}>Description</th>
+            <th rowSpan={2} style={{ ...thS, width: '8%',fontWeight: 'bold' }}>Q&apos;ty</th>
+            <th rowSpan={2} style={{ ...thS, width: '7%' ,fontWeight: 'bold'}}>Unit</th>
+            <th style={{ ...thS, width: '14%',fontWeight: 'bold' }}>(Material Price)</th>
+            <th style={{ ...thS, width: '14%' ,fontWeight: 'bold'}}>(Labour Price)</th>
+            <th style={{ ...thS, width: '17%' ,fontWeight: 'bold'}}>(Total Amount)</th>
           </tr>
           <tr>
             <th style={thS}>Unit Price</th>
@@ -283,7 +282,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
                   </div>
                 )}
               </td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'center' }}>{item ? fmtQty(item.qty) : ''}</td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.materialPrice) : ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.labourPrice) : ''}</td>
@@ -317,7 +316,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </div>
 
       {/* ═══ Terms + Signatures ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '10px', fontSize: '9pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '10px', fontSize: '14pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
         {/* Left: Terms + Sales signature */}
         <div style={{ width: '65%', paddingRight: '8px' }}>
           <div style={{ marginBottom: '4px' }}>
@@ -333,9 +332,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
             <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
           </div>
-          <div style={{ fontSize: '10pt' }}>Your Faithfully</div>
+          <div style={{ fontSize: '14pt' }}>Your Faithfully</div>
           <div style={{
-            fontFamily: '"Brush Script MT", "Brush Script Std", cursive',
+            fontFamily: 'var(--font-signature)',
             fontStyle: 'italic',
             fontSize: '22pt',
             marginTop: '8px',
@@ -344,7 +343,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           }}>
             {sigName}
           </div>
-          <div style={{ fontSize: '10pt' }}>{doc.sales?.fullName || ''}</div>
+          <div style={{ fontSize: '14pt' }}>{doc.sales?.fullName || ''}</div>
         </div>
 
         {/* Right: Customer Confirmation */}
@@ -354,22 +353,22 @@ export default function QuotationPrint({ doc, settings }: Props) {
           padding: '3px 6px',
           alignSelf: 'flex-start',
         }}>
-          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', fontSize: '10pt' }}>
+          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', fontSize: '14pt' }}>
             Customer&nbsp;&nbsp;Confirmation
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Signature&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '9pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(37)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '14pt' }}>Signature&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '14pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(37)}</td>
               </tr>
             </tbody>
           </table>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Approval Date&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '9pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(34)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '14pt' }}>Approval Date&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '14pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(34)}</td>
               </tr>
             </tbody>
           </table>
@@ -379,7 +378,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
       {/* ═══ Bottom Note ═══ */}
       <div style={{
         marginTop: '10px',
-        fontSize: '7.5pt',
+        fontSize: '14pt',
         fontStyle: 'italic',
         textAlign: 'center',
         fontWeight: 'bold',
