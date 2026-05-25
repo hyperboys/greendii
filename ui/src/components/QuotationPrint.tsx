@@ -194,13 +194,13 @@ export default function QuotationPrint({ doc, settings }: Props) {
       {/* ═══ QUOTATION title ═══ */}
       <div style={{
         textAlign: 'center', fontWeight: 'bold', fontSize: '16pt',
-        textDecoration: 'underline', marginBottom: '8px', fontFamily: 'var(--font-thai)',
+        textDecoration: 'underline', marginBottom: '8px', fontFamily: 'var(--font-en)',
       }}>
         QUOTATION
       </div>
 
       {/* ═══ Customer Info — bordered table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px', border: '1px solid #000' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px', border: '1px solid #000', fontFamily: 'var(--font-en)' }}>
         <tbody>
           <tr>
             <td style={ciLabelS}>To</td>
@@ -240,7 +240,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
       {/* ═══ Items Table ═══ */}
       <div style={{ overflow: 'visible' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' ,fontFamily: 'var(--font-thai)' ,fontSize: '10pt'}}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' ,fontFamily: 'var(--font-en)' ,fontSize: '10pt'}}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...thS, width: '5%' ,fontWeight: 'bold'}}>Item</th>
