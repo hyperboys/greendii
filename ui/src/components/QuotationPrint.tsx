@@ -120,7 +120,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontSize: '9pt',
     verticalAlign: 'middle',
     width: '55px',
-    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
+    fontFamily: "Century Gothic",
   }
 
   const ciValueS: React.CSSProperties = {
@@ -131,7 +131,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     width: '54%',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
-    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
+    fontFamily: "Century Gothic",
   }
 
   const ciRightLabelS: React.CSSProperties = {
@@ -142,7 +142,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     verticalAlign: 'middle',
     width: '12%',
     textAlign: 'left',
-    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
+    fontFamily: "Century Gothic",
   }
 
   const ciRightValueS: React.CSSProperties = {
@@ -151,7 +151,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     verticalAlign: 'middle',
     height: '22px',
     width: '22%',
-    fontFamily: "Century Gothic, 'Century Gothic', sans-serif",
+    fontFamily: "Century Gothic",
   }
 
   return (
@@ -181,15 +181,15 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
       {/* Row 2: Contact details — full-width centered, no column constraint */}
       <div style={{ textAlign: 'center', fontFamily: "'Cordia New'", marginBottom: '6px' }}>
-        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
+        <div style={{ fontSize: '14pt', lineHeight: '1.4' }}>
           {address}&nbsp;&nbsp;Tel {tel}
         </div>
-        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
+        <div style={{ fontSize: '14pt', lineHeight: '1.4' }}>
           {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
         </div>
         <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>{website}</div>
-        <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>TAX ID : {taxId}</div>
-        <div style={{ fontSize: '16pt', lineHeight: '1.3', color: '#cc0000' }}>E-Mail : {email}</div>
+        <div style={{ fontSize: '14pt', lineHeight: '1.3' }}>TAX ID : {taxId}</div>
+        <div style={{ fontSize: '14pt', lineHeight: '1.3', color: '#cc0000' }}>E-Mail : {email}</div>
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
