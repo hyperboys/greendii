@@ -69,6 +69,7 @@ export default function NewQuotationPage() {
     setForm(f => ({
       ...f, customerId: id,
       customerName: c?.name ?? f.customerName,
+      attn: c?.contactPerson ?? f.attn,
       address: c?.address ?? f.address,
       tel: c?.tel ?? f.tel,
     }))
@@ -115,8 +116,45 @@ export default function NewQuotationPage() {
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการสินค้า'); return }
     setSaving(true)
     try {
+      // 1) Save any new units used by items
+      const existingUnitNames = new Set(units.map(u => u.name.trim().toLowerCase()))
+      const newUnitNames = Array.from(new Set(
+        form.items
+          .map(i => (i.unit || '').trim())
+          .filter(n => n && !existingUnitNames.has(n.toLowerCase()))
+      ))
+      for (const name of newUnitNames) {
+        try { await UnitsAPI.create({ name }) } catch { /* ignore */ }
+      }
+
+      // 2) Resolve customer
+      let customerId = form.customerId
+      if (!customerId) {
+        try {
+          const created = await CustomersAPI.create({
+            name: form.customerName.trim(),
+            contactPerson: form.attn || undefined,
+            tel: form.tel || undefined,
+            address: form.address || undefined,
+          })
+          customerId = created.id
+        } catch { /* ignore */ }
+      } else {
+        const orig = customers.find(c => c.id === customerId)
+        if (orig) {
+          const patch: Partial<Customer> = {}
+          if ((orig.name || '') !== (form.customerName || '')) patch.name = form.customerName
+          if ((orig.contactPerson || '') !== (form.attn || '')) patch.contactPerson = form.attn
+          if ((orig.tel || '') !== (form.tel || '')) patch.tel = form.tel
+          if ((orig.address || '') !== (form.address || '')) patch.address = form.address
+          if (Object.keys(patch).length > 0) {
+            try { await CustomersAPI.update(customerId, patch) } catch { /* ignore */ }
+          }
+        }
+      }
+
       const created = await QuotationsAPI.create({
-        ...form, subTotal, vat, grandTotal,
+        ...form, customerId, subTotal, vat, grandTotal,
         items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
       })
       toast.success('สร้างใบเสนอราคาสำเร็จ')
@@ -265,11 +303,10 @@ export default function NewQuotationPage() {
                         value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
                     </td>
                     <td className="py-2 px-2">
-                      <select className="form-input py-1" value={item.unit}
-                        onChange={e => setItem(i, 'unit', e.target.value)}>
-                        <option value="">-</option>
-                        {units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                      </select>
+                      <input list="units-datalist" className="form-input py-1"
+                        value={item.unit}
+                        onChange={e => setItem(i, 'unit', e.target.value)}
+                        placeholder="-" />
                     </td>
                     <td className="py-2 px-2">
                       <input type="number" min={0} step="any" className="form-input py-1 text-right"
@@ -308,6 +345,10 @@ export default function NewQuotationPage() {
           {saving ? 'กำลังบันทึก…' : 'สร้างใบเสนอราคา'}
         </button>
       </div>
+
+      <datalist id="units-datalist">
+        {units.map(u => <option key={u.id} value={u.name} />)}
+      </datalist>
     </form>
   )
 }

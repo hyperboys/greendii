@@ -13,6 +13,10 @@ function fmtQty(n: number): string {
 }
 
 const MIN_ROWS = 3
+// Target rows per page — used to pad with empty rows when items are few
+// so the items table fills the page and Terms + Signatures sit at the bottom.
+// Adjust this number if the table overflows / under-fills A4.
+const ROWS_PER_PAGE = 13
 
 interface Props {
   doc: Quotation
@@ -68,10 +72,20 @@ export default function QuotationPrint({ doc, settings }: Props) {
     return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
   })()
 
-  // Pad rows to minimum
+  // Pad rows so the table fills the page when items are few.
+  // Each item takes 1 row + 1 row per note line (visually).
+  const usedRowEstimate = doc.items.reduce(
+    (sum, it) => sum + 1 + splitDescriptionLines(it.note).length,
+    0,
+  )
+  const fillerCount = Math.max(
+    MIN_ROWS - doc.items.length,
+    ROWS_PER_PAGE - usedRowEstimate,
+    0,
+  )
   const rows: (typeof doc.items[0] | null)[] = [
     ...doc.items,
-    ...Array(Math.max(0, MIN_ROWS - doc.items.length)).fill(null),
+    ...Array(fillerCount).fill(null),
   ]
 
   const border = '1px solid #000'
@@ -144,26 +158,42 @@ export default function QuotationPrint({ doc, settings }: Props) {
     <div className="print-sheet quotation-print" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
-      <div style={{ position: 'relative', marginBottom: '8px', textAlign: 'center', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif" }}>
-        {/* Logo — absolutely positioned so it does not affect text centering */}
-        <div style={{ position: 'absolute', left: '0px', top: '20%', transform: 'translateY(-50%)' }}>
+      <div
+        style={{
+          marginBottom: '8px',
+          fontFamily: "'Cordia New', Tahoma, Arial, sans-serif",
+          display: 'grid',
+          gridTemplateColumns: '120px 1fr 120px',
+          columnGap: '6px',
+          alignItems: 'start',
+        }}
+      >
+        {/* Left column: logo pinned to the left edge */}
+        <div style={{ paddingTop: '4px' }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
         </div>
-        {/* Thai company name */}
-        <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '22pt', lineHeight: '1.5' }}>{companyName}</div>
-        {/* English company name */}
-        <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway, "Broadway BT", fantasy' }}>{companyNameEn}</div>
-        {/* English address */}
-        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{address}&nbsp;&nbsp;Tel {tel}</div>
-        {/* Thai address */}
-        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}</div>
-        {/* Website */}
-        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{website}</div>
-        {/* TAX ID */}
-        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', lineHeight: '1.2' }}>TAX ID : {taxId}</div>
-        {/* Email */}
-        <div style={{ fontFamily: "'Cordia New', Tahoma, Arial, sans-serif", fontSize: '16pt', color: '#cc0000', lineHeight: '1.2' }}>E-Mail : {email}</div>
+
+        {/* Middle column: centered company details */}
+        <div style={{ textAlign: 'center' }}>
+          {/* Thai company name */}
+          <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New'", fontSize: '22pt', lineHeight: '1.5' }}>{companyName}</div>
+          {/* English company name */}
+          <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway' }}>{companyNameEn}</div>
+          {/* English address */}
+          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{address}&nbsp;&nbsp;Tel {tel}</div>
+          {/* Thai address */}
+          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}</div>
+          {/* Website */}
+          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{website}</div>
+          {/* TAX ID */}
+          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>TAX ID : {taxId}</div>
+          {/* Email */}
+          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', color: '#cc0000', lineHeight: '1.2' }}>E-Mail : {email}</div>
+        </div>
+
+        {/* Right spacer: keeps middle column truly centered */}
+        <div />
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
@@ -208,7 +238,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={ciLabelS}>Project</td>
             <td style={ciValueS}>:&nbsp;{doc.project}</td>
             <td style={ciRightLabelS}>HP</td>
-            <td style={ciRightValueS}>:&nbsp;{doc.hp || ''}</td>
+            <td style={ciRightValueS}>:&nbsp;</td>
           </tr>
         </tbody>
       </table>
@@ -278,9 +308,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </div>
 
       {/* ═══ Terms + Signatures ═══ */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: 0, fontSize: '9pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '10px', fontSize: '9pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
         {/* Left: Terms + Sales signature */}
-        <div style={{ width: '64%', paddingRight: '8px' }}>
+        <div style={{ width: '65%', paddingRight: '8px' }}>
           <div style={{ marginBottom: '4px' }}>
             <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
           </div>
@@ -310,7 +340,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
         {/* Right: Customer Confirmation */}
         <div style={{
-          width: '34%',
+          width: '45%',
           border: '1px solid #000',
           padding: '3px 6px',
           alignSelf: 'flex-start',
@@ -322,7 +352,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <tbody>
               <tr>
                 <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Signature&nbsp;:&nbsp;</td>
-                <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '30px' }}></td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '9pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(37)}</td>
               </tr>
             </tbody>
           </table>
@@ -330,7 +360,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <tbody>
               <tr>
                 <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '9pt' }}>Approval Date&nbsp;:&nbsp;</td>
-                <td style={{ borderBottom: '1px dotted #000', padding: 0, height: '30px' }}></td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '9pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.' .repeat(34)}</td>
               </tr>
             </tbody>
           </table>

@@ -150,6 +150,7 @@ export default function QuotationFormPage() {
       ...f,
       customerId: id,
       customerName: c?.name ?? f.customerName,
+      attn: c?.contactPerson ?? f.attn,
       address: c?.address ?? f.address,
       tel: c?.tel ?? f.tel,
     }))
@@ -167,8 +168,46 @@ export default function QuotationFormPage() {
     }
     setSaving(true)
     try {
+      // 1) Save any new units used by items (ignore duplicates)
+      const existingUnitNames = new Set(units.map(u => u.name.trim().toLowerCase()))
+      const newUnitNames = Array.from(new Set(
+        form.items
+          .map(i => (i.unit || '').trim())
+          .filter(n => n && !existingUnitNames.has(n.toLowerCase()))
+      ))
+      for (const name of newUnitNames) {
+        try { await UnitsAPI.create({ name }) } catch { /* duplicate or other - ignore */ }
+      }
+
+      // 2) Resolve customer: create new if none selected, else update changed fields
+      let customerId = form.customerId
+      if (!customerId) {
+        try {
+          const created = await CustomersAPI.create({
+            name: form.customerName.trim(),
+            contactPerson: form.attn || undefined,
+            tel: form.tel || undefined,
+            address: form.address || undefined,
+          })
+          customerId = created.id
+        } catch { /* fall through — backend QO still accepts customerName */ }
+      } else {
+        const orig = customers.find(c => c.id === customerId)
+        if (orig) {
+          const patch: Partial<Customer> = {}
+          if ((orig.name || '') !== (form.customerName || '')) patch.name = form.customerName
+          if ((orig.contactPerson || '') !== (form.attn || '')) patch.contactPerson = form.attn
+          if ((orig.tel || '') !== (form.tel || '')) patch.tel = form.tel
+          if ((orig.address || '') !== (form.address || '')) patch.address = form.address
+          if (Object.keys(patch).length > 0) {
+            try { await CustomersAPI.update(customerId, patch) } catch { /* ignore */ }
+          }
+        }
+      }
+
       const payload = {
         ...form,
+        customerId,
         subTotal,
         vat,
         grandTotal,
@@ -344,14 +383,13 @@ export default function QuotationFormPage() {
                       />
                     </td>
                     <td className="py-2 px-2">
-                      <select
+                      <input
+                        list="units-datalist"
                         className="form-input py-1"
                         value={item.unit}
                         onChange={e => setItem(i, 'unit', e.target.value)}
-                      >
-                        <option value="">-</option>
-                        {units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                      </select>
+                        placeholder="-"
+                      />
                     </td>
                     <td className="py-2 px-2">
                       <input
@@ -418,6 +456,11 @@ export default function QuotationFormPage() {
           </div>
         </div>
       </div>
+
+      {/* Datalist for Unit autocomplete (shared by all rows) */}
+      <datalist id="units-datalist">
+        {units.map(u => <option key={u.id} value={u.name} />)}
+      </datalist>
 
       {/* Submit */}
       <div className="flex justify-end gap-3">
