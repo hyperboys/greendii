@@ -175,43 +175,40 @@ export default function QuotationPrint({ doc, settings }: Props) {
       </div>
 
       {/* ═══ Customer Info — bordered table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px', border: '1px solid #000' }}>
         <tbody>
           <tr>
             <td style={ciLabelS}>To</td>
-            <td style={ciValueS}>{doc.customerName}</td>
+            <td style={ciValueS}>:&nbsp;{doc.customerName}</td>
             <td style={ciRightLabelS}>Date</td>
-            <td style={ciRightValueS}>{dateStr}</td>
+            <td style={ciRightValueS}>:&nbsp;{dateStr}</td>
           </tr>
           <tr>
             <td style={ciLabelS}>Attn</td>
-            <td style={ciValueS}>{doc.attn || ''}</td>
+            <td style={ciValueS}>:&nbsp;{doc.attn || ''}</td>
             <td style={ciRightLabelS}>Page</td>
-            <td style={ciRightValueS}>{pageText}</td>
+            <td style={ciRightValueS}>:&nbsp;{pageText}</td>
           </tr>
           <tr>
             <td style={ciLabelS}>Address</td>
-            <td style={ciValueS}>{doc.address || ''}</td>
+            <td style={ciValueS}>:&nbsp;{doc.address || ''}</td>
             <td style={ciRightLabelS}>Tel</td>
-            <td style={ciRightValueS}>{doc.tel || ''}</td>
+            <td style={ciRightValueS}>:&nbsp;{doc.tel || ''}</td>
           </tr>
           <tr>
-            <td style={{ ...ciLabelS, borderRight: 'none' }}></td>
-            <td style={{ ...ciValueS, borderLeft: 'none' }}></td>
-            <td style={ciRightLabelS}>Fax</td>
-            <td style={ciRightValueS}></td>
+
           </tr>
           <tr>
             <td style={{ ...ciLabelS, borderRight: 'none' }}></td>
             <td style={{ ...ciValueS, borderLeft: 'none' }}></td>
             <td style={ciRightLabelS}>Quo.No</td>
-            <td style={ciRightValueS}>{doc.quoNo}</td>
+            <td style={ciRightValueS}>:&nbsp;{doc.quoNo}</td>
           </tr>
           <tr>
             <td style={ciLabelS}>Project</td>
-            <td style={ciValueS}>{doc.project}</td>
+            <td style={ciValueS}>:&nbsp;{doc.project}</td>
             <td style={ciRightLabelS}>HP</td>
-            <td style={ciRightValueS}></td>
+            <td style={ciRightValueS}>:&nbsp;{doc.hp || ''}</td>
           </tr>
         </tbody>
       </table>
