@@ -9,6 +9,25 @@ const puppeteer = require('puppeteer');
 
 let browserPromise = null;
 
+function getUiBaseUrl(req) {
+  const configured = process.env.UI_URL || process.env.PDF_UI_URL;
+  if (configured) return configured.replace(/\/$/, '');
+
+  const origin = req?.headers?.origin || req?.get?.('origin');
+  if (origin) return origin.replace(/\/$/, '');
+
+  const referer = req?.headers?.referer || req?.get?.('referer');
+  if (referer) {
+    try {
+      return new URL(referer).origin.replace(/\/$/, '');
+    } catch {
+      // ignore malformed referer
+    }
+  }
+
+  return 'http://localhost:3000';
+}
+
 function getBrowser() {
   if (!browserPromise) {
     browserPromise = puppeteer.launch({
@@ -75,4 +94,4 @@ async function closeBrowser() {
   browserPromise = null;
 }
 
-module.exports = { renderUrlToPdf, closeBrowser };
+module.exports = { renderUrlToPdf, closeBrowser, getUiBaseUrl };

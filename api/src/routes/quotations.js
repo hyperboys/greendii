@@ -58,9 +58,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // GET /api/quotations/:id/pdf  — server-side PDF (cross-OS consistent)
 router.get('/:id/pdf', authenticate, async (req, res, next) => {
   try {
-    const { renderUrlToPdf } = require('../lib/pdf');
+    const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const uiBase = process.env.UI_URL || 'http://localhost:3000';
+    const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/quotation/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true } });
     const pdf = await renderUrlToPdf(url);

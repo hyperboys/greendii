@@ -48,9 +48,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // GET /api/handovers/:id/pdf
 router.get('/:id/pdf', authenticate, async (req, res, next) => {
   try {
-    const { renderUrlToPdf } = require('../lib/pdf');
+    const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const uiBase = process.env.UI_URL || 'http://localhost:3000';
+    const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/handover/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id }, select: { hoNo: true } });
     const pdf = await renderUrlToPdf(url);

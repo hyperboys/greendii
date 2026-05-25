@@ -58,9 +58,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // GET /api/workorders/:id/pdf
 router.get('/:id/pdf', authenticate, async (req, res, next) => {
   try {
-    const { renderUrlToPdf } = require('../lib/pdf');
+    const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
-    const uiBase = process.env.UI_URL || 'http://localhost:3000';
+    const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/workorder/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id }, select: { woNo: true } });
     const pdf = await renderUrlToPdf(url);
