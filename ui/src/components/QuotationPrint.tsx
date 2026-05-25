@@ -240,7 +240,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
       {/* ═══ Items Table ═══ */}
       <div style={{ overflow: 'visible' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' ,fontFamily: 'var(--font-thai)' ,fontSize: '10pt'}}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' ,fontFamily: 'var(--font-en)' ,fontSize: '14pt'}}>
         <thead>
           <tr>
             <th rowSpan={2} style={{ ...thS, width: '5%' ,fontWeight: 'bold'}}>Item</th>
@@ -264,7 +264,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
               <td style={{ ...tdS, wordBreak: 'break-word', overflowWrap: 'break-word' }}>
                 {item?.desc ?? ''}
                 {splitDescriptionLines(item?.note).map((line, idx) => (
-                  <span key={idx} style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>
+                  <span key={idx} style={{ color: '#555', fontSize: '10pt', display: 'block' }}>
                     {line}
                   </span>
                 ))}
