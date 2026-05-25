@@ -2,10 +2,10 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI, CustomersAPI, UnitsAPI } from '@/lib/api'
+import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI } from '@/lib/api'
 import type { Customer, Unit, QuotationItem } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface FormData {
@@ -23,7 +23,7 @@ interface FormData {
   items: QuotationItem[]
 }
 
-const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0 })
+const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0, images: [] })
 
 const VAT_RATE = 0.07
 
@@ -81,6 +81,7 @@ export default function QuotationFormPage() {
               labourPrice: Number(it.labourPrice),
               price: Number(it.price),
               amount: Number(it.amount),
+              images: Array.isArray(it.images) ? it.images : [],
             })) : [emptyItem()],
             specialDiscount: Number(doc.specialDiscount ?? 0),
           })
@@ -108,6 +109,35 @@ export default function QuotationFormPage() {
   const addItem = () => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
   const removeItem = (idx: number) =>
     setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))
+
+  const uploadItemImages = async (itemIdx: number, files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
+    if (imageFiles.length === 0) return toast.error('รองรับเฉพาะไฟล์รูปภาพ')
+    const tId = toast.loading('กำลังอัปโหลดรูป...')
+    try {
+      const saved = await UploadAPI.upload(imageFiles, { category: 'quotation-item' })
+      const urls = saved.map((a: any) => a.fileUrl).filter(Boolean)
+      setForm(f => {
+        const items = [...f.items]
+        items[itemIdx] = { ...items[itemIdx], images: [...(items[itemIdx].images || []), ...urls] }
+        return { ...f, items }
+      })
+      toast.success('อัปโหลดรูปสำเร็จ', { id: tId })
+    } catch {
+      toast.error('อัปโหลดไม่สำเร็จ', { id: tId })
+    }
+  }
+
+  const removeItemImage = (itemIdx: number, urlIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const imgs = [...(items[itemIdx].images || [])]
+      imgs.splice(urlIdx, 1)
+      items[itemIdx] = { ...items[itemIdx], images: imgs }
+      return { ...f, items }
+    })
+  }
 
   const setDescriptionLine = (itemIdx: number, lineIdx: number, value: string) => {
     setForm(f => {
@@ -372,6 +402,43 @@ export default function QuotationFormPage() {
                         >
                           <Plus size={12} /> เพิ่มบรรทัด Description
                         </button>
+                      </div>
+                      {/* Item images */}
+                      <div className="mt-2">
+                        {item.images && item.images.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-1.5">
+                            {item.images.map((url, imgIdx) => (
+                              <div key={imgIdx} className="relative group">
+                                <img
+                                  src={url}
+                                  alt=""
+                                  className="w-14 h-14 object-cover rounded border border-gray-200"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeItemImage(i, imgIdx)}
+                                  className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  title="ลบรูป"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <label className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium cursor-pointer">
+                          <ImagePlus size={12} /> เพิ่มรูปภาพ
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={e => {
+                              uploadItemImages(i, e.target.files)
+                              e.target.value = ''
+                            }}
+                          />
+                        </label>
                       </div>
                     </td>
                     <td className="py-2 px-2">

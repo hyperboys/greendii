@@ -240,6 +240,7 @@ export interface QuotationItem {
   labourPrice: number
   price: number
   amount: number
+  images?: string[]
 }
 
 export interface Quotation {

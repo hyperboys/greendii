@@ -186,6 +186,7 @@ model QuotationItem {
   labourPrice   Decimal @default(0) @db.Decimal(12, 2)
   price       Decimal   @default(0) @db.Decimal(12, 2)
   amount      Decimal   @default(0) @db.Decimal(12, 2)
+  images      String[]  @default([])
 
   @@map("quotation_items")
 }

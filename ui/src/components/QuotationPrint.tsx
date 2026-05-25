@@ -73,9 +73,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
   })()
 
   // Pad rows so the table fills the page when items are few.
-  // Each item takes 1 row + 1 row per note line (visually).
+  // Each item takes 1 row + 1 row per note line + ~3 rows per image (~30mm tall).
   const usedRowEstimate = doc.items.reduce(
-    (sum, it) => sum + 1 + splitDescriptionLines(it.note).length,
+    (sum, it) => sum + 1 + splitDescriptionLines(it.note).length + (Array.isArray(it.images) ? it.images.length * 3 : 0),
     0,
   )
   const fillerCount = Math.max(
@@ -269,6 +269,19 @@ export default function QuotationPrint({ doc, settings }: Props) {
                     {line}
                   </span>
                 ))}
+                {Array.isArray(item?.images) && item!.images!.length > 0 && (
+                  <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+                    {item!.images!.map((url, idx) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={idx}
+                        src={url}
+                        alt=""
+                        style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }}
+                      />
+                    ))}
+                  </div>
+                )}
               </td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
