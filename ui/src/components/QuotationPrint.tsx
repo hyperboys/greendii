@@ -158,42 +158,38 @@ export default function QuotationPrint({ doc, settings }: Props) {
     <div className="print-sheet quotation-print" style={{ fontFamily: 'Tahoma, Arial, sans-serif', color: '#000', fontSize: '10pt' }}>
 
       {/* ═══ Company Header ═══ */}
+      {/* Row 1: Logo (left cell) + Company names (center cell) */}
       <div
         style={{
-          marginBottom: '8px',
-          fontFamily: "'Cordia New', Tahoma, Arial, sans-serif",
           display: 'grid',
           gridTemplateColumns: '120px 1fr 120px',
-          columnGap: '6px',
-          alignItems: 'start',
+          columnGap: 0,
+          alignItems: 'center',
+          fontFamily: "'Cordia New', Tahoma, Arial, sans-serif",
         }}
       >
-        {/* Left column: logo pinned to the left edge */}
-        <div style={{ paddingTop: '4px' }}>
+        <div>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
         </div>
-
-        {/* Middle column: centered company details */}
         <div style={{ textAlign: 'center' }}>
-          {/* Thai company name */}
-          <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New'", fontSize: '22pt', lineHeight: '1.5' }}>{companyName}</div>
-          {/* English company name */}
-          <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.5', fontFamily: 'Broadway' }}>{companyNameEn}</div>
-          {/* English address */}
-          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{address}&nbsp;&nbsp;Tel {tel}</div>
-          {/* Thai address */}
-          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}</div>
-          {/* Website */}
-          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>&nbsp;&nbsp;&nbsp;&nbsp;{website}</div>
-          {/* TAX ID */}
-          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', lineHeight: '1.2' }}>TAX ID : {taxId}</div>
-          {/* Email */}
-          <div style={{ fontFamily: "'Cordia New'", fontSize: '16pt', color: '#cc0000', lineHeight: '1.2' }}>E-Mail : {email}</div>
+          <div style={{ fontWeight: 'bold', fontFamily: "'Cordia New'", fontSize: '22pt', lineHeight: '1.4' }}>{companyName}</div>
+          <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.4', fontFamily: 'Broadway' }}>{companyNameEn}</div>
         </div>
-
-        {/* Right spacer: keeps middle column truly centered */}
         <div />
+      </div>
+
+      {/* Row 2: Contact details — full-width centered, no column constraint */}
+      <div style={{ textAlign: 'center', fontFamily: "'Cordia New'", marginBottom: '6px' }}>
+        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
+          {address}&nbsp;&nbsp;Tel {tel}
+        </div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.4' }}>
+          {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
+        </div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>{website}</div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.3' }}>TAX ID : {taxId}</div>
+        <div style={{ fontSize: '16pt', lineHeight: '1.3', color: '#cc0000' }}>E-Mail : {email}</div>
       </div>
 
       {/* ═══ QUOTATION title ═══ */}
