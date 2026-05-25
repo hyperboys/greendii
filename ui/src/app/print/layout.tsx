@@ -74,7 +74,7 @@ const printFontCss = `
   :root {
     --font-body: 'Cordia New', 'Sarabun', 'Noto Sans Thai', sans-serif;
     --font-thai: 'Cordia New';
-    --font-en: 'Century Gothic', 'Inter', sans-serif;
+    --font-en: 'Century Gothic', 'Inter', 'Cordia New', 'Sarabun', 'Noto Sans Thai', sans-serif;
     --font-display: 'Broadway', 'Bebas Neue', sans-serif;
     --font-signature: 'Brush Script MT', 'Dancing Script', cursive;
   }
