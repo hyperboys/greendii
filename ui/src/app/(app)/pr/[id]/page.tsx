@@ -7,7 +7,7 @@ import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Download } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 
@@ -25,6 +25,7 @@ export default function PRDetailPage() {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -92,18 +93,22 @@ export default function PRDetailPage() {
               <Trash2 size={14} /> ลบ
             </button>
           )}
-          <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
-            <Printer size={14} /> พิมพ์
-          </button>
-          <button className="btn-outline btn-sm no-print" onClick={async () => {
+          <button
+            className="btn-outline btn-sm no-print"
+            disabled={pdfLoading}
+            onClick={async () => {
+            if (pdfLoading) return
+            setPdfLoading(true)
             toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
             try {
               const blob = await PRAPI.pdf(id)
               downloadBlob(blob, `${doc.prNo || 'pr'}.pdf`)
               toast.success('สำเร็จ', { id: 'pdf' })
             } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
+            finally { setPdfLoading(false) }
           }}>
-            <Download size={14} /> PDF
+            {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+            {pdfLoading ? 'กำลังสร้าง PDF…' : 'พิมพ์'}
           </button>
         </div>
       </div>

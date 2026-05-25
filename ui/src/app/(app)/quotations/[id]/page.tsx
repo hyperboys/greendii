@@ -6,7 +6,7 @@ import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import type { Quotation, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer, Download } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer, Loader2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuotationPrint from '@/components/QuotationPrint'
 
@@ -29,6 +29,7 @@ export default function QuotationDetailPage() {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [pdfLoading, setPdfLoading] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
 
   const load = () => {
@@ -89,18 +90,22 @@ export default function QuotationDetailPage() {
               <Pencil size={14} /> แก้ไข
             </button>
           )}
-          <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
-            <Printer size={14} /> พิมพ์
-          </button>
-          <button className="btn-outline btn-sm no-print" onClick={async () => {
+          <button
+            className="btn-outline btn-sm no-print"
+            disabled={pdfLoading}
+            onClick={async () => {
+            if (pdfLoading) return
+            setPdfLoading(true)
             toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
             try {
               const blob = await QuotationsAPI.pdf(id)
               downloadBlob(blob, `${doc.quoNo || 'quotation'}.pdf`)
               toast.success('สำเร็จ', { id: 'pdf' })
             } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
+            finally { setPdfLoading(false) }
           }}>
-            <Download size={14} /> PDF
+            {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
+            {pdfLoading ? 'กำลังสร้าง PDF…' : 'พิมพ์'}
           </button>
           {canCancel && (
             <button className="btn-danger btn-sm" onClick={() => act('cancel')} disabled={acting}>
