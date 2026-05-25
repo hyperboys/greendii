@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -95,6 +95,16 @@ export default function WorkOrderDetailPage() {
         )}
         <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
           <Printer size={14} /> พิมพ์
+        </button>
+        <button className="btn-outline btn-sm no-print" onClick={async () => {
+          toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
+          try {
+            const blob = await WorkOrdersAPI.pdf(id)
+            downloadBlob(blob, `${doc.woNo || 'workorder'}.pdf`)
+            toast.success('สำเร็จ', { id: 'pdf' })
+          } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
+        }}>
+          <Download size={14} /> PDF
         </button>
         </div>
       </div>

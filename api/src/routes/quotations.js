@@ -55,6 +55,21 @@ router.get('/:id', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/quotations/:id/pdf  — server-side PDF (cross-OS consistent)
+router.get('/:id/pdf', authenticate, async (req, res, next) => {
+  try {
+    const { renderUrlToPdf } = require('../lib/pdf');
+    const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
+    const uiBase = process.env.UI_URL || 'http://localhost:3000';
+    const url = `${uiBase}/print/quotation/${req.params.id}?token=${encodeURIComponent(token)}`;
+    const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true } });
+    const pdf = await renderUrlToPdf(url);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `inline; filename="${item.quoNo || 'quotation'}.pdf"`);
+    res.send(pdf);
+  } catch (e) { next(e); }
+});
+
 // POST /api/quotations
 router.post('/', authenticate, async (req, res, next) => {
   try {

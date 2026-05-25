@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, SettingsAPI } from '@/lib/api'
+import { PRAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 
@@ -94,6 +94,16 @@ export default function PRDetailPage() {
           )}
           <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
             <Printer size={14} /> พิมพ์
+          </button>
+          <button className="btn-outline btn-sm no-print" onClick={async () => {
+            toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
+            try {
+              const blob = await PRAPI.pdf(id)
+              downloadBlob(blob, `${doc.prNo || 'pr'}.pdf`)
+              toast.success('สำเร็จ', { id: 'pdf' })
+            } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
+          }}>
+            <Download size={14} /> PDF
           </button>
         </div>
       </div>

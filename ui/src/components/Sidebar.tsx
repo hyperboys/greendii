@@ -6,12 +6,9 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { type UserRole, ROLE_LABELS } from '@/types'
 import {
-  LayoutDashboard, FileText, ClipboardList, Handshake,
-  ShoppingCart, CheckSquare, BarChart2, Users, Package,
-  Ruler, ChevronLeft, ChevronRight, LogOut, Settings, type LucideIcon,
-  Shield, GitBranch, Lock, ActivitySquare, ScrollText,
+  ChevronLeft, ChevronRight, LogOut, X,
 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/store/settings'
 
@@ -53,6 +50,20 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const { menuAccessConfig } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
+  // Persist collapsed state across reloads
+  useEffect(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('sidebar-collapsed') : null
+    if (saved === '1') setCollapsed(true)
+  }, [])
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('sidebar-collapsed', collapsed ? '1' : '0')
+    }
+  }, [collapsed])
+
+  // Close mobile drawer on route change
+  useEffect(() => { onClose() /* close on nav */ }, [pathname]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const navClass = (active: boolean) =>
     collapsed
       ? clsx(
@@ -62,7 +73,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       : clsx(
           'flex items-center gap-3 py-2.5 pr-4 pl-3 text-sm font-medium transition-all duration-200 border-l-[3px] rounded-r-xl',
           active
-            ? 'bg-white/15 text-white border-green-light'
+            ? 'bg-white/15 text-white border-green-light shadow-sm'
             : 'border-transparent text-white/70 hover:bg-white/10 hover:text-white hover:border-white/10'
         )
 
@@ -83,15 +94,15 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
       {/* Mobile backdrop */}
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden transition-opacity"
           onClick={onClose}
         />
       )}
       <aside className={clsx(
-        'flex flex-col h-screen bg-gradient-to-b from-[#1b5e20] via-[#2d6a2e] to-[#264e27] text-white transition-all duration-200 shrink-0',
+        'flex flex-col h-screen bg-gradient-to-b from-[#1b5e20] via-[#2d6a2e] to-[#264e27] text-white transition-all duration-300 shrink-0 shadow-xl md:shadow-none',
         'fixed md:static inset-y-0 left-0 z-50',
         isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
-        collapsed ? 'w-14' : 'w-56'
+        collapsed ? 'w-14' : 'w-60'
       )}>
       {/* Logo */}
       <div className="flex items-center justify-between px-3 py-4 border-b border-green-main/30">
@@ -108,11 +119,21 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         {collapsed && (
           <span className="text-sm font-black text-white tracking-wide">GD</span>
         )}
+        {/* Collapse toggle (desktop) */}
         <button
           onClick={() => setCollapsed(c => !c)}
-          className="ml-auto p-1 rounded hover:bg-green-main/30 transition-colors"
+          className="ml-auto hidden md:inline-flex p-1 rounded hover:bg-green-main/30 transition-colors"
+          title={collapsed ? 'ขยายเมนู' : 'ย่อเมนู'}
         >
           {collapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+        </button>
+        {/* Close drawer (mobile) */}
+        <button
+          onClick={onClose}
+          className="ml-auto md:hidden p-1 rounded hover:bg-green-main/30 transition-colors"
+          title="ปิดเมนู"
+        >
+          <X size={18} />
         </button>
       </div>
 

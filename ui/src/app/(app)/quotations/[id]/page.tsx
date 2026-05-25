@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI, SettingsAPI } from '@/lib/api'
+import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import type { Quotation, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuotationPrint from '@/components/QuotationPrint'
 
@@ -91,6 +91,16 @@ export default function QuotationDetailPage() {
           )}
           <button className="btn-outline btn-sm no-print" onClick={() => window.print()}>
             <Printer size={14} /> พิมพ์
+          </button>
+          <button className="btn-outline btn-sm no-print" onClick={async () => {
+            toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
+            try {
+              const blob = await QuotationsAPI.pdf(id)
+              downloadBlob(blob, `${doc.quoNo || 'quotation'}.pdf`)
+              toast.success('สำเร็จ', { id: 'pdf' })
+            } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
+          }}>
+            <Download size={14} /> PDF
           </button>
           {canCancel && (
             <button className="btn-danger btn-sm" onClick={() => act('cancel')} disabled={acting}>

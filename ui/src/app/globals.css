@@ -8,49 +8,86 @@
     --green-main:  #4CAF50;
     --green-light: #81C784;
     --green-pale:  #E8F5E9;
+    /* Soft modern shadow tokens */
+    --shadow-soft: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+    --shadow-card: 0 1px 2px rgba(16, 24, 40, 0.03), 0 4px 12px rgba(16, 24, 40, 0.05);
+    --shadow-pop:  0 4px 6px -2px rgba(16, 24, 40, 0.03), 0 12px 24px -4px rgba(16, 24, 40, 0.10);
   }
 
   body {
-    @apply bg-gray-100 text-gray-800 font-sans;
+    @apply bg-gray-50 text-gray-800 font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
   }
 
   * { box-sizing: border-box; }
+
+  /* Better focus ring for keyboard nav */
+  *:focus-visible {
+    outline: 2px solid var(--green-main);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+
+  /* Slim custom scrollbar (screen only) */
+  @media screen {
+    *::-webkit-scrollbar { width: 8px; height: 8px; }
+    *::-webkit-scrollbar-track { background: transparent; }
+    *::-webkit-scrollbar-thumb {
+      background: rgba(0, 0, 0, 0.12);
+      border-radius: 8px;
+    }
+    *::-webkit-scrollbar-thumb:hover { background: rgba(0, 0, 0, 0.22); }
+    * { scrollbar-width: thin; scrollbar-color: rgba(0,0,0,0.12) transparent; }
+  }
 }
 
 @layer components {
   /* ── CARD ── */
   .card {
-    @apply bg-white rounded-xl shadow border border-gray-100;
+    @apply bg-white rounded-xl border border-gray-100;
+    box-shadow: var(--shadow-card);
   }
 
   /* ── BUTTON BASE ── */
   .btn {
-    @apply inline-flex items-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-sm
-           transition-all duration-150 cursor-pointer border-0;
+    @apply inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg font-semibold text-sm
+           transition-all duration-150 cursor-pointer border-0 select-none;
+    min-height: 38px;
   }
-  .btn-primary  { @apply btn bg-green-main text-white hover:bg-green-dark; }
-  .btn-danger   { @apply btn bg-red-500   text-white hover:bg-red-700; }
-  .btn-warning  { @apply btn bg-orange-400 text-white hover:bg-orange-600; }
-  .btn-blue     { @apply btn bg-blue-600  text-white hover:bg-blue-800; }
-  .btn-outline  { @apply btn bg-transparent border-2 border-green-main text-green-main hover:bg-green-main hover:text-white; }
-  .btn-sm       { @apply px-3 py-1 text-xs; }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn-primary  { @apply btn bg-green-main text-white hover:bg-green-dark shadow-sm hover:shadow; }
+  .btn-danger   { @apply btn bg-red-500   text-white hover:bg-red-700 shadow-sm hover:shadow; }
+  .btn-warning  { @apply btn bg-orange-400 text-white hover:bg-orange-600 shadow-sm hover:shadow; }
+  .btn-blue     { @apply btn bg-blue-600  text-white hover:bg-blue-800 shadow-sm hover:shadow; }
+  .btn-outline  { @apply btn bg-white border border-green-main text-green-main hover:bg-green-main hover:text-white; }
+  .btn-ghost    { @apply btn bg-transparent text-gray-600 hover:bg-gray-100; }
+  .btn-sm       { @apply px-3 py-1.5 text-xs; min-height: 32px; }
   .btn-block    { @apply w-full justify-center py-2.5; }
   .btn-disabled { @apply opacity-50 cursor-not-allowed; }
 
   /* ── FORM ── */
-  .form-label  { @apply block text-sm font-semibold text-gray-500 mb-1; }
+  .form-label  { @apply block text-sm font-semibold text-gray-600 mb-1; }
   .form-input  {
-    @apply w-full px-3 py-2 border-2 border-gray-200 rounded-lg text-sm
-           transition-colors focus:outline-none focus:border-green-main;
+    @apply w-full px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-800
+           transition-all duration-150 focus:outline-none focus:border-green-main;
   }
+  .form-input:focus { box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.15); }
+  .form-input:disabled { @apply bg-gray-50 text-gray-500 cursor-not-allowed; }
   .form-error  { @apply text-red-500 text-xs mt-1; }
 
   /* ── TABLE ── */
-  .data-table { @apply w-full border-collapse bg-white rounded-xl overflow-hidden shadow; }
+  .data-table { @apply w-full border-collapse bg-white rounded-xl overflow-hidden; box-shadow: var(--shadow-card); }
   .data-table thead { @apply bg-green-dark text-white; }
-  .data-table th    { @apply px-4 py-3 text-left text-xs font-semibold uppercase; }
+  .data-table th    { @apply px-4 py-3 text-left text-xs font-semibold uppercase tracking-wide; }
   .data-table td    { @apply px-4 py-3 text-sm border-b border-gray-100; }
-  .data-table tbody tr:hover { @apply bg-green-pale; }
+  .data-table tbody tr { @apply transition-colors; }
+  .data-table tbody tr:hover { @apply bg-green-pale/40; }
+  .data-table tbody tr:last-child td { @apply border-b-0; }
+
+  /* Horizontal scroll container for tables on small screens */
+  .table-wrap { @apply w-full overflow-x-auto -mx-2 px-2; }
 
   /* ── STATUS BADGE ── */
   .badge {
@@ -63,16 +100,17 @@
 
   /* ── PAGE HEADER ── */
   .page-header {
-    @apply flex items-center justify-between mb-6;
+    @apply flex flex-col gap-3 mb-5 sm:flex-row sm:items-center sm:justify-between sm:mb-6;
   }
-  .page-title  { @apply text-xl font-bold text-gray-800; }
-  .page-sub    { @apply text-sm text-gray-500 mt-0.5; }
+  .page-title  { @apply text-lg font-bold text-gray-800 sm:text-xl; }
+  .page-sub    { @apply text-xs text-gray-500 mt-0.5 sm:text-sm; }
 
   /* ── STAT CARD ── */
   .stat-card {
-    @apply card p-5 cursor-pointer hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200;
+    @apply card p-5 cursor-pointer transition-all duration-200;
   }
-  .stat-value  { @apply text-3xl font-bold mt-2; }
+  .stat-card:hover { box-shadow: var(--shadow-pop); transform: translateY(-2px); }
+  .stat-value  { @apply text-2xl font-bold mt-2 sm:text-3xl; }
   .stat-label  { @apply text-sm text-gray-500 mt-1; }
 
   /* ── TOOLBAR ── */

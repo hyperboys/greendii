@@ -73,35 +73,37 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
   }
 
   return (
-    <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between shrink-0 shadow-sm">
-      <div className="flex items-center gap-2">
+    <header className="bg-white/95 backdrop-blur-sm border-b border-gray-200 px-3 sm:px-5 py-3 flex items-center justify-between shrink-0 sticky top-0 z-30">
+      <div className="flex items-center gap-2 min-w-0">
         {onMenuClick && (
           <button
             onClick={onMenuClick}
-            className="md:hidden p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-600"
+            className="md:hidden p-2 -ml-1 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-600"
+            aria-label="เปิดเมนู"
           >
-            <Menu size={20} />
+            <Menu size={22} />
           </button>
         )}
-        <h1 className="text-lg font-bold text-green-dark">{title || 'GreenDii - Sales Workflow System'}</h1>
+        <h1 className="text-base sm:text-lg font-bold text-green-dark truncate">{title || 'GreenDii Sales Workflow System'}</h1>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3">
         {/* Notification Bell */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={handleOpen}
-            className="relative p-1.5 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
+            className="relative p-2 rounded-lg hover:bg-gray-100 active:bg-gray-200 transition-colors text-gray-500"
+            aria-label="การแจ้งเตือน"
           >
-            <Bell size={18} />
+            <Bell size={20} />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5">
+              <span className="absolute top-0.5 right-0.5 min-w-[16px] h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center px-0.5 ring-2 ring-white">
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
           </button>
 
           {open && (
-            <div className="absolute right-0 top-full mt-1 w-80 bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
+            <div className="fixed sm:absolute right-2 sm:right-0 top-14 sm:top-full sm:mt-1 w-[calc(100vw-1rem)] sm:w-80 max-w-sm bg-white border border-gray-200 rounded-xl shadow-lg z-50 overflow-hidden">
               <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100">
                 <span className="font-semibold text-gray-800 text-sm">การแจ้งเตือน</span>
                 {unreadCount > 0 && (
@@ -139,14 +141,14 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
           <div className="relative" ref={userMenuRef}>
             <button
               onClick={() => setUserMenuOpen(v => !v)}
-              className="flex items-center gap-2 hover:bg-gray-50 rounded-lg px-2 py-1 transition-colors"
+              className="flex items-center gap-2 hover:bg-gray-50 active:bg-gray-100 rounded-lg px-1.5 sm:px-2 py-1 transition-colors"
             >
-              <div className="w-8 h-8 rounded-full bg-green-main text-white flex items-center justify-center text-sm font-bold shrink-0">
+              <div className="w-8 h-8 rounded-full bg-green-main text-white flex items-center justify-center text-sm font-bold shrink-0 shadow-sm">
                 {user.initials || user.fullName?.charAt(0)}
               </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-sm font-semibold text-gray-800 leading-tight">{user.fullName}</p>
-                <p className="text-xs text-gray-400">{ROLE_LABELS[user.role] ?? user.role}</p>
+              <div className="hidden sm:block text-left max-w-[160px]">
+                <p className="text-sm font-semibold text-gray-800 leading-tight truncate">{user.fullName}</p>
+                <p className="text-xs text-gray-400 truncate">{ROLE_LABELS[user.role] ?? user.role}</p>
               </div>
               <ChevronDown size={14} className="hidden sm:block text-gray-400" />
             </button>

@@ -12,6 +12,18 @@ const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
 
 export const http = axios.create({ baseURL: BASE })
 
+/** Trigger browser download of a Blob with the given filename. */
+export function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 // Attach token to every request
 http.interceptors.request.use((cfg) => {
   if (typeof window !== 'undefined') {
@@ -119,8 +131,7 @@ export const QuotationsAPI = {
     http.post<Quotation>(`/quotations/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<Quotation>(`/quotations/${id}/reject`, { comment }).then(r => r.data),
-  cancel: (id: string) => http.delete(`/quotations/${id}`).then(r => r.data),
-}
+  cancel: (id: string) => http.delete(`/quotations/${id}`).then(r => r.data),  pdf: (id: string) => http.get(`/quotations/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),}
 
 // ─── WORK ORDERS ──────────────────────────────────────────────────────────────
 
@@ -138,6 +149,7 @@ export const WorkOrdersAPI = {
   reject: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/reject`, { comment }).then(r => r.data),
   cancel: (id: string) => http.delete(`/workorders/${id}`).then(r => r.data),
+  pdf: (id: string) => http.get(`/workorders/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }
 
 // ─── HAND OVER JOBS ───────────────────────────────────────────────────────────
@@ -156,6 +168,7 @@ export const HandoversAPI = {
   reject: (id: string, comment?: string) =>
     http.post<HandOverJob>(`/handovers/${id}/reject`, { comment }).then(r => r.data),
   cancel: (id: string) => http.delete(`/handovers/${id}`).then(r => r.data),
+  pdf: (id: string) => http.get(`/handovers/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }
 
 // ─── PURCHASE REQUESTS ────────────────────────────────────────────────────────
@@ -174,6 +187,7 @@ export const PRAPI = {
   reject: (id: string, comment?: string) =>
     http.post<PurchaseRequest>(`/pr/${id}/reject`, { comment }).then(r => r.data),
   cancel: (id: string) => http.delete(`/pr/${id}`).then(r => r.data),
+  pdf: (id: string) => http.get(`/pr/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }
 
 // ─── APPROVALS ────────────────────────────────────────────────────────────────
