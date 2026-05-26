@@ -78,7 +78,7 @@ router.post('/', authenticate, async (req, res, next) => {
     const hoNo = `HO${yy}${String(seq).padStart(3, '0')}`;
     const item = await prisma.handOverJob.create({
       data: {
-        hoNo, workOrderId, project, contractor, location,
+        hoNo, workOrderId: workOrderId || null, project, contractor, location,
         contactName, contactTel, product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : null,
         qualityProduct: qualityProduct || 0,
@@ -108,6 +108,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
     const item = await prisma.handOverJob.update({
       where: { id: req.params.id },
       data: {
+        workOrderId: req.body.workOrderId || null,
         project, contractor, location, contactName, contactTel,
         product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,
