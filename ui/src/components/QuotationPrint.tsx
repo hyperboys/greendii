@@ -16,7 +16,7 @@ const MIN_ROWS = 3
 // Target rows per page — used to pad with empty rows when items are few
 // so the items table fills the page and Terms + Signatures sit at the bottom.
 // Adjust this number if the table overflows / under-fills A4.
-const ROWS_PER_PAGE = 13
+const ROWS_PER_PAGE = 7
 
 interface Props {
   doc: Quotation
@@ -98,7 +98,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontSize: '8pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
-    lineHeight: '1.3',
+    lineHeight: '0.5',
   }
 
   const tdS: React.CSSProperties = {
@@ -112,6 +112,15 @@ export default function QuotationPrint({ doc, settings }: Props) {
     overflowWrap: 'break-word',
   }
 
+  // Compact spacing for totals rows in the summary box
+  const tfootTdS: React.CSSProperties = {
+    ...tdS,
+    padding: '1px 5px',
+    height: 'auto',
+    lineHeight: 1.15,
+    verticalAlign: 'middle',
+  }
+
   // Customer info table cell styles (no borders)
   const ciLabelS: React.CSSProperties = {
     fontFamily: 'var(--font-thai)',
@@ -119,7 +128,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     whiteSpace: 'nowrap',
     textAlign: 'left',
     verticalAlign: 'middle',
-    padding: '3px 6px',
+    padding: '1px 6px',
+    lineHeight: 1.1,
     width: '12%',
   }
 
@@ -127,9 +137,10 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontFamily: 'var(--font-thai)',
     fontSize: '14pt',
     verticalAlign: 'middle',
-    padding: '3px 6px',
+    padding: '1px 6px',
     width: '54%',
-    height: '22px',
+    height: '18px',
+    lineHeight: 1.1,
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
   }
@@ -140,7 +151,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
     whiteSpace: 'nowrap',
     textAlign: 'left',
     verticalAlign: 'middle',
-    padding: '3px 6px',
+    padding: '1px 6px',
+    lineHeight: 1.1,
     width: '12%',
   }
 
@@ -148,9 +160,10 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontFamily: 'var(--font-thai)',
     fontSize: '14pt',
     verticalAlign: 'middle',
-    padding: '3px 6px',
+    padding: '1px 6px',
     width: '22%',
-    height: '22px',
+    height: '18px',
+    lineHeight: 1.1,
   }
 
   return (
@@ -203,6 +216,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: '8px', border: '1px solid #000', fontFamily: 'var(--font-thai)' }}>
         <tbody>
           <tr>
+            <td colSpan={4} style={{ padding: 0, height: '4px', lineHeight: 0 }}></td>
+          </tr>
+          <tr>
             <td style={ciLabelS}>To</td>
             <td style={ciValueS}>:&nbsp;{doc.customerName}</td>
             <td style={ciRightLabelS}>Date</td>
@@ -221,9 +237,6 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={ciRightValueS}>:&nbsp;{doc.tel || ''}</td>
           </tr>
           <tr>
-
-          </tr>
-          <tr>
             <td style={{ ...ciLabelS, borderRight: 'none' }}></td>
             <td style={{ ...ciValueS, borderLeft: 'none' }}></td>
             <td style={ciRightLabelS}>Quo.No</td>
@@ -234,6 +247,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <td style={ciValueS}>:&nbsp;{doc.project}</td>
             <td style={ciRightLabelS}>HP</td>
             <td style={ciRightValueS}>:&nbsp;</td>
+          </tr>
+          <tr>
+            <td colSpan={4} style={{ padding: 0, height: '4px', lineHeight: 0 }}></td>
           </tr>
         </tbody>
       </table>
@@ -292,24 +308,24 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </tbody>
         <tfoot style={{ pageBreakInside: 'avoid' }}>
           <tr>
-            <td colSpan={6} style={{ ...tdS, borderTop: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
-            <td style={{ ...tdS, borderTop: border, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
+            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
+            <td style={{ ...tfootTdS, borderTop: border, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', color: 'red', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
-            <td style={{ ...tdS, textAlign: 'right', color: 'red',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
+            <td style={{ ...tfootTdS, textAlign: 'right', color: 'red',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
-            <td style={{ ...tdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
+            <td style={{ ...tfootTdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
-            <td style={{ ...tdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
+            <td style={{ ...tfootTdS, textAlign: 'right',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt',fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
-            <td style={{ ...tdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
+            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt',fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
+            <td style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold',fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
           </tr>
         </tfoot>
       </table>
