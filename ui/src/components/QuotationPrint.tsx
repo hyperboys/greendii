@@ -319,16 +319,16 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '10px', fontSize: '14pt', pageBreakInside: 'avoid', breakInside: 'avoid-page' }}>
         {/* Left: Terms + Sales signature */}
         <div style={{ width: '65%', paddingRight: '8px' }}>
-          <div style={{ marginBottom: '4px' }}>
+          <div style={{ marginBottom: '0px' }}>
             <strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}
           </div>
-          <div style={{ marginBottom: '4px' }}>
+          <div style={{ marginBottom: '0px' }}>
             <strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}
           </div>
-          <div style={{ marginBottom: '4px' }}>
+          <div style={{ marginBottom: '0px' }}>
             <strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}
           </div>
-          <div style={{ marginBottom: '15px' }}>
+          <div style={{ marginBottom: '0px' }}>
             <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
             <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
           </div>
@@ -337,7 +337,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             fontFamily: 'var(--font-signature)',
             fontStyle: 'italic',
             fontSize: '22pt',
-            marginTop: '8px',
+            marginTop: '4px',
             marginBottom: '2px',
             lineHeight: 1,
           }}>
@@ -377,7 +377,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
       {/* ═══ Bottom Note ═══ */}
       <div style={{
-        marginTop: '10px',
+        marginTop: '4px',
         fontSize: '14pt',
         fontStyle: 'italic',
         textAlign: 'center',
