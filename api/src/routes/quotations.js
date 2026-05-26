@@ -15,6 +15,18 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
+
+async function ensureCustomerBelongsToSales(req, customerId) {
+  if (!customerId || MANAGER_ROLES.includes(req.user.role)) return
+  const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, salesId: true } })
+  if (!customer || customer.salesId !== req.user.id) {
+    const error = new Error('Forbidden customer')
+    error.status = 403
+    throw error
+  }
+}
+
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -93,6 +105,7 @@ router.post('/', authenticate, async (req, res, next) => {
     });
     const seq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) + 1 : 1;
     const quoNo = `${prefix}${String(seq).padStart(3, '0')}`;
+    await ensureCustomerBelongsToSales(req, customerId)
     const quo = await prisma.quotation.create({
       data: {
         quoNo, customerName, customerId: customerId || null, attn, project, address, tel,
@@ -126,6 +139,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
       conditionTerm, validityDays, leadTime, paymentTerm,
       items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
+    await ensureCustomerBelongsToSales(req, customerId)
     // Delete old items and recreate
     await prisma.quotationItem.deleteMany({ where: { quotationId: req.params.id } });
     const quo = await prisma.quotation.update({

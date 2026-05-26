@@ -75,6 +75,8 @@ model User {
 
 model Customer {
   id            String   @id @default(cuid())
+  salesId       String?
+  sales         User?    @relation(fields: [salesId], references: [id])
   name          String
   contactPerson String?
   tel           String?

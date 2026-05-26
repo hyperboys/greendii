@@ -150,6 +150,8 @@ export interface AuthUser extends Omit<User, 'active' | 'createdAt'> {
 
 export interface Customer {
   id: string
+  salesId?: string
+  sales?: { id: string; fullName: string }
   name: string
   contactPerson?: string
   tel?: string
