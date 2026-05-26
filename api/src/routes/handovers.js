@@ -4,6 +4,21 @@ const { authenticate } = require('../middleware/auth');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
+const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
+
+async function assertQuotationAccessible(req, quotationId) {
+  if (!quotationId || MANAGER_ROLES.includes(req.user.role)) return;
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, salesId: true },
+  });
+  if (!quotation || quotation.salesId !== req.user.id) {
+    const error = new Error('Forbidden quotation');
+    error.status = 403;
+    throw error;
+  }
+}
+
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -33,7 +48,8 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         sales: { select: { id: true, fullName: true } },
-        workOrder: { select: { id: true, woNo: true, quotation: { select: { quoNo: true } } } },
+        quotation: { select: { id: true, quoNo: true } },
+        workOrder: { select: { id: true, woNo: true, quotation: { select: { id: true, quoNo: true } } } },
         attachments: true,
         approvalLogs: {
           include: { approver: { select: { id: true, fullName: true, role: true } } },
@@ -64,7 +80,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 router.post('/', authenticate, async (req, res, next) => {
   try {
     const {
-      workOrderId, project, contractor, location,
+      quotationId, workOrderId, project, contractor, location,
       contactName, contactTel, product, responsibility,
       serviceDate, qualityProduct, qualitySales, qualityInstall, comment,
     } = req.body;
@@ -76,9 +92,13 @@ router.post('/', authenticate, async (req, res, next) => {
     });
     const seq = lastHO ? (parseInt(lastHO.hoNo.replace(`HO${yy}`, ''), 10) || 0) + 1 : 1;
     const hoNo = `HO${yy}${String(seq).padStart(3, '0')}`;
+    await assertQuotationAccessible(req, quotationId);
     const item = await prisma.handOverJob.create({
       data: {
-        hoNo, workOrderId: workOrderId || null, project, contractor, location,
+        hoNo,
+        quotationId: quotationId || null,
+        workOrderId: workOrderId || null,
+        project, contractor, location,
         contactName, contactTel, product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : null,
         qualityProduct: qualityProduct || 0,
@@ -101,14 +121,16 @@ router.put('/:id', authenticate, async (req, res, next) => {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
-      project, contractor, location, contactName, contactTel,
+      quotationId, workOrderId, project, contractor, location, contactName, contactTel,
       product, responsibility, serviceDate,
       qualityProduct, qualitySales, qualityInstall, comment,
     } = req.body;
+    await assertQuotationAccessible(req, quotationId);
     const item = await prisma.handOverJob.update({
       where: { id: req.params.id },
       data: {
-        workOrderId: req.body.workOrderId || null,
+        quotationId: quotationId || null,
+        workOrderId: workOrderId || null,
         project, contractor, location, contactName, contactTel,
         product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,

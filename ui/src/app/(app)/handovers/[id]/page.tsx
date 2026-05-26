@@ -143,6 +143,7 @@ export default function HandoverDetailPage() {
         <div><span className="form-label">สถานที่</span><p>{doc.location || '-'}</p></div>
         <div><span className="form-label">ผู้ติดต่อ</span><p>{doc.contactName || '-'}</p></div>
         <div><span className="form-label">โทร</span><p>{doc.contactTel || '-'}</p></div>
+        <div><span className="form-label">อ้างอิงใบเสนอราคา</span><p>{doc.quotation?.quoNo ?? doc.workOrder?.quotation?.quoNo ?? '-'}</p></div>
         <div><span className="form-label">เซลล์</span><p>{doc.sales?.fullName ?? doc.salesId}</p></div>
         <div><span className="form-label">สินค้า/บริการ</span><p>{doc.product || '-'}</p></div>
         <div><span className="form-label">ผู้รับผิดชอบ</span><p>{doc.responsibility || '-'}</p></div>

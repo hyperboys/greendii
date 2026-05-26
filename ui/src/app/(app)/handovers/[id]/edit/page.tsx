@@ -2,12 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { HandoversAPI } from '@/lib/api'
+import { HandoversAPI, QuotationsAPI } from '@/lib/api'
+import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface FormData {
-  workOrderId: string
+  quotationId: string
   project: string
   contractor: string
   location: string
@@ -55,19 +56,21 @@ export default function EditHandoverPage() {
   const router = useRouter()
   const params = useParams()
   const id = params.id as string
+  const [quotations, setQuotations] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
-    workOrderId: '', project: '', contractor: '', location: '',
+    quotationId: '', project: '', contractor: '', location: '',
     contactName: '', contactTel: '', product: '', responsibility: '',
     serviceDate: '', qualityProduct: 5, qualitySales: 5, qualityInstall: 5, comment: '',
   })
 
   useEffect(() => {
+    QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
     HandoversAPI.get(id).then(doc => {
       setForm({
-        workOrderId: doc.workOrderId ?? '',
+        quotationId: doc.quotationId ?? doc.workOrder?.quotation?.id ?? '',
         project: doc.project ?? '',
         contractor: doc.contractor ?? '',
         location: doc.location ?? '',
@@ -114,8 +117,24 @@ export default function EditHandoverPage() {
       </div>
 
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div className="md:col-span-2">
-          <label className="form-label">ชื่อโครงการ *</label>
+        <div className="md:col-span-2">          <label className="form-label">อ้างอิงใบเสนอราคา</label>
+          <select className="form-input" value={form.quotationId} onChange={e => {
+            const id = e.target.value
+            const q = quotations.find(x => x.id === id)
+            setForm(f => ({
+              ...f,
+              quotationId: id,
+              project: q?.project ?? f.project,
+              contactName: q?.attn ?? f.contactName,
+              contactTel: q?.tel ?? f.contactTel,
+              product: q?.items?.map(item => item.desc).join('\n') ?? f.product,
+            }))
+          }}>
+            <option value="">— ไม่ระบุ —</option>
+            {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">          <label className="form-label">ชื่อโครงการ *</label>
           <input className="form-input" required value={form.project}
             onChange={e => setForm(f => ({ ...f, project: e.target.value }))} />
         </div>

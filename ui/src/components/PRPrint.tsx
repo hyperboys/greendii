@@ -21,7 +21,7 @@ function fmtDateTH(dateStr?: string): string {
   return `${day}/${month}/${year}`
 }
 
-const MIN_ROWS = 10
+const MIN_ROWS = 40
 
 interface Props {
   doc: PurchaseRequest
@@ -53,6 +53,7 @@ export default function PRPrint({ doc, settings }: Props) {
   const fax           = '662 150 7697'
 
   const border = '1px solid #000'
+  const hasSpecialDiscount = Number(doc.specialDiscount) > 0
 
   const thS: React.CSSProperties = {
     border,
@@ -66,13 +67,22 @@ export default function PRPrint({ doc, settings }: Props) {
   }
 
   const tdS: React.CSSProperties = {
-    border,
+    borderLeft: border,
+    borderRight: border,
     padding: '2px 5px',
     fontSize: '8.5pt',
     verticalAlign: 'top',
     height: '18px',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
+  }
+
+  const tdTotalS: React.CSSProperties = {
+    border,
+    padding: '2px 5px',
+    fontSize: '8.5pt',
+    verticalAlign: 'top',
+    height: '18px',
   }
 
   // Pad rows to minimum
@@ -82,7 +92,15 @@ export default function PRPrint({ doc, settings }: Props) {
   ]
 
   return (
-    <div className="print-sheet" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt' }}>
+    <div
+      className="print-sheet"
+      style={{
+        fontFamily: 'var(--font-body)',
+        color: '#000',
+        fontSize: '10pt',
+      }}
+    >
+      <div style={{ height: '277mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
       {/* ═══ Company Header ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
@@ -159,7 +177,8 @@ export default function PRPrint({ doc, settings }: Props) {
         </tbody>
       </table>
 
-      {/* ═══ Items Table ═══ */}
+      {/* ═══ Items Table ( fills remaining space down to Summary ) ═══ */}
+      <div style={{ flex: 1, overflow: 'hidden', borderBottom: border }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <thead>
           <tr>
@@ -176,12 +195,7 @@ export default function PRPrint({ doc, settings }: Props) {
           {rows.map((item, i) => (
             <tr key={i}>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
-              <td style={{ ...tdS }}>
-                {item?.desc ?? ''}
-                {item?.note
-                  ? <span style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>{item.note}</span>
-                  : null}
-              </td>
+              <td style={{ ...tdS }}>{item?.desc ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.price) : ''}</td>
@@ -189,68 +203,68 @@ export default function PRPrint({ doc, settings }: Props) {
               <td style={{ ...tdS }}></td>
             </tr>
           ))}
-          {/* Special discount row */}
-          {Number(doc.specialDiscount) > 0 && (
-            <tr>
-              <td style={{ ...tdS }} colSpan={2}></td>
-              <td colSpan={3} style={{ ...tdS, textAlign: 'right', fontSize: '8pt' }}>ส่วนลดพิเศษ</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
-              <td style={{ ...tdS }}></td>
-            </tr>
-          )}
         </tbody>
-        <tfoot style={{ pageBreakInside: 'avoid' }}>
-          <tr>
-            <td colSpan={4} style={{ border: 'none' }}></td>
-            <td style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
-            <td style={{ ...tdS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
-            <td style={{ border: 'none' }}></td>
-          </tr>
-          <tr>
-            <td colSpan={4} style={{ border: 'none' }}></td>
-            <td style={{ ...tdS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-            <td style={{ ...tdS, textAlign: 'right' }}>{Number(doc.vat) > 0 ? fmtAmt(doc.vat) : ''}</td>
-            <td style={{ border: 'none' }}></td>
-          </tr>
-          <tr>
-            <td colSpan={4} style={{ border: 'none' }}></td>
-            <td style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
-            <td style={{ ...tdS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.netTotal)}</td>
-            <td style={{ border: 'none' }}></td>
-          </tr>
-        </tfoot>
       </table>
+      </div>
 
-      {/* ═══ Signatures ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '14px', fontSize: '9pt', pageBreakInside: 'avoid' }}>
-        <tbody>
-          <tr>
-            <td style={{
-              width: '50%',
-              border,
-              padding: '10px 16px 28px',
-              verticalAlign: 'top',
-            }}>
-              <div>ผู้ขออนุมัติสั่งซื้อ/Request  by</div>
-              <div style={{ marginTop: '22px' }}>
-                วันที่ / Date  ………………………………………………
-              </div>
-            </td>
-            <td style={{ width: '50%' }}></td>
-            <td style={{
-              width: '50%',
-              border,
-              padding: '10px 16px 28px',
-              verticalAlign: 'top',
-            }}>
-              <div>ผู้อนุมัติ / Approval………………………………………</div>
-              <div style={{ marginTop: '22px' }}>
-                วันที่ / Date………………………………………………
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {/* ═══ Summary ═══ */}
+      <div style={{ pageBreakInside: 'avoid' }}>
+        <table style={{ width: '42%', marginLeft: 'auto', borderCollapse: 'collapse', marginTop: '0px' }}>
+          <tbody>
+            {hasSpecialDiscount && (
+              <tr>
+                <td style={{ ...tdTotalS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
+                <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
+              </tr>
+            )}
+            <tr>
+              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold', width: '60%' }}>รวมเงิน Sub Total</td>
+              <td style={{ ...tdTotalS, textAlign: 'right', width: '40%' }}>{fmtAmt(doc.subTotal)}</td>
+            </tr>
+            <tr>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>{Number(doc.vat) > 0 ? fmtAmt(doc.vat) : ''}</td>
+            </tr>
+            <tr>
+              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
+              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.netTotal)}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* ═══ Signatures ═══ */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '9pt' }}>
+          <tbody>
+            <tr>
+              <td style={{
+                width: '40%',
+                border,
+                padding: '6px 10px 14px',
+                verticalAlign: 'top',
+              }}>
+                <div style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</div>
+                <div style={{ marginTop: '14px', whiteSpace: 'nowrap' }}>
+                  วันที่ / Date ……………………………………
+                </div>
+              </td>
+              <td style={{ width: '20%' }}></td>
+              <td style={{
+                width: '40%',
+                border,
+                padding: '6px 10px 14px',
+                verticalAlign: 'top',
+              }}>
+                <div style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval ……………………………</div>
+                <div style={{ marginTop: '14px', whiteSpace: 'nowrap' }}>
+                  วันที่ / Date ……………………………………
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      </div>
 
     </div>
   )

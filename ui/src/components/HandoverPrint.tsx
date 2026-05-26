@@ -156,8 +156,8 @@ export default function HandoverPrint({ doc, settings }: Props) {
                   {[
                     ['Hand Over Job NO.', doc.hoNo],
                     ['Responsibility',    doc.responsibility || '-'],
-                    ['Quotation No.',     doc.workOrder?.quotation?.quoNo || '-'],
-                    ['Work Order No.',    doc.workOrder?.woNo || '-'],
+                    ['Quotation No.',     doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'],
+
                     ['Sales',            doc.sales?.fullName || '-'],
                     ['Date of service',  serviceDateStr],
                   ].map(([label, val]) => (

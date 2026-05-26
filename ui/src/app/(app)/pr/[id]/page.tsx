@@ -88,11 +88,6 @@ export default function PRDetailPage() {
               <Pencil size={14} /> แก้ไข
             </button>
           )}
-          {canDelete && (
-            <button className="btn-danger btn-sm" onClick={() => act('delete')} disabled={acting}>
-              <Trash2 size={14} /> ลบ
-            </button>
-          )}
           <button
             className="btn-outline btn-sm no-print"
             disabled={pdfLoading}
@@ -110,6 +105,11 @@ export default function PRDetailPage() {
             {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
             {pdfLoading ? 'กำลังสร้าง PDF…' : 'พิมพ์'}
           </button>
+          {canDelete && (
+            <button className="btn-danger btn-sm" onClick={() => act('delete')} disabled={acting}>
+              <Trash2 size={14} /> ลบ
+            </button>
+          )}
         </div>
       </div>
 

@@ -238,6 +238,8 @@ model WorkOrder {
 model HandOverJob {
   id             String     @id @default(cuid())
   hoNo           String     @unique
+  quotationId    String?
+  quotation      Quotation? @relation(fields: [quotationId], references: [id])
   workOrderId    String?
   workOrder      WorkOrder? @relation(fields: [workOrderId], references: [id])
   salesId        String

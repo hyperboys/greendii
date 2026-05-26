@@ -2,13 +2,13 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { HandoversAPI, WorkOrdersAPI } from '@/lib/api'
-import type { WorkOrder } from '@/types'
+import { HandoversAPI, QuotationsAPI } from '@/lib/api'
+import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface FormData {
-  workOrderId: string
+  quotationId: string
   project: string
   contractor: string
   location: string
@@ -54,27 +54,27 @@ const RatingCheckbox = ({ label, name, value, onChange }: { label: string; name:
 
 export default function NewHandoverPage() {
   const router = useRouter()
-  const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
+  const [quotations, setQuotations] = useState<Quotation[]>([])
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
-    workOrderId: '', project: '', contractor: '', location: '',
+    quotationId: '', project: '', contractor: '', location: '',
     contactName: '', contactTel: '', product: '', responsibility: '',
     serviceDate: '', qualityProduct: 5, qualitySales: 5, qualityInstall: 5, comment: '',
   })
 
   useEffect(() => {
-    WorkOrdersAPI.list({ status: 'approved' }).then(setWorkOrders)
+    QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
   }, [])
 
-  const handleWO = (id: string) => {
-    const w = workOrders.find(x => x.id === id)
+  const handleQuotation = (id: string) => {
+    const q = quotations.find(x => x.id === id)
     setForm(f => ({
-      ...f, workOrderId: id,
-      project: w?.project ?? f.project,
-      contactName: w?.contactName ?? f.contactName,
-      contactTel: w?.contactTel ?? f.contactTel,
-      product: w?.products ?? f.product,
+      ...f, quotationId: id,
+      project: q?.project ?? f.project,
+      contactName: q?.attn ?? f.contactName,
+      contactTel: q?.tel ?? f.contactTel,
+      product: q?.items?.map(item => item.desc).join('\n') ?? f.product,
     }))
   }
 
@@ -103,10 +103,10 @@ export default function NewHandoverPage() {
 
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
-          <label className="form-label">อ้างอิงใบสั่งงาน</label>
-          <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
+          <label className="form-label">อ้างอิงใบเสนอราคา</label>
+          <select className="form-input" value={form.quotationId} onChange={e => handleQuotation(e.target.value)}>
             <option value="">— ไม่ระบุ —</option>
-            {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
+            {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
           </select>
         </div>
         <div className="md:col-span-2">
