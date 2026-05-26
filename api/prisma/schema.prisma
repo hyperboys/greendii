@@ -65,6 +65,7 @@ model User {
   approvalLogs     ApprovalLog[]
   notifications    Notification[]
   activityLogs     ActivityLog[]
+  customers        Customer[]
 
   @@map("users")
 }
@@ -169,6 +170,7 @@ model Quotation {
 
   items        QuotationItem[]
   workOrders   WorkOrder[]
+  handOverJobs HandOverJob[]
   approvalLogs ApprovalLog[]
   attachments  Attachment[]
 
