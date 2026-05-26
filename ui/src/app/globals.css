@@ -182,15 +182,49 @@
 
   .print-sheet.quotation-print {
     display: block !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 50% !important;
-    transform: translateX(-50%) !important;
+    position: static !important;
+    transform: none !important;
     min-height: auto !important;
     height: auto !important;
     width: 100% !important;
     max-width: 185mm !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     padding: 0 !important;
+  }
+
+  /* Ensure the items table thead repeats on every printed page */
+  .print-sheet.quotation-print thead {
+    display: table-header-group !important;
+  }
+  .print-sheet.quotation-print tfoot {
+    display: table-row-group !important;
+  }
+  .print-sheet.quotation-print tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Each manual page = exactly one A4 sheet (content area).
+     A4 portrait 297mm − 10mm top − 10mm bottom margin = 277mm. */
+  .print-sheet.quotation-print .quotation-page {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 277mm;
+    overflow: hidden;
+    display: block !important;
+  }
+  /* Last page shrinks to content so totals/terms sit just below the items table. */
+  .print-sheet.quotation-print .quotation-page:last-child {
+    height: auto !important;
+    overflow: visible !important;
+  }
+}
+
+/* On screen only: visual separator between manual pages so layout is testable in browser. */
+@media screen {
+  .print-sheet.quotation-print .quotation-page + .quotation-page {
+    margin-top: 10mm;
+    border-top: 2px dashed #ccc;
+    padding-top: 10mm;
   }
 }
