@@ -9,8 +9,19 @@ import type {
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
 
 const BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000/api'
+const API_ORIGIN = BASE.replace(/\/api\/?$/, '')
 
 export const http = axios.create({ baseURL: BASE })
+
+/** Resolve API-managed file URLs (e.g. /uploads/...) to absolute URLs. */
+export function resolveFileUrl(fileUrl?: string): string {
+  if (!fileUrl) return ''
+  if (/^(https?:)?\/\//i.test(fileUrl) || fileUrl.startsWith('data:') || fileUrl.startsWith('blob:')) {
+    return fileUrl
+  }
+  const path = fileUrl.startsWith('/') ? fileUrl : `/${fileUrl}`
+  return `${API_ORIGIN}${path}`
+}
 
 /** Trigger browser download of a Blob with the given filename. */
 export function downloadBlob(blob: Blob, filename: string) {

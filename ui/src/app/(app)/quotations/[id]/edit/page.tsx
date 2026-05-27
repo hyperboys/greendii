@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI } from '@/lib/api'
+import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { Customer, Unit, QuotationItem } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
@@ -347,7 +347,7 @@ export default function QuotationFormPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <div className="max-h-[520px] overflow-y-auto border border-gray-100 rounded-lg">
+          <div className="border border-gray-100 rounded-lg">
             <table className="w-full text-sm min-w-[700px]">
               <thead className="sticky top-0 z-10 bg-green-dark text-white">
                 <tr>
@@ -410,7 +410,7 @@ export default function QuotationFormPage() {
                             {item.images.map((url, imgIdx) => (
                               <div key={imgIdx} className="relative group">
                                 <img
-                                  src={url}
+                                  src={resolveFileUrl(url)}
                                   alt=""
                                   className="w-14 h-14 object-cover rounded border border-gray-200"
                                 />

@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { Quotation, Settings } from '@/types'
+import { resolveFileUrl } from '@/lib/api'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -16,10 +17,10 @@ const MIN_ROWS = 3
 // Row-weight pack capacities. 1 weight ≈ 1 row at ~7mm.
 // A4 portrait content area: 297mm − 10mm top − 10mm bottom = 277mm.
 // Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 90mm.
-// Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows. Use 20 (leave buffer for height variance).
-// Last page items area = 277 − 95 − 14 − 90 = 78mm ≈ 11 rows. Use 8 for safety.
-const PACK_CAP_NON_LAST = 20
-const PACK_CAP_LAST = 8
+// Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows.
+// Last page items area = 277 − 95 − 14 − 90 = 78mm ≈ 11 rows.
+const PACK_CAP_NON_LAST = 22
+const PACK_CAP_LAST = 14
 // Render this many filler rows on non-last pages — overflow:hidden + fixed height
 // on .quotation-page clips the excess so column borders always reach the bottom.
 const FILLER_NON_LAST = 28
@@ -38,13 +39,50 @@ function splitDescriptionLines(note?: string): string[] {
     .filter(Boolean)
 }
 
+function splitAddressLines(address?: string, maxLines: number = 3): string[] {
+  const trimmed = (address ?? '').trim()
+  if (!trimmed) return Array.from({ length: maxLines }, () => '')
+
+  const fromNewline = trimmed
+    .split(/\r?\n/)
+    .map(v => v.trim())
+    .filter(Boolean)
+
+  let lines = fromNewline
+  if (lines.length <= 1) {
+    const chunks = trimmed
+      .split(',')
+      .map(v => v.trim())
+      .filter(Boolean)
+
+    if (chunks.length > 1) {
+      lines = []
+      let current = ''
+      for (const chunk of chunks) {
+        const next = current ? `${current}, ${chunk}` : chunk
+        if (next.length > 42 && current) {
+          lines.push(current)
+          current = chunk
+        } else {
+          current = next
+        }
+      }
+      if (current) lines.push(current)
+    }
+  }
+
+  const result = lines.slice(0, maxLines)
+  while (result.length < maxLines) result.push('')
+  return result
+}
+
 function itemWeight(it: Item): number {
   // 1 base row for the item line itself, +1 per note line,
-  // +5 per image (30mm-wide image renders ~30–40mm tall ≈ 4–6 rows of ~7mm).
+  // +3 per image (30mm-wide image renders ~20–25mm tall ≈ 3 rows of ~7mm).
   return (
     1 +
     splitDescriptionLines(it.note).length +
-    (Array.isArray(it.images) ? it.images.length * 5 : 0)
+    (Array.isArray(it.images) ? it.images.length * 3 : 0)
   )
 }
 
@@ -178,6 +216,16 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   function renderHeader(currentPage: number) {
     const pageText = `${currentPage}/${totalPages}`
+    const addressLines = splitAddressLines(doc.address, 3)
+    const infoRows = [
+      { leftLabel: 'To', leftValue: doc.customerName || '', rightLabel: 'Date', rightValue: dateStr },
+      { leftLabel: 'Attn', leftValue: doc.attn || '', rightLabel: 'Page', rightValue: pageText },
+      { leftLabel: 'Address', leftValue: addressLines[0], rightLabel: 'Tel', rightValue: doc.tel || '' },
+      { leftLabel: '', leftValue: addressLines[1], rightLabel: 'Quo.No', rightValue: doc.quoNo },
+      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: salesHp || '' },
+      { leftLabel: 'Project', leftValue: doc.project || '', rightLabel: '', rightValue: '' },
+    ]
+
     return (
       <>
         {/* ═══ Company Header ═══ */}
@@ -222,39 +270,29 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </div>
 
         {/* ═══ Customer Info — Single box with 2 columns ═══ */}
-        <div style={{ border: '2px solid #000', padding: '6px', marginBottom: '8px', fontFamily: 'var(--font-thai)', display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: '20px' }}>
-          <div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>To</span><span>&nbsp;&nbsp;:&nbsp;{doc.customerName}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>Attn</span><span>&nbsp;&nbsp;:&nbsp;{doc.attn || ''}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt', wordBreak: 'break-word' }}>
-              <span>Address</span><span>&nbsp;&nbsp;:&nbsp;{doc.address || ''}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}><span></span></div>
-            <div style={{ fontSize: '12pt' }}>
-              <span>Project</span><span>&nbsp;&nbsp;:&nbsp;{doc.project}</span>
-            </div>
-          </div>
-          <div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>Date</span><span>&nbsp;&nbsp;:&nbsp;{dateStr}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>Page</span><span>&nbsp;&nbsp;:&nbsp;{pageText}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>Tel</span><span>&nbsp;&nbsp;:&nbsp;{doc.tel || ''}</span>
-            </div>
-            <div style={{ marginBottom: '3px', fontSize: '12pt' }}>
-              <span>Quo.No</span><span>&nbsp;&nbsp;:&nbsp;{doc.quoNo}</span>
-            </div>
-            <div style={{ fontSize: '12pt' }}>
-              <span>HP</span><span>&nbsp;&nbsp;:&nbsp;{salesHp || ''}</span>
-            </div>
-          </div>
+        <div style={{ border: '2px solid #000', marginBottom: '8px', fontFamily: 'var(--font-thai)' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '10%' }} />
+              <col style={{ width: '2%' }} />
+              <col style={{ width: '49%' }} />
+              <col style={{ width: '12%' }} />
+              <col style={{ width: '2%' }} />
+              <col style={{ width: '25%' }} />
+            </colgroup>
+            <tbody>
+              {infoRows.map((row, idx) => (
+                <tr key={idx}>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </>
     )
@@ -278,7 +316,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={url} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
               ))}
             </div>
           )}
@@ -303,12 +341,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   function renderItemsTable(chunk: PageChunk, itemOffset: number) {
-    // Last page: just MIN_ROWS filler so totals come right after.
+    // Last page: no filler — totals come right after the last item.
     // Non-last: render many fillers; overflow:hidden + fixed height clips excess
     //           so column borders always extend to bottom of page.
     const used = chunk.items.reduce((s, it) => s + itemWeight(it), 0)
     const fillerCount = chunk.isLast
-      ? Math.max(MIN_ROWS - chunk.items.length, 0)
+      ? 0
       : Math.max(FILLER_NON_LAST - used, MIN_ROWS - chunk.items.length, 0)
 
     return (
@@ -377,8 +415,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   function renderTermsAndSignatures() {
     return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '10px', fontSize: '14pt' }}>
-        <div style={{ width: '65%', paddingRight: '8px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '8px', fontSize: '11pt' }}>
+        <div style={{ width: '65%', paddingRight: '8px', lineHeight: 1.3 }}>
           <div><strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}</div>
           <div><strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}</div>
           <div><strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}</div>
@@ -386,35 +424,35 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
             <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
           </div>
-          <div style={{ fontSize: '14pt' }}>Your Faithfully</div>
+          <div style={{ fontSize: '11pt', marginTop: '4px' }}>Your Faithfully</div>
           <div style={{
             fontFamily: 'var(--font-signature)',
             fontStyle: 'italic',
-            fontSize: '22pt',
-            marginTop: '4px',
-            marginBottom: '2px',
+            fontSize: '18pt',
+            marginTop: '2px',
+            marginBottom: '0',
             lineHeight: 1,
           }}>{sigName}</div>
-          <div style={{ fontSize: '14pt' }}>{doc.sales?.fullName || ''}</div>
+          <div style={{ fontSize: '11pt' }}>{doc.sales?.fullName || ''}</div>
         </div>
 
         <div style={{ width: '45%', border: '1px solid #000', padding: '3px 6px', alignSelf: 'flex-start' }}>
-          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '6px', fontSize: '14pt' }}>
+          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '4px', fontSize: '11pt' }}>
             Customer&nbsp;&nbsp;Confirmation
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '14pt' }}>Signature&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '14pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(37)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '11pt' }}>Signature&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '11pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(37)}</td>
               </tr>
             </tbody>
           </table>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '20px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '14pt' }}>Approval Date&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '14pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(34)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '11pt' }}>Approval Date&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '11pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(34)}</td>
               </tr>
             </tbody>
           </table>
@@ -427,7 +465,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     return (
       <div style={{
         marginTop: '4px',
-        fontSize: '14pt',
+        fontSize: '11pt',
         fontStyle: 'italic',
         textAlign: 'center',
         fontWeight: 'bold',
