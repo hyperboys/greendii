@@ -8,11 +8,53 @@
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
 const { PrismaClient } = require('@prisma/client');
+const { isR2Enabled, deleteFromR2 } = require('../src/lib/r2');
 
 const prisma = new PrismaClient();
 
+async function deleteAttachmentFilesFromR2() {
+  if (!isR2Enabled) {
+    console.log('R2 is not enabled. Skip R2 file deletion.');
+    return;
+  }
+
+  const attachments = await prisma.attachment.findMany({
+    select: { filename: true },
+    where: { filename: { not: null } },
+  });
+
+  const keys = [...new Set(attachments.map((item) => item.filename).filter(Boolean))];
+  if (keys.length === 0) {
+    console.log('No attachment keys found in DB. Skip R2 file deletion.');
+    return;
+  }
+
+  console.log(`Deleting ${keys.length} file(s) from R2...`);
+
+  const batchSize = 20;
+  let deleted = 0;
+
+  for (let i = 0; i < keys.length; i += batchSize) {
+    const batch = keys.slice(i, i + batchSize);
+    const settled = await Promise.allSettled(batch.map((key) => deleteFromR2(key)));
+
+    for (let j = 0; j < settled.length; j++) {
+      if (settled[j].status === 'fulfilled') {
+        deleted += 1;
+      } else {
+        const key = batch[j];
+        throw new Error(`Failed to delete R2 key: ${key}. ${settled[j].reason?.message || settled[j].reason || ''}`);
+      }
+    }
+  }
+
+  console.log(`Deleted ${deleted} file(s) from R2.`);
+}
+
 async function main() {
-  console.log('Starting reset: transactions + customers...');
+  console.log('Starting reset: transactions + customers (+R2 files)...');
+
+  await deleteAttachmentFilesFromR2();
 
   const countsBefore = {
     approvalLogs: await prisma.approvalLog.count(),
