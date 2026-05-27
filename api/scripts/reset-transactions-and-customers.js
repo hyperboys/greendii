@@ -20,7 +20,6 @@ async function deleteAttachmentFilesFromR2() {
 
   const attachments = await prisma.attachment.findMany({
     select: { filename: true },
-    where: { filename: { not: null } },
   });
 
   const keys = [...new Set(attachments.map((item) => item.filename).filter(Boolean))];
