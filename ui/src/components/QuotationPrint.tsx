@@ -6,11 +6,15 @@ import { resolveFileUrl } from '@/lib/api'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
-  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+  const numeric = Number(n)
+  if (!Number.isFinite(numeric)) return ''
+  return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(numeric)
 }
 
 function fmtAmtBlankZero(n: number | null | undefined): string {
-  if (n == null || n === 0) return ''
+  if (n == null) return ''
+  const numeric = Number(n)
+  if (!Number.isFinite(numeric) || Math.abs(numeric) < 0.0000001) return ''
   return fmtAmt(n)
 }
 

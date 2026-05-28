@@ -24,6 +24,22 @@ interface FormData {
 
 const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0, images: [] })
 const VAT_RATE = 0.07
+const PAYMENT_TERM_OPTIONS = ['เงินสด', 'เครดิต'] as const
+const LEAD_TIME_OPTIONS = ['7 วัน', '15 วัน', '30 วัน', '60 วัน', '90 วัน'] as const
+const CUSTOM_PAYMENT_TERM = '__custom_payment_term__'
+const CUSTOM_LEAD_TIME = '__custom_lead_time__'
+
+const getSelectValue = (value: string, options: readonly string[], customValue: string) => {
+  if (!value) return ''
+  return options.includes(value) ? value : customValue
+}
+
+const getLeadTimeDays = (value: string): string => {
+  const trimmed = value.trim()
+  if (!trimmed) return ''
+  const match = trimmed.match(/^(\d+)(?:\s*วัน)?$/)
+  return match ? match[1] : ''
+}
 
 const parseDescLines = (note?: string): string[] => {
   const lines = (note ?? '').split('\n')
@@ -37,6 +53,7 @@ export default function NewQuotationPage() {
   const [customers, setCustomers] = useState<Customer[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [saving, setSaving] = useState(false)
+  const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number }>({
     customerId: '', customerName: '', attn: '', project: '',
@@ -53,6 +70,9 @@ export default function NewQuotationPage() {
   const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = Math.round(afterDiscount * VAT_RATE)
   const grandTotal = afterDiscount + vat
+  const paymentTermSelectValue = getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, CUSTOM_PAYMENT_TERM)
+  const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
+  const customLeadTimeDays = getLeadTimeDays(form.leadTime)
 
   const setItem = (idx: number, key: keyof QuotationItem, val: string | number) => {
     setForm(f => {
@@ -240,13 +260,62 @@ export default function NewQuotationPage() {
         </div>
         <div>
           <label className="form-label">การชำระเงิน</label>
-          <input className="form-input" value={form.paymentTerm}
-            onChange={e => setForm(f => ({ ...f, paymentTerm: e.target.value }))} />
+          <select
+            className="form-input"
+            value={paymentTermSelectValue}
+            onChange={e => setForm(f => ({
+              ...f,
+              paymentTerm: e.target.value === CUSTOM_PAYMENT_TERM ? (PAYMENT_TERM_OPTIONS.includes(f.paymentTerm as typeof PAYMENT_TERM_OPTIONS[number]) ? '' : f.paymentTerm) : e.target.value,
+            }))}
+          >
+            <option value="">— เลือกการชำระเงิน —</option>
+            {PAYMENT_TERM_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+            <option value={CUSTOM_PAYMENT_TERM}>อื่นๆ</option>
+          </select>
+          {paymentTermSelectValue === CUSTOM_PAYMENT_TERM && (
+            <input
+              className="form-input mt-2"
+              value={form.paymentTerm}
+              placeholder="ระบุการชำระเงิน"
+              onChange={e => setForm(f => ({ ...f, paymentTerm: e.target.value }))}
+            />
+          )}
         </div>
         <div>
           <label className="form-label">Lead Time</label>
-          <input className="form-input" value={form.leadTime}
-            onChange={e => setForm(f => ({ ...f, leadTime: e.target.value }))} />
+          <select
+            className="form-input"
+            value={leadTimeSelectValue}
+            onChange={e => {
+              const selected = e.target.value
+              setIsCustomLeadTime(selected === CUSTOM_LEAD_TIME)
+              setForm(f => ({
+                ...f,
+                leadTime: selected === CUSTOM_LEAD_TIME ? (LEAD_TIME_OPTIONS.includes(f.leadTime as typeof LEAD_TIME_OPTIONS[number]) ? '' : f.leadTime) : selected,
+              }))
+            }}
+          >
+            <option value="">— เลือก Lead Time —</option>
+            {LEAD_TIME_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
+            <option value={CUSTOM_LEAD_TIME}>ระบุเอง</option>
+          </select>
+          {isCustomLeadTime && (
+            <div className="mt-2 flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                step={1}
+                className="form-input"
+                value={customLeadTimeDays}
+                placeholder="จำนวนวัน"
+                onChange={e => {
+                  const days = e.target.value.replace(/[^0-9]/g, '')
+                  setForm(f => ({ ...f, leadTime: days ? `${days} วัน` : '' }))
+                }}
+              />
+              <span className="text-sm text-gray-600">วัน</span>
+            </div>
+          )}
         </div>
         <div>
           <label className="form-label">อายุใบเสนอราคา (วัน)</label>
