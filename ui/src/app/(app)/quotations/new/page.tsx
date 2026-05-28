@@ -25,7 +25,7 @@ interface FormData {
 const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0, images: [] })
 const VAT_RATE = 0.07
 const PAYMENT_TERM_OPTIONS = ['เงินสด', 'เครดิต'] as const
-const LEAD_TIME_OPTIONS = ['7 วัน', '15 วัน', '30 วัน', '60 วัน', '90 วัน'] as const
+const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'] as const
 const CUSTOM_PAYMENT_TERM = '__custom_payment_term__'
 const CUSTOM_LEAD_TIME = '__custom_lead_time__'
 
@@ -37,7 +37,7 @@ const getSelectValue = (value: string, options: readonly string[], customValue: 
 const getLeadTimeDays = (value: string): string => {
   const trimmed = value.trim()
   if (!trimmed) return ''
-  const match = trimmed.match(/^(\d+)(?:\s*วัน)?$/)
+  const match = trimmed.match(/^(\d+)(?:\s*(?:วัน|days?))?$/i)
   return match ? match[1] : ''
 }
 
@@ -217,7 +217,7 @@ export default function NewQuotationPage() {
   const fmt = (n: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-6xl mx-auto space-y-5">
+    <form onSubmit={handleSubmit} className="max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5 pb-24">
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
@@ -310,7 +310,7 @@ export default function NewQuotationPage() {
                 placeholder="จำนวนวัน"
                 onChange={e => {
                   const days = e.target.value.replace(/[^0-9]/g, '')
-                  setForm(f => ({ ...f, leadTime: days ? `${days} วัน` : '' }))
+                  setForm(f => ({ ...f, leadTime: days ? `${days} Days` : '' }))
                 }}
               />
               <span className="text-sm text-gray-600">วัน</span>
@@ -345,19 +345,19 @@ export default function NewQuotationPage() {
         <div className="overflow-x-auto">
           <div className="border border-gray-100 rounded-lg">
             <table className="w-full text-sm min-w-[700px]">
-              <thead className="sticky top-0 z-10 bg-green-dark text-white">
+              <thead className="sticky top-0 z-10 bg-gradient-to-r from-green-dark to-[#2f6a34] text-white shadow-sm [text-shadow:0_1px_0_rgba(0,0,0,0.28)]">
                 <tr>
-                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase w-8 align-middle">#</th>
-                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase align-middle">Description</th>
-                  <th rowSpan={2} className="text-right py-2 px-2 text-xs font-semibold uppercase w-20 align-middle">Q&apos;ty</th>
-                  <th rowSpan={2} className="text-left py-2 px-2 text-xs font-semibold uppercase w-24 align-middle">Unit</th>
-                  <th colSpan={2} className="text-center py-2 px-2 text-xs font-semibold uppercase tracking-wide">Pricing / Unit</th>
-                  <th rowSpan={2} className="text-right py-2 px-2 text-xs font-semibold uppercase w-32 align-middle">Total Amount</th>
-                  <th rowSpan={2} className="w-8"></th>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-10 align-middle border-b border-white/20">#</th>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white align-middle border-b border-white/20">Description</th>
+                  <th rowSpan={2} className="text-right py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-20 align-middle border-b border-white/20">Q&apos;ty</th>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-24 align-middle border-b border-white/20">Unit</th>
+                  <th colSpan={2} className="text-center py-3 px-3 text-[12px] md:text-[13px] font-semibold tracking-[0.06em] text-white/90 border-b border-white/20">Pricing / Unit</th>
+                  <th rowSpan={2} className="text-right py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-32 align-middle border-b border-white/20">Total Amount</th>
+                  <th rowSpan={2} className="w-9 border-b border-white/20"></th>
                 </tr>
                 <tr>
-                  <th className="text-right py-1.5 px-2 text-[11px] font-semibold uppercase w-32">Material</th>
-                  <th className="text-right py-1.5 px-2 text-[11px] font-semibold uppercase w-32">Labour</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour</th>
                 </tr>
               </thead>
               <tbody>
@@ -474,7 +474,7 @@ export default function NewQuotationPage() {
         </div>
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div className="sticky bottom-0 -mx-3 sm:-mx-4 lg:-mx-6 px-3 sm:px-4 lg:px-6 py-3 bg-white/95 backdrop-blur border-t border-gray-200 flex justify-end gap-3 z-20">
         <button type="button" className="btn-outline" onClick={() => router.back()}>ยกเลิก</button>
         <button type="submit" className="btn-primary" disabled={saving}>
           {saving ? 'กำลังบันทึก…' : 'สร้างใบเสนอราคา'}

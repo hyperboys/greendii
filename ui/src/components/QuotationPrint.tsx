@@ -209,7 +209,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     fontSize: '8pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
-    lineHeight: '0.5',
+    lineHeight: '1.0',
   }
 
   const tdS: React.CSSProperties = {
@@ -300,12 +300,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <tbody>
               {infoRows.map((row, idx) => (
                 <tr key={idx}>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', height: '28px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', height: '28px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
                 </tr>
               ))}
             </tbody>
@@ -370,12 +370,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '5%' }} />
-          <col style={{ width: '50%' }} />
+          <col style={{ width: '47%' }} />
           <col style={{ width: '8%' }} />
           <col style={{ width: '7%' }} />
-          <col style={{ width: '10%' }} />
-          <col style={{ width: '10%' }} />
-          <col style={{ width: '10%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
         </colgroup>
         <thead>
           <tr>
@@ -383,9 +383,9 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Description</th>
             <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Q&apos;ty</th>
             <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Unit</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>(Material Price)</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>(Labour Price)</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>(Total Amount)</th>
+            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Material Price)</th>
+            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Labour Price)</th>
+            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Total Amount)</th>
           </tr>
           <tr>
             <th style={{ ...thS, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Unit Price</th>

@@ -21,6 +21,16 @@ function splitDescriptionLines(note?: string): string[] {
     .filter(Boolean)
 }
 
+function fmtLeadTime(v?: string): string {
+  const value = (v ?? '').trim()
+  if (!value) return '-'
+
+  const matched = value.match(/^(\d+)(?:\s*(?:วัน|days?))?$/i)
+  if (matched) return `${matched[1]} Days`
+
+  return value.replace(/\bวัน\b/g, 'Days')
+}
+
 export default function QuotationDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -71,7 +81,7 @@ export default function QuotationDetailPage() {
   return (
     <>
     <QuotationPrint doc={doc} settings={settings} />
-    <div className="screen-only max-w-4xl mx-auto space-y-5">
+    <div className="screen-only w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
         <button onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
@@ -116,7 +126,7 @@ export default function QuotationDetailPage() {
       </div>
 
       {/* Info card */}
-      <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
+      <div className="card p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
         <div><span className="form-label">ลูกค้า</span><p>{doc.customerName}</p></div>
         <div><span className="form-label">ผู้ติดต่อ</span><p>{doc.attn || '-'}</p></div>
         <div><span className="form-label">โทร</span><p>{doc.tel || '-'}</p></div>
@@ -125,15 +135,16 @@ export default function QuotationDetailPage() {
         <div><span className="form-label">เซลล์</span><p>{doc.sales?.fullName ?? doc.salesId}</p></div>
         <div><span className="form-label">ระยะเวลา (วัน)</span><p>{doc.validityDays}</p></div>
         <div><span className="form-label">การชำระ</span><p>{doc.paymentTerm || '-'}</p></div>
-        <div><span className="form-label">Lead Time</span><p>{doc.leadTime || '-'}</p></div>
+        <div><span className="form-label">Lead Time</span><p>{fmtLeadTime(doc.leadTime)}</p></div>
         {doc.remark && (
           <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>
         )}
       </div>
 
       {/* Items */}
-      <div className="card">
-        <table className="data-table table-fixed w-full">
+      <div className="card overflow-hidden">
+        <div className="overflow-x-auto">
+        <table className="data-table table-fixed w-full min-w-[860px]">
           <thead>
             <tr>
               <th className="w-10">#</th>
@@ -184,6 +195,7 @@ export default function QuotationDetailPage() {
             </tr>
           </tfoot>
         </table>
+        </div>
       </div>
 
 
