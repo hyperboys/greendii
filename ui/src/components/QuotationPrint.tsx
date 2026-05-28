@@ -9,6 +9,11 @@ function fmtAmt(n: number | null | undefined): string {
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+function fmtAmtBlankZero(n: number | null | undefined): string {
+  if (n == null || n === 0) return ''
+  return fmtAmt(n)
+}
+
 function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
@@ -33,10 +38,11 @@ interface Props {
 type Item = Quotation['items'][number]
 
 function splitDescriptionLines(note?: string): string[] {
-  return (note ?? '')
-    .split('\n')
-    .map(v => v.trim())
-    .filter(Boolean)
+  if (note == null) return []
+  const lines = note.split('\n').map(v => v.trim())
+  // Keep intentionally added blank rows, but avoid rendering the default single empty row.
+  if (lines.length === 1 && lines[0] === '') return []
+  return lines
 }
 
 function splitAddressLines(address?: string, maxLines: number = 3): string[] {
@@ -77,11 +83,18 @@ function splitAddressLines(address?: string, maxLines: number = 3): string[] {
 }
 
 function itemWeight(it: Item): number {
-  // 1 base row for the item line itself, +1 per note line,
+  // 1 base row for the item line itself.
+  // Non-empty note lines cost ~1 row; intentionally blank note lines cost less,
+  // so users can add visual spacing without forcing an early page break.
   // +3 per image (30mm-wide image renders ~20–25mm tall ≈ 3 rows of ~7mm).
+  const noteLines = splitDescriptionLines(it.note)
+  const nonEmptyNoteLines = noteLines.filter(Boolean).length
+  const blankNoteLines = noteLines.length - nonEmptyNoteLines
+
   return (
     1 +
-    splitDescriptionLines(it.note).length +
+    nonEmptyNoteLines +
+    blankNoteLines * 0.35 +
     (Array.isArray(it.images) ? it.images.length * 3 : 0)
   )
 }
@@ -243,28 +256,28 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '22pt', lineHeight: '1.4' }}>{companyName}</div>
-            <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.4', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '22pt', lineHeight: '1.0' }}>{companyName}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
           </div>
           <div />
         </div>
 
-        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '6px' }}>
-          <div style={{ fontSize: '12pt', lineHeight: '1.4' }}>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '2px' }}>
+          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
             {address}&nbsp;&nbsp;Tel {tel}
           </div>
-          <div style={{ fontSize: '12pt', lineHeight: '1.4' }}>
+          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
             {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
           </div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.2' }}>{website}</div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.2' }}>TAX ID : {taxId}</div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.2', color: '#cc0000' }}>E-Mail : {email}</div>
+          <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
+          <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
+          <div style={{ fontSize: '14pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
         </div>
 
         {/* ═══ QUOTATION title ═══ */}
         <div style={{
           textAlign: 'center', fontWeight: 'bold', fontSize: '16pt',
-          textDecoration: 'underline', marginBottom: '8px', fontFamily: 'var(--font-thai)',
+          textDecoration: 'underline', marginBottom: '4px', fontFamily: 'var(--font-thai)',
         }}>
           QUOTATION
         </div>
@@ -309,7 +322,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           {item?.desc ?? ''}
           {item && splitDescriptionLines(item.note).map((line, idx) => (
             <span key={idx} style={{ color: '#555', fontSize: '10pt', display: 'block', fontFamily: 'var(--font-thai)' }}>
-              {line}
+              {line || '\u00A0'}
             </span>
           ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
@@ -328,13 +341,13 @@ export default function QuotationPrint({ doc, settings }: Props) {
           {item?.unit ?? ''}
         </td>
         <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
-          {item ? fmtAmt(item.materialPrice) : ''}
+          {item ? fmtAmtBlankZero(item.materialPrice) : ''}
         </td>
         <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
-          {item ? fmtAmt(item.labourPrice) : ''}
+          {item ? fmtAmtBlankZero(item.labourPrice) : ''}
         </td>
         <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
-          {item ? fmtAmt(item.amount) : ''}
+          {item ? fmtAmtBlankZero(item.amount) : ''}
         </td>
       </tr>
     )
@@ -353,12 +366,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '5%' }} />
-          <col style={{ width: '33%' }} />
+          <col style={{ width: '50%' }} />
           <col style={{ width: '8%' }} />
           <col style={{ width: '7%' }} />
-          <col style={{ width: '14%' }} />
-          <col style={{ width: '14%' }} />
-          <col style={{ width: '19%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
+          <col style={{ width: '10%' }} />
         </colgroup>
         <thead>
           <tr>
