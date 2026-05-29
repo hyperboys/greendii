@@ -2,13 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
-import type { Quotation, Settings } from '@/types'
+import { QuotationsAPI, downloadBlob } from '@/lib/api'
+import type { Quotation } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, CheckCircle, Trash2, Pencil, Loader2, Eye, X, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
-import QuotationPrint from '@/components/QuotationPrint'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -41,7 +40,6 @@ export default function QuotationDetailPage() {
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [settings, setSettings] = useState<Settings | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -52,7 +50,6 @@ export default function QuotationDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
-  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
   useEffect(() => {
     if (!previewOpen) return
 
@@ -69,6 +66,11 @@ export default function QuotationDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
+
+  const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
+  const previewUrl = previewToken
+    ? `/print/quotation/${id}?token=${encodeURIComponent(previewToken)}`
+    : ''
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -112,7 +114,6 @@ export default function QuotationDetailPage() {
 
   return (
     <>
-    {!previewOpen && <QuotationPrint doc={doc} settings={settings} />}
     <div className="screen-only w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
@@ -257,7 +258,17 @@ export default function QuotationDetailPage() {
         </div>
         <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
           <div className="mx-auto w-fit">
-            <QuotationPrint doc={doc} settings={settings} />
+            {previewUrl ? (
+              <iframe
+                title={`Quotation preview ${doc.quoNo}`}
+                src={previewUrl}
+                className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+              />
+            ) : (
+              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+              </div>
+            )}
           </div>
         </div>
       </div>
