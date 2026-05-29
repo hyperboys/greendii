@@ -6,7 +6,7 @@ import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import type { Quotation, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, Trash2, Pencil, Printer, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Trash2, Pencil, Loader2, Eye, X, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
 import QuotationPrint from '@/components/QuotationPrint'
 
@@ -40,6 +40,7 @@ export default function QuotationDetailPage() {
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
 
   const load = () => {
@@ -52,6 +53,22 @@ export default function QuotationDetailPage() {
 
   useEffect(() => { load() }, [id])
   useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
+  useEffect(() => {
+    if (!previewOpen) return
+
+    const originalOverflow = document.body.style.overflow
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setPreviewOpen(false)
+    }
+
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [previewOpen])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -78,9 +95,24 @@ export default function QuotationDetailPage() {
     }
   }
 
+  const downloadPdf = async () => {
+    if (pdfLoading) return
+    setPdfLoading(true)
+    toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
+    try {
+      const blob = await QuotationsAPI.pdf(id)
+      downloadBlob(blob, `${doc.quoNo || 'quotation'}.pdf`)
+      toast.success('สำเร็จ', { id: 'pdf' })
+    } catch {
+      toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' })
+    } finally {
+      setPdfLoading(false)
+    }
+  }
+
   return (
     <>
-    <QuotationPrint doc={doc} settings={settings} />
+    {!previewOpen && <QuotationPrint doc={doc} settings={settings} />}
     <div className="screen-only w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5">
       {/* Back + Header */}
       <div className="flex items-center gap-3">
@@ -94,28 +126,18 @@ export default function QuotationDetailPage() {
           </div>
           <p className="page-sub">{doc.project}</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap justify-end gap-2">
           {canEdit && (
             <button className="btn-outline btn-sm" onClick={() => router.push(`/quotations/${id}/edit`)}>
               <Pencil size={14} /> แก้ไข
             </button>
           )}
-          <button
-            className="btn-outline btn-sm no-print"
-            disabled={pdfLoading}
-            onClick={async () => {
-            if (pdfLoading) return
-            setPdfLoading(true)
-            toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
-            try {
-              const blob = await QuotationsAPI.pdf(id)
-              downloadBlob(blob, `${doc.quoNo || 'quotation'}.pdf`)
-              toast.success('สำเร็จ', { id: 'pdf' })
-            } catch { toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' }) }
-            finally { setPdfLoading(false) }
-          }}>
-            {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Printer size={14} />}
-            {pdfLoading ? 'กำลังสร้าง PDF…' : 'พิมพ์'}
+          <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>
+            <Eye size={14} /> พรีวิว
+          </button>
+          <button className="btn-outline btn-sm no-print" onClick={downloadPdf} disabled={pdfLoading}>
+            {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {pdfLoading ? 'กำลังสร้าง PDF…' : 'ดาวน์โหลด PDF'}
           </button>
           {canCancel && (
             <button className="btn-danger btn-sm" onClick={() => act('cancel')} disabled={acting}>
@@ -144,57 +166,62 @@ export default function QuotationDetailPage() {
       {/* Items */}
       <div className="card overflow-hidden">
         <div className="overflow-x-auto">
-        <table className="data-table table-fixed w-full min-w-[860px]">
-          <thead>
-            <tr>
-              <th className="w-10">#</th>
-              <th>Description</th>
-              <th className="text-right w-20">Q'ty</th>
-              <th className="w-20">Unit</th>
-              <th className="text-right w-36">Material Price / Unit</th>
-              <th className="text-right w-32">Labour Price / Unit</th>
-              <th className="text-right w-32">Total Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {doc.items.map((item, i) => (
-              <tr key={item.id ?? i}>
-                <td className="text-gray-400">{(item.seq ?? i) + 1}</td>
-                <td className="break-words">
-                  {item.desc}
-                  {splitDescriptionLines(item.note).map((line, idx) => (
-                    <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
-                  ))}
-                </td>
-                <td className="text-right">{fmtMoney(item.qty)}</td>
-                <td>{item.unit}</td>
-                <td className="text-right">{fmtMoney(item.materialPrice ?? item.price)}</td>
-                <td className="text-right">{fmtMoney(item.labourPrice ?? 0)}</td>
-                <td className="text-right font-medium">{fmtMoney(item.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          <tfoot>
-            <tr className="bg-gray-50">
-              <td colSpan={6} className="text-right font-semibold px-4 py-3">ยอดรวม</td>
-              <td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td>
-            </tr>
-            {doc.specialDiscount > 0 && (
-              <tr className="bg-gray-50">
-                <td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td>
-                <td className="text-right text-red-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td>
-              </tr>
-            )}
-            <tr className="bg-gray-50">
-              <td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT 7%</td>
-              <td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td>
-            </tr>
-            <tr className="bg-green-pale">
-              <td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดรวมทั้งสิ้น</td>
-              <td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.grandTotal)}</td>
-            </tr>
-          </tfoot>
-        </table>
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
+            <table className="w-full text-sm min-w-[700px]">
+              <thead className="sticky top-0 z-10 bg-gradient-to-r from-green-dark to-[#2f6a34] text-white shadow-sm [text-shadow:0_1px_0_rgba(0,0,0,0.28)]">
+                <tr>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-10 align-middle border-b border-white/20">#</th>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white align-middle border-b border-white/20">Description</th>
+                  <th rowSpan={2} className="text-right py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-20 align-middle border-b border-white/20">Q&apos;ty</th>
+                  <th rowSpan={2} className="text-left py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-24 align-middle border-b border-white/20">Unit</th>
+                  <th colSpan={2} className="text-center py-3 px-3 text-[12px] md:text-[13px] font-semibold tracking-[0.06em] text-white/90 border-b border-white/20">Pricing / Unit</th>
+                  <th rowSpan={2} className="text-right py-3.5 px-3 text-[13px] md:text-[14px] font-bold tracking-[0.02em] text-white w-32 align-middle border-b border-white/20">Total Amount</th>
+                </tr>
+                <tr>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material Price</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour Price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {doc.items.map((item, i) => (
+                  <tr key={item.id ?? i} className="border-t border-gray-100 align-top">
+                    <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
+                    <td className="py-2 px-3 break-words">
+                      <div className="font-medium text-gray-800">{item.desc}</div>
+                      {splitDescriptionLines(item.note).map((line, idx) => (
+                        <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
+                      ))}
+                    </td>
+                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>
+                    <td className="py-2.5 px-3 pt-3.5">{item.unit}</td>
+                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.materialPrice ?? item.price)}</td>
+                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.labourPrice ?? 0)}</td>
+                    <td className="py-2.5 px-3 text-right font-medium pt-3.5">{fmtMoney(item.amount)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="bg-white shadow-[0_-1px_0_0_#e5e7eb]">
+                <tr className="bg-gray-50">
+                  <td colSpan={6} className="text-right font-semibold px-4 py-3">ยอดรวม</td>
+                  <td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td>
+                </tr>
+                {doc.specialDiscount > 0 && (
+                  <tr className="bg-gray-50">
+                    <td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td>
+                    <td className="text-right text-red-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td>
+                  </tr>
+                )}
+                <tr className="bg-gray-50">
+                  <td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT 7%</td>
+                  <td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td>
+                </tr>
+                <tr className="bg-green-pale">
+                  <td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดรวมทั้งสิ้น</td>
+                  <td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.grandTotal)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </div>
       </div>
 
@@ -212,6 +239,29 @@ export default function QuotationDetailPage() {
         </div>
       )}
     </div>
+    {previewOpen && (
+      <div className="quotation-preview-modal fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
+        <div className="quotation-preview-toolbar flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-800">พรีวิวใบเสนอราคา</div>
+            <div className="truncate text-xs text-gray-500">{doc.quoNo} · {doc.project}</div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            onClick={() => setPreviewOpen(false)}
+            aria-label="ปิดพรีวิว"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto w-fit">
+            <QuotationPrint doc={doc} settings={settings} />
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }

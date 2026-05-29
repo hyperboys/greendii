@@ -309,7 +309,7 @@ export default function QuotationFormPage() {
           </select>
         </div>
         <div>
-          <label className="form-label">ชื่อลูกค้า (หรือพิมพ์เอง) *</label>
+          <label className="form-label">ชื่อลูกค้า *</label>
           <input className="form-input" value={form.customerName}
             onChange={e => setForm(f => ({ ...f, customerName: e.target.value }))} required />
         </div>
@@ -334,7 +334,7 @@ export default function QuotationFormPage() {
             onChange={e => setForm(f => ({ ...f, address: e.target.value }))} />
         </div>
         <div>
-          <label className="form-label">เงื่อนไขการชำระ</label>
+          <label className="form-label">การชำระเงิน</label>
           <select
             className="form-input"
             value={paymentTermSelectValue}
@@ -435,8 +435,8 @@ export default function QuotationFormPage() {
                   <th rowSpan={2} className="w-9 border-b border-white/20"></th>
                 </tr>
                 <tr>
-                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material</th>
-                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material Price</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour Price</th>
                 </tr>
               </thead>
               <tbody>

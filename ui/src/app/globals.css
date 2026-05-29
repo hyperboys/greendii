@@ -227,4 +227,55 @@
     border-top: 2px dashed #ccc;
     padding-top: 10mm;
   }
+
+  .quotation-preview-modal .print-sheet.quotation-print {
+    display: block !important;
+    width: 210mm;
+    max-width: 210mm;
+    margin: 0 auto;
+    background: transparent;
+  }
+
+  .quotation-preview-modal .print-sheet.quotation-print .quotation-page {
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 10mm 6mm;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+  }
+
+  .quotation-preview-modal .print-sheet.quotation-print .quotation-page:last-child {
+    min-height: 297mm;
+    overflow: visible;
+  }
+
+  .quotation-preview-modal .print-sheet.quotation-print .quotation-page + .quotation-page {
+    margin-top: 10mm;
+    border-top: 0;
+    padding: 10mm 6mm;
+  }
+}
+
+@media print {
+  .quotation-preview-modal {
+    position: static !important;
+    inset: auto !important;
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
+
+  .quotation-preview-toolbar {
+    display: none !important;
+  }
+
+  .quotation-preview-frame {
+    height: auto !important;
+    padding: 0 !important;
+    overflow: visible !important;
+    background: #fff !important;
+  }
 }

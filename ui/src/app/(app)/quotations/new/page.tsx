@@ -356,8 +356,8 @@ export default function NewQuotationPage() {
                   <th rowSpan={2} className="w-9 border-b border-white/20"></th>
                 </tr>
                 <tr>
-                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material</th>
-                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Material Price</th>
+                  <th className="text-right py-2.5 px-3 text-[13px] md:text-[14px] font-bold text-white w-32">Labour Price</th>
                 </tr>
               </thead>
               <tbody>
