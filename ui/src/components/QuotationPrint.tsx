@@ -227,7 +227,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     ...tdS,
     padding: '1px 5px',
     height: 'auto',
-    lineHeight: 1.0,
+    lineHeight: 0.8,
     verticalAlign: 'middle',
   }
 
@@ -274,8 +274,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
             {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
           </div>
           <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
+          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
+          <div style={{ fontSize: '12pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
         </div>
 
         {/* ═══ QUOTATION title ═══ */}
@@ -287,7 +287,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </div>
 
         {/* ═══ Customer Info — Single box with 2 columns ═══ */}
-        <div style={{ border: '2px solid #000', marginBottom: '8px', fontFamily: 'var(--font-thai)' }}>
+        <div style={{ border: '2px solid #000', marginBottom: '10px', fontFamily: 'var(--font-thai)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '10%' }} />
@@ -300,12 +300,12 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <tbody>
               {infoRows.map((row, idx) => (
                 <tr key={idx}>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.9', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
+                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
                 </tr>
               ))}
             </tbody>
@@ -454,10 +454,10 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </div>
 
         <div style={{ width: '45%', border: '1px solid #000', padding: '3px 6px', alignSelf: 'flex-start' }}>
-          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '4px', fontSize: '11pt' }}>
+          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '16px', fontSize: '11pt' }}>
             Customer&nbsp;&nbsp;Confirmation
           </div>
-          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px' }}>
             <tbody>
               <tr>
                 <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '11pt' }}>Signature&nbsp;:&nbsp;</td>
