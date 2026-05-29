@@ -89,6 +89,43 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
         /* Force print sheet visible on screen for this route only */
         .print-sheet { display: block !important; }
         body { background: #fff !important; margin: 0 !important; padding: 0 !important; }
+
+        @media screen {
+          html,
+          body {
+            width: 210mm !important;
+            min-height: 297mm !important;
+            background: #fff !important;
+          }
+
+          body {
+            padding: 10mm 6mm !important;
+            box-sizing: border-box !important;
+          }
+
+          .print-sheet.quotation-print {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .print-sheet.quotation-print .quotation-page {
+            box-sizing: border-box !important;
+            width: 100% !important;
+            height: 277mm !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+
+          .print-sheet.quotation-print .quotation-page + .quotation-page {
+            margin-top: 20mm !important;
+            border-top: 0 !important;
+            padding-top: 0 !important;
+          }
+        }
+
         /* Map legacy font names used in print templates to local embedded fonts. */
         [style*="Cordia New"], [style*="'Cordia New'"] {
           font-family: var(--font-thai) !important;

@@ -30,9 +30,6 @@ const MIN_ROWS = 3
 // Last page items area = 277 − 95 − 14 − 90 = 78mm ≈ 11 rows.
 const PACK_CAP_NON_LAST = 22
 const PACK_CAP_LAST = 14
-// Render this many filler rows on non-last pages — overflow:hidden + fixed height
-// on .quotation-page clips the excess so column borders always reach the bottom.
-const FILLER_NON_LAST = 28
 
 interface Props {
   doc: Quotation
@@ -110,51 +107,50 @@ interface PageChunk {
 }
 
 function paginateItems(items: Item[]): PageChunk[] {
-  const weights = items.map(itemWeight)
-  const totalWeight = weights.reduce((a, b) => a + b, 0)
-
-  // Single page case
-  if (totalWeight <= PACK_CAP_LAST) {
-    return [{ items, isLast: true, capacity: PACK_CAP_LAST }]
+  if (items.length === 0) {
+    return [{ items: [], isLast: true, capacity: PACK_CAP_LAST }]
   }
 
-  // Greedy from the END: pick items for the last page until LAST cap is reached.
-  let lastWeight = 0
-  let splitAt = items.length
-  for (let i = items.length - 1; i >= 0; i--) {
-    if (lastWeight + weights[i] <= PACK_CAP_LAST) {
-      lastWeight += weights[i]
-      splitAt = i
-    } else {
-      break
-    }
-  }
-  // Ensure at least one non-last page exists (push at least one item back if all fit on last)
-  if (splitAt === 0) splitAt = 1
-
-  const nonLast = items.slice(0, splitAt)
-  const last = items.slice(splitAt)
-
-  // Pack non-last items greedily
-  const pages: PageChunk[] = []
+  // Forward packing: fill each page top-to-bottom up to the per-page item
+  // capacity, then start a new page. This keeps earlier pages full and pushes
+  // only the remainder onto later pages (instead of leaving the first page
+  // mostly empty).
+  const rawPages: Item[][] = []
   let current: Item[] = []
   let currentWeight = 0
-  for (let i = 0; i < nonLast.length; i++) {
-    const w = weights[i]
+  for (const item of items) {
+    const w = itemWeight(item)
     if (currentWeight + w > PACK_CAP_NON_LAST && current.length > 0) {
-      pages.push({ items: current, isLast: false, capacity: PACK_CAP_NON_LAST })
-      current = [nonLast[i]]
+      rawPages.push(current)
+      current = [item]
       currentWeight = w
     } else {
-      current.push(nonLast[i])
+      current.push(item)
       currentWeight += w
     }
   }
-  if (current.length > 0) {
-    pages.push({ items: current, isLast: false, capacity: PACK_CAP_NON_LAST })
+  if (current.length > 0) rawPages.push(current)
+
+  // The last page must also hold the totals + terms + signature block, so its
+  // available item area is smaller. If the final page's items don't leave room
+  // for the totals block, move trailing items onto a fresh last page.
+  const last = rawPages[rawPages.length - 1]
+  let lastWeight = last.reduce((s, it) => s + itemWeight(it), 0)
+  if (lastWeight > PACK_CAP_LAST && last.length > 1) {
+    const overflow: Item[] = []
+    while (lastWeight > PACK_CAP_LAST && last.length > 1) {
+      const moved = last.pop() as Item
+      overflow.unshift(moved)
+      lastWeight -= itemWeight(moved)
+    }
+    if (overflow.length > 0) rawPages.push(overflow)
   }
-  pages.push({ items: last, isLast: true, capacity: PACK_CAP_LAST })
-  return pages
+
+  return rawPages.map((pageItems, i) => ({
+    items: pageItems,
+    isLast: i === rawPages.length - 1,
+    capacity: i === rawPages.length - 1 ? PACK_CAP_LAST : PACK_CAP_NON_LAST,
+  }))
 }
 
 export default function QuotationPrint({ doc, settings }: Props) {
@@ -357,17 +353,32 @@ export default function QuotationPrint({ doc, settings }: Props) {
     )
   }
 
-  function renderItemsTable(chunk: PageChunk, itemOffset: number) {
-    // Last page: no filler — totals come right after the last item.
-    // Non-last: render many fillers; overflow:hidden + fixed height clips excess
-    //           so column borders always extend to bottom of page.
-    const used = chunk.items.reduce((s, it) => s + itemWeight(it), 0)
-    const fillerCount = chunk.isLast
-      ? 0
-      : Math.max(FILLER_NON_LAST - used, MIN_ROWS - chunk.items.length, 0)
+  function renderFlexibleFillerRow(key: number) {
+    const fillerTd: React.CSSProperties = {
+      ...tdS,
+      height: '100%',
+      paddingTop: 0,
+      paddingBottom: 0,
+      lineHeight: 0,
+      fontSize: 0,
+    }
 
     return (
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <tr key={key} className="quotation-flex-filler" style={{ height: '100%' }}>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+      </tr>
+    )
+  }
+
+  function renderItemsTable(chunk: PageChunk, itemOffset: number) {
+    return (
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
         <colgroup>
           <col style={{ width: '5%' }} />
           <col style={{ width: '47%' }} />
@@ -400,32 +411,46 @@ export default function QuotationPrint({ doc, settings }: Props) {
             const isLastActual = i === chunk.items.length - 1
             return renderItemRow(item, displaySeq, i, isLastActual)
           })}
-          {Array.from({ length: fillerCount }).map((_, i) => renderItemRow(null, 0, chunk.items.length + i, false))}
+          {renderFlexibleFillerRow(chunk.items.length)}
         </tbody>
-        {chunk.isLast && (
-          <tbody>
-            <tr>
-              <td colSpan={6} style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
-              <td style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
-            </tr>
-            <tr>
-              <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
-              <td style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
-            </tr>
-            <tr>
-              <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
-              <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
-            </tr>
-            <tr>
-              <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
-              <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
-            </tr>
-            <tr>
-              <td colSpan={6} style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
-              <td style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
-            </tr>
-          </tbody>
-        )}
+      </table>
+    )
+  }
+
+  function renderTotalsTable() {
+    return (
+      <table style={{ width: '100%', flex: '0 0 auto', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+        <colgroup>
+          <col style={{ width: '5%' }} />
+          <col style={{ width: '47%' }} />
+          <col style={{ width: '8%' }} />
+          <col style={{ width: '7%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+          <col style={{ width: '11%' }} />
+        </colgroup>
+        <tbody>
+          <tr>
+            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
+            <td style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
+          </tr>
+          <tr>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
+            <td style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
+          </tr>
+          <tr>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
+            <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
+          </tr>
+          <tr>
+            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
+            <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
+          </tr>
+          <tr>
+            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
+            <td style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
+          </tr>
+        </tbody>
       </table>
     )
   }
@@ -513,10 +538,14 @@ export default function QuotationPrint({ doc, settings }: Props) {
             pageBreakAfter: pi < pages.length - 1 ? 'always' : 'auto',
             breakAfter: pi < pages.length - 1 ? 'page' : 'auto',
             position: 'relative',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '277mm',
           }}
         >
           {renderHeader(pi + 1)}
           {renderItemsTable(page, offsets[pi])}
+          {page.isLast && renderTotalsTable()}
           {page.isLast && renderTermsAndSignatures()}
           {page.isLast && renderBottomNote()}
           {!page.isLast && (

@@ -211,12 +211,13 @@
     width: 100% !important;
     height: 277mm;
     overflow: hidden;
-    display: block !important;
+    display: flex !important;
+    flex-direction: column !important;
   }
-  /* Last page shrinks to content so totals/terms sit just below the items table. */
+  /* Keep the last manual page as an A4 content area so the item table can fill it. */
   .print-sheet.quotation-print .quotation-page:last-child {
-    height: auto !important;
-    overflow: visible !important;
+    height: 277mm !important;
+    overflow: hidden !important;
   }
 }
 
