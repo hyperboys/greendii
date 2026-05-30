@@ -128,7 +128,7 @@
 
 @page {
   size: A4 portrait;
-  margin: 10mm 6mm;
+  margin: 6mm 6mm 10mm;
 }
 
 @media print {
@@ -160,7 +160,7 @@
   .print-sheet {
     display: flex !important;
     flex-direction: column !important;
-    min-height: 277mm !important;
+    min-height: 281mm !important;
     width: 100% !important;
     max-width: 190mm !important;
     position: fixed !important;
@@ -205,18 +205,18 @@
   }
 
   /* Each manual page = exactly one A4 sheet (content area).
-     A4 portrait 297mm − 10mm top − 10mm bottom margin = 277mm. */
+     A4 portrait 297mm − 6mm top − 10mm bottom margin = 281mm. */
   .print-sheet.quotation-print .quotation-page {
     box-sizing: border-box !important;
     width: 100% !important;
-    height: 277mm;
+    height: 281mm;
     overflow: hidden;
     display: flex !important;
     flex-direction: column !important;
   }
   /* Keep the last manual page as an A4 content area so the item table can fill it. */
   .print-sheet.quotation-print .quotation-page:last-child {
-    height: 277mm !important;
+    height: 281mm !important;
     overflow: hidden !important;
   }
 }
@@ -241,7 +241,7 @@
     box-sizing: border-box;
     width: 210mm;
     min-height: 297mm;
-    padding: 10mm 6mm;
+    padding: 6mm 6mm 10mm;
     overflow: hidden;
     background: #fff;
     box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
@@ -255,7 +255,7 @@
   .quotation-preview-modal .print-sheet.quotation-print .quotation-page + .quotation-page {
     margin-top: 10mm;
     border-top: 0;
-    padding: 10mm 6mm;
+    padding: 6mm 6mm 10mm;
   }
 }
 

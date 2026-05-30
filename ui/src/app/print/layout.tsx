@@ -99,7 +99,7 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
           }
 
           body {
-            padding: 10mm 6mm !important;
+            padding: 6mm 6mm 10mm !important;
             box-sizing: border-box !important;
           }
 
@@ -113,7 +113,7 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
           .print-sheet.quotation-print .quotation-page {
             box-sizing: border-box !important;
             width: 100% !important;
-            height: 277mm !important;
+            height: 281mm !important;
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;

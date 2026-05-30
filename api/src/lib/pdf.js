@@ -52,14 +52,14 @@ function getBrowser() {
  * @param {object} [opts]
  * @param {number} [opts.timeoutMs=45000] - Navigation/wait timeout
  * @param {string} [opts.format='A4']
- * @param {object} [opts.margin] - { top, right, bottom, left } e.g. '10mm'
+ * @param {object} [opts.margin] - { top, right, bottom, left } e.g. '6mm'
  * @returns {Promise<Buffer>}
  */
 async function renderUrlToPdf(url, opts = {}) {
   const {
     timeoutMs = 45000,
     format = 'A4',
-    margin = { top: '10mm', right: '10mm', bottom: '10mm', left: '10mm' },
+    margin = { top: '6mm', right: '6mm', bottom: '10mm', left: '6mm' },
   } = opts;
 
   const browser = await getBrowser();

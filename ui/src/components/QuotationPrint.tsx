@@ -24,7 +24,7 @@ function fmtQty(n: number): string {
 
 const MIN_ROWS = 3
 // Row-weight pack capacities. 1 weight ≈ 1 row at ~7mm.
-// A4 portrait content area: 297mm − 10mm top − 10mm bottom = 277mm.
+// A4 portrait content area: 297mm − 6mm top − 10mm bottom = 281mm.
 // Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 90mm.
 // Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows.
 // Last page items area = 277 − 95 − 14 − 90 = 78mm ≈ 11 rows.
@@ -256,8 +256,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
           </div>
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '22pt', lineHeight: '1.0' }}>{companyName}</div>
-            <div style={{ fontWeight: 'bold', fontSize: '16pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '18pt', lineHeight: '1.0' }}>{companyName}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
           </div>
           <div />
         </div>
@@ -540,7 +540,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '277mm',
+            minHeight: '281mm',
           }}
         >
           {renderHeader(pi + 1)}
