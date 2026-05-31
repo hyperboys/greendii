@@ -120,6 +120,25 @@ model Unit {
   @@map("units")
 }
 
+// ─────────────────────────────────────────────
+// PR TYPE  (ประเภทใบขอซื้อ — แต่ละประเภทมีสายอนุมัติของตัวเอง)
+// ─────────────────────────────────────────────
+model PrType {
+  id            String   @id @default(cuid())
+  name          String   @unique
+  // สายอนุมัติเฉพาะของประเภทนี้ เช่น [3,4,5,6]
+  // ว่าง = ใช้สายอนุมัติ pr เริ่มต้นจาก settings.approvalFlowConfig
+  approvalSteps Json     @default("[]")
+  active        Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  purchaseRequests PurchaseRequest[]
+
+  @@map("pr_types")
+}
+
 model Settings {
   id                  String   @id @default("main")
   companyName         String   @default("Green Dii Co., Ltd.")
@@ -278,6 +297,8 @@ model PurchaseRequest {
   prNo         String     @unique
   workOrderId  String?
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
+  prTypeId     String?
+  prType       PrType?    @relation(fields: [prTypeId], references: [id])
   salesId      String
   sales        User       @relation(fields: [salesId], references: [id])
   customer     String

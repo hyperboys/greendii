@@ -134,6 +134,7 @@ export default function PRDetailPage() {
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm no-print">
         <div><span className="form-label">ลูกค้า</span><p>{doc.customer}</p></div>
+        <div><span className="form-label">ประเภท PR</span><p>{doc.prType?.name || '-'}</p></div>
         <div><span className="form-label">โครงการอ้างอิง</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
         <div><span className="form-label">วันที่ออก</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>

@@ -81,6 +81,23 @@ async function main() {
   }
   console.log('✅ Units seeded');
 
+  // ── PR TYPES ───────────────────────────────────────────────────────────────
+  // approvalSteps อ้างอิงหมายเลขขั้นตอนใน settings.stepRoleConfig
+  // (3=admin_mgr, 4=project_mgr, 5=director, 6=procurement)
+  const prTypesData = [
+    { name: 'ซื้อทั่วไป',   approvalSteps: [3, 4, 5, 6], sortOrder: 1 },
+    { name: 'ซื้อโครงการ', approvalSteps: [3, 4, 5, 6], sortOrder: 2 },
+    { name: 'ซื้อด่วน',     approvalSteps: [3, 6],       sortOrder: 3 },
+  ];
+  for (const t of prTypesData) {
+    await prisma.prType.upsert({
+      where: { name: t.name },
+      update: {},
+      create: t,
+    });
+  }
+  console.log('✅ PR types seeded');
+
   console.log('\n🎉 Seed complete! Default password for all users: 1234\n');
 }
 

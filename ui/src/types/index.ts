@@ -183,6 +183,15 @@ export interface Unit {
   createdAt: string
 }
 
+export interface PrType {
+  id: string
+  name: string
+  approvalSteps: number[]
+  active: boolean
+  sortOrder: number
+  createdAt?: string
+}
+
 export interface Settings {
   id: string
   companyName: string
@@ -358,6 +367,8 @@ export interface PurchaseRequest {
   prNo: string
   workOrderId?: string
   workOrder?: { id: string; woNo: string }
+  prTypeId?: string
+  prType?: { id: string; name: string; approvalSteps?: number[] }
   salesId: string
   sales?: { id: string; fullName: string }
   customer: string

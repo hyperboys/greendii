@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  User, Customer, Product, Unit, Settings,
+  User, Customer, Product, Unit, PrType, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
   Attachment, AuditPage, UserRole, ActivityLogPage,
@@ -125,6 +125,18 @@ export const UnitsAPI = {
   update: (id: string, data: Partial<Unit>) =>
     http.put<Unit>(`/units/${id}`, data).then(r => r.data),
   delete: (id: string) => http.delete(`/units/${id}`).then(r => r.data),
+}
+
+// ─── PR TYPES ─────────────────────────────────────────────────────────────────
+
+export const PrTypesAPI = {
+  list: (params?: Record<string, string>) =>
+    http.get<PrType[]>('/pr-types', { params }).then(r => r.data),
+  create: (data: { name: string; approvalSteps?: number[]; sortOrder?: number }) =>
+    http.post<PrType>('/pr-types', data).then(r => r.data),
+  update: (id: string, data: Partial<PrType>) =>
+    http.put<PrType>(`/pr-types/${id}`, data).then(r => r.data),
+  delete: (id: string) => http.delete(`/pr-types/${id}`).then(r => r.data),
 }
 
 // ─── QUOTATIONS ───────────────────────────────────────────────────────────────

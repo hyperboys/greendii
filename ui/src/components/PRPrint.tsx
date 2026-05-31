@@ -122,18 +122,18 @@ export default function PRPrint({ doc, settings }: Props) {
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
+            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
               {address}
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
+            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
               {addressTh}
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
-              Tel : {tel}&nbsp;&nbsp;&nbsp;Fax : {fax}
+            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
+              Tel : {tel}
             </td>
           </tr>
         </tbody>

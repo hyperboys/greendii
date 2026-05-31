@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI } from '@/lib/api'
-import type { WorkOrder, PRItem, Unit } from '@/types'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI } from '@/lib/api'
+import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 
 interface FormData {
   workOrderId: string
+  prTypeId: string
   customer: string
   projectRef: string
   dateIssue: string
@@ -25,16 +26,17 @@ export default function NewPRPage() {
   const router = useRouter()
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+  const [prTypes, setPrTypes] = useState<PrType[]>([])
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number }>({
-    workOrderId: '', customer: '', projectRef: '',
+    workOrderId: '', prTypeId: '', customer: '', projectRef: '',
     dateIssue: '', dateRequired: '', remarks: '', items: [emptyItem()], specialDiscount: 0,
   })
 
   useEffect(() => {
-    Promise.all([WorkOrdersAPI.list({ status: 'approved' }), UnitsAPI.list()])
-      .then(([wo, u]) => { setWorkOrders(wo); setUnits(u) })
+    Promise.all([WorkOrdersAPI.list({ status: 'approved' }), UnitsAPI.list(), PrTypesAPI.list({ active: 'true' })])
+      .then(([wo, u, t]) => { setWorkOrders(wo); setUnits(u); setPrTypes(t) })
   }, [])
 
   const handleWO = (id: string) => {
@@ -102,6 +104,14 @@ export default function NewPRPage() {
           <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
             <option value="">— ไม่ระบุ —</option>
             {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">ประเภทใบขอซื้อ</label>
+          <select className="form-input" value={form.prTypeId}
+            onChange={e => setForm(f => ({ ...f, prTypeId: e.target.value }))}>
+            <option value="">— ใช้สายอนุมัติเริ่มต้น —</option>
+            {prTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
         <div>

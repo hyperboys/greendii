@@ -115,4 +115,50 @@ async function getNextStep(docType, currentStep) {
   return steps[idx + 1];
 }
 
-module.exports = { ROLE_STEP, STEP_ROLE, DEFAULT_FLOW, getFlowSteps, getFirstStep, getNextStep, getStepRoleMapping };
+// ─── PR — per-type flow + creator-role skipping ──────────────────────────────
+
+/**
+ * Remove any step whose mapped role equals the document creator's role.
+ * Rationale: ผู้สร้างเอกสารไม่อนุมัติเอกสารของตัวเอง — ข้ามขั้นนั้นไปเลย
+ * (เช่น ถ้าผู้สร้างเป็น sale_mgr และ flow มีขั้นของ sale_mgr ก็ข้ามขั้นนั้น)
+ */
+function filterCreatorSteps(steps, creatorRole, stepRole) {
+  if (!creatorRole) return [...steps];
+  return steps.filter(step => stepRole[step] !== creatorRole);
+}
+
+/**
+ * Resolve the effective approval flow for a single PR.
+ *  - prTypeSteps: array stored on the PR's PrType (may be empty/undefined)
+ *  - creatorRole: role of the user who created the PR
+ *
+ * Falls back to the default 'pr' flow when the type has no custom steps,
+ * then removes every step that belongs to the creator's own role.
+ */
+async function resolvePrFlow(prTypeSteps, creatorRole) {
+  const { stepRole } = await getStepRoleMapping();
+  const baseSteps = Array.isArray(prTypeSteps) && prTypeSteps.length > 0
+    ? prTypeSteps.map(Number).filter(n => Number.isInteger(n) && n > 0)
+    : await getFlowSteps('pr');
+  return filterCreatorSteps(baseSteps, creatorRole, stepRole);
+}
+
+/** First effective step for a PR, or null when it should auto-approve. */
+async function getPrFirstStep(prTypeSteps, creatorRole) {
+  const steps = await resolvePrFlow(prTypeSteps, creatorRole);
+  return steps.length > 0 ? steps[0] : null;
+}
+
+/** Next effective step after currentStep for a PR, or null when finished. */
+async function getPrNextStep(prTypeSteps, creatorRole, currentStep) {
+  const steps = await resolvePrFlow(prTypeSteps, creatorRole);
+  const idx = steps.indexOf(currentStep);
+  if (idx === -1 || idx >= steps.length - 1) return null;
+  return steps[idx + 1];
+}
+
+module.exports = {
+  ROLE_STEP, STEP_ROLE, DEFAULT_FLOW,
+  getFlowSteps, getFirstStep, getNextStep, getStepRoleMapping,
+  resolvePrFlow, getPrFirstStep, getPrNextStep,
+};

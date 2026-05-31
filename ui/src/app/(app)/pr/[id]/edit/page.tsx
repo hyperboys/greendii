@@ -2,14 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI } from '@/lib/api'
-import type { WorkOrder, PRItem, Unit } from '@/types'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI } from '@/lib/api'
+import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 
 interface FormData {
   workOrderId: string
+  prTypeId: string
   customer: string
   projectRef: string
   dateIssue: string
@@ -26,11 +27,12 @@ export default function EditPRPage() {
   const { id } = useParams<{ id: string }>()
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [units, setUnits] = useState<Unit[]>([])
+  const [prTypes, setPrTypes] = useState<PrType[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number }>({
-    workOrderId: '', customer: '', projectRef: '',
+    workOrderId: '', prTypeId: '', customer: '', projectRef: '',
     dateIssue: '', dateRequired: '', remarks: '', items: [emptyItem()], specialDiscount: 0,
   })
 
@@ -38,11 +40,13 @@ export default function EditPRPage() {
     Promise.all([
       WorkOrdersAPI.list({ status: 'approved' }),
       UnitsAPI.list(),
+      PrTypesAPI.list({ active: 'true' }),
       PRAPI.get(id),
     ])
-      .then(([woList, unitList, doc]) => {
+      .then(([woList, unitList, typeList, doc]) => {
         setWorkOrders(woList)
         setUnits(unitList)
+        setPrTypes(typeList)
         if (doc.status !== 'draft') {
           toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft เท่านั้น')
           router.replace(`/pr/${id}`)
@@ -50,6 +54,7 @@ export default function EditPRPage() {
         }
         setForm({
           workOrderId: doc.workOrderId ?? '',
+          prTypeId: doc.prTypeId ?? '',
           customer: doc.customer ?? '',
           projectRef: doc.projectRef ?? '',
           dateIssue: doc.dateIssue ? doc.dateIssue.slice(0, 10) : '',
@@ -136,6 +141,14 @@ export default function EditPRPage() {
           <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
             <option value="">— ไม่ระบุ —</option>
             {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
+          </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">ประเภทใบขอซื้อ</label>
+          <select className="form-input" value={form.prTypeId}
+            onChange={e => setForm(f => ({ ...f, prTypeId: e.target.value }))}>
+            <option value="">— ใช้สายอนุมัติเริ่มต้น —</option>
+            {prTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
         <div>
