@@ -195,7 +195,8 @@ export default function QuotationPrint({ doc, settings }: Props) {
   const pages = paginateItems(doc.items)
   const totalPages = pages.length
 
-  const border = '1px solid #000'
+  const border = '2px solid #000'
+  const tableFrameBorder = '2px solid #000'
 
   const thS: React.CSSProperties = {
     border,
@@ -378,7 +379,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   function renderItemsTable(chunk: PageChunk, itemOffset: number) {
     return (
-      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
         <colgroup>
           <col style={{ width: '5%' }} />
           <col style={{ width: '47%' }} />
@@ -419,7 +420,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   function renderTotalsTable() {
     return (
-      <table style={{ width: '100%', flex: '0 0 auto', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', flex: '0 0 auto', borderCollapse: 'collapse', tableLayout: 'fixed', borderLeft: tableFrameBorder, borderRight: tableFrameBorder, borderBottom: tableFrameBorder }}>
         <colgroup>
           <col style={{ width: '5%' }} />
           <col style={{ width: '47%' }} />
@@ -556,7 +557,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
                 left: 0,
                 right: 0,
                 bottom: 0,
-                borderTop: '1px solid #000',
+                borderTop: tableFrameBorder,
               }}
             />
           )}
