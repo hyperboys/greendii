@@ -195,7 +195,7 @@ export default function EditPRPage() {
                   <th className="text-left py-2 px-2 text-xs text-gray-500 w-24">P/N</th>
                   <th className="text-left py-2 px-2 text-xs text-gray-500">รายการ / รายละเอียดเพิ่มเติม</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวน</th>
-                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-20">หน่วย</th>
+                  <th className="text-left py-2 px-2 text-xs text-gray-500 w-28">หน่วย</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">ราคา/หน่วย</th>
                   <th className="text-right py-2 px-2 text-xs text-gray-500 w-28">จำนวนเงิน</th>
                   <th className="w-8"></th>
@@ -224,7 +224,7 @@ export default function EditPRPage() {
                         value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
                     </td>
                     <td className="py-2 px-2">
-                      <input list="pr-units-datalist" className="form-input py-1"
+                      <input list="pr-units-datalist" className="form-input py-1 w-full"
                         value={item.unit}
                         onChange={e => setItem(i, 'unit', e.target.value)}
                         placeholder="-" autoComplete="off" />
@@ -246,10 +246,10 @@ export default function EditPRPage() {
                 ))}
               </tbody>
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
-                <tr className="bg-gray-50"><td colSpan={5} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
-                <tr className="bg-gray-50"><td colSpan={5} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block" value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} /></td><td /></tr>
-                <tr className="bg-gray-50"><td colSpan={5} className="text-right text-gray-500 px-2 py-1">VAT 7%</td><td className="text-right text-gray-500 pr-2">{fmt(vat)}</td><td /></tr>
-                <tr className="bg-green-pale"><td colSpan={5} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">฿{fmt(netTotal)}</td><td /></tr>
+                <tr className="bg-gray-50"><td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
+                <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block" value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} /></td><td /></tr>
+                <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-2 py-1">VAT 7%</td><td className="text-right text-gray-500 pr-2">{fmt(vat)}</td><td /></tr>
+                <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">฿{fmt(netTotal)}</td><td /></tr>
               </tfoot>
             </table>
           </div>
