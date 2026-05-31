@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { useAuthStore } from '@/store/auth'
 import type { Customer, Unit, QuotationItem } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -50,6 +51,7 @@ const stringifyDescLines = (lines: string[]): string => lines.join('\n')
 
 export default function NewQuotationPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const [customers, setCustomers] = useState<Customer[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [saving, setSaving] = useState(false)
@@ -62,9 +64,10 @@ export default function NewQuotationPage() {
   })
 
   useEffect(() => {
-    Promise.all([CustomersAPI.list({ active: 'true' }), UnitsAPI.list()])
+    const customerParams = { active: 'true', ...(user?.id ? { salesId: user.id } : {}) }
+    Promise.all([CustomersAPI.list(customerParams), UnitsAPI.list()])
       .then(([c, u]) => { setCustomers(c); setUnits(u) })
-  }, [])
+  }, [user?.id])
 
   const subTotal = form.items.reduce((s, i) => s + Number(i.qty) * (Number(i.materialPrice) + Number(i.labourPrice)), 0)
   const afterDiscount = subTotal - Number(form.specialDiscount)

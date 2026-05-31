@@ -21,11 +21,15 @@ async function getAccessibleCustomerOrThrow(req, id) {
 // GET /api/customers
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { active, q } = req.query;
+    const { active, q, salesId } = req.query;
     const where = {};
     if (active !== undefined) where.active = active === 'true';
     if (q) where.name = { contains: q, mode: 'insensitive' };
-    if (!canSeeAllCustomers(req.user.role)) where.salesId = req.user.id;
+    if (!canSeeAllCustomers(req.user.role)) {
+      where.salesId = req.user.id;
+    } else if (salesId) {
+      where.salesId = salesId;
+    }
     const list = await prisma.customer.findMany({
       where,
       orderBy: { name: 'asc' },

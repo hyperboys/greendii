@@ -6,6 +6,7 @@ import { HandoversAPI, QuotationsAPI } from '@/lib/api'
 import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import DateInput from '@/components/DateInput'
 
 interface FormData {
   quotationId: string
@@ -170,8 +171,8 @@ export default function EditHandoverPage() {
         </div>
         <div className="md:col-span-2">
           <label className="form-label">วันให้บริการ</label>
-          <input type="date" className="form-input w-48" value={form.serviceDate}
-            onChange={e => setForm(f => ({ ...f, serviceDate: e.target.value }))} />
+          <DateInput className="w-48" value={form.serviceDate}
+            onChange={iso => setForm(f => ({ ...f, serviceDate: iso }))} />
         </div>
       </div>
 

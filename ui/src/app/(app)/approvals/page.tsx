@@ -53,7 +53,7 @@ export default function ApprovalsPage() {
                       <td>{q.customerName}</td>
                       <td>{q.project}</td>
                       <td className="text-right">฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(q.grandTotal)}</td>
-                      <td className="text-xs text-gray-500">{new Date(q.createdAt).toLocaleDateString('th-TH')}</td>
+                      <td className="text-xs text-gray-500">{new Date(q.createdAt).toLocaleDateString('en-GB')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -74,8 +74,8 @@ export default function ApprovalsPage() {
                       <td className="font-mono text-xs font-semibold text-blue-700">{w.woNo}</td>
                       <td>{w.customerName}</td>
                       <td>{w.project}</td>
-                      <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('th-TH') : '-'}</td>
-                      <td className="text-xs text-gray-500">{new Date(w.createdAt).toLocaleDateString('th-TH')}</td>
+                      <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('en-GB') : '-'}</td>
+                      <td className="text-xs text-gray-500">{new Date(w.createdAt).toLocaleDateString('en-GB')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -96,7 +96,7 @@ export default function ApprovalsPage() {
                       <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
                       <td>{p.customer}</td>
                       <td className="text-right">฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p.netTotal)}</td>
-                      <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('th-TH')}</td>
+                      <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('en-GB')}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -116,7 +116,7 @@ export default function ApprovalsPage() {
                     <tr key={h.id} className="cursor-pointer" onClick={() => router.push(`/handovers/${h.id}`)}>
                       <td className="font-mono text-xs font-semibold text-orange-700">{h.hoNo}</td>
                       <td>{h.project}</td>
-                      <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('th-TH')}</td>
+                      <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('en-GB')}</td>
                     </tr>
                   ))}
                 </tbody>

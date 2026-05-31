@@ -69,7 +69,7 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
     if (diff < 60) return 'เมื่อกี้'
     if (diff < 3600) return `${Math.floor(diff / 60)} นาทีที่แล้ว`
     if (diff < 86400) return `${Math.floor(diff / 3600)} ชม.ที่แล้ว`
-    return d.toLocaleDateString('th-TH')
+    return d.toLocaleDateString('en-GB')
   }
 
   return (

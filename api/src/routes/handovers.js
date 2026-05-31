@@ -6,6 +6,11 @@ const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
 
+function buildOptionalRelationUpdate(id) {
+  if (id === undefined) return undefined;
+  return id ? { connect: { id } } : { disconnect: true };
+}
+
 async function assertQuotationAccessible(req, quotationId) {
   if (!quotationId || MANAGER_ROLES.includes(req.user.role)) return;
   const quotation = await prisma.quotation.findUnique({
@@ -126,15 +131,17 @@ router.put('/:id', authenticate, async (req, res, next) => {
       qualityProduct, qualitySales, qualityInstall, comment,
     } = req.body;
     await assertQuotationAccessible(req, quotationId);
+    const quotationRelation = buildOptionalRelationUpdate(quotationId);
+    const workOrderRelation = buildOptionalRelationUpdate(workOrderId);
     const item = await prisma.handOverJob.update({
       where: { id: req.params.id },
       data: {
-        quotationId: quotationId || null,
-        workOrderId: workOrderId || null,
         project, contractor, location, contactName, contactTel,
         product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,
         qualityProduct, qualitySales, qualityInstall, comment,
+        ...(quotationRelation ? { quotation: quotationRelation } : {}),
+        ...(workOrderRelation ? { workOrder: workOrderRelation } : {}),
       },
     });
     res.json(item);

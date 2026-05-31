@@ -173,7 +173,7 @@ export default function DashboardPage() {
                   <span className="text-gray-400">{log.docType}</span>
                 </span>
                 <span className="text-xs text-gray-400 shrink-0">
-                  {new Date(log.actedAt).toLocaleDateString('th-TH')}
+                  {new Date(log.actedAt).toLocaleDateString('en-GB')}
                 </span>
               </div>
             ))}

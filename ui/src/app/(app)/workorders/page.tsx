@@ -91,10 +91,10 @@ export default function WorkOrdersPage() {
                 <td>{w.customerName}</td>
                 <td className="max-w-[180px] truncate">{w.project}</td>
                 <td>{w.sales?.fullName ?? w.salesId}</td>
-                <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('th-TH') : '-'}</td>
+                <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('en-GB') : '-'}</td>
                 <td><span className={STATUS_COLORS[w.status]}>{STATUS_LABELS[w.status]}</span></td>
                 <td>{w.isClosed ? <span className="badge bg-gray-800 text-white">ปิดแล้ว</span> : '-'}</td>
-                <td className="text-xs text-gray-500">{new Date(w.createdAt).toLocaleDateString('th-TH')}</td>
+                <td className="text-xs text-gray-500">{new Date(w.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
           </tbody>

@@ -80,10 +80,10 @@ export default function HandoversPage() {
                 <td>{h.project}</td>
                 <td className="max-w-[160px] truncate">{h.contractor || '-'}</td>
                 <td>{h.sales?.fullName ?? h.salesId}</td>
-                <td className="text-xs text-gray-500">{h.serviceDate ? new Date(h.serviceDate).toLocaleDateString('th-TH') : '-'}</td>
+                <td className="text-xs text-gray-500">{h.serviceDate ? new Date(h.serviceDate).toLocaleDateString('en-GB') : '-'}</td>
                 <td><span className="text-sm font-medium">{h.qualityProduct}/5</span></td>
                 <td><span className={`badge badge-${h.status}`}>{STATUS_LABELS[h.status]}</span></td>
-                <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('th-TH')}</td>
+                <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
           </tbody>

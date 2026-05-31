@@ -6,6 +6,7 @@ import { WorkOrdersAPI, QuotationsAPI } from '@/lib/api'
 import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import DateInput from '@/components/DateInput'
 
 interface FormData {
   quotationId: string
@@ -120,11 +121,13 @@ export default function NewWorkOrderPage() {
         </div>
         <div>
           <label className="form-label">วันติดตั้ง</label>
-          <input type="date" className="form-input" {...f('installDate')} />
+          <DateInput value={form.installDate}
+            onChange={iso => setForm(prev => ({ ...prev, installDate: iso }))} />
         </div>
         <div>
           <label className="form-label">วัน QC</label>
-          <input type="date" className="form-input" {...f('qcDate')} />
+          <DateInput value={form.qcDate}
+            onChange={iso => setForm(prev => ({ ...prev, qcDate: iso }))} />
         </div>
         <div className="md:col-span-2">
           <label className="form-label">หมายเหตุ</label>

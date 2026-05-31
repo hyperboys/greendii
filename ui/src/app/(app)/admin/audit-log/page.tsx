@@ -110,7 +110,7 @@ export default function AuditLogPage() {
                 return (
                   <tr key={row.id}>
                     <td className="whitespace-nowrap text-xs text-gray-500">
-                      {new Date(row.actedAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'short' })}
+                      {new Date(row.actedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
                     </td>
                     <td className="font-medium">{row.approver?.fullName ?? row.approverId}</td>
                     <td>

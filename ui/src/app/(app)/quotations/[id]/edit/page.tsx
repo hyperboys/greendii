@@ -70,8 +70,9 @@ export default function QuotationFormPage() {
   })
 
   useEffect(() => {
+    const customerParams = { active: 'true', ...(user?.id ? { salesId: user.id } : {}) }
     Promise.all([
-      CustomersAPI.list({ active: 'true' }),
+      CustomersAPI.list(customerParams),
       UnitsAPI.list(),
     ]).then(([c, u]) => { setCustomers(c); setUnits(u) })
 
@@ -108,7 +109,7 @@ export default function QuotationFormPage() {
         .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
         .finally(() => setLoading(false))
     }
-  }, [isEdit, params.id])
+  }, [isEdit, params.id, user?.id])
 
   const subTotal = form.items.reduce((s, i) => s + Number(i.qty) * (Number(i.materialPrice) + Number(i.labourPrice)), 0)
   const afterDiscount = subTotal - Number(form.specialDiscount)

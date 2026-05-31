@@ -7,7 +7,7 @@ import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 
@@ -26,6 +26,7 @@ export default function PRDetailPage() {
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -37,6 +38,18 @@ export default function PRDetailPage() {
 
   useEffect(() => { load() }, [id])
   useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
+
+  useEffect(() => {
+    if (!previewOpen) return
+    const originalOverflow = document.body.style.overflow
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setPreviewOpen(false) }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [previewOpen])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -51,6 +64,8 @@ export default function PRDetailPage() {
   const nextStepRole = stepRoleConfig[String(nextStep)]
   const canApprove = doc.status === 'pending' && nextStepRole === user?.role
 
+  const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
+  const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     setActing(true)
@@ -69,6 +84,7 @@ export default function PRDetailPage() {
   }
 
   return (
+    <>
     <div className="max-w-4xl mx-auto space-y-5">
       <PRPrint doc={doc} settings={settings} />
       <div className="flex items-center gap-3 no-print">
@@ -88,6 +104,9 @@ export default function PRDetailPage() {
               <Pencil size={14} /> แก้ไข
             </button>
           )}
+          <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>
+            <Eye size={14} /> พรีวิว
+          </button>
           <button
             className="btn-outline btn-sm no-print"
             disabled={pdfLoading}
@@ -117,8 +136,8 @@ export default function PRDetailPage() {
         <div><span className="form-label">ลูกค้า</span><p>{doc.customer}</p></div>
         <div><span className="form-label">โครงการอ้างอิง</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
-        <div><span className="form-label">วันที่ออก</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('th-TH') : '-'}</p></div>
-        <div><span className="form-label">ต้องการภายใน</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('th-TH') : '-'}</p></div>
+        <div><span className="form-label">วันที่ออก</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div><span className="form-label">ต้องการภายใน</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.remarks && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remarks}</p></div>}
       </div>
 
@@ -203,5 +222,39 @@ export default function PRDetailPage() {
         </div>
       )}
     </div>
+    {previewOpen && (
+      <div className="quotation-preview-modal fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
+        <div className="quotation-preview-toolbar flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-800">พรีวิวใบขอซื้อ (PR)</div>
+            <div className="truncate text-xs text-gray-500">{doc.prNo} · {doc.customer}</div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            onClick={() => setPreviewOpen(false)}
+            aria-label="ปิดพรีวิว"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto w-fit">
+            {previewUrl ? (
+              <iframe
+                title={`PR preview ${doc.prNo}`}
+                src={previewUrl}
+                className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+              />
+            ) : (
+              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

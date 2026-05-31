@@ -6,6 +6,7 @@ import { PRAPI, WorkOrdersAPI, UnitsAPI } from '@/lib/api'
 import type { WorkOrder, PRItem, Unit } from '@/types'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import DateInput from '@/components/DateInput'
 
 interface FormData {
   workOrderId: string
@@ -138,13 +139,13 @@ export default function EditPRPage() {
         </div>
         <div>
           <label className="form-label">วันที่ออก</label>
-          <input type="date" className="form-input" value={form.dateIssue}
-            onChange={e => setForm(f => ({ ...f, dateIssue: e.target.value }))} />
+          <DateInput value={form.dateIssue}
+            onChange={iso => setForm(f => ({ ...f, dateIssue: iso }))} />
         </div>
         <div>
           <label className="form-label">ต้องการภายใน</label>
-          <input type="date" className="form-input" value={form.dateRequired}
-            onChange={e => setForm(f => ({ ...f, dateRequired: e.target.value }))} />
+          <DateInput value={form.dateRequired}
+            onChange={iso => setForm(f => ({ ...f, dateRequired: iso }))} />
         </div>
         <div className="md:col-span-2">
           <label className="form-label">หมายเหตุ</label>

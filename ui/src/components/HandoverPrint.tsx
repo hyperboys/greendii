@@ -17,7 +17,7 @@ export default function HandoverPrint({ doc, settings }: Props) {
   const border = '1px solid #555'
 
   const serviceDateStr = doc.serviceDate
-    ? new Date(doc.serviceDate).toLocaleDateString('en-GB', { day: '2-digit', month: 'numeric', year: 'numeric' })
+    ? new Date(doc.serviceDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '-'
 
   // Split product text into lines for the items table

@@ -94,7 +94,7 @@ export default function PRPage() {
                 <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
                 <td className="text-right font-medium">฿{fmtMoney(p.netTotal)}</td>
                 <td><span className={STATUS_COLORS[p.status]}>{STATUS_LABELS[p.status]}</span></td>
-                <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('th-TH')}</td>
+                <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>
             ))}
           </tbody>

@@ -55,7 +55,7 @@ router.post('/test-notify', authenticate, requireRole(...ADMIN_ROLES), async (re
       select: { fullName: true, email: true, lineUserId: true },
     });
 
-    const msg = `🔔 ทดสอบระบบแจ้งเตือน GreenDii\n\nส่งถึง: ${user.fullName}\nวันที่: ${new Date().toLocaleString('th-TH')}\n\nระบบทำงานปกติครับ ✅`;
+    const msg = `🔔 ทดสอบระบบแจ้งเตือน GreenDii\n\nส่งถึง: ${user.fullName}\nวันที่: ${new Date().toLocaleString('en-GB')}\n\nระบบทำงานปกติครับ ✅`;
 
     await notifyUser(userId, msg);
 

@@ -119,7 +119,7 @@ export default function QuotationsPage() {
                 <td className="text-right font-medium">฿{fmtMoney(q.grandTotal)}</td>
                 <td><span className={STATUS_COLORS[q.status]}>{STATUS_LABELS[q.status]}</span></td>
                 <td className="text-xs text-gray-500">
-                  {new Date(q.createdAt).toLocaleDateString('th-TH')}
+                  {new Date(q.createdAt).toLocaleDateString('en-GB')}
                 </td>
               </tr>
             ))}

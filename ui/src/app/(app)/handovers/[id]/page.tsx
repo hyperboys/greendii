@@ -8,7 +8,7 @@ import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import HandoverPrint from '@/components/HandoverPrint'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
@@ -23,6 +23,7 @@ export default function HandoverDetailPage() {
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
+  const [previewOpen, setPreviewOpen] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -34,6 +35,18 @@ export default function HandoverDetailPage() {
 
   useEffect(() => { load() }, [id])
   useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
+
+  useEffect(() => {
+    if (!previewOpen) return
+    const originalOverflow = document.body.style.overflow
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === 'Escape') setPreviewOpen(false) }
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.body.style.overflow = originalOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [previewOpen])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -48,6 +61,9 @@ export default function HandoverDetailPage() {
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
   const canApprove = doc.status === 'pending' && nextStepRole === user?.role
+
+  const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
+  const previewUrl = previewToken ? `/print/handover/${id}?token=${encodeURIComponent(previewToken)}` : ''
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -117,6 +133,9 @@ export default function HandoverDetailPage() {
             <Trash2 size={14} /> ลบ
           </button>
         )}
+        <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>
+          <Eye size={14} /> พรีวิว
+        </button>
         <button
           className="btn-outline btn-sm no-print"
           disabled={pdfLoading}
@@ -147,7 +166,7 @@ export default function HandoverDetailPage() {
         <div><span className="form-label">เซลล์</span><p>{doc.sales?.fullName ?? doc.salesId}</p></div>
         <div><span className="form-label">สินค้า/บริการ</span><p>{doc.product || '-'}</p></div>
         <div><span className="form-label">ผู้รับผิดชอบ</span><p>{doc.responsibility || '-'}</p></div>
-        <div><span className="form-label">วันให้บริการ</span><p>{doc.serviceDate ? new Date(doc.serviceDate).toLocaleDateString('th-TH') : '-'}</p></div>
+        <div><span className="form-label">วันให้บริการ</span><p>{doc.serviceDate ? new Date(doc.serviceDate).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.comment && <div className="col-span-full"><span className="form-label">ความคิดเห็น</span><p>{doc.comment}</p></div>}
       </div>
 
@@ -243,6 +262,39 @@ export default function HandoverDetailPage() {
         </div>
       )}
     </div>
+    {previewOpen && (
+      <div className="quotation-preview-modal fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
+        <div className="quotation-preview-toolbar flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-800">พรีวิวใบส่งมอบงาน (Hand Over)</div>
+            <div className="truncate text-xs text-gray-500">{doc.hoNo} · {doc.project}</div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            onClick={() => setPreviewOpen(false)}
+            aria-label="ปิดพรีวิว"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto w-fit">
+            {previewUrl ? (
+              <iframe
+                title={`Hand Over preview ${doc.hoNo}`}
+                src={previewUrl}
+                className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+              />
+            ) : (
+              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
     </>
   )
 }

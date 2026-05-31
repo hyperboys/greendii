@@ -162,7 +162,7 @@ export default function ActivityLogPage() {
               ) : rows.map(row => (
                 <tr key={row.id} className={row.statusCode >= 400 ? 'bg-red-50/40' : ''}>
                   <td className="whitespace-nowrap text-xs text-gray-500">
-                    {new Date(row.createdAt).toLocaleString('th-TH', { dateStyle: 'short', timeStyle: 'medium' })}
+                    {new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium' })}
                   </td>
                   <td>
                     <div className="font-medium text-sm">{row.user?.fullName ?? row.username ?? '—'}</div>
