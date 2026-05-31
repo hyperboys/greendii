@@ -2,16 +2,25 @@
 
 import { useEffect, useState } from 'react'
 import { SettingsAPI } from '@/lib/api'
-import { DEFAULT_ROLES, DEFAULT_PERMISSIONS, type RoleDef, type PermissionDef } from '@/types'
-import { Save, Plus, Pencil, Trash2, Check, X } from 'lucide-react'
+import {
+  DEFAULT_ROLES, DEFAULT_PERMISSIONS, DEFAULT_MENU_ACCESS, MENU_ITEMS,
+  type RoleDef, type PermissionDef, type UserRole,
+} from '@/types'
+import { useSettingsStore } from '@/store/settings'
+import { Save, Plus, Pencil, Trash2, Check, X, Users, ShieldCheck, Menu as MenuIcon, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const EMPTY_ROLE: RoleDef = { key: '', label: '', description: '' }
 const EMPTY_PERM: PermissionDef = { key: '', label: '', roles: [] }
 
+type Tab = 'roles' | 'permissions' | 'menus'
+
 export default function RolesPage() {
+  const { fetchSettings } = useSettingsStore()
+  const [tab, setTab] = useState<Tab>('roles')
   const [roles, setRoles] = useState<RoleDef[]>(DEFAULT_ROLES)
   const [permissions, setPermissions] = useState<PermissionDef[]>(DEFAULT_PERMISSIONS)
+  const [menuAccess, setMenuAccess] = useState<Record<string, UserRole[]>>(DEFAULT_MENU_ACCESS)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -31,13 +40,19 @@ export default function RolesPage() {
         if (s.rolePermissionsConfig.roles?.length)       setRoles(s.rolePermissionsConfig.roles)
         if (s.rolePermissionsConfig.permissions?.length) setPermissions(s.rolePermissionsConfig.permissions)
       }
+      if (s.menuAccessConfig) setMenuAccess(s.menuAccessConfig as Record<string, UserRole[]>)
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 
   const save = async () => {
     setSaving(true)
     try {
-      await SettingsAPI.update({ rolePermissionsConfig: { roles, permissions } } as never)
+      await SettingsAPI.update({
+        rolePermissionsConfig: { roles, permissions },
+        menuAccessConfig: menuAccess,
+      } as never)
+      useSettingsStore.setState({ loaded: false })
+      await fetchSettings()
       toast.success('บันทึกสำเร็จ')
     } catch {
       toast.error('บันทึกไม่สำเร็จ')
@@ -57,6 +72,11 @@ export default function RolesPage() {
     const key = roles[i].key
     setRoles(r => r.filter((_, idx) => idx !== i))
     setPermissions(p => p.map(perm => ({ ...perm, roles: perm.roles.filter(r => r !== key) })))
+    setMenuAccess(m => {
+      const next: Record<string, UserRole[]> = {}
+      for (const [k, v] of Object.entries(m)) next[k] = v.filter(r => r !== key)
+      return next
+    })
   }
   const confirmAddRole = () => {
     if (!newRole.key || !newRole.label) { toast.error('กรุณากรอก key และ label'); return }
@@ -91,20 +111,62 @@ export default function RolesPage() {
     setAddingPerm(false)
   }
 
+  // ── menus ──
+  const toggleMenu = (menuKey: string, role: string) => {
+    setMenuAccess(prev => {
+      const cur = prev[menuKey] ?? []
+      return { ...prev, [menuKey]: cur.includes(role) ? cur.filter(r => r !== role) : [...cur, role] }
+    })
+  }
+  const toggleMenuAll = (menuKey: string, checked: boolean) => {
+    setMenuAccess(prev => ({ ...prev, [menuKey]: checked ? roles.map(r => r.key) : [] }))
+  }
+  const resetMenus = () => {
+    setMenuAccess(DEFAULT_MENU_ACCESS)
+    toast('รีเซ็ตการเข้าถึงเมนูแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
+  }
+
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
+  const TABS: { key: Tab; label: string; icon: typeof Users }[] = [
+    { key: 'roles',       label: 'บทบาท',          icon: Users },
+    { key: 'permissions', label: 'สิทธิ์การใช้งาน', icon: ShieldCheck },
+    { key: 'menus',       label: 'การเข้าถึงเมนู',  icon: MenuIcon },
+  ]
+
   return (
-    <div className="max-w-6xl space-y-6">
+    <div className="max-w-6xl space-y-5">
       <div className="page-header">
         <div>
-          <h2 className="page-title">บทบาท &amp; สิทธิ์</h2>
-          <p className="page-sub">จัดการ Role และสิทธิ์การใช้งานในระบบ</p>
+          <h2 className="page-title">บทบาท สิทธิ์ และเมนู</h2>
+          <p className="page-sub">จัดการ Role, สิทธิ์การใช้งาน และการเข้าถึงเมนู ในที่เดียว</p>
         </div>
         <button className="btn-primary" onClick={save} disabled={saving}>
           <Save size={16} />{saving ? 'กำลังบันทึก…' : 'บันทึกทั้งหมด'}
         </button>
       </div>
 
+      <div className="flex gap-1 border-b border-gray-200">
+        {TABS.map(t => {
+          const Icon = t.icon
+          const active = tab === t.key
+          return (
+            <button
+              key={t.key}
+              onClick={() => setTab(t.key)}
+              className={`flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                active
+                  ? 'border-green-main text-green-dark'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <Icon size={15} /> {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {tab === 'roles' && (
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <h3 className="font-semibold text-gray-700">บทบาท (Roles)</h3>
@@ -182,7 +244,9 @@ export default function RolesPage() {
           )}
         </div>
       </div>
+      )}
 
+      {tab === 'permissions' && (
       <div className="card overflow-hidden">
         <div className="flex items-center justify-between px-5 py-3 border-b bg-gray-50">
           <div>
@@ -355,6 +419,69 @@ export default function RolesPage() {
           </table>
         </div>
       </div>
+      )}
+
+      {tab === 'menus' && (
+      <div className="space-y-4">
+        <div className="card p-4 bg-blue-50 border-blue-100 text-sm text-blue-800 flex items-center justify-between gap-3">
+          <span>
+            <strong>หมายเหตุ:</strong> กำหนดว่า Role ใดมองเห็นเมนูใด — มีผลเมื่อผู้ใช้รีเฟรชหน้า ·
+            เมนู Admin จะแสดงเฉพาะ admin/director เสมอ
+          </span>
+          <button className="btn-outline btn-sm shrink-0" onClick={resetMenus}>
+            <RefreshCw size={14} /> รีเซ็ต
+          </button>
+        </div>
+        <div className="card overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-green-dark text-white">
+                  <th className="text-left px-4 py-3 font-semibold min-w-36 sticky left-0 bg-green-dark z-10">เมนู</th>
+                  {roles.map(r => (
+                    <th key={r.key} className="px-2 py-3 text-center text-xs min-w-[80px]">
+                      <div className="font-semibold">{r.label}</div>
+                      <div className="font-normal opacity-70 text-[10px]">{r.key}</div>
+                    </th>
+                  ))}
+                  <th className="px-2 py-3 text-center text-xs">ทั้งหมด</th>
+                </tr>
+              </thead>
+              <tbody>
+                {MENU_ITEMS.map((menu, i) => {
+                  const cur = menuAccess[menu.key] ?? []
+                  const allChecked = roles.every(r => cur.includes(r.key))
+                  return (
+                    <tr key={menu.key} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-4 py-2.5 font-medium text-gray-700 sticky left-0 z-10"
+                        style={{ background: i % 2 === 0 ? '#fff' : '#f9fafb' }}>{menu.label}</td>
+                      {roles.map(role => (
+                        <td key={role.key} className="px-2 py-2.5 text-center">
+                          <input
+                            type="checkbox"
+                            checked={cur.includes(role.key)}
+                            onChange={() => toggleMenu(menu.key, role.key)}
+                            className="w-4 h-4 accent-green-600 cursor-pointer"
+                          />
+                        </td>
+                      ))}
+                      <td className="px-2 py-2.5 text-center">
+                        <input
+                          type="checkbox"
+                          checked={allChecked}
+                          onChange={e => toggleMenuAll(menu.key, e.target.checked)}
+                          className="w-4 h-4 accent-blue-600 cursor-pointer"
+                        />
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+      )}
     </div>
   )
 }
