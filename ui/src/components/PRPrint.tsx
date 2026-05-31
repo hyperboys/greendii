@@ -21,8 +21,6 @@ function fmtDateTH(dateStr?: string): string {
   return `${day}/${month}/${year}`
 }
 
-const MIN_ROWS = 40
-
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
@@ -57,10 +55,10 @@ export default function PRPrint({ doc, settings }: Props) {
 
   const thS: React.CSSProperties = {
     border,
-    padding: '4px 5px',
+    padding: '5px 5px',
     backgroundColor: '#c6e0b4',
     textAlign: 'center',
-    fontSize: '8pt',
+    fontSize: '9.5pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
     lineHeight: '1.3',
@@ -69,27 +67,21 @@ export default function PRPrint({ doc, settings }: Props) {
   const tdS: React.CSSProperties = {
     borderLeft: border,
     borderRight: border,
-    padding: '2px 5px',
-    fontSize: '8.5pt',
+    padding: '3px 6px',
+    fontSize: '10pt',
     verticalAlign: 'top',
-    height: '18px',
+    height: '22px',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
   }
 
   const tdTotalS: React.CSSProperties = {
     border,
-    padding: '2px 5px',
-    fontSize: '8.5pt',
+    padding: '3px 6px',
+    fontSize: '10pt',
     verticalAlign: 'top',
-    height: '18px',
+    height: '22px',
   }
-
-  // Pad rows to minimum
-  const rows: (typeof doc.items[0] | null)[] = [
-    ...doc.items,
-    ...Array(Math.max(0, MIN_ROWS - doc.items.length)).fill(null),
-  ]
 
   return (
     <div
@@ -97,7 +89,7 @@ export default function PRPrint({ doc, settings }: Props) {
       style={{
         fontFamily: 'var(--font-body)',
         color: '#000',
-        fontSize: '10pt',
+        fontSize: '11pt',
       }}
     >
       <div style={{ height: '277mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -151,26 +143,26 @@ export default function PRPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
         <tbody>
           <tr>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt', fontWeight: 'bold', width: '50%' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt', fontWeight: 'bold', width: '50%' }}>
               Purchase Request No. {doc.prNo}
             </td>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt', width: '50%' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt', width: '50%' }}>
               <span style={{ fontWeight: 'bold' }}>Customer : </span>{doc.customer}
             </td>
           </tr>
           <tr>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Issue : </span>{fmtDateTH(doc.dateIssue)}
             </td>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
               <span style={{ fontWeight: 'bold' }}>Project Ref : </span>{doc.projectRef || ''}
             </td>
           </tr>
           <tr>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
             </td>
-            <td style={{ border, padding: '3px 8px', fontSize: '9pt' }}>
+            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
               <span style={{ fontWeight: 'bold' }}>Remarks : </span>{doc.remarks || ''}
             </td>
           </tr>
@@ -178,21 +170,29 @@ export default function PRPrint({ doc, settings }: Props) {
       </table>
 
       {/* ═══ Items Table ( fills remaining space down to Summary ) ═══ */}
-      <div style={{ flex: 1, overflow: 'hidden', borderBottom: border }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
+        <colgroup>
+          <col style={{ width: '5%' }} />
+          <col style={{ width: '34%' }} />
+          <col style={{ width: '8%' }} />
+          <col style={{ width: '8%' }} />
+          <col style={{ width: '18%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '13%' }} />
+        </colgroup>
         <thead>
           <tr>
-            <th style={{ ...thS, width: '5%' }}>รหัส<br />P/N</th>
-            <th style={{ ...thS, width: '38%' }}>รายละเอียด<br />DETAIL</th>
-            <th style={{ ...thS, width: '8%' }}>หน่วยนับ<br />UNIT</th>
-            <th style={{ ...thS, width: '8%' }}>จำนวน<br />QTY</th>
-            <th style={{ ...thS, width: '14%' }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
-            <th style={{ ...thS, width: '14%' }}>จำนวนเงิน<br />AMOUNT</th>
-            <th style={{ ...thS, width: '13%' }}>หมายเหตุ</th>
+            <th style={{ ...thS }}>รหัส<br />P/N</th>
+            <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
+            <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
+            <th style={{ ...thS }}>จำนวน<br />QTY</th>
+            <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
+            <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
+            <th style={{ ...thS }}>หมายเหตุ</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((item, i) => (
+          {doc.items.map((item, i) => (
             <tr key={i}>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
               <td style={{ ...tdS }}>{item?.desc ?? ''}</td>
@@ -203,31 +203,57 @@ export default function PRPrint({ doc, settings }: Props) {
               <td style={{ ...tdS }}></td>
             </tr>
           ))}
+          {/* Flexible filler row — stretches column lines down to summary */}
+          <tr style={{ height: '100%' }}>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
+          </tr>
         </tbody>
       </table>
-      </div>
 
-      {/* ═══ Summary ═══ */}
+      {/* ═══ Summary ( continues the frame, closed at bottom ) ═══ */}
       <div style={{ pageBreakInside: 'avoid' }}>
-        <table style={{ width: '42%', marginLeft: 'auto', borderCollapse: 'collapse', marginTop: '0px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px' }}>
+          <colgroup>
+            <col style={{ width: '5%' }} />
+            <col style={{ width: '34%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '8%' }} />
+            <col style={{ width: '18%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '13%' }} />
+          </colgroup>
           <tbody>
             {hasSpecialDiscount && (
               <tr>
+                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
                 <td style={{ ...tdTotalS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
                 <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
+                <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
             )}
             <tr>
-              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold', width: '60%' }}>รวมเงิน Sub Total</td>
-              <td style={{ ...tdTotalS, textAlign: 'right', width: '40%' }}>{fmtAmt(doc.subTotal)}</td>
+              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
+              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
+              <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
+              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
               <td style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
               <td style={{ ...tdTotalS, textAlign: 'right' }}>{Number(doc.vat) > 0 ? fmtAmt(doc.vat) : ''}</td>
+              <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
+              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
               <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
               <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.netTotal)}</td>
+              <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
           </tbody>
         </table>

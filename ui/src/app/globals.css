@@ -219,6 +219,51 @@
     height: 281mm !important;
     overflow: hidden !important;
   }
+
+  /* Work Order: multi-page flow — mirrors the quotation behaviour */
+  .print-sheet.workorder-print {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+  }
+
+  /* Repeat the items table head on every printed page */
+  .print-sheet.workorder-print thead {
+    display: table-header-group !important;
+  }
+  .print-sheet.workorder-print tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  /* Each manual page = exactly one A4 content area (297 − 6 − 10 = 281mm). */
+  .print-sheet.workorder-print .workorder-page {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 281mm;
+    overflow: hidden;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+  .print-sheet.workorder-print .workorder-page:last-child {
+    height: 281mm !important;
+    overflow: hidden !important;
+  }
+}
+
+/* On screen only: visual separator between manual work-order pages. */
+@media screen {
+  .print-sheet.workorder-print .workorder-page + .workorder-page {
+    margin-top: 10mm;
+    border-top: 2px dashed #ccc;
+    padding-top: 10mm;
+  }
 }
 
 /* On screen only: visual separator between manual pages so layout is testable in browser. */

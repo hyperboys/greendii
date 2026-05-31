@@ -62,6 +62,17 @@ export default function NewPRPage() {
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการ'); return }
     setSaving(true)
     try {
+      // Save any new units typed by the user
+      const existingUnitNames = new Set(units.map(u => u.name.trim().toLowerCase()))
+      const newUnitNames = Array.from(new Set(
+        form.items
+          .map(i => (i.unit || '').trim())
+          .filter(n => n && !existingUnitNames.has(n.toLowerCase()))
+      ))
+      for (const name of newUnitNames) {
+        try { await UnitsAPI.create({ name }) } catch { /* ignore */ }
+      }
+
       const created = await PRAPI.create({
         ...form, subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
         items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
@@ -129,7 +140,7 @@ export default function NewPRPage() {
           </button>
         </div>
         <div className="overflow-x-auto">
-          <div className="max-h-[520px] overflow-y-auto border border-gray-100 rounded-lg">
+          <div className="border border-gray-100 rounded-lg overflow-hidden">
             <table className="w-full text-sm min-w-[680px]">
               <thead className="sticky top-0 z-10 bg-white shadow-[0_1px_0_0_#e5e7eb]">
                 <tr>
@@ -166,11 +177,10 @@ export default function NewPRPage() {
                         value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
                     </td>
                     <td className="py-2 px-2">
-                      <select className="form-input py-1" value={item.unit}
-                        onChange={e => setItem(i, 'unit', e.target.value)}>
-                        <option value="">-</option>
-                        {units.map(u => <option key={u.id} value={u.name}>{u.name}</option>)}
-                      </select>
+                      <input list="pr-units-datalist" className="form-input py-1"
+                        value={item.unit}
+                        onChange={e => setItem(i, 'unit', e.target.value)}
+                        placeholder="-" autoComplete="off" />
                     </td>
                     <td className="py-2 px-2">
                       <input type="number" min={0} step="any" className="form-input py-1 text-right"
@@ -205,6 +215,10 @@ export default function NewPRPage() {
           {saving ? 'กำลังบันทึก…' : 'สร้างใบขอซื้อ'}
         </button>
       </div>
+
+      <datalist id="pr-units-datalist">
+        {units.map(u => <option key={u.id} value={u.name} />)}
+      </datalist>
     </form>
   )
 }

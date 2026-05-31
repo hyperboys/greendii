@@ -14,7 +14,8 @@ export default function HandoverPrint({ doc, settings }: Props) {
   const taxId         = settings?.taxId         || '0135549009942'
   const tel           = settings?.tel           || '+66 2150 7694-6'
 
-  const border = '1px solid #555'
+  const border   = '1px solid #555'
+  const borderTh = '1px solid #888'
 
   const serviceDateStr = doc.serviceDate
     ? new Date(doc.serviceDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -29,7 +30,7 @@ export default function HandoverPrint({ doc, settings }: Props) {
   ]
 
   const thS: React.CSSProperties = {
-    border,
+    border: borderTh,
     padding: '4px 6px',
     backgroundColor: '#dde',
     textAlign: 'center',
@@ -46,19 +47,28 @@ export default function HandoverPrint({ doc, settings }: Props) {
     height: '20px',
   }
 
-  const infoLabelS: React.CSSProperties = {
+  const itemCellS: React.CSSProperties = {
+    borderLeft: border,
+    borderRight: border,
+    padding: '3px 5px',
+    fontSize: '9pt',
+    verticalAlign: 'top',
+    height: '20px',
+    textAlign: 'center',
+  }
+
+  const labelS: React.CSSProperties = {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     fontSize: '9pt',
-    paddingRight: '4px',
-    verticalAlign: 'top',
+    color: '#333',
   }
 
-  const infoValS: React.CSSProperties = {
+  const valueS: React.CSSProperties = {
     fontSize: '9pt',
-    verticalAlign: 'top',
-    paddingLeft: '4px',
-    width: '100%',
+    borderBottom: '1px dotted #555',
+    minWidth: '100px',
+    paddingBottom: '1px',
   }
 
   const RATING_OPTS = [
@@ -71,7 +81,7 @@ export default function HandoverPrint({ doc, settings }: Props) {
 
   const CheckboxRow = ({ label, value }: { label: string; value: number }) => (
     <div style={{ marginBottom: '8px' }}>
-      <div style={{ fontSize: '9pt', marginBottom: '3px' }}>{label}</div>
+      {label ? <div style={{ fontSize: '9pt', marginBottom: '3px' }}>{label}</div> : null}
       <div style={{ display: 'flex', gap: '20px', fontSize: '9pt' }}>
         {RATING_OPTS.map(opt => (
           <label key={opt.v} style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'default' }}>
@@ -92,79 +102,82 @@ export default function HandoverPrint({ doc, settings }: Props) {
   return (
     <div className="print-sheet" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt' }}>
 
-      {/* ═══ Company Header ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+      {/* ═══ Header ═══ */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
         <tbody>
           <tr>
             {/* Logo */}
-            <td rowSpan={4} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '12px' }}>
+            <td style={{ width: '100px', verticalAlign: 'middle', paddingRight: '10px' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '90px', height: 'auto' }} />
             </td>
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '13pt', lineHeight: '1.5' }}>{companyName}</td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.4' }}>{companyNameEn}</td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.6' }}>
-              {address}&nbsp;&nbsp;Tel. {tel}&nbsp;&nbsp;Fax. +66 2150 7697
+            {/* Company info */}
+            <td style={{ verticalAlign: 'middle', paddingRight: '8px' }}>
+              <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>{companyName}</div>
+              <div style={{ fontWeight: 'bold', fontSize: '10pt', color: '#444' }}>{companyNameEn}</div>
+              <div style={{ fontSize: '8pt', color: '#555' }}>{address}</div>
+              <div style={{ fontSize: '8pt', color: '#555' }}>โทร. {tel}&nbsp;&nbsp;Fax. +66 2150 7697</div>
+              <div style={{ fontSize: '8pt', color: '#555' }}>TAX ID : {taxId}</div>
             </td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'center', fontSize: '8pt', lineHeight: '1.4' }}>
-              TAX ID : {taxId}
+            {/* Title */}
+            <td style={{ width: '200px', textAlign: 'center', borderLeft: '2px solid #555', paddingLeft: '12px', verticalAlign: 'middle' }}>
+              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
+                HAND OVER
+              </div>
+              <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
+                JOB
+              </div>
             </td>
           </tr>
         </tbody>
       </table>
 
-      {/* ═══ Title ═══ */}
-      <div style={{ textAlign: 'center', fontSize: '16pt', fontWeight: 'bold', letterSpacing: '3px', margin: '8px 0 10px', textDecoration: 'underline' }}>
-        HAND OVER JOB
-      </div>
-
-      {/* ═══ Info Header ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+      {/* ═══ Info Table ═══ */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
         <tbody>
           <tr>
             {/* Left Column */}
-            <td style={{ width: '50%', verticalAlign: 'top', paddingRight: '16px' }}>
-              <table style={{ width: '100%' }}>
+            <td style={{ width: '50%', padding: '5px 8px', borderRight: border, verticalAlign: 'top' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   {[
-                    ['Project',       doc.project || '-'],
-                    ['Contractor',    doc.contractor || '-'],
-                    ['Location',      doc.location || '-'],
-                    ['Contract Name', doc.contactName || '-'],
-                    ['Customer HP.',  doc.contactTel || '-'],
-                    ['Product',       doc.product ? doc.product.split('\n')[0] : '-'],
+                    ['Project',       doc.project || ''],
+                    ['Contractor',    doc.contractor || ''],
+                    ['Location',      doc.location || ''],
+                    ['Contract Name', doc.contactName || ''],
+                    ['Customer HP.',  doc.contactTel || ''],
+                    ['Product',       doc.product ? doc.product.split('\n')[0] : ''],
                   ].map(([label, val]) => (
                     <tr key={label}>
-                      <td style={infoLabelS}>: {label}</td>
-                      <td style={{ ...infoLabelS, fontWeight: 'normal', width: '8px' }}>:</td>
-                      <td style={infoValS}>{val}</td>
+                      <td style={{ ...labelS, paddingBottom: '5px', width: '120px', verticalAlign: 'top' }}>
+                        {label} :
+                      </td>
+                      <td style={{ ...valueS, paddingBottom: '5px', width: '100%' }}>
+                        {val}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </td>
             {/* Right Column */}
-            <td style={{ width: '50%', verticalAlign: 'top', paddingLeft: '8px' }}>
-              <table style={{ width: '100%' }}>
+            <td style={{ width: '50%', padding: '5px 8px', verticalAlign: 'top' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   {[
                     ['Hand Over Job NO.', doc.hoNo],
-                    ['Responsibility',    doc.responsibility || '-'],
-                    ['Quotation No.',     doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'],
-
-                    ['Sales',            doc.sales?.fullName || '-'],
-                    ['Date of service',  serviceDateStr],
+                    ['Responsibility',    doc.responsibility || ''],
+                    ['Quotation No.',     doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || ''],
+                    ['Sales',             doc.sales?.fullName || ''],
+                    ['Date of service',   serviceDateStr],
                   ].map(([label, val]) => (
                     <tr key={label}>
-                      <td style={infoLabelS}>{label}</td>
-                      <td style={{ ...infoLabelS, fontWeight: 'normal', width: '8px' }}>:</td>
-                      <td style={infoValS}>{val}</td>
+                      <td style={{ ...labelS, paddingBottom: '5px', width: '130px', verticalAlign: 'top' }}>
+                        {label} :
+                      </td>
+                      <td style={{ ...valueS, paddingBottom: '5px', width: '100%' }}>
+                        {val}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -174,12 +187,15 @@ export default function HandoverPrint({ doc, settings }: Props) {
         </tbody>
       </table>
 
-      {/* ═══ Items Table ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
+      {/* ═══ Details / Items Table ═══ */}
+      <div style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        Details of Work
+      </div>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px', border }}>
         <thead>
           <tr>
             <th style={{ ...thS, width: '40px' }}>ITEM</th>
-            <th style={{ ...thS }}>Description</th>
+            <th style={{ ...thS, textAlign: 'left' }}>Description</th>
             <th style={{ ...thS, width: '55px' }}>QTY</th>
             <th style={{ ...thS, width: '60px' }}>UNIT</th>
             <th style={{ ...thS, width: '80px' }}>REMARK</th>
@@ -188,20 +204,20 @@ export default function HandoverPrint({ doc, settings }: Props) {
         <tbody>
           {rows.map((line, i) => (
             <tr key={i}>
-              <td style={{ ...tdS, textAlign: 'center', verticalAlign: 'top' }}>
+              <td style={itemCellS}>
                 {line !== null && i === 0 ? '1' : ''}
               </td>
-              <td style={{ ...tdS, whiteSpace: 'pre-wrap' }}>{line ?? ''}</td>
-              <td style={tdS}></td>
-              <td style={tdS}></td>
-              <td style={tdS}></td>
+              <td style={{ ...itemCellS, textAlign: 'left', whiteSpace: 'pre-wrap' }}>{line ?? ''}</td>
+              <td style={itemCellS}></td>
+              <td style={itemCellS}></td>
+              <td style={itemCellS}></td>
             </tr>
           ))}
         </tbody>
       </table>
 
       {/* ═══ Quality Assessment ═══ */}
-      <div style={{ borderTop: '1.5px solid #333', paddingTop: '8px', marginBottom: '8px' }}>
+      <div style={{ border, padding: '8px 10px', marginBottom: '8px' }}>
         <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', marginBottom: '10px' }}>
           ประเมินคุณภาพและข้อเสนอแนะ
         </div>
@@ -220,30 +236,30 @@ export default function HandoverPrint({ doc, settings }: Props) {
       </div>
 
       {/* ═══ Comment ═══ */}
-      <div style={{ marginBottom: '16px' }}>
-        <span style={{ fontWeight: 'bold', fontSize: '9pt' }}>COMMENT</span>
-        <span style={{ display: 'inline-block', borderBottom: '1px dotted #555', width: 'calc(100% - 80px)', marginLeft: '8px' }}>
+      <div style={{ border, padding: '8px 10px', marginBottom: '10px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '6px' }}>COMMENT</div>
+        <div style={{ borderBottom: '1px dotted #555', minHeight: '14px', fontSize: '9pt' }}>
           {doc.comment || '\u00A0'}
-        </span>
-        <div style={{ borderBottom: '1px dotted #555', marginTop: '6px', height: '1px' }}></div>
+        </div>
+        <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '1px' }}></div>
         <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '1px' }}></div>
       </div>
 
       {/* ═══ Signature Block ═══ */}
-      <table style={{ width: '100%', marginTop: '24px' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>
           <tr>
-            <td style={{ width: '50%', textAlign: 'center', paddingRight: '20px' }}>
-              <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '40px' }}>ผู้ตรวจรับงาน</div>
-              <div style={{ borderBottom: '1px solid #555', width: '60%', margin: '0 auto 6px' }}></div>
-              <div style={{ fontSize: '9pt' }}>...............................................</div>
-              <div style={{ fontSize: '9pt', marginTop: '6px' }}>วันที่............/............./.............</div>
+            <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
+              <div style={{ fontSize: '9pt', fontWeight: 'bold', marginBottom: '36px' }}>ผู้ตรวจรับงาน</div>
+              <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 4px' }}></div>
+              <div style={{ fontSize: '8pt' }}>(…………………………)</div>
+              <div style={{ fontSize: '8pt', marginTop: '6px' }}>วันที่............/............./.............</div>
             </td>
-            <td style={{ width: '50%', textAlign: 'center', paddingLeft: '20px' }}>
-              <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '40px' }}>ผู้ส่งมอบงาน</div>
-              <div style={{ borderBottom: '1px solid #555', width: '60%', margin: '0 auto 6px' }}></div>
-              <div style={{ fontSize: '9pt' }}>...............................................</div>
-              <div style={{ fontSize: '9pt', marginTop: '6px' }}>วันที่............/............./.............</div>
+            <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
+              <div style={{ fontSize: '9pt', fontWeight: 'bold', marginBottom: '36px' }}>ผู้ส่งมอบงาน</div>
+              <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 4px' }}></div>
+              <div style={{ fontSize: '8pt' }}>(…………………………)</div>
+              <div style={{ fontSize: '8pt', marginTop: '6px' }}>วันที่............/............./.............</div>
             </td>
           </tr>
         </tbody>
