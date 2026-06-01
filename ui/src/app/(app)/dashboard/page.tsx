@@ -34,7 +34,8 @@ export default function DashboardPage() {
   const pendingCount =
     (pending?.quotations.length ?? 0) +
     (pending?.workOrders.length ?? 0) +
-    (pending?.prs.length ?? 0)
+    (pending?.prs.length ?? 0) +
+    (pending?.handovers.length ?? 0)
 
   if (loading) {
     return (
@@ -155,11 +156,22 @@ export default function DashboardPage() {
                 <span className="badge badge-pending">ใบขอซื้อ</span>
               </div>
             ))}
+            {pending?.handovers.map(h => (
+              <div
+                key={h.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
+                onClick={() => router.push(`/handovers/${h.id}`)}
+              >
+                <div>
+                  <span className="font-medium text-sm text-gray-800">{h.hoNo}</span>
+                  <span className="text-xs text-gray-500 ml-2">{h.project}</span>
+                </div>
+                <span className="badge badge-pending">ส่งมอบงาน</span>
+              </div>
+            ))}
           </div>
         </div>
       )}
-
-      {/* Recent activity */}
       {overview?.recentLogs && overview.recentLogs.length > 0 && (
         <div className="card p-5">
           <h3 className="font-semibold text-gray-800 mb-4">กิจกรรมล่าสุด</h3>

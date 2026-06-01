@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { getPagination, paginated } = require('../lib/pagination');
 
 // GET /api/products
 router.get('/', authenticate, async (req, res, next) => {
@@ -13,6 +14,14 @@ router.get('/', authenticate, async (req, res, next) => {
       { name: { contains: q, mode: 'insensitive' } },
       { code: { contains: q, mode: 'insensitive' } },
     ];
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.product.findMany({ where, orderBy: { name: 'asc' }, skip: pg.skip, take: pg.take }),
+        prisma.product.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
+    }
     const list = await prisma.product.findMany({ where, orderBy: { name: 'asc' } });
     res.json(list);
   } catch (e) { next(e); }

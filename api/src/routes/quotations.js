@@ -1,8 +1,25 @@
 const router = require('express').Router();
+const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../lib/validate');
+const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
+const { canManageAllQuotations, assertQuotationAccessible } = require('../lib/roles');
+
+const quotationValidators = [
+  body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
+  body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
+  body('validityDays').optional().isInt({ min: 0 }).withMessage('จำนวนวันต้องเป็นจำนวนเต็มไม่ติดลบ'),
+  body('items').optional().isArray().withMessage('items ต้องเป็น array'),
+  body('items.*.qty').optional().isFloat({ min: 0 }).withMessage('จำนวนต้องไม่ติดลบ'),
+  body('items.*.materialPrice').optional().isFloat({ min: 0 }).withMessage('ราคาต้องไม่ติดลบ'),
+  body('items.*.labourPrice').optional().isFloat({ min: 0 }).withMessage('ราคาต้องไม่ติดลบ'),
+  body('subTotal').optional().isFloat({ min: 0 }),
+  body('vat').optional().isFloat({ min: 0 }),
+  body('grandTotal').optional().isFloat({ min: 0 }),
+];
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true, email: true, phone: true, signatureText: true } },
@@ -40,16 +57,24 @@ router.get('/', authenticate, async (req, res, next) => {
       { customerName: { contains: q, mode: 'insensitive' } },
     ];
     // Sales only sees their own quotations (unless manager+)
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
-    if (!managerRoles.includes(req.user.role)) {
+    if (!canManageAllQuotations(req.user.role)) {
       where.salesId = req.user.id;
+    }
+    const listInclude = {
+      sales: { select: { id: true, fullName: true, phone: true } },
+      items: true,
+    };
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.quotation.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
+        prisma.quotation.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
     }
     const list = await prisma.quotation.findMany({
       where,
-      include: {
-        sales: { select: { id: true, fullName: true, phone: true } },
-        items: true,
-      },
+      include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
     res.json(list);
@@ -63,6 +88,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
+    assertQuotationAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -74,7 +100,8 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/quotation/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true } });
+    const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true, salesId: true } });
+    assertQuotationAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.quoNo || 'quotation'}.pdf"`);
@@ -83,7 +110,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 });
 
 // POST /api/quotations
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, quotationValidators, validate, async (req, res, next) => {
   try {
     const {
       customerName, customerId, attn, project, address, tel,
@@ -128,9 +155,12 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 
 // PUT /api/quotations/:id
-router.put('/:id', authenticate, async (req, res, next) => {
+router.put('/:id', authenticate, quotationValidators, validate, async (req, res, next) => {
   try {
     const existing = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (existing.salesId !== req.user.id && !canManageAllQuotations(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
+    }
     if (existing.status === 'cancelled') {
       return res.status(400).json({ message: 'ไม่สามารถแก้ไขใบเสนอราคาที่ยกเลิกแล้วได้' });
     }
@@ -140,25 +170,27 @@ router.put('/:id', authenticate, async (req, res, next) => {
       items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
     await ensureCustomerBelongsToSales(req, customerId)
-    // Delete old items and recreate
-    await prisma.quotationItem.deleteMany({ where: { quotationId: req.params.id } });
-    const quo = await prisma.quotation.update({
-      where: { id: req.params.id },
-      data: {
-        customerName, customerId: customerId || null, attn, project, address, tel,
-        conditionTerm, validityDays, leadTime, paymentTerm,
-        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
-        remark,
-        items: {
-          create: items.map((it, i) => ({
-            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
-            price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
-            images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
-          })),
+    // Delete old items and recreate atomically
+    const quo = await prisma.$transaction(async (tx) => {
+      await tx.quotationItem.deleteMany({ where: { quotationId: req.params.id } });
+      return tx.quotation.update({
+        where: { id: req.params.id },
+        data: {
+          customerName, customerId: customerId || null, attn, project, address, tel,
+          conditionTerm, validityDays, leadTime, paymentTerm,
+          subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
+          remark,
+          items: {
+            create: items.map((it, i) => ({
+              seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
+              materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
+              price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
+              images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
+            })),
+          },
         },
-      },
-      include: INCLUDE_FULL,
+        include: INCLUDE_FULL,
+      });
     });
     res.json(quo);
   } catch (e) { next(e); }
@@ -168,6 +200,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
+    assertQuotationAccessible(req, quo);
     if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('quotation');
     // If no approval steps configured, auto-approve immediately
@@ -244,6 +277,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
+    assertQuotationAccessible(req, quo);
     if (quo.status === 'approved') return res.status(400).json({ message: 'Cannot delete approved quotation' });
     await prisma.quotation.update({ where: { id: req.params.id }, data: { status: 'cancelled' } });
     res.json({ message: 'Quotation cancelled' });

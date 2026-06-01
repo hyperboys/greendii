@@ -1,8 +1,26 @@
 const router = require('express').Router();
+const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../lib/validate');
+const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getPrFirstStep, getPrNextStep } = require('../lib/approvalFlow');
+const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
+
+const prValidators = [
+  body('customer').trim().notEmpty().withMessage('กรุณาระบุลูกค้า'),
+  body('projectRef').optional({ nullable: true }).isString(),
+  body('dateIssue').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('dateRequired').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('items').optional().isArray().withMessage('items ต้องเป็น array'),
+  body('items.*.desc').optional({ nullable: true }).isString(),
+  body('items.*.qty').optional().isFloat({ min: 0 }).withMessage('จำนวนต้องไม่ติดลบ'),
+  body('items.*.price').optional().isFloat({ min: 0 }).withMessage('ราคาต้องไม่ติดลบ'),
+  body('subTotal').optional().isFloat({ min: 0 }),
+  body('vat').optional().isFloat({ min: 0 }),
+  body('netTotal').optional().isFloat({ min: 0 }),
+];
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, role: true } },
@@ -27,15 +45,23 @@ router.get('/', authenticate, async (req, res, next) => {
       { customer: { contains: q, mode: 'insensitive' } },
       { projectRef: { contains: q, mode: 'insensitive' } },
     ];
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
-    if (!managerRoles.includes(req.user.role)) where.salesId = req.user.id;
+    if (!canManageAllDocs(req.user.role)) where.salesId = req.user.id;
 
+    const listInclude = {
+      sales: { select: { id: true, fullName: true } },
+      items: true,
+    };
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.purchaseRequest.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
+        prisma.purchaseRequest.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
+    }
     const list = await prisma.purchaseRequest.findMany({
       where,
-      include: {
-        sales: { select: { id: true, fullName: true } },
-        items: true,
-      },
+      include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
     res.json(list);
@@ -49,6 +75,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
+    assertDocAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -60,7 +87,8 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id }, select: { prNo: true } });
+    const item = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id }, select: { prNo: true, salesId: true } });
+    assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
@@ -69,7 +97,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 });
 
 // POST /api/pr
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, prValidators, validate, async (req, res, next) => {
   try {
     const {
       workOrderId, prTypeId, customer, projectRef,
@@ -105,35 +133,36 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 
 // PUT /api/pr/:id
-router.put('/:id', authenticate, async (req, res, next) => {
+router.put('/:id', authenticate, prValidators, validate, async (req, res, next) => {
   try {
     const existing = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
-    if (existing.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (existing.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
       customer, projectRef, dateIssue, dateRequired, prTypeId,
       items = [], subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
-    await prisma.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: req.params.id } });
-    const item = await prisma.purchaseRequest.update({
-      where: { id: req.params.id },
-      data: {
-        customer, projectRef,
-        prTypeId: prTypeId !== undefined ? (prTypeId || null) : undefined,
-        dateIssue: dateIssue ? new Date(dateIssue) : null,
-        dateRequired: dateRequired ? new Date(dateRequired) : null,
-        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
-        remarks,
-        items: {
-          create: items.map((it, i) => ({
-            seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            price: it.price, amount: it.amount,
-          })),
+    const item = await prisma.$transaction(async (tx) => {
+      await tx.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: req.params.id } });
+      return tx.purchaseRequest.update({
+        where: { id: req.params.id },
+        data: {
+          customer, projectRef,
+          prTypeId: prTypeId !== undefined ? (prTypeId || null) : undefined,
+          dateIssue: dateIssue ? new Date(dateIssue) : null,
+          dateRequired: dateRequired ? new Date(dateRequired) : null,
+          subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
+          remarks,
+          items: {
+            create: items.map((it, i) => ({
+              seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
+              price: it.price, amount: it.amount,
+            })),
+          },
         },
-      },
-      include: INCLUDE_FULL,
+        include: INCLUDE_FULL,
+      });
     });
     res.json(item);
   } catch (e) { next(e); }
@@ -143,8 +172,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
-    const managerRoles = ['admin', 'director', 'admin_mgr'];
-    if (pr.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (pr.salesId !== req.user.id && !canDeleteOthersDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
     }
     if (!['draft', 'rejected'].includes(pr.status)) {

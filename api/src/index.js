@@ -1,12 +1,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const fs = require('fs');
 const YAML = require('yamljs');
 const swaggerUi = require('swagger-ui-express');
 const morgan = require('morgan');
 const rfs = require('rotating-file-stream');
+const prisma = require('./lib/prisma');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -30,6 +33,16 @@ const { errorHandler } = require('./middleware/errorHandler');
 const { activityLogger } = require('./middleware/activityLogger');
 
 const app = express();
+
+// Trust the first proxy (Nginx) so rate-limit/secure cookies see the real client IP.
+app.set('trust proxy', 1);
+
+// ─── SECURITY HEADERS ───────────────────────────────────────────────────────
+// crossOriginResourcePolicy is relaxed so /uploads can be embedded by the UI.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+  contentSecurityPolicy: false, // Swagger UI needs inline scripts/styles
+}));
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
@@ -97,9 +110,24 @@ try {
 }
 
 // ─── HEALTH CHECK ───────────────────────────────────────────────────────────
-app.get('/health', (_req, res) => res.json({ status: 'ok', ts: new Date() }));
+app.get('/health', async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: 'ok', db: 'up', ts: new Date() });
+  } catch {
+    res.status(503).json({ status: 'error', db: 'down', ts: new Date() });
+  }
+});
 
 // ─── ROUTES ─────────────────────────────────────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,                  // limit each IP to 10 login attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง' },
+});
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/customers', customersRoutes);
@@ -127,9 +155,22 @@ app.use(errorHandler);
 
 // ─── START ──────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 4000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`🚀 GreenDii API running → http://localhost:${PORT}`);
   console.log(`   ENV: ${process.env.NODE_ENV || 'development'}`);
 });
+
+// ─── GRACEFUL SHUTDOWN ──────────────────────────────────────────────────────
+async function shutdown(signal) {
+  console.log(`\n${signal} received, shutting down gracefully…`);
+  server.close(async () => {
+    await prisma.$disconnect().catch(() => {});
+    process.exit(0);
+  });
+  // Force-exit if connections do not close in time
+  setTimeout(() => process.exit(1), 10000).unref();
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
 
 module.exports = app;

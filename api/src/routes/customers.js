@@ -1,8 +1,17 @@
 const router = require('express').Router();
+const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../lib/validate');
+const { getPagination, paginated } = require('../lib/pagination');
 
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director'];
+
+const customerValidators = [
+  body('name').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
+  body('email').optional({ nullable: true, checkFalsy: true }).isEmail().withMessage('รูปแบบอีเมลไม่ถูกต้อง'),
+  body('type').optional({ nullable: true, checkFalsy: true }).isIn(['company', 'individual', 'government']).withMessage('ประเภทลูกค้าไม่ถูกต้อง'),
+];
 
 function canSeeAllCustomers(role) {
   return MANAGER_ROLES.includes(role);
@@ -30,6 +39,14 @@ router.get('/', authenticate, async (req, res, next) => {
     } else if (salesId) {
       where.salesId = salesId;
     }
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.customer.findMany({ where, orderBy: { name: 'asc' }, skip: pg.skip, take: pg.take }),
+        prisma.customer.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
+    }
     const list = await prisma.customer.findMany({
       where,
       orderBy: { name: 'asc' },
@@ -47,19 +64,19 @@ router.get('/:id', authenticate, async (req, res, next) => {
 });
 
 // POST /api/customers
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, customerValidators, validate, async (req, res, next) => {
   try {
     const { name, contactPerson, tel, email, address, taxId, type } = req.body;
     if (!name) return res.status(400).json({ message: 'name required' });
     const item = await prisma.customer.create({
-      data: { name, contactPerson, tel, email, address, taxId, type: type || 'นิติบุคคล', salesId: req.user.id },
+      data: { name, contactPerson, tel, email, address, taxId, type: type || 'company', salesId: req.user.id },
     });
     res.status(201).json(item);
   } catch (e) { next(e); }
 });
 
 // PUT /api/customers/:id
-router.put('/:id', authenticate, async (req, res, next) => {
+router.put('/:id', authenticate, customerValidators, validate, async (req, res, next) => {
   try {
     const { name, contactPerson, tel, email, address, taxId, type, active } = req.body;
     const existing = await getAccessibleCustomerOrThrow(req, req.params.id);

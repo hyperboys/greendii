@@ -24,12 +24,19 @@ export const useAuthStore = create<AuthState>()(
       login: async (username, password) => {
         const data = await AuthAPI.login(username, password)
         localStorage.setItem('gd_token', data.token)
+        localStorage.setItem('gd_refresh', data.refreshToken)
         localStorage.setItem('gd_user', JSON.stringify(data.user))
         set({ user: data.user as AuthUser, token: data.token })
       },
 
       logout: () => {
+        const refreshToken = localStorage.getItem('gd_refresh')
+        if (refreshToken) {
+          // Fire-and-forget revoke; never block logout on the network call.
+          AuthAPI.logout(refreshToken).catch(() => {})
+        }
         localStorage.removeItem('gd_token')
+        localStorage.removeItem('gd_refresh')
         localStorage.removeItem('gd_user')
         set({ user: null, token: null })
         window.location.href = '/login'

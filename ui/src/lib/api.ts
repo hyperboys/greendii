@@ -44,16 +44,71 @@ http.interceptors.request.use((cfg) => {
   return cfg
 })
 
-// Handle 401 → redirect to login (ยกเว้น login endpoint เพื่อให้แสดง error ได้)
+// Handle 401 → try refresh token once, then retry; otherwise redirect to login
+let isRefreshing = false
+let refreshWaiters: Array<(token: string | null) => void> = []
+
+function onRefreshed(token: string | null) {
+  refreshWaiters.forEach((cb) => cb(token))
+  refreshWaiters = []
+}
+
+function clearSessionAndRedirect() {
+  localStorage.removeItem('gd_token')
+  localStorage.removeItem('gd_user')
+  localStorage.removeItem('gd_refresh')
+  if (typeof window !== 'undefined') window.location.href = '/login'
+}
+
 http.interceptors.response.use(
   (res) => res,
-  (err) => {
-    const isLoginEndpoint = err.config?.url?.includes('/auth/login')
-    if (err.response?.status === 401 && !isLoginEndpoint && typeof window !== 'undefined') {
-      localStorage.removeItem('gd_token')
-      localStorage.removeItem('gd_user')
-      window.location.href = '/login'
+  async (err) => {
+    const original = err.config || {}
+    const status = err.response?.status
+    const url: string = original.url || ''
+    const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh')
+
+    if (status === 401 && !isAuthEndpoint && !original._retry && typeof window !== 'undefined') {
+      const refreshToken = localStorage.getItem('gd_refresh')
+      if (!refreshToken) {
+        clearSessionAndRedirect()
+        return Promise.reject(err.response?.data?.message || err.message || 'Request failed')
+      }
+      original._retry = true
+
+      // If a refresh is already in flight, queue this request until it resolves.
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          refreshWaiters.push((token) => {
+            if (!token) return reject('Session expired')
+            original.headers = original.headers || {}
+            original.headers.Authorization = `Bearer ${token}`
+            resolve(http(original))
+          })
+        })
+      }
+
+      isRefreshing = true
+      try {
+        const { data } = await axios.post<{ token: string; refreshToken: string }>(
+          `${BASE}/auth/refresh`,
+          { refreshToken }
+        )
+        localStorage.setItem('gd_token', data.token)
+        localStorage.setItem('gd_refresh', data.refreshToken)
+        onRefreshed(data.token)
+        original.headers = original.headers || {}
+        original.headers.Authorization = `Bearer ${data.token}`
+        return http(original)
+      } catch (refreshErr) {
+        onRefreshed(null)
+        clearSessionAndRedirect()
+        return Promise.reject('Session expired')
+      } finally {
+        isRefreshing = false
+      }
     }
+
     return Promise.reject(err.response?.data?.message || err.message || 'Request failed')
   }
 )
@@ -62,7 +117,11 @@ http.interceptors.response.use(
 
 export const AuthAPI = {
   login: (username: string, password: string) =>
-    http.post<{ token: string; user: User; mustChangePassword: boolean }>('/auth/login', { username, password }).then(r => r.data),
+    http.post<{ token: string; refreshToken: string; user: User; mustChangePassword: boolean }>('/auth/login', { username, password }).then(r => r.data),
+  refresh: (refreshToken: string) =>
+    http.post<{ token: string; refreshToken: string }>('/auth/refresh', { refreshToken }).then(r => r.data),
+  logout: (refreshToken: string) =>
+    http.post('/auth/logout', { refreshToken }).then(r => r.data),
   me: () => http.get<User>('/auth/me').then(r => r.data),
   changePassword: (oldPassword: string, newPassword: string) =>
     http.post('/auth/change-password', { oldPassword, newPassword }).then(r => r.data),

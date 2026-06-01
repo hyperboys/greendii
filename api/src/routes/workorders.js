@@ -1,8 +1,19 @@
 const router = require('express').Router();
+const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../lib/validate');
+const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
+const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
+
+const workOrderValidators = [
+  body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
+  body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
+  body('qcDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('installDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+];
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, initials: true } },
@@ -32,12 +43,20 @@ router.get('/', authenticate, async (req, res, next) => {
       { project: { contains: q, mode: 'insensitive' } },
       { customerName: { contains: q, mode: 'insensitive' } },
     ];
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
-    if (!managerRoles.includes(req.user.role)) where.salesId = req.user.id;
+    if (!canManageAllDocs(req.user.role)) where.salesId = req.user.id;
 
+    const listInclude = { sales: { select: { id: true, fullName: true } } };
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.workOrder.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
+        prisma.workOrder.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
+    }
     const list = await prisma.workOrder.findMany({
       where,
-      include: { sales: { select: { id: true, fullName: true } } },
+      include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
     res.json(list);
@@ -51,6 +70,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
+    assertDocAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -62,7 +82,8 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/workorder/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id }, select: { woNo: true } });
+    const item = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id }, select: { woNo: true, salesId: true } });
+    assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.woNo || 'workorder'}.pdf"`);
@@ -71,7 +92,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 });
 
 // POST /api/workorders
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, workOrderValidators, validate, async (req, res, next) => {
   try {
     const {
       quotationId, project, location, products, responsibility,
@@ -110,12 +131,11 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 
 // PUT /api/workorders/:id
-router.put('/:id', authenticate, async (req, res, next) => {
+router.put('/:id', authenticate, workOrderValidators, validate, async (req, res, next) => {
   try {
     const existing = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (existing.isClosed) return res.status(400).json({ message: 'Work order is closed' });
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
-    if (existing.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (existing.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
@@ -141,8 +161,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
-    const managerRoles = ['admin', 'director', 'admin_mgr'];
-    if (wo.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (wo.salesId !== req.user.id && !canDeleteOthersDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
     }
     if (!['draft', 'rejected'].includes(wo.status)) {

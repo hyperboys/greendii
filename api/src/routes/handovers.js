@@ -1,10 +1,22 @@
 const router = require('express').Router();
+const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { validate } = require('../lib/validate');
+const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
+const { DOC_MANAGER_ROLES, canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
 
-const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
+const MANAGER_ROLES = DOC_MANAGER_ROLES;
+
+const handoverValidators = [
+  body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
+  body('serviceDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('qualityProduct').optional().isFloat({ min: 0 }),
+  body('qualitySales').optional().isFloat({ min: 0 }),
+  body('qualityInstall').optional().isFloat({ min: 0 }),
+];
 
 function buildOptionalRelationUpdate(id) {
   if (id === undefined) return undefined;
@@ -34,12 +46,20 @@ router.get('/', authenticate, async (req, res, next) => {
       { hoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
     ];
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory'];
-    if (!managerRoles.includes(req.user.role)) where.salesId = req.user.id;
+    if (!canManageAllDocs(req.user.role)) where.salesId = req.user.id;
 
+    const listInclude = { sales: { select: { id: true, fullName: true } } };
+    const pg = getPagination(req.query);
+    if (pg) {
+      const [data, total] = await prisma.$transaction([
+        prisma.handOverJob.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
+        prisma.handOverJob.count({ where }),
+      ]);
+      return res.json(paginated(data, total, pg));
+    }
     const list = await prisma.handOverJob.findMany({
       where,
-      include: { sales: { select: { id: true, fullName: true } } },
+      include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
     res.json(list);
@@ -62,6 +82,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
         },
       },
     });
+    assertDocAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -73,7 +94,8 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/handover/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id }, select: { hoNo: true } });
+    const item = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id }, select: { hoNo: true, salesId: true } });
+    assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.hoNo || 'handover'}.pdf"`);
@@ -82,7 +104,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 });
 
 // POST /api/handovers
-router.post('/', authenticate, async (req, res, next) => {
+router.post('/', authenticate, handoverValidators, validate, async (req, res, next) => {
   try {
     const {
       quotationId, workOrderId, project, contractor, location,
@@ -117,12 +139,11 @@ router.post('/', authenticate, async (req, res, next) => {
 });
 
 // PUT /api/handovers/:id
-router.put('/:id', authenticate, async (req, res, next) => {
+router.put('/:id', authenticate, handoverValidators, validate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (ho.status !== 'draft' && ho.status !== 'rejected') return res.status(400).json({ message: 'แก้ไขได้เฉพาะสถานะ Draft หรือ Rejected เท่านั้น' });
-    const managerRoles = ['sale_mgr', 'admin_mgr', 'project_mgr', 'director', 'procurement', 'factory', 'admin'];
-    if (ho.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (ho.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
@@ -152,8 +173,7 @@ router.put('/:id', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
-    const managerRoles = ['admin', 'director', 'admin_mgr'];
-    if (ho.salesId !== req.user.id && !managerRoles.includes(req.user.role)) {
+    if (ho.salesId !== req.user.id && !canDeleteOthersDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
     }
     if (!['draft', 'rejected'].includes(ho.status)) {
