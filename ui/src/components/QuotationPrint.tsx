@@ -23,13 +23,15 @@ function fmtQty(n: number): string {
 }
 
 const MIN_ROWS = 3
-// Row-weight pack capacities. 1 weight ≈ 1 row at ~7mm.
+// Row-weight pack capacities. 1 weight ≈ 1 main row at ~7mm.
 // A4 portrait content area: 297mm − 6mm top − 10mm bottom = 281mm.
-// Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 90mm.
+// Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 85mm.
+// Note lines render at 10pt (~4mm ≈ 0.6 of a main row), so they cost less than
+// a full row — counting them as full rows pushed items onto a new page too early.
 // Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows.
-// Last page items area = 277 − 95 − 14 − 90 = 78mm ≈ 11 rows.
-const PACK_CAP_NON_LAST = 22
-const PACK_CAP_LAST = 14
+// Last page items area = 277 − 95 − 14 − 85 = 83mm ≈ 12 rows.
+const PACK_CAP_NON_LAST = 24
+const PACK_CAP_LAST = 16
 
 interface Props {
   doc: Quotation
@@ -94,8 +96,8 @@ function itemWeight(it: Item): number {
 
   return (
     1 +
-    nonEmptyNoteLines +
-    blankNoteLines * 0.35 +
+    nonEmptyNoteLines * 0.6 +
+    blankNoteLines * 0.3 +
     (Array.isArray(it.images) ? it.images.length * 3 : 0)
   )
 }
@@ -419,6 +421,48 @@ export default function QuotationPrint({ doc, settings }: Props) {
   }
 
   function renderTotalsTable() {
+    const blankTopTd: React.CSSProperties = {
+      ...tfootTdS,
+      borderLeft: 'none',
+      borderRight: 'none',
+      borderBottom: 'none',
+      borderTop: border,
+      padding: 0,
+      lineHeight: 0,
+      fontSize: 0,
+    }
+    const blankTd: React.CSSProperties = {
+      ...tfootTdS,
+      border: 'none',
+      padding: 0,
+      lineHeight: 0,
+      fontSize: 0,
+    }
+    const totalsLabelTd: React.CSSProperties = {
+      ...tfootTdS,
+      border: 'none',
+      textAlign: 'right',
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      paddingLeft: '10px',
+      paddingRight: '10px',
+      lineHeight: 1,
+      whiteSpace: 'nowrap',
+    }
+    const totalsValueTd: React.CSSProperties = {
+      ...tfootTdS,
+      borderTop: 'none',
+      borderRight: 'none',
+      borderBottom: 'none',
+      borderLeft: border,
+      textAlign: 'right',
+      paddingTop: '2px',
+      paddingBottom: '2px',
+      paddingLeft: '8px',
+      paddingRight: '10px',
+      lineHeight: 1,
+      whiteSpace: 'nowrap',
+    }
     return (
       <table style={{ width: '100%', flex: '0 0 auto', borderCollapse: 'collapse', tableLayout: 'fixed', borderLeft: tableFrameBorder, borderRight: tableFrameBorder, borderBottom: tableFrameBorder }}>
         <colgroup>
@@ -432,24 +476,29 @@ export default function QuotationPrint({ doc, settings }: Props) {
         </colgroup>
         <tbody>
           <tr>
-            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
-            <td style={{ ...tfootTdS, borderTop: border, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
+            <td colSpan={4} style={blankTopTd}>&nbsp;</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, borderTop: border, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
+            <td style={{ ...totalsValueTd, borderTop: border, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
-            <td style={{ ...tfootTdS, textAlign: 'right', color: 'red', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
+            <td colSpan={4} style={blankTd}>&nbsp;</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, color: 'red', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
+            <td style={{ ...totalsValueTd, color: 'red', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
-            <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
+            <td colSpan={4} style={blankTd}>&nbsp;</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
+            <td style={{ ...totalsValueTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
-            <td style={{ ...tfootTdS, textAlign: 'right', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
+            <td colSpan={4} style={blankTd}>&nbsp;</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
+            <td style={{ ...totalsValueTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
           </tr>
           <tr>
-            <td colSpan={6} style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
-            <td style={{ ...tfootTdS, borderTop: border, borderBottom: border, textAlign: 'right', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
+            <td colSpan={4} style={blankTd}>&nbsp;</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
+            <td style={{ ...totalsValueTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
           </tr>
         </tbody>
       </table>
@@ -507,13 +556,13 @@ export default function QuotationPrint({ doc, settings }: Props) {
   function renderBottomNote() {
     return (
       <div style={{
-        marginTop: '4px',
+        marginTop: '2px',
         fontSize: '11pt',
         fontStyle: 'italic',
         textAlign: 'center',
         fontWeight: 'bold',
         borderTop: '1px solid #555',
-        paddingTop: '5px',
+        paddingTop: '3px',
       }}>
         If you do not clear information or not get all price of papers, please notify us immediately
         {salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
