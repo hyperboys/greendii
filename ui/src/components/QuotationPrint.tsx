@@ -30,8 +30,11 @@ const MIN_ROWS = 3
 // a full row — counting them as full rows pushed items onto a new page too early.
 // Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows.
 // Last page items area = 277 − 95 − 14 − 85 = 83mm ≈ 12 rows.
+// PACK_CAP_LAST must match the ~12-row last-page item area so the totals + terms +
+// signature block always has room; otherwise trailing items overflow into that
+// block and get visually cut off (forcing them onto a fresh page instead).
 const PACK_CAP_NON_LAST = 24
-const PACK_CAP_LAST = 16
+const PACK_CAP_LAST = 12
 
 interface Props {
   doc: Quotation
