@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 
@@ -39,6 +39,7 @@ const PACK_CAP_LAST = 12
 interface Props {
   doc: Quotation
   settings: Settings | null
+  onReady?: () => void
 }
 
 type Item = Quotation['items'][number]
@@ -108,12 +109,14 @@ function itemWeight(it: Item): number {
 interface PageChunk {
   items: Item[]
   isLast: boolean
+  // Whether the totals + terms + signature block renders on this page.
+  tail: boolean
   capacity: number
 }
 
 function paginateItems(items: Item[]): PageChunk[] {
   if (items.length === 0) {
-    return [{ items: [], isLast: true, capacity: PACK_CAP_LAST }]
+    return [{ items: [], isLast: true, tail: true, capacity: PACK_CAP_LAST }]
   }
 
   // Forward packing: fill each page top-to-bottom up to the per-page item
@@ -154,11 +157,60 @@ function paginateItems(items: Item[]): PageChunk[] {
   return rawPages.map((pageItems, i) => ({
     items: pageItems,
     isLast: i === rawPages.length - 1,
+    tail: i === rawPages.length - 1,
     capacity: i === rawPages.length - 1 ? PACK_CAP_LAST : PACK_CAP_NON_LAST,
   }))
 }
 
-export default function QuotationPrint({ doc, settings }: Props) {
+const COL_WIDTHS = ['5%', '47%', '8%', '7%', '11%', '11%', '11%']
+
+// Measurement-based pagination: assign items to pages using their real rendered
+// heights (in px) instead of heuristic weights. `availNonLast` is the usable
+// item-area height on a page that only holds items; `availLast` additionally
+// reserves room for the totals + terms + signature block on the final page.
+function packByHeight(items: Item[], heights: number[], availNonLast: number, availLast: number): PageChunk[] {
+  if (items.length === 0) return [{ items: [], isLast: true, tail: true, capacity: 0 }]
+  type Entry = { item: Item; h: number }
+  const entries: Entry[] = items.map((item, i) => ({ item, h: heights[i] ?? 0 }))
+
+  // Forward fill each page using the FULL item area so earlier pages stay dense.
+  const pages: Entry[][] = []
+  let cur: Entry[] = []
+  let used = 0
+  for (const e of entries) {
+    if (cur.length > 0 && used + e.h > availNonLast) {
+      pages.push(cur)
+      cur = [e]
+      used = e.h
+    } else {
+      cur.push(e)
+      used += e.h
+    }
+  }
+  if (cur.length) pages.push(cur)
+
+  const sumH = (arr: Entry[]) => arr.reduce((s, e) => s + e.h, 0)
+  const result: PageChunk[] = pages.map(arr => ({
+    items: arr.map(e => e.item),
+    isLast: false,
+    tail: false,
+    capacity: 0,
+  }))
+
+  // The totals + terms + signature block stays on the last items page only when
+  // it still fits there; otherwise it flows onto its own continuation page so the
+  // item pages remain full instead of being thinned out to make room for it.
+  if (sumH(pages[pages.length - 1]) <= availLast) {
+    const lastPage = result[result.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+  } else {
+    result.push({ items: [], isLast: true, tail: true, capacity: 0 })
+  }
+  return result
+}
+
+export default function QuotationPrint({ doc, settings, onReady }: Props) {
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0')
     const now = new Date()
@@ -197,8 +249,104 @@ export default function QuotationPrint({ doc, settings }: Props) {
     return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
   })()
 
-  const pages = paginateItems(doc.items)
-  const totalPages = pages.length
+  const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const [scale, setScale] = useState(1)
+  const totalPages = pages ? pages.length : 1
+
+  const measureRef = useRef<HTMLDivElement>(null)
+  const probeRef = useRef<HTMLDivElement>(null)
+  const headerMeasRef = useRef<HTMLDivElement>(null)
+  const theadMeasRef = useRef<HTMLTableSectionElement>(null)
+  const tailMeasRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const readyRef = useRef(false)
+  const fallbackRef = useRef<PageChunk[] | null>(null)
+
+  // Smallest font scale we will apply to keep the summary block on the same page
+  // as the items instead of spilling it onto an otherwise-empty trailing page.
+  // 0.8 keeps text comfortably readable while compacting a little.
+  const MIN_SCALE = 0.8
+  const SCALE_STEP = 0.05
+
+  // Re-measure from scratch whenever the document changes.
+  useEffect(() => {
+    setPages(null)
+    setScale(1)
+    fallbackRef.current = null
+    readyRef.current = false
+  }, [doc])
+
+  // Measure real rendered heights at the current font scale, then paginate.
+  // If the summary block would land alone on a trailing page, shrink the font a
+  // step and re-measure (down to MIN_SCALE) so it merges back onto the items page.
+  useEffect(() => {
+    if (pages !== null) return
+    let cancelled = false
+    const run = async () => {
+      try {
+        if (typeof document !== 'undefined' && document.fonts?.ready) {
+          await document.fonts.ready
+        }
+        const container = measureRef.current
+        if (container) {
+          const imgs = Array.from(container.querySelectorAll('img'))
+          await Promise.all(imgs.map(img => img.complete
+            ? Promise.resolve()
+            : new Promise<void>(resolve => {
+              img.addEventListener('load', () => resolve(), { once: true })
+              img.addEventListener('error', () => resolve(), { once: true })
+            })))
+        }
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        if (cancelled) return
+        const pagePx = probeRef.current?.getBoundingClientRect().height ?? 0
+        const hHeader = headerMeasRef.current?.getBoundingClientRect().height ?? 0
+        const hThead = theadMeasRef.current?.getBoundingClientRect().height ?? 0
+        const hTail = tailMeasRef.current?.getBoundingClientRect().height ?? 0
+        const heights = doc.items.map((_, i) => rowRefs.current[i]?.getBoundingClientRect().height ?? 0)
+        // Conservative gaps account for inter-block margins so content never clips.
+        const HEADER_GAP = 12
+        const SAFETY = 10
+        const TAIL_GAP = 10
+        const availNonLast = pagePx - hHeader - HEADER_GAP - hThead - SAFETY
+        const availLast = availNonLast - hTail - TAIL_GAP
+        if (!pagePx || availNonLast < 20) {
+          setPages(paginateItems(doc.items))
+          return
+        }
+        const chunks = packByHeight(doc.items, heights, availNonLast, Math.max(availLast, 20))
+        if (scale >= 1 - 1e-9) fallbackRef.current = chunks
+        const last = chunks[chunks.length - 1]
+        const tailOnly = chunks.length > 1 && last.items.length === 0
+        if (!tailOnly) {
+          // Everything (incl. summary) is placed without a lone trailing page.
+          setPages(chunks)
+        } else if (scale > MIN_SCALE + 1e-9) {
+          // Shrink the font a step and re-measure so the summary fits back.
+          setScale(s => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(3)))
+        } else {
+          // Even at the smallest scale the summary won't share the items page, so
+          // keep the original full-size layout instead of shrinking pointlessly.
+          if (scale < 1 - 1e-9) setScale(1)
+          setPages(fallbackRef.current ?? chunks)
+        }
+      } catch {
+        if (!cancelled) setPages(paginateItems(doc.items))
+      }
+    }
+    void run()
+    return () => { cancelled = true }
+  }, [pages, doc, scale])
+
+  // Signal readiness only after the real (paginated) layout is committed.
+  useEffect(() => {
+    if (pages === null || readyRef.current) return
+    readyRef.current = true
+    requestAnimationFrame(() => { onReady?.() })
+  }, [pages, onReady])
+
+  // Font-size helper that applies the auto-fit scale to the items + summary.
+  const fpt = (n: number) => `${+(n * scale).toFixed(3)}pt`
 
   const border = '2px solid #000'
   const tableFrameBorder = '2px solid #000'
@@ -208,7 +356,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     padding: '4px 5px',
     backgroundColor: '#c6e0b4',
     textAlign: 'center',
-    fontSize: '8pt',
+    fontSize: fpt(8),
     fontWeight: 'bold',
     verticalAlign: 'middle',
     lineHeight: '1.0',
@@ -218,7 +366,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     borderLeft: border,
     borderRight: border,
     padding: '3px 5px',
-    fontSize: '12pt',
+    fontSize: fpt(12),
     verticalAlign: 'top',
     height: '20px',
     wordBreak: 'break-word',
@@ -317,17 +465,17 @@ export default function QuotationPrint({ doc, settings }: Props) {
     )
   }
 
-  function renderItemRow(item: Item | null, displaySeq: number, key: number, _isLastItem: boolean = false) {
+  function renderItemRow(item: Item | null, displaySeq: number, key: number, _isLastItem: boolean = false, rowRef?: (el: HTMLTableRowElement | null) => void) {
     const baseTd: React.CSSProperties = { ...tdS }
     return (
-      <tr key={key}>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+      <tr key={key} ref={rowRef}>
+        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? displaySeq : ''}
         </td>
-        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item?.desc ?? ''}
           {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#555', fontSize: '10pt', display: 'block', fontFamily: 'var(--font-thai)' }}>
+            <span key={idx} style={{ color: '#555', fontSize: fpt(10), display: 'block', fontFamily: 'var(--font-thai)' }}>
               {line || '\u00A0'}
             </span>
           ))}
@@ -335,24 +483,24 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: `${(30 * scale).toFixed(3)}mm`, height: 'auto', objectFit: 'contain', display: 'block' }} />
               ))}
             </div>
           )}
         </td>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? fmtQty(item.qty) : ''}
         </td>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item?.unit ?? ''}
         </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? fmtAmtBlankZero(item.materialPrice) : ''}
         </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? fmtAmtBlankZero(item.labourPrice) : ''}
         </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: '12pt' }}>
+        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? fmtAmtBlankZero(item.amount) : ''}
         </td>
       </tr>
@@ -382,6 +530,27 @@ export default function QuotationPrint({ doc, settings }: Props) {
     )
   }
 
+  function itemsHeadRows() {
+    return (
+      <>
+        <tr>
+          <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Item</th>
+          <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Description</th>
+          <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Q&apos;ty</th>
+          <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Unit</th>
+          <th style={{ ...thS, fontWeight: 'bold', fontSize: fpt(11), lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Material Price)</th>
+          <th style={{ ...thS, fontWeight: 'bold', fontSize: fpt(11), lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Labour Price)</th>
+          <th style={{ ...thS, fontWeight: 'bold', fontSize: fpt(11), lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Total Amount)</th>
+        </tr>
+        <tr>
+          <th style={{ ...thS, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Unit Price</th>
+          <th style={{ ...thS, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Unit Price</th>
+          <th style={{ ...thS, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Thai Baht</th>
+        </tr>
+      </>
+    )
+  }
+
   function renderItemsTable(chunk: PageChunk, itemOffset: number) {
     return (
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
@@ -394,22 +563,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
           <col style={{ width: '11%' }} />
           <col style={{ width: '11%' }} />
         </colgroup>
-        <thead>
-          <tr>
-            <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Item</th>
-            <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Description</th>
-            <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Q&apos;ty</th>
-            <th rowSpan={2} style={{ ...thS, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Unit</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Material Price)</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Labour Price)</th>
-            <th style={{ ...thS, fontWeight: 'bold', fontSize: '11pt', lineHeight: '1.0', whiteSpace: 'nowrap', fontFamily: 'var(--font-thai)' }}>(Total Amount)</th>
-          </tr>
-          <tr>
-            <th style={{ ...thS, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Unit Price</th>
-            <th style={{ ...thS, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Unit Price</th>
-            <th style={{ ...thS, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Thai Baht</th>
-          </tr>
-        </thead>
+        <thead>{itemsHeadRows()}</thead>
         <tbody>
           {chunk.items.map((item, i) => {
             const globalIndex = itemOffset + i
@@ -480,28 +634,28 @@ export default function QuotationPrint({ doc, settings }: Props) {
         <tbody>
           <tr>
             <td colSpan={4} style={blankTopTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, borderTop: border, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total</td>
-            <td style={{ ...totalsValueTd, borderTop: border, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, borderTop: border, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Total</td>
+            <td style={{ ...totalsValueTd, borderTop: border, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.subTotal)}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, color: 'red', fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Special Discount</td>
-            <td style={{ ...totalsValueTd, color: 'red', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, color: 'red', fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Special Discount</td>
+            <td style={{ ...totalsValueTd, color: 'red', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.specialDiscount)}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Total Amount</td>
-            <td style={{ ...totalsValueTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Total Amount</td>
+            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(totalAmount)}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
-            <td style={{ ...totalsValueTd, fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
+            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
-            <td style={{ ...totalsValueTd, fontWeight: 'bold', fontSize: '12pt', fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Grand Total Amount</td>
+            <td style={{ ...totalsValueTd, fontWeight: 'bold', fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.grandTotal)}</td>
           </tr>
         </tbody>
       </table>
@@ -510,7 +664,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
 
   function renderTermsAndSignatures() {
     return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '8px', fontSize: '11pt' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '8px', fontSize: fpt(11) }}>
         <div style={{ width: '65%', paddingRight: '8px', lineHeight: 1.3 }}>
           <div><strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}</div>
           <div><strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}</div>
@@ -519,35 +673,35 @@ export default function QuotationPrint({ doc, settings }: Props) {
             <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
             <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
           </div>
-          <div style={{ fontSize: '11pt', marginTop: '4px' }}>Your Faithfully</div>
+          <div style={{ fontSize: fpt(11), marginTop: '4px' }}>Your Faithfully</div>
           <div style={{
             fontFamily: 'var(--font-signature)',
             fontStyle: 'italic',
-            fontSize: '18pt',
+            fontSize: fpt(18),
             marginTop: '2px',
             marginBottom: '0',
             lineHeight: 1,
           }}>{sigName}</div>
-          <div style={{ fontSize: '11pt' }}>{doc.sales?.fullName || ''}</div>
+          <div style={{ fontSize: fpt(11) }}>{doc.sales?.fullName || ''}</div>
         </div>
 
         <div style={{ width: '45%', border: '1px solid #000', padding: '3px 6px', alignSelf: 'flex-start' }}>
-          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '16px', fontSize: '11pt' }}>
+          <div style={{ fontWeight: 'bold', textAlign: 'center', marginBottom: '16px', fontSize: fpt(11) }}>
             Customer&nbsp;&nbsp;Confirmation
           </div>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '14px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '11pt' }}>Signature&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '11pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(37)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: fpt(11) }}>Signature&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: fpt(11), letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(37)}</td>
               </tr>
             </tbody>
           </table>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '12px' }}>
             <tbody>
               <tr>
-                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: '11pt' }}>Approval Date&nbsp;:&nbsp;</td>
-                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: '11pt', letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(34)}</td>
+                <td style={{ whiteSpace: 'nowrap', padding: 0, fontSize: fpt(11) }}>Approval Date&nbsp;:&nbsp;</td>
+                <td style={{ padding: '0 2px', verticalAlign: 'bottom', fontSize: fpt(11), letterSpacing: '3px', overflow: 'hidden', whiteSpace: 'nowrap', color: '#555' }}>{'.'.repeat(34)}</td>
               </tr>
             </tbody>
           </table>
@@ -560,7 +714,7 @@ export default function QuotationPrint({ doc, settings }: Props) {
     return (
       <div style={{
         marginTop: '2px',
-        fontSize: '11pt',
+        fontSize: fpt(11),
         fontStyle: 'italic',
         textAlign: 'center',
         fontWeight: 'bold',
@@ -573,23 +727,67 @@ export default function QuotationPrint({ doc, settings }: Props) {
     )
   }
 
+  function renderMeasureLayer() {
+    return (
+      <div
+        ref={measureRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
+        <div ref={headerMeasRef}>{renderHeader(1)}</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
+          <colgroup>
+            {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
+          </colgroup>
+          <thead ref={theadMeasRef}>{itemsHeadRows()}</thead>
+          <tbody>
+            {doc.items.map((item, i) =>
+              renderItemRow(
+                item,
+                item.seq !== undefined ? item.seq + 1 : i + 1,
+                i,
+                false,
+                (el) => { rowRefs.current[i] = el },
+              ),
+            )}
+          </tbody>
+        </table>
+        <div ref={tailMeasRef}>
+          {renderTotalsTable()}
+          {renderTermsAndSignatures()}
+          {renderBottomNote()}
+        </div>
+      </div>
+    )
+  }
+
   // Compute item offsets per page
   const offsets: number[] = []
   let acc = 0
-  for (const p of pages) {
+  for (const p of pages ?? []) {
     offsets.push(acc)
     acc += p.items.length
   }
 
   return (
-    <div className="print-sheet quotation-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '18pt' }}>
-      {pages.map((page, pi) => (
+    <div className="print-sheet quotation-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '18pt', position: 'relative' }}>
+      {pages === null && renderMeasureLayer()}
+      {(pages ?? []).map((page, pi) => (
         <div
           key={pi}
           className="quotation-page"
           style={{
-            pageBreakAfter: pi < pages.length - 1 ? 'always' : 'auto',
-            breakAfter: pi < pages.length - 1 ? 'page' : 'auto',
+            pageBreakAfter: pi < totalPages - 1 ? 'always' : 'auto',
+            breakAfter: pi < totalPages - 1 ? 'page' : 'auto',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
@@ -598,10 +796,10 @@ export default function QuotationPrint({ doc, settings }: Props) {
         >
           {renderHeader(pi + 1)}
           {renderItemsTable(page, offsets[pi])}
-          {page.isLast && renderTotalsTable()}
-          {page.isLast && renderTermsAndSignatures()}
-          {page.isLast && renderBottomNote()}
-          {!page.isLast && (
+          {page.tail && renderTotalsTable()}
+          {page.tail && renderTermsAndSignatures()}
+          {page.tail && renderBottomNote()}
+          {!page.tail && (
             <div
               className="quotation-page-bottom-line"
               style={{

@@ -48,17 +48,18 @@ export default function PRPrint({ doc, settings }: Props) {
   const address       = settings?.address       || '98 Moo 6 T.Klongsii, A.KlongLuang, Pathumthani 12120'
   const addressTh     = '98 หมู่ 6 ต. คลองสี่ อ. คลองหลวง จ. ปทุมธานี  12120'
   const tel           = settings?.tel           || '662 150 7694 - 7  662 577 0907'
-  const fax           = '662 150 7697'
+  // Per updated PR template the Fax segment is dropped from the Tel line.
+  const telDisplay    = tel.replace(/\s*(?:Fax|แฟกซ์|แฟ็กซ์)\s*[:：]?.*$/i, '').trim()
 
   const border = '1px solid #000'
   const hasSpecialDiscount = Number(doc.specialDiscount) > 0
 
   const thS: React.CSSProperties = {
     border,
-    padding: '5px 5px',
+    padding: '6px 5px',
     backgroundColor: '#c6e0b4',
     textAlign: 'center',
-    fontSize: '9.5pt',
+    fontSize: '12pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
     lineHeight: '1.3',
@@ -67,20 +68,20 @@ export default function PRPrint({ doc, settings }: Props) {
   const tdS: React.CSSProperties = {
     borderLeft: border,
     borderRight: border,
-    padding: '3px 6px',
-    fontSize: '10pt',
+    padding: '4px 6px',
+    fontSize: '12pt',
     verticalAlign: 'top',
-    height: '22px',
+    height: '24px',
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
   }
 
   const tdTotalS: React.CSSProperties = {
     border,
-    padding: '3px 6px',
-    fontSize: '10pt',
+    padding: '4px 8px',
+    fontSize: '12pt',
     verticalAlign: 'top',
-    height: '22px',
+    height: '24px',
   }
 
   return (
@@ -98,42 +99,41 @@ export default function PRPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
         <tbody>
           <tr>
-            {/* Logo */}
-            <td rowSpan={4} style={{ width: '110px', verticalAlign: 'middle', paddingRight: '10px' }}>
+            {/* Logo — enlarged */}
+            <td rowSpan={4} style={{ width: '150px', verticalAlign: 'middle', paddingRight: '14px' }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '100px', display: 'block' }} />
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '150px', display: 'block' }} />
             </td>
-            {/* Company name (Thai) */}
-            <td style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.4', verticalAlign: 'bottom' }}>
+            {/* Company name (Thai) — left aligned next to logo */}
+            <td style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '17pt', lineHeight: '1.3', verticalAlign: 'bottom' }}>
               {companyName}
             </td>
-            {/* Document type label */}
-            <td rowSpan={4} style={{ width: '160px', verticalAlign: 'middle', paddingLeft: '10px' }}>
+            {/* Document type label — no border, PURCHASE REQUEST stacked below */}
+            <td rowSpan={4} style={{ width: '170px', verticalAlign: 'middle', paddingLeft: '10px' }}>
               <div style={{
-                border: '2px solid #000',
-                padding: '10px 14px',
                 textAlign: 'center',
                 fontWeight: 'bold',
-                fontSize: '10pt',
-                lineHeight: '1.6',
+                fontSize: '14pt',
+                lineHeight: '1.3',
               }}>
-                ใบขอซื้อ / PURCHASE REQUEST
+                <div>ใบขอซื้อ /</div>
+                <div>PURCHASE REQUEST</div>
               </div>
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
+            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
               {address}
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
+            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
               {addressTh}
             </td>
           </tr>
           <tr>
-            <td style={{ textAlign: 'center', fontSize: '12pt', lineHeight: '1.2' }}>
-              Tel : {tel}
+            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
+              Tel : {telDisplay}
             </td>
           </tr>
         </tbody>
@@ -143,26 +143,26 @@ export default function PRPrint({ doc, settings }: Props) {
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
         <tbody>
           <tr>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt', fontWeight: 'bold', width: '50%' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt', fontWeight: 'bold', width: '50%' }}>
               Purchase Request No. {doc.prNo}
             </td>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt', width: '50%' }}>
-              <span style={{ fontWeight: 'bold' }}>Customer : </span>{doc.customer}
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
+              <span style={{ fontWeight: 'bold' }}>Supplier : </span>{doc.customer}
             </td>
           </tr>
           <tr>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Issue : </span>{fmtDateTH(doc.dateIssue)}
             </td>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
               <span style={{ fontWeight: 'bold' }}>Project Ref : </span>{doc.projectRef || ''}
             </td>
           </tr>
           <tr>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
             </td>
-            <td style={{ border, padding: '4px 8px', fontSize: '10.5pt' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
               <span style={{ fontWeight: 'bold' }}>Remarks : </span>{doc.remarks || ''}
             </td>
           </tr>
@@ -176,9 +176,9 @@ export default function PRPrint({ doc, settings }: Props) {
           <col style={{ width: '34%' }} />
           <col style={{ width: '8%' }} />
           <col style={{ width: '8%' }} />
-          <col style={{ width: '18%' }} />
-          <col style={{ width: '14%' }} />
           <col style={{ width: '13%' }} />
+          <col style={{ width: '14%' }} />
+          <col style={{ width: '18%' }} />
         </colgroup>
         <thead>
           <tr>
@@ -224,34 +224,34 @@ export default function PRPrint({ doc, settings }: Props) {
             <col style={{ width: '34%' }} />
             <col style={{ width: '8%' }} />
             <col style={{ width: '8%' }} />
-            <col style={{ width: '18%' }} />
-            <col style={{ width: '14%' }} />
             <col style={{ width: '13%' }} />
+            <col style={{ width: '14%' }} />
+            <col style={{ width: '18%' }} />
           </colgroup>
           <tbody>
             {hasSpecialDiscount && (
               <tr>
-                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-                <td style={{ ...tdTotalS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
+                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
                 <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
                 <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
             )}
             <tr>
-              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
+              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
               <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
-              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
+              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
               <td style={{ ...tdTotalS, textAlign: 'right' }}>{Number(doc.vat) > 0 ? fmtAmt(doc.vat) : ''}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
-              <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
+              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
               <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.netTotal)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
@@ -259,30 +259,38 @@ export default function PRPrint({ doc, settings }: Props) {
         </table>
 
         {/* ═══ Signatures ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '12px', fontSize: '9pt' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '14px', fontSize: '11pt' }}>
           <tbody>
             <tr>
               <td style={{
-                width: '40%',
+                width: '44%',
                 border,
-                padding: '6px 10px 14px',
+                padding: '10px 12px 28px',
                 verticalAlign: 'top',
               }}>
-                <div style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</div>
-                <div style={{ marginTop: '14px', whiteSpace: 'nowrap' }}>
-                  วันที่ / Date ……………………………………
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</span>
+                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                </div>
+                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
+                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
                 </div>
               </td>
-              <td style={{ width: '20%' }}></td>
+              <td style={{ width: '12%' }}></td>
               <td style={{
-                width: '40%',
+                width: '44%',
                 border,
-                padding: '6px 10px 14px',
+                padding: '10px 12px 28px',
                 verticalAlign: 'top',
               }}>
-                <div style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval ……………………………</div>
-                <div style={{ marginTop: '14px', whiteSpace: 'nowrap' }}>
-                  วันที่ / Date ……………………………………
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval</span>
+                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                </div>
+                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                  <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
+                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
                 </div>
               </td>
             </tr>

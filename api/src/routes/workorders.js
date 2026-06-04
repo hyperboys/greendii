@@ -6,7 +6,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
-const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
+const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
 
 const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
@@ -29,6 +29,32 @@ const INCLUDE_FULL = {
   },
   attachments: true,
 };
+
+function normalizeOptionalId(value) {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  const normalized = String(value).trim();
+  return normalized ? normalized : null;
+}
+
+function buildOptionalRelationUpdate(id) {
+  if (id === undefined) return undefined;
+  return id ? { connect: { id } } : { disconnect: true };
+}
+
+async function ensureQuotationAccessible(req, quotationId) {
+  if (!quotationId) return;
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, salesId: true },
+  });
+  if (!quotation) {
+    const error = new Error('ไม่พบใบเสนอราคาที่อ้างอิง');
+    error.status = 400;
+    throw error;
+  }
+  assertQuotationAccessible(req, quotation);
+}
 
 // GET /api/workorders
 router.get('/', authenticate, async (req, res, next) => {
@@ -109,9 +135,11 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
     });
     const seq = lastWO ? (parseInt(lastWO.woNo.replace(`WO${yy}`, ''), 10) || 0) + 1 : 1;
     const woNo = `WO${yy}${String(seq).padStart(3, '0')}`;
+    const normalizedQuotationId = normalizeOptionalId(quotationId);
+    await ensureQuotationAccessible(req, normalizedQuotationId);
     const wo = await prisma.workOrder.create({
       data: {
-        woNo, quotationId, project, location, products, responsibility,
+        woNo, quotationId: normalizedQuotationId, project, location, products, responsibility,
         customerName, contactName, contactTel, teamAssignment,
         qcDate: qcDate ? new Date(qcDate) : null,
         installDate: installDate ? new Date(installDate) : null,
@@ -139,10 +167,14 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
+      quotationId,
       project, location, products, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
+    const normalizedQuotationId = normalizeOptionalId(quotationId);
+    await ensureQuotationAccessible(req, normalizedQuotationId);
+    const quotationRelation = buildOptionalRelationUpdate(normalizedQuotationId);
     const wo = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: {
@@ -151,6 +183,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
         qcDate: qcDate ? new Date(qcDate) : null,
         installDate: installDate ? new Date(installDate) : null,
         remark, docChecklist: docChecklist || existing.docChecklist,
+        ...(quotationRelation ? { quotation: quotationRelation } : {}),
       },
     });
     res.json(wo);
