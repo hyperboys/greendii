@@ -9,6 +9,7 @@ import { resolveFileUrl } from '@/lib/api'
 // remark / team / QC / checklist / signature blocks, so it holds fewer rows.
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 11
+const FRAGMENT_CAP = PACK_CAP_LAST
 
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
@@ -17,30 +18,90 @@ function splitDescriptionLines(note?: string): string[] {
   return lines
 }
 
-function itemWeight(it: QuotationItem): number {
-  const noteLines = splitDescriptionLines(it.note)
-  const nonEmptyNoteLines = noteLines.filter(Boolean).length
-  const blankNoteLines = noteLines.length - nonEmptyNoteLines
+interface WorkOrderItemFragment {
+  key: string
+  desc: string
+  noteLines: string[]
+  images: string[]
+  qty?: number
+  unit?: string
+  displaySeq?: number
+}
+
+function noteLinesWeight(lines: string[]): number {
+  const nonEmptyNoteLines = lines.filter(Boolean).length
+  const blankNoteLines = lines.length - nonEmptyNoteLines
+  return nonEmptyNoteLines + blankNoteLines * 0.35
+}
+
+function itemWeight(fragment: WorkOrderItemFragment): number {
   return (
     1 +
-    nonEmptyNoteLines +
-    blankNoteLines * 0.35 +
-    (Array.isArray(it.images) ? it.images.length * 3 : 0)
+    noteLinesWeight(fragment.noteLines) +
+    fragment.images.length * 3
   )
 }
 
+function splitItemIntoFragments(item: QuotationItem, itemIndex: number): WorkOrderItemFragment[] {
+  const noteLines = splitDescriptionLines(item.note)
+  const remainingLines = [...noteLines]
+  const remainingImages = Array.isArray(item.images) ? [...item.images] : []
+  const fragments: WorkOrderItemFragment[] = []
+  const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
+  let fragmentIndex = 0
+
+  while (fragmentIndex === 0 || remainingLines.length > 0 || remainingImages.length > 0) {
+    const noteChunk: string[] = []
+    const imageChunk: string[] = []
+    let weight = 1
+
+    while (remainingLines.length > 0) {
+      const nextLine = remainingLines[0]
+      const nextWeight = nextLine ? 1 : 0.35
+      if (weight + nextWeight > FRAGMENT_CAP && noteChunk.length > 0) break
+      noteChunk.push(remainingLines.shift() as string)
+      weight += nextWeight
+    }
+
+    while (remainingImages.length > 0) {
+      const nextWeight = 3
+      if (weight + nextWeight > FRAGMENT_CAP && (noteChunk.length > 0 || imageChunk.length > 0)) break
+      imageChunk.push(remainingImages.shift() as string)
+      weight += nextWeight
+    }
+
+    fragments.push({
+      key: `${item.id ?? item.seq ?? itemIndex}-${fragmentIndex}`,
+      desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
+      noteLines: noteChunk,
+      images: imageChunk,
+      qty: fragmentIndex === 0 ? item.qty : undefined,
+      unit: fragmentIndex === 0 ? item.unit : undefined,
+      displaySeq: fragmentIndex === 0 ? displaySeq : undefined,
+    })
+
+    fragmentIndex += 1
+  }
+
+  return fragments
+}
+
+function buildRenderableItems(items: QuotationItem[]): WorkOrderItemFragment[] {
+  return items.flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
+}
+
 interface PageChunk {
-  items: QuotationItem[]
+  items: WorkOrderItemFragment[]
   isLast: boolean
 }
 
-function paginateItems(items: QuotationItem[]): PageChunk[] {
+function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
   if (items.length === 0) {
     return [{ items: [], isLast: true }]
   }
 
-  const rawPages: QuotationItem[][] = []
-  let current: QuotationItem[] = []
+  const rawPages: WorkOrderItemFragment[][] = []
+  let current: WorkOrderItemFragment[] = []
   let currentWeight = 0
   for (const item of items) {
     const w = itemWeight(item)
@@ -60,9 +121,9 @@ function paginateItems(items: QuotationItem[]): PageChunk[] {
   const last = rawPages[rawPages.length - 1]
   let lastWeight = last.reduce((s, it) => s + itemWeight(it), 0)
   if (lastWeight > PACK_CAP_LAST && last.length > 1) {
-    const overflow: QuotationItem[] = []
+    const overflow: WorkOrderItemFragment[] = []
     while (lastWeight > PACK_CAP_LAST && last.length > 1) {
-      const moved = last.pop() as QuotationItem
+      const moved = last.pop() as WorkOrderItemFragment
       overflow.unshift(moved)
       lastWeight -= itemWeight(moved)
     }
@@ -110,7 +171,8 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
 
   // Quotation items (if linked)
   const qItems = doc.quotation?.items ?? []
-  const pages = paginateItems(qItems)
+  const renderItems = buildRenderableItems(qItems)
+  const pages = paginateItems(renderItems)
   const totalPages = pages.length
 
   const dateStr = doc.createdAt
@@ -269,7 +331,7 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
     )
   }
 
-  function renderItemsTable(chunk: PageChunk, itemOffset: number) {
+  function renderItemsTable(chunk: PageChunk) {
     return (
       <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: '8px', border }}>
         <thead>
@@ -281,20 +343,18 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
           </tr>
         </thead>
         <tbody>
-          {chunk.items.map((item, i) => {
-            const globalIndex = itemOffset + i
-            const displaySeq = item.seq !== undefined ? item.seq + 1 : globalIndex + 1
+          {chunk.items.map((item) => {
             return (
-              <tr key={i} style={{ height: '20px' }}>
-                <td style={itemCellS}>{displaySeq}</td>
+              <tr key={item.key} style={{ height: '20px' }}>
+                <td style={itemCellS}>{item.displaySeq ?? ''}</td>
                 <td style={{ ...itemCellS, textAlign: 'left' }}>
                   {item.desc ?? ''}
-                  {splitDescriptionLines(item.note).map((line, idx) => (
+                  {item.noteLines.map((line, idx) => (
                     <span key={idx} style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>
                       {line || '\u00A0'}
                     </span>
                   ))}
-                  {Array.isArray(item.images) && item.images.length > 0 && (
+                  {item.images.length > 0 && (
                     <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
                       {item.images.map((url, idx) => (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -422,14 +482,6 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
     )
   }
 
-  // Compute item offsets per page
-  const offsets: number[] = []
-  let acc = 0
-  for (const p of pages) {
-    offsets.push(acc)
-    acc += p.items.length
-  }
-
   return (
     <div className="print-sheet workorder-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt' }}>
       {pages.map((page, pi) => (
@@ -446,7 +498,7 @@ export default function WorkOrderPrint({ doc, settings }: Props) {
           }}
         >
           {renderHeader(pi + 1)}
-          {renderItemsTable(page, offsets[pi])}
+          {renderItemsTable(page)}
           {page.isLast && renderBottomSections()}
         </div>
       ))}
