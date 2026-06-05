@@ -22,10 +22,8 @@ export default function PrintWorkOrderPage() {
       .catch((e) => setError(String(e)))
   }, [id])
 
-  useEffect(() => { if (doc) void signalPrintReady() }, [doc])
-
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>
   if (!doc) return <div style={{ padding: 20 }}>Loading…</div>
 
-  return <WorkOrderPrint doc={doc} settings={settings} />
+  return <WorkOrderPrint doc={doc} settings={settings} onReady={() => { void signalPrintReady() }} />
 }
