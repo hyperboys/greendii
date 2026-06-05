@@ -21,6 +21,15 @@ function fmtDateTH(dateStr?: string): string {
   return `${day}/${month}/${year}`
 }
 
+function splitDescriptionLines(note?: string): string[] {
+  if (note == null) return []
+  const lines = note.split('\n').map(v => v.trim())
+  if (lines.length === 1 && lines[0] === '') return []
+  return lines
+}
+
+const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
+
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
@@ -44,7 +53,6 @@ export default function PRPrint({ doc, settings }: Props) {
   }, [doc.prNo])
 
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address       = settings?.address       || '98 Moo 6 T.Klongsii, A.KlongLuang, Pathumthani 12120'
   const addressTh     = '98 หมู่ 6 ต. คลองสี่ อ. คลองหลวง จ. ปทุมธานี  12120'
   const tel           = settings?.tel           || '662 150 7694 - 7  662 577 0907'
@@ -84,6 +92,11 @@ export default function PRPrint({ doc, settings }: Props) {
     height: '24px',
   }
 
+  const tdTotalFirstS: React.CSSProperties = {
+    ...tdTotalS,
+    borderTop: '0',
+  }
+
   return (
     <div
       className="print-sheet"
@@ -109,15 +122,14 @@ export default function PRPrint({ doc, settings }: Props) {
               {companyName}
             </td>
             {/* Document type label — no border, PURCHASE REQUEST stacked below */}
-            <td rowSpan={4} style={{ width: '170px', verticalAlign: 'middle', paddingLeft: '10px' }}>
+            <td rowSpan={4} style={{ width: '190px', verticalAlign: 'middle', paddingLeft: '10px' }}>
               <div style={{
                 textAlign: 'center',
                 fontWeight: 'bold',
-                fontSize: '14pt',
-                lineHeight: '1.3',
+                lineHeight: '1.25',
               }}>
-                <div>ใบขอซื้อ /</div>
-                <div>PURCHASE REQUEST</div>
+                <div style={{ fontSize: '16pt' }}>ใบขอซื้อ /</div>
+                <div style={{ fontSize: '14.5pt' }}>PURCHASE REQUEST</div>
               </div>
             </td>
           </tr>
@@ -172,13 +184,7 @@ export default function PRPrint({ doc, settings }: Props) {
       {/* ═══ Items Table ( fills remaining space down to Summary ) ═══ */}
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
         <colgroup>
-          <col style={{ width: '5%' }} />
-          <col style={{ width: '34%' }} />
-          <col style={{ width: '8%' }} />
-          <col style={{ width: '8%' }} />
-          <col style={{ width: '13%' }} />
-          <col style={{ width: '14%' }} />
-          <col style={{ width: '18%' }} />
+          {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
         </colgroup>
         <thead>
           <tr>
@@ -195,7 +201,14 @@ export default function PRPrint({ doc, settings }: Props) {
           {doc.items.map((item, i) => (
             <tr key={i}>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
-              <td style={{ ...tdS }}>{item?.desc ?? ''}</td>
+              <td style={{ ...tdS }}>
+                {item?.desc ?? ''}
+                {item && splitDescriptionLines(item.note).map((line, idx) => (
+                  <div key={idx} style={{ fontSize: '10.5pt', marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                    {line || '\u00a0'}
+                  </div>
+                ))}
+              </td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.price) : ''}</td>
@@ -220,27 +233,21 @@ export default function PRPrint({ doc, settings }: Props) {
       <div style={{ pageBreakInside: 'avoid' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px' }}>
           <colgroup>
-            <col style={{ width: '5%' }} />
-            <col style={{ width: '34%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '8%' }} />
-            <col style={{ width: '13%' }} />
-            <col style={{ width: '14%' }} />
-            <col style={{ width: '18%' }} />
+            {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
           </colgroup>
           <tbody>
             {hasSpecialDiscount && (
               <tr>
                 <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
-                <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
+                <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
+                <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
                 <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
             )}
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
+              <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
+              <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
