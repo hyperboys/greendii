@@ -122,14 +122,14 @@ export default function PRPrint({ doc, settings }: Props) {
               {companyName}
             </td>
             {/* Document type label — no border, PURCHASE REQUEST stacked below */}
-            <td rowSpan={4} style={{ width: '190px', verticalAlign: 'middle', paddingLeft: '10px' }}>
+            <td rowSpan={4} style={{ width: '190px', verticalAlign: 'top', paddingLeft: '10px', paddingTop: '2px' }}>
               <div style={{
                 textAlign: 'center',
                 fontWeight: 'bold',
-                lineHeight: '1.25',
+                lineHeight: '1.2',
               }}>
-                <div style={{ fontSize: '16pt' }}>ใบขอซื้อ </div>
-                <div style={{ fontSize: '14.5pt' }}>PURCHASE REQUEST</div>
+                <div style={{ fontSize: '17pt' }}>ใบขอซื้อ </div>
+                <div style={{ fontSize: '17pt' }}>PURCHASE REQUEST</div>
               </div>
             </td>
           </tr>
