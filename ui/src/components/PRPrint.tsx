@@ -128,7 +128,7 @@ export default function PRPrint({ doc, settings }: Props) {
                 fontWeight: 'bold',
                 lineHeight: '1.25',
               }}>
-                <div style={{ fontSize: '16pt' }}>ใบขอซื้อ /</div>
+                <div style={{ fontSize: '16pt' }}>ใบขอซื้อ </div>
                 <div style={{ fontSize: '14.5pt' }}>PURCHASE REQUEST</div>
               </div>
             </td>
