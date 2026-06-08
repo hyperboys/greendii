@@ -8,6 +8,7 @@ import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
+import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
@@ -53,11 +54,11 @@ export default function WorkOrderDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
+  const canEdit = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
-  const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
-  const canManageAttachments = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
+  const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
 
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
@@ -155,7 +156,6 @@ export default function WorkOrderDetailPage() {
         docId={id}
         onRefresh={load}
         readOnly={!canManageAttachments}
-        readOnlyMessage="ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้"
       />
 
       {/* Quotation items / Details of Work */}

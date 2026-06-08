@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI } from '@/lib/api'
+import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -47,8 +48,8 @@ export default function EditPRPage() {
         setWorkOrders(woList)
         setUnits(unitList)
         setPrTypes(typeList)
-        if (!['draft', 'rejected'].includes(doc.status)) {
-          toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
+        if (!isEditableApprovalDocStatus(doc.status)) {
+          toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
           router.replace(`/pr/${id}`)
           return
         }

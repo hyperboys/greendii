@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
@@ -161,8 +162,8 @@ router.put('/:id', authenticate, quotationValidators, validate, async (req, res,
     if (existing.salesId !== req.user.id && !canManageAllQuotations(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
-    if (!['draft', 'rejected'].includes(existing.status)) {
-      return res.status(400).json({ message: 'แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น' });
+    if (!isEditableApprovalDocStatus(existing.status)) {
+      return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
       customerName, customerId, attn, project, address, tel,

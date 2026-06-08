@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { Customer, Unit, QuotationItem } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
@@ -81,9 +82,9 @@ export default function QuotationFormPage() {
       setLoading(true)
       QuotationsAPI.get(params.id!)
         .then(doc => {
-          if (!['draft', 'rejected'].includes(doc.status)) {
+          if (!isEditableApprovalDocStatus(doc.status)) {
             setEditable(false)
-            toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
+            toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
             router.replace(`/quotations/${params.id!}`)
             return
           }

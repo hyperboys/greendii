@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, SettingsAPI, downloadBlob } from '@/lib/api'
+import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
@@ -56,10 +57,10 @@ export default function PRDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
+  const canEdit = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
-  const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
+  const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
   const canApprove = doc.status === 'pending' && nextStepRole === user?.role

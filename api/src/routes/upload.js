@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { APPROVAL_ATTACHMENT_LOCK_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
 
@@ -45,8 +46,8 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId) {
     throw error;
   }
   assertDocAccessible(req, workOrder);
-  if (!['draft', 'rejected'].includes(workOrder.status)) {
-    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+  if (!isEditableApprovalDocStatus(workOrder.status)) {
+    const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
     throw error;
   }
@@ -64,8 +65,8 @@ async function assertHandoverAttachmentEditable(req, handOverJobId) {
     throw error;
   }
   assertDocAccessible(req, handover);
-  if (!['draft', 'rejected'].includes(handover.status)) {
-    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+  if (!isEditableApprovalDocStatus(handover.status)) {
+    const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
     throw error;
   }
@@ -83,8 +84,8 @@ async function assertPurchaseRequestAttachmentEditable(req, purchaseRequestId) {
     throw error;
   }
   assertDocAccessible(req, purchaseRequest);
-  if (!['draft', 'rejected'].includes(purchaseRequest.status)) {
-    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+  if (!isEditableApprovalDocStatus(purchaseRequest.status)) {
+    const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
     throw error;
   }
@@ -102,8 +103,8 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
     throw error;
   }
   assertQuotationAccessible(req, quotation);
-  if (!['draft', 'rejected'].includes(quotation.status)) {
-    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+  if (!isEditableApprovalDocStatus(quotation.status)) {
+    const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
     throw error;
   }

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
@@ -142,7 +143,7 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
 router.put('/:id', authenticate, handoverValidators, validate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (ho.status !== 'draft' && ho.status !== 'rejected') return res.status(400).json({ message: 'แก้ไขได้เฉพาะสถานะ Draft หรือ Rejected เท่านั้น' });
+    if (!isEditableApprovalDocStatus(ho.status)) return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     if (ho.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }

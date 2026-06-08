@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, QuotationsAPI } from '@/lib/api'
+import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -70,8 +71,8 @@ export default function EditHandoverPage() {
   useEffect(() => {
     QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
     HandoversAPI.get(id).then(doc => {
-      if (!['draft', 'rejected'].includes(doc.status)) {
-        toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
+      if (!isEditableApprovalDocStatus(doc.status)) {
+        toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
         router.replace(`/handovers/${id}`)
         return
       }

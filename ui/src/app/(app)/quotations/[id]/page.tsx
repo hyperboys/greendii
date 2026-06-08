@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, downloadBlob } from '@/lib/api'
+import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { Quotation } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
@@ -76,9 +77,9 @@ export default function QuotationDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
-  const canEdit = isMine && ['draft', 'rejected'].includes(doc.status)
+  const canEdit = isMine && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
-  const canCancel = isMine && (doc.status === 'draft' || doc.status === 'rejected')
+  const canCancel = isMine && isEditableApprovalDocStatus(doc.status)
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'cancel') => {
     setActing(true)

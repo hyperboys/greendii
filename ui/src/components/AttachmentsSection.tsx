@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { UploadAPI } from '@/lib/api'
+import { APPROVAL_ATTACHMENT_LOCK_MESSAGE } from '@/lib/approvalFlowRules'
 import type { Attachment } from '@/types'
 import { Paperclip, Trash2, FileText, Image, File, FileSpreadsheet, PenTool, ClipboardList, CheckCircle2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -122,7 +123,7 @@ export default function AttachmentsSection({
           </span>
         ) : readOnly ? (
           <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
-            <Clock size={12} /> {readOnlyMessage || 'เอกสารถูกส่งอนุมัติแล้ว แก้ไขไฟล์แนบไม่ได้'}
+            <Clock size={12} /> {readOnlyMessage || APPROVAL_ATTACHMENT_LOCK_MESSAGE}
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-pale px-2.5 py-1 text-xs font-medium text-green-dark">

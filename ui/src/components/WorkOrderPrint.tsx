@@ -688,9 +688,11 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
                 style={{ maxWidth: '100%', maxHeight: '281mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
               />
             ) : (
-              <object data={url} type="application/pdf" style={{ flex: '1 1 auto', width: '100%', height: '281mm', border: 'none' }}>
-                <a href={url}>{att.originalName ?? 'PDF'}</a>
-              </object>
+              <iframe
+                src={url}
+                title={att.originalName ?? `attachment-${ai + 1}`}
+                style={{ flex: '1 1 auto', width: '100%', height: '281mm', border: 'none', background: '#fff' }}
+              />
             )}
           </div>
         )

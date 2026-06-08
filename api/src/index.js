@@ -39,6 +39,8 @@ app.set('trust proxy', 1);
 
 // ─── SECURITY HEADERS ───────────────────────────────────────────────────────
 // crossOriginResourcePolicy is relaxed so /uploads can be embedded by the UI.
+// Keep frameguard on for normal routes; we remove X-Frame-Options only for
+// static uploads so PDF attachments can render inside the UI preview iframe.
 app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false, // Swagger UI needs inline scripts/styles
@@ -83,7 +85,15 @@ if (process.env.NODE_ENV !== 'production') {
 app.use(activityLogger);
 
 // ─── STATIC UPLOADS ─────────────────────────────────────────────────────────
-app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads'), {
+  setHeaders: (res, filePath) => {
+    res.removeHeader('X-Frame-Options');
+    res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+    if (path.extname(filePath).toLowerCase() === '.pdf') {
+      res.setHeader('Content-Disposition', 'inline');
+    }
+  },
+}));
 
 // ─── SWAGGER DOCS ───────────────────────────────────────────────────────────
 try {

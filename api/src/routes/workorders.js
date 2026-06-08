@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
+const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
 const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
@@ -212,8 +213,8 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     if (existing.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
-    if (!['draft', 'rejected'].includes(existing.status)) {
-      return res.status(400).json({ message: 'แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น' });
+    if (!isEditableApprovalDocStatus(existing.status)) {
+      return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
       quotationId,
