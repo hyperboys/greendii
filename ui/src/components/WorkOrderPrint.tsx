@@ -183,9 +183,11 @@ interface Props {
   doc: WorkOrder
   settings: Settings | null
   onReady?: () => void
+  /** When true (default), embed PDF attachments via <object>. Puppeteer passes false because PDFs are merged server-side. */
+  embedPdfAttachments?: boolean
 }
 
-export default function WorkOrderPrint({ doc, settings, onReady }: Props) {
+export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachments = true }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
@@ -226,6 +228,17 @@ export default function WorkOrderPrint({ doc, settings, onReady }: Props) {
   const qItems = doc.quotation?.items ?? []
   const renderItems = buildRenderableItems(qItems)
   const totalPages = pages?.length ?? 1
+
+  // Attachment sheets appended after the Work Order pages (no header).
+  // Images render as <img> in every context; PDFs render as <object> only in
+  // on-screen preview — Puppeteer skips them (embedPdfAttachments=false) because
+  // PDF files are merged into the output server-side with pdf-lib.
+  const attachmentSheets = (doc.attachments ?? []).filter(att => {
+    if (!att.fileUrl) return false
+    if (att.mimeType?.startsWith('image/')) return true
+    if (att.mimeType === 'application/pdf') return embedPdfAttachments
+    return false
+  })
 
   useEffect(() => {
     setPages(null)
@@ -637,8 +650,8 @@ export default function WorkOrderPrint({ doc, settings, onReady }: Props) {
           key={pi}
           className="workorder-page"
           style={{
-            pageBreakAfter: pi < totalPages - 1 ? 'always' : 'auto',
-            breakAfter: pi < totalPages - 1 ? 'page' : 'auto',
+            pageBreakAfter: pi < totalPages - 1 || attachmentSheets.length > 0 ? 'always' : 'auto',
+            breakAfter: pi < totalPages - 1 || attachmentSheets.length > 0 ? 'page' : 'auto',
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
@@ -650,6 +663,38 @@ export default function WorkOrderPrint({ doc, settings, onReady }: Props) {
           {page.tail && renderBottomSections()}
         </div>
       ))}
+      {attachmentSheets.map((att, ai) => {
+        const isLastSheet = ai === attachmentSheets.length - 1
+        const url = resolveFileUrl(att.fileUrl as string)
+        const isImage = att.mimeType?.startsWith('image/')
+        return (
+          <div
+            key={`att-${att.id}`}
+            className="workorder-page workorder-attachment-page"
+            style={{
+              pageBreakAfter: isLastSheet ? 'auto' : 'always',
+              breakAfter: isLastSheet ? 'auto' : 'page',
+              position: 'relative',
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: '281mm',
+            }}
+          >
+            {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={url}
+                alt={att.originalName ?? ''}
+                style={{ maxWidth: '100%', maxHeight: '281mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
+              />
+            ) : (
+              <object data={url} type="application/pdf" style={{ flex: '1 1 auto', width: '100%', height: '281mm', border: 'none' }}>
+                <a href={url}>{att.originalName ?? 'PDF'}</a>
+              </object>
+            )}
+          </div>
+        )
+      })}
     </div>
   )
 }

@@ -42,6 +42,41 @@ function buildOptionalRelationUpdate(id) {
   return id ? { connect: { id } } : { disconnect: true };
 }
 
+async function loadAttachmentBytes(att) {
+  const fileUrl = att.fileUrl || '';
+  if (/^https?:\/\//i.test(fileUrl)) {
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) throw new Error(`fetch failed ${resp.status}`);
+    return Buffer.from(await resp.arrayBuffer());
+  }
+  const path = require('path');
+  const fs = require('fs/promises');
+  return fs.readFile(path.join(__dirname, '../../uploads', att.filename));
+}
+
+async function appendPdfAttachments(basePdf, attachments) {
+  const pdfAtts = (attachments || []).filter(a => a.mimeType === 'application/pdf');
+  if (pdfAtts.length === 0) return basePdf;
+  const { PDFDocument } = require('pdf-lib');
+  let merged;
+  try {
+    merged = await PDFDocument.load(basePdf);
+  } catch {
+    return basePdf;
+  }
+  for (const att of pdfAtts) {
+    try {
+      const bytes = await loadAttachmentBytes(att);
+      const src = await PDFDocument.load(bytes);
+      const copied = await merged.copyPages(src, src.getPageIndices());
+      copied.forEach(p => merged.addPage(p));
+    } catch {
+      // skip unreadable / encrypted PDF attachment
+    }
+  }
+  return Buffer.from(await merged.save());
+}
+
 async function ensureQuotationAccessible(req, quotationId) {
   if (!quotationId) return;
   const quotation = await prisma.quotation.findUnique({
@@ -107,13 +142,24 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
-    const url = `${uiBase}/print/workorder/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id }, select: { woNo: true, salesId: true } });
+    const url = `${uiBase}/print/workorder/${req.params.id}?token=${encodeURIComponent(token)}&mode=pdf`;
+    const item = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+      select: {
+        woNo: true,
+        salesId: true,
+        attachments: {
+          select: { filename: true, fileUrl: true, mimeType: true, originalName: true },
+          orderBy: { uploadedAt: 'asc' },
+        },
+      },
+    });
     assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
+    const finalPdf = await appendPdfAttachments(pdf, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.woNo || 'workorder'}.pdf"`);
-    res.send(pdf);
+    res.send(finalPdf);
   } catch (e) { next(e); }
 });
 

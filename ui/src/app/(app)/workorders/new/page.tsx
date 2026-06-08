@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI } from '@/lib/api'
+import { WorkOrdersAPI, QuotationsAPI, UploadAPI } from '@/lib/api'
 import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
+import AttachmentsSection, { type PendingAttachment } from '@/components/AttachmentsSection'
 
 interface FormData {
   quotationId: string
@@ -26,6 +27,7 @@ interface FormData {
 export default function NewWorkOrderPage() {
   const router = useRouter()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
@@ -56,6 +58,19 @@ export default function NewWorkOrderPage() {
     setSaving(true)
     try {
       const created = await WorkOrdersAPI.create({ ...form, docChecklist: {} })
+      if (pendingAttachments.length > 0) {
+        const byCategory = pendingAttachments.reduce<Record<string, File[]>>((acc, p) => {
+          (acc[p.category] ??= []).push(p.file)
+          return acc
+        }, {})
+        try {
+          for (const [category, files] of Object.entries(byCategory)) {
+            await UploadAPI.upload(files, { workOrderId: created.id, category })
+          }
+        } catch {
+          toast.error('สร้างใบสั่งงานแล้ว แต่แนบไฟล์บางส่วนไม่สำเร็จ')
+        }
+      }
       toast.success('สร้างใบสั่งงานสำเร็จ')
       router.replace(`/workorders/${created.id}`)
     } catch (err) {
@@ -134,6 +149,12 @@ export default function NewWorkOrderPage() {
           <textarea className="form-input" rows={2} {...f('remark')} />
         </div>
       </div>
+
+      <AttachmentsSection
+        docField="workOrderId"
+        pending={pendingAttachments}
+        onPendingChange={setPendingAttachments}
+      />
 
       <div className="flex justify-end gap-3">
         <button type="button" className="btn-outline" onClick={() => router.back()}>ยกเลิก</button>

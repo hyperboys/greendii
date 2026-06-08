@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI, downloadBlob } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS } from '@/types'
@@ -148,6 +148,13 @@ export default function WorkOrderDetailPage() {
         {doc.remark && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>}
       </div>
 
+      <AttachmentsSection
+        attachments={doc.attachments ?? []}
+        docField="workOrderId"
+        docId={id}
+        onRefresh={load}
+      />
+
       {/* Quotation items / Details of Work */}
       {doc.quotation?.items && doc.quotation.items.length > 0 && (
         <div className="card p-5">
@@ -170,7 +177,20 @@ export default function WorkOrderDetailPage() {
                     <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
                     <td className="border px-2 py-1.5">
                       <div>{item.desc}</div>
-                      {item.note && <div className="text-xs text-gray-400">{item.note}</div>}
+                      {item.note && <div className="whitespace-pre-line text-xs text-gray-400">{item.note}</div>}
+                      {Array.isArray(item.images) && item.images.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.images.map((url, imageIndex) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={`${i}-${imageIndex}`}
+                              src={resolveFileUrl(url)}
+                              alt="รูปประกอบจากใบเสนอราคา"
+                              className="h-24 w-24 rounded border border-gray-200 object-contain bg-white p-1"
+                            />
+                          ))}
+                        </div>
+                      )}
                     </td>
                     <td className="border px-2 py-1.5 text-right">{item.qty}</td>
                     <td className="border px-2 py-1.5 text-center">{item.unit}</td>
@@ -219,13 +239,6 @@ export default function WorkOrderDetailPage() {
           </div>
         )}
       </div>
-
-      <AttachmentsSection
-        attachments={doc.attachments ?? []}
-        docField="workOrderId"
-        docId={id}
-        onRefresh={load}
-      />
 
       {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3">

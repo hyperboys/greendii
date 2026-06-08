@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { WorkOrdersAPI, QuotationsAPI } from '@/lib/api'
-import type { Quotation } from '@/types'
+import type { Quotation, Attachment } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 interface FormData {
   quotationId: string
@@ -27,6 +28,7 @@ export default function EditWorkOrderPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -48,6 +50,7 @@ export default function EditWorkOrderPage() {
           router.replace(`/workorders/${id}`)
           return
         }
+        setAttachments(doc.attachments ?? [])
         setForm({
           quotationId: doc.quotationId ?? '',
           customerName: doc.customerName ?? '',
@@ -102,6 +105,12 @@ export default function EditWorkOrderPage() {
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value })),
   })
+
+  const reloadAttachments = () => {
+    WorkOrdersAPI.get(id)
+      .then(doc => setAttachments(doc.attachments ?? []))
+      .catch(() => {})
+  }
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
@@ -169,6 +178,13 @@ export default function EditWorkOrderPage() {
           <textarea className="form-input" rows={2} {...f('remark')} />
         </div>
       </div>
+
+      <AttachmentsSection
+        attachments={attachments}
+        docField="workOrderId"
+        docId={id}
+        onRefresh={reloadAttachments}
+      />
 
       <div className="flex justify-end gap-3">
         <button type="button" className="btn-outline" onClick={() => router.back()}>ยกเลิก</button>
