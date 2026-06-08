@@ -22,10 +22,8 @@ export default function PrintHandoverPage() {
       .catch((e) => setError(String(e)))
   }, [id])
 
-  useEffect(() => { if (doc) void signalPrintReady() }, [doc])
-
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>
   if (!doc) return <div style={{ padding: 20 }}>Loading…</div>
 
-  return <HandoverPrint doc={doc} settings={settings} />
+  return <HandoverPrint doc={doc} settings={settings} onReady={() => { void signalPrintReady() }} />
 }
