@@ -62,6 +62,7 @@ export default function QuotationFormPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
+  const [editable, setEditable] = useState(true)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number }>({
     customerId: '', customerName: '', attn: '', project: '',
@@ -80,6 +81,12 @@ export default function QuotationFormPage() {
       setLoading(true)
       QuotationsAPI.get(params.id!)
         .then(doc => {
+          if (!['draft', 'rejected'].includes(doc.status)) {
+            setEditable(false)
+            toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
+            router.replace(`/quotations/${params.id!}`)
+            return
+          }
           const leadTime = doc.leadTime ?? ''
           setForm({
             customerId: doc.customerId ?? '',
@@ -134,12 +141,16 @@ export default function QuotationFormPage() {
     setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))
 
   const uploadItemImages = async (itemIdx: number, files: FileList | null) => {
+    if (!editable) return
     if (!files || files.length === 0) return
     const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
     if (imageFiles.length === 0) return toast.error('รองรับเฉพาะไฟล์รูปภาพ')
     const tId = toast.loading('กำลังอัปโหลดรูป...')
     try {
-      const saved = await UploadAPI.upload(imageFiles, { category: 'quotation-item' })
+      const saved = await UploadAPI.upload(imageFiles, {
+        category: 'quotation-item',
+        ...(isEdit ? { quotationId: params.id! } : {}),
+      })
       const urls = saved.map((a: any) => a.fileUrl).filter(Boolean)
       setForm(f => {
         const items = [...f.items]
@@ -211,6 +222,7 @@ export default function QuotationFormPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!editable) return
     if (!form.customerName || !form.project) {
       toast.error('กรุณากรอกลูกค้าและโครงการ')
       return

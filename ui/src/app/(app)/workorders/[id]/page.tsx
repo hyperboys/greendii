@@ -53,10 +53,11 @@ export default function WorkOrderDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && doc.status === 'draft'
+  const canEdit = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
+  const canManageAttachments = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
 
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
@@ -153,6 +154,8 @@ export default function WorkOrderDetailPage() {
         docField="workOrderId"
         docId={id}
         onRefresh={load}
+        readOnly={!canManageAttachments}
+        readOnlyMessage="ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้"
       />
 
       {/* Quotation items / Details of Work */}

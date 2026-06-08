@@ -47,8 +47,8 @@ export default function EditPRPage() {
         setWorkOrders(woList)
         setUnits(unitList)
         setPrTypes(typeList)
-        if (doc.status !== 'draft') {
-          toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft เท่านั้น')
+        if (!['draft', 'rejected'].includes(doc.status)) {
+          toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
           router.replace(`/pr/${id}`)
           return
         }

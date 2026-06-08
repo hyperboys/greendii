@@ -5,6 +5,7 @@ const fs = require('fs');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
+const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -32,10 +33,90 @@ const upload = multer({
   },
 });
 
+async function assertWorkOrderAttachmentEditable(req, workOrderId) {
+  if (!workOrderId) return;
+  const workOrder = await prisma.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: { id: true, salesId: true, status: true },
+  });
+  if (!workOrder) {
+    const error = new Error('ไม่พบใบสั่งงาน');
+    error.status = 404;
+    throw error;
+  }
+  assertDocAccessible(req, workOrder);
+  if (!['draft', 'rejected'].includes(workOrder.status)) {
+    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function assertHandoverAttachmentEditable(req, handOverJobId) {
+  if (!handOverJobId) return;
+  const handover = await prisma.handOverJob.findUnique({
+    where: { id: handOverJobId },
+    select: { id: true, salesId: true, status: true },
+  });
+  if (!handover) {
+    const error = new Error('ไม่พบใบส่งมอบงาน');
+    error.status = 404;
+    throw error;
+  }
+  assertDocAccessible(req, handover);
+  if (!['draft', 'rejected'].includes(handover.status)) {
+    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function assertPurchaseRequestAttachmentEditable(req, purchaseRequestId) {
+  if (!purchaseRequestId) return;
+  const purchaseRequest = await prisma.purchaseRequest.findUnique({
+    where: { id: purchaseRequestId },
+    select: { id: true, salesId: true, status: true },
+  });
+  if (!purchaseRequest) {
+    const error = new Error('ไม่พบใบขอซื้อ');
+    error.status = 404;
+    throw error;
+  }
+  assertDocAccessible(req, purchaseRequest);
+  if (!['draft', 'rejected'].includes(purchaseRequest.status)) {
+    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+    error.status = 400;
+    throw error;
+  }
+}
+
+async function assertQuotationAttachmentEditable(req, quotationId) {
+  if (!quotationId) return;
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: { id: true, salesId: true, status: true },
+  });
+  if (!quotation) {
+    const error = new Error('ไม่พบใบเสนอราคา');
+    error.status = 404;
+    throw error;
+  }
+  assertQuotationAccessible(req, quotation);
+  if (!['draft', 'rejected'].includes(quotation.status)) {
+    const error = new Error('ส่งอนุมัติแล้ว ต้องถูก reject ก่อนจึงจะแนบไฟล์เพิ่มได้');
+    error.status = 400;
+    throw error;
+  }
+}
+
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
   try {
     const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId } = req.body;
+    await assertQuotationAttachmentEditable(req, quotationId);
+    await assertWorkOrderAttachmentEditable(req, workOrderId);
+    await assertHandoverAttachmentEditable(req, handOverJobId);
+    await assertPurchaseRequestAttachmentEditable(req, purchaseRequestId);
     const saved = [];
     for (const file of req.files || []) {
       let filename, fileUrl;
@@ -76,6 +157,10 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    await assertQuotationAttachmentEditable(req, att.quotationId);
+    await assertWorkOrderAttachmentEditable(req, att.workOrderId);
+    await assertHandoverAttachmentEditable(req, att.handOverJobId);
+    await assertPurchaseRequestAttachmentEditable(req, att.purchaseRequestId);
     if (isR2Enabled) {
       await deleteFromR2(att.filename).catch(() => {}); // ไม่ block ถ้า R2 fail
     } else {

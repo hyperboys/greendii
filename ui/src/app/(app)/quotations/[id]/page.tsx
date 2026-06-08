@@ -76,7 +76,7 @@ export default function QuotationDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const isMine = doc.salesId === user?.id
-  const canEdit = isMine && doc.status !== 'cancelled'
+  const canEdit = isMine && ['draft', 'rejected'].includes(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canCancel = isMine && (doc.status === 'draft' || doc.status === 'rejected')
 

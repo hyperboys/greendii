@@ -22,6 +22,8 @@ interface Props {
   /** Deferred mode: files chosen before the document exists (e.g. create page). */
   pending?: PendingAttachment[]
   onPendingChange?: (files: PendingAttachment[]) => void
+  readOnly?: boolean
+  readOnlyMessage?: string
 }
 
 const CATEGORIES = [
@@ -46,7 +48,16 @@ function fmtSize(bytes: number) {
 
 let pendingSeq = 0
 
-export default function AttachmentsSection({ attachments = [], docField, docId, onRefresh, pending = [], onPendingChange }: Props) {
+export default function AttachmentsSection({
+  attachments = [],
+  docField,
+  docId,
+  onRefresh,
+  pending = [],
+  onPendingChange,
+  readOnly = false,
+  readOnlyMessage,
+}: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
   const [uploading, setUploading] = useState<CategoryKey | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
@@ -55,6 +66,7 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
 
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return
+    if (readOnly) return
 
     // Deferred mode — buffer files locally until the document is created.
     if (deferred) {
@@ -80,6 +92,7 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
   }
 
   const handleDelete = async (id: string) => {
+    if (readOnly) return
     if (deferred) {
       onPendingChange?.(pending.filter(p => p.id !== id))
       return
@@ -107,6 +120,10 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-600">
             <Clock size={12} /> ไฟล์จะถูกบันทึกเมื่อกดสร้าง/บันทึกเอกสาร
           </span>
+        ) : readOnly ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-1 text-xs font-medium text-gray-600">
+            <Clock size={12} /> {readOnlyMessage || 'เอกสารถูกส่งอนุมัติแล้ว แก้ไขไฟล์แนบไม่ได้'}
+          </span>
         ) : (
           <span className="inline-flex items-center gap-1 rounded-full bg-green-pale px-2.5 py-1 text-xs font-medium text-green-dark">
             <CheckCircle2 size={12} /> แนบแล้วบันทึกอัตโนมัติทันที
@@ -125,16 +142,24 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
               <p className="text-sm font-medium text-gray-700">{label}</p>
 
               {/* Drop zone */}
-              <div
-                className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
-                onClick={() => !isUploading && inputRefs.current[key]?.click()}
-              >
-                <Icon size={28} className="text-gray-300" />
-                <span className="text-sm text-blue-500">
-                  {isUploading ? 'กำลังอัพโหลด…' : 'คลิกหรือลากไฟล์'}
-                </span>
-                <span className="text-xs text-gray-400">{hint}</span>
-              </div>
+              {readOnly ? (
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
+                  <Icon size={28} className="text-gray-300" />
+                  <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
+                  <span className="text-xs text-gray-400">ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้</span>
+                </div>
+              ) : (
+                <div
+                  className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
+                  onClick={() => !isUploading && inputRefs.current[key]?.click()}
+                >
+                  <Icon size={28} className="text-gray-300" />
+                  <span className="text-sm text-blue-500">
+                    {isUploading ? 'กำลังอัพโหลด…' : 'คลิกหรือลากไฟล์'}
+                  </span>
+                  <span className="text-xs text-gray-400">{hint}</span>
+                </div>
+              )}
 
               <input
                 type="file"
@@ -166,14 +191,16 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
                         )}
                         <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
                       </div>
-                      <button
-                        type="button"
-                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                        onClick={() => handleDelete(att.id)}
-                        disabled={deleting === att.id}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                          onClick={() => handleDelete(att.id)}
+                          disabled={deleting === att.id}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -189,13 +216,15 @@ export default function AttachmentsSection({ attachments = [], docField, docId, 
                         <span className="text-sm text-gray-700 truncate block">{p.file.name}</span>
                         <span className="text-xs text-gray-400">{fmtSize(p.file.size)} · รอบันทึก</span>
                       </div>
-                      <button
-                        type="button"
-                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                        onClick={() => handleDelete(p.id)}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                      {!readOnly && (
+                        <button
+                          type="button"
+                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                          onClick={() => handleDelete(p.id)}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>

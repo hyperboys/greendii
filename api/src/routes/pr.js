@@ -139,6 +139,9 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
     if (existing.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
+    if (!['draft', 'rejected'].includes(existing.status)) {
+      return res.status(400).json({ message: 'แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น' });
+    }
     const {
       customer, projectRef, dateIssue, dateRequired, prTypeId,
       items = [], subTotal, specialDiscount, vat, netTotal, remarks,

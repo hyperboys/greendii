@@ -70,6 +70,11 @@ export default function EditHandoverPage() {
   useEffect(() => {
     QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
     HandoversAPI.get(id).then(doc => {
+      if (!['draft', 'rejected'].includes(doc.status)) {
+        toast.error('แก้ไขได้เฉพาะเอกสารสถานะ Draft หรือ Rejected เท่านั้น')
+        router.replace(`/handovers/${id}`)
+        return
+      }
       setForm({
         quotationId: doc.quotationId ?? doc.workOrder?.quotation?.id ?? '',
         project: doc.project ?? '',

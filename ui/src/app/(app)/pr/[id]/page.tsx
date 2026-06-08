@@ -56,7 +56,7 @@ export default function PRDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && doc.status === 'draft'
+  const canEdit = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && ['draft', 'rejected'].includes(doc.status)
