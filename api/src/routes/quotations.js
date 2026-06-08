@@ -35,6 +35,28 @@ const INCLUDE_FULL = {
 
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
 
+function stripRevisionSuffix(docNo = '') {
+  return String(docNo).replace(/-R\d+$/i, '')
+}
+
+function buildRevisionDocNo(baseNo, revisionNo) {
+  return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`
+}
+
+async function nextQuotationBaseNoForUser(user) {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const yy = String(now.getFullYear()).slice(2);
+  const initials = (user.initials || 'XX').toUpperCase();
+  const prefix = `QGD-${mm}${yy}-${initials}`;
+  const last = await prisma.quotation.findFirst({
+    where: { quoNo: { startsWith: prefix } },
+    orderBy: { quoNo: 'desc' },
+  });
+  const seq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) + 1 : 1;
+  return `${prefix}${String(seq).padStart(3, '0')}`;
+}
+
 async function ensureCustomerBelongsToSales(req, customerId) {
   if (!customerId || MANAGER_ROLES.includes(req.user.role)) return
   const customer = await prisma.customer.findUnique({ where: { id: customerId }, select: { id: true, salesId: true } })
@@ -48,10 +70,12 @@ async function ensureCustomerBelongsToSales(req, customerId) {
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, salesId, q } = req.query;
+    const { status, salesId, q, active } = req.query;
     const where = {};
     if (status) where.status = status;
     if (salesId) where.salesId = salesId;
+    if (active !== undefined) where.active = active === 'true';
+    else where.active = true;
     if (q) where.OR = [
       { quoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
@@ -121,25 +145,14 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
     if (!project || !customerName) {
       return res.status(400).json({ message: 'project, customerName required' });
     }
-    // Auto-generate quoNo: QGD-MMYY-INITIALS+SEQ3 (e.g. QGD-0526-KC001)
-    const now = new Date();
-    const mm = String(now.getMonth() + 1).padStart(2, '0');
-    const yy = String(now.getFullYear()).slice(2);
-    const initials = (req.user.initials || 'XX').toUpperCase();
-    const prefix = `QGD-${mm}${yy}-${initials}`;
-    const last = await prisma.quotation.findFirst({
-      where: { quoNo: { startsWith: prefix } },
-      orderBy: { quoNo: 'desc' },
-    });
-    const seq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) + 1 : 1;
-    const quoNo = `${prefix}${String(seq).padStart(3, '0')}`;
+    const quoNo = await nextQuotationBaseNoForUser(req.user)
     await ensureCustomerBelongsToSales(req, customerId)
     const quo = await prisma.quotation.create({
       data: {
         quoNo, customerName, customerId: customerId || null, attn, project, address, tel,
         conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
-        remark, salesId: req.user.id, status: 'draft',
+        remark, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
         items: {
           create: items.map((it, i) => ({
             seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
@@ -154,6 +167,76 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
     res.status(201).json(quo);
   } catch (e) { next(e); }
 });
+
+// POST /api/quotations/:id/revise
+router.post('/:id/revise', authenticate, async (req, res, next) => {
+  try {
+    const source = await prisma.quotation.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { items: { orderBy: { seq: 'asc' } } },
+    })
+    assertQuotationAccessible(req, source)
+
+    if (source.status !== 'approved') {
+      return res.status(400).json({ message: 'ทำ Revision ได้เฉพาะใบเสนอราคาที่อนุมัติแล้วเท่านั้น' })
+    }
+    if (!source.active) {
+      return res.status(400).json({ message: 'ใบเสนอราคานี้ไม่ใช่ฉบับที่ active ล่าสุด' })
+    }
+
+    const rootId = source.rootQuotationId || source.id
+    const revisionNo = (source.revisionNo || 0) + 1
+    const revisedNo = buildRevisionDocNo(source.quoNo, revisionNo)
+
+    const revised = await prisma.$transaction(async (tx) => {
+      await tx.quotation.update({ where: { id: source.id }, data: { active: false } })
+
+      return tx.quotation.create({
+        data: {
+          quoNo: revisedNo,
+          active: true,
+          revisionNo,
+          rootQuotationId: rootId,
+          salesId: source.salesId,
+          customerId: source.customerId,
+          customerName: source.customerName,
+          attn: source.attn,
+          project: source.project,
+          address: source.address,
+          tel: source.tel,
+          conditionTerm: source.conditionTerm,
+          validityDays: source.validityDays,
+          leadTime: source.leadTime,
+          paymentTerm: source.paymentTerm,
+          subTotal: source.subTotal,
+          specialDiscount: source.specialDiscount,
+          vat: source.vat,
+          grandTotal: source.grandTotal,
+          remark: source.remark,
+          status: 'draft',
+          approvalStep: 0,
+          items: {
+            create: source.items.map((it) => ({
+              seq: it.seq,
+              desc: it.desc,
+              note: it.note,
+              qty: it.qty,
+              unit: it.unit,
+              materialPrice: it.materialPrice,
+              labourPrice: it.labourPrice,
+              price: it.price,
+              amount: it.amount,
+              images: Array.isArray(it.images) ? it.images : [],
+            })),
+          },
+        },
+        include: INCLUDE_FULL,
+      })
+    })
+
+    res.status(201).json(revised)
+  } catch (e) { next(e) }
+})
 
 // PUT /api/quotations/:id
 router.put('/:id', authenticate, quotationValidators, validate, async (req, res, next) => {

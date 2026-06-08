@@ -31,6 +31,24 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+function stripRevisionSuffix(docNo = '') {
+  return String(docNo).replace(/-R\d+$/i, '')
+}
+
+function buildRevisionDocNo(baseNo, revisionNo) {
+  return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`
+}
+
+async function nextWorkOrderBaseNo() {
+  const yy = String(new Date().getFullYear()).slice(2);
+  const lastWO = await prisma.workOrder.findFirst({
+    where: { woNo: { startsWith: `WO${yy}` } },
+    orderBy: { woNo: 'desc' },
+  });
+  const seq = lastWO ? (parseInt(stripRevisionSuffix(lastWO.woNo).replace(`WO${yy}`, ''), 10) || 0) + 1 : 1;
+  return `WO${yy}${String(seq).padStart(3, '0')}`;
+}
+
 function normalizeOptionalId(value) {
   if (value === undefined) return undefined;
   if (value === null) return null;
@@ -92,14 +110,54 @@ async function ensureQuotationAccessible(req, quotationId) {
   assertQuotationAccessible(req, quotation);
 }
 
+// GET /api/workorders/by-quotation/:quotationId/previous
+// Returns the currently active Work Order in the same quotation chain,
+// used as the source when creating a WO from a revised quotation (R1/R2/...)
+router.get('/by-quotation/:quotationId/previous', authenticate, async (req, res, next) => {
+  try {
+    const quotation = await prisma.quotation.findUniqueOrThrow({
+      where: { id: req.params.quotationId },
+      select: { id: true, salesId: true, rootQuotationId: true, revisionNo: true },
+    })
+    assertQuotationAccessible(req, quotation)
+
+    if (!quotation.revisionNo || quotation.revisionNo <= 0) {
+      return res.json(null)
+    }
+
+    const rootQuotationId = quotation.rootQuotationId || quotation.id
+    const source = await prisma.workOrder.findFirst({
+      where: {
+        active: true,
+        quotation: {
+          is: {
+            OR: [
+              { id: rootQuotationId },
+              { rootQuotationId },
+            ],
+          },
+        },
+      },
+      orderBy: [{ revisionNo: 'desc' }, { createdAt: 'desc' }],
+      include: {
+        quotation: { select: { id: true, quoNo: true } },
+      },
+    })
+
+    res.json(source || null)
+  } catch (e) { next(e) }
+})
+
 // GET /api/workorders
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, salesId, isClosed, q } = req.query;
+    const { status, salesId, isClosed, q, active } = req.query;
     const where = {};
     if (status) where.status = status;
     if (salesId) where.salesId = salesId;
     if (isClosed !== undefined) where.isClosed = isClosed === 'true';
+    if (active !== undefined) where.active = active === 'true';
+    else where.active = true;
     if (q) where.OR = [
       { woNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
@@ -172,28 +230,114 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
-    if (!project || !customerName) {
-      return res.status(400).json({ message: 'project and customerName required' });
-    }
-    const yy = String(new Date().getFullYear()).slice(2);
-    const lastWO = await prisma.workOrder.findFirst({
-      where: { woNo: { startsWith: `WO${yy}` } },
-      orderBy: { woNo: 'desc' },
-    });
-    const seq = lastWO ? (parseInt(lastWO.woNo.replace(`WO${yy}`, ''), 10) || 0) + 1 : 1;
-    const woNo = `WO${yy}${String(seq).padStart(3, '0')}`;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     await ensureQuotationAccessible(req, normalizedQuotationId);
-    const wo = await prisma.workOrder.create({
-      data: {
-        woNo, quotationId: normalizedQuotationId, project, location, products, responsibility,
-        customerName, contactName, contactTel, teamAssignment,
-        qcDate: qcDate ? new Date(qcDate) : null,
-        installDate: installDate ? new Date(installDate) : null,
-        remark, docChecklist: docChecklist || {},
-        salesId: req.user.id, status: 'draft',
-      },
-    });
+
+    const linkedQuotation = normalizedQuotationId
+      ? await prisma.quotation.findUnique({
+          where: { id: normalizedQuotationId },
+          select: {
+            id: true,
+            rootQuotationId: true,
+            revisionNo: true,
+            customerName: true,
+            project: true,
+          },
+        })
+      : null
+
+    const isRevisionQuote = Boolean(linkedQuotation && linkedQuotation.revisionNo > 0)
+
+    const wo = await prisma.$transaction(async (tx) => {
+      let woNo = await nextWorkOrderBaseNo()
+      let rootWorkOrderId = null
+      let revisionNo = 0
+      let projectValue = project
+      let locationValue = location
+      let productsValue = products
+      let responsibilityValue = responsibility
+      let customerNameValue = customerName
+      let contactNameValue = contactName
+      let contactTelValue = contactTel
+      let teamAssignmentValue = teamAssignment
+      let qcDateValue = qcDate
+      let installDateValue = installDate
+      let remarkValue = remark
+      let checklistValue = docChecklist || {}
+
+      if (isRevisionQuote) {
+        const rootQuotationId = linkedQuotation.rootQuotationId || linkedQuotation.id
+        const prevActiveWo = await tx.workOrder.findFirst({
+          where: {
+            active: true,
+            quotation: {
+              OR: [
+                { id: rootQuotationId },
+                { rootQuotationId },
+              ],
+            },
+          },
+          orderBy: [{ revisionNo: 'desc' }, { createdAt: 'desc' }],
+        })
+
+        revisionNo = linkedQuotation.revisionNo
+
+        if (prevActiveWo) {
+          woNo = buildRevisionDocNo(prevActiveWo.woNo, revisionNo)
+          rootWorkOrderId = prevActiveWo.rootWorkOrderId || prevActiveWo.id
+
+          projectValue = project || prevActiveWo.project
+          locationValue = location ?? prevActiveWo.location
+          productsValue = products ?? prevActiveWo.products
+          responsibilityValue = responsibility ?? prevActiveWo.responsibility
+          customerNameValue = customerName || prevActiveWo.customerName
+          contactNameValue = contactName ?? prevActiveWo.contactName
+          contactTelValue = contactTel ?? prevActiveWo.contactTel
+          teamAssignmentValue = teamAssignment ?? prevActiveWo.teamAssignment
+          qcDateValue = qcDate || (prevActiveWo.qcDate ? prevActiveWo.qcDate.toISOString().slice(0, 10) : null)
+          installDateValue = installDate || (prevActiveWo.installDate ? prevActiveWo.installDate.toISOString().slice(0, 10) : null)
+          remarkValue = remark ?? prevActiveWo.remark
+          checklistValue = docChecklist || prevActiveWo.docChecklist || {}
+
+          await tx.workOrder.update({ where: { id: prevActiveWo.id }, data: { active: false } })
+        } else {
+          woNo = buildRevisionDocNo(await nextWorkOrderBaseNo(), revisionNo)
+          projectValue = project || linkedQuotation.project
+          customerNameValue = customerName || linkedQuotation.customerName
+        }
+      }
+
+      if (!projectValue || !customerNameValue) {
+        const error = new Error('project and customerName required')
+        error.status = 400
+        throw error
+      }
+
+      return tx.workOrder.create({
+        data: {
+          woNo,
+          active: true,
+          revisionNo,
+          rootWorkOrderId,
+          quotationId: normalizedQuotationId,
+          project: projectValue,
+          location: locationValue,
+          products: productsValue,
+          responsibility: responsibilityValue,
+          customerName: customerNameValue,
+          contactName: contactNameValue,
+          contactTel: contactTelValue,
+          teamAssignment: teamAssignmentValue,
+          qcDate: qcDateValue ? new Date(qcDateValue) : null,
+          installDate: installDateValue ? new Date(installDateValue) : null,
+          remark: remarkValue,
+          docChecklist: checklistValue,
+          salesId: req.user.id,
+          status: 'draft',
+        },
+      })
+    })
+
     await prisma.approvalLog.create({
       data: {
         docType: 'workorder', workOrderId: wo.id,

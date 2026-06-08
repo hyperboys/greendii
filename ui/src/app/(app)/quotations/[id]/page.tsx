@@ -80,6 +80,7 @@ export default function QuotationDetailPage() {
   const canEdit = isMine && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canCancel = isMine && isEditableApprovalDocStatus(doc.status)
+  const canRevise = isMine && doc.status === 'approved' && (doc.active ?? true)
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'cancel') => {
     setActing(true)
@@ -113,6 +114,20 @@ export default function QuotationDetailPage() {
     }
   }
 
+  const createRevision = async () => {
+    if (!canRevise || acting) return
+    setActing(true)
+    try {
+      const revised = await QuotationsAPI.revise(id)
+      toast.success('สร้างฉบับ Revision สำเร็จ')
+      router.push(`/quotations/${revised.id}/edit`)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'สร้าง Revision ไม่สำเร็จ')
+    } finally {
+      setActing(false)
+    }
+  }
+
   return (
     <>
     <div className="screen-only w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5">
@@ -132,6 +147,11 @@ export default function QuotationDetailPage() {
           {canEdit && (
             <button className="btn-outline btn-sm" onClick={() => router.push(`/quotations/${id}/edit`)}>
               <Pencil size={14} /> แก้ไข
+            </button>
+          )}
+          {canRevise && (
+            <button className="btn-outline btn-sm" onClick={createRevision} disabled={acting}>
+              <Pencil size={14} /> สร้าง Revision
             </button>
           )}
           <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>

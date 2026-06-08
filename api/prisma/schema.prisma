@@ -178,6 +178,11 @@ model Settings {
 model Quotation {
   id            String    @id @default(cuid())
   quoNo         String    @unique
+  active        Boolean   @default(true)
+  revisionNo    Int       @default(0)
+  rootQuotationId String?
+  rootQuotation Quotation? @relation("QuotationRevisions", fields: [rootQuotationId], references: [id])
+  revisions     Quotation[] @relation("QuotationRevisions")
   salesId       String
   sales         User      @relation(fields: [salesId], references: [id])
   customerId    String?
@@ -235,6 +240,11 @@ model QuotationItem {
 model WorkOrder {
   id             String    @id @default(cuid())
   woNo           String    @unique
+  active         Boolean   @default(true)
+  revisionNo     Int       @default(0)
+  rootWorkOrderId String?
+  rootWorkOrder  WorkOrder? @relation("WorkOrderRevisions", fields: [rootWorkOrderId], references: [id])
+  revisions      WorkOrder[] @relation("WorkOrderRevisions")
   quotationId    String?
   quotation      Quotation? @relation(fields: [quotationId], references: [id])
   salesId        String

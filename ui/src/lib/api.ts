@@ -207,6 +207,8 @@ export const QuotationsAPI = {
   create: (data: Partial<Quotation>) => http.post<Quotation>('/quotations', data).then(r => r.data),
   update: (id: string, data: Partial<Quotation>) =>
     http.put<Quotation>(`/quotations/${id}`, data).then(r => r.data),
+  revise: (id: string) =>
+    http.post<Quotation>(`/quotations/${id}/revise`, {}).then(r => r.data),
   submit: (id: string, comment?: string) =>
     http.post<Quotation>(`/quotations/${id}/submit`, { comment }).then(r => r.data),
   approve: (id: string, comment?: string) =>
@@ -220,6 +222,8 @@ export const QuotationsAPI = {
 export const WorkOrdersAPI = {
   list: (params?: Record<string, string>) =>
     http.get<WorkOrder[]>('/workorders', { params }).then(r => r.data),
+  previousByQuotation: (quotationId: string) =>
+    http.get<WorkOrder | null>(`/workorders/by-quotation/${quotationId}/previous`).then(r => r.data),
   get: (id: string) => http.get<WorkOrder>(`/workorders/${id}`).then(r => r.data),
   create: (data: Partial<WorkOrder>) => http.post<WorkOrder>('/workorders', data).then(r => r.data),
   update: (id: string, data: Partial<WorkOrder>) =>

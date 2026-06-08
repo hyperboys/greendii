@@ -27,6 +27,7 @@ interface FormData {
 export default function NewWorkOrderPage() {
   const router = useRouter()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [saving, setSaving] = useState(false)
 
@@ -40,7 +41,7 @@ export default function NewWorkOrderPage() {
     QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
   }, [])
 
-  const handleQuotation = (id: string) => {
+  const handleQuotation = async (id: string) => {
     const q = quotations.find(x => x.id === id)
     setForm(f => ({
       ...f,
@@ -50,6 +51,39 @@ export default function NewWorkOrderPage() {
       contactName: q?.attn ?? f.contactName,
       contactTel: q?.tel ?? f.contactTel,
     }))
+
+    setSourceWorkOrder(null)
+    if (!id || !q?.revisionNo || q.revisionNo <= 0) return
+
+    try {
+      const source = await WorkOrdersAPI.previousByQuotation(id)
+      if (!source) return
+
+      setSourceWorkOrder({
+        woNo: source.woNo,
+        project: source.project,
+        customerName: source.customerName,
+      })
+
+      // Prefill with previous WO data in revision flow; user can still edit before save.
+      setForm(f => ({
+        ...f,
+        quotationId: id,
+        customerName: source.customerName || f.customerName,
+        project: source.project || f.project,
+        location: source.location ?? f.location,
+        products: source.products ?? f.products,
+        responsibility: source.responsibility ?? f.responsibility,
+        contactName: source.contactName ?? f.contactName,
+        contactTel: source.contactTel ?? f.contactTel,
+        teamAssignment: source.teamAssignment ?? f.teamAssignment,
+        installDate: source.installDate ? source.installDate.slice(0, 10) : f.installDate,
+        qcDate: source.qcDate ? source.qcDate.slice(0, 10) : f.qcDate,
+        remark: source.remark ?? f.remark,
+      }))
+    } catch {
+      // If lookup fails, keep quotation-based defaults.
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -151,6 +185,13 @@ export default function NewWorkOrderPage() {
           <textarea className="form-input" rows={2} {...f('remark')} />
         </div>
       </div>
+
+      {sourceWorkOrder && (
+        <div className="card p-4 text-sm">
+          <p className="font-medium text-gray-800">ดึงข้อมูลจาก Work Order เดิมในสายเอกสารแล้ว</p>
+          <p className="mt-1 text-gray-600">อ้างอิง: {sourceWorkOrder.woNo} · {sourceWorkOrder.project} · {sourceWorkOrder.customerName}</p>
+        </div>
+      )}
 
       {selectedQuotation?.items && selectedQuotation.items.length > 0 && (
         <div className="card p-5">

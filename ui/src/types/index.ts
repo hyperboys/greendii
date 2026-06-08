@@ -257,6 +257,9 @@ export interface QuotationItem {
 export interface Quotation {
   id: string
   quoNo: string
+  active?: boolean
+  revisionNo?: number
+  rootQuotationId?: string | null
   page?: number
   totalPages?: number
   salesId: string
@@ -291,6 +294,9 @@ export interface Quotation {
 export interface WorkOrder {
   id: string
   woNo: string
+  active?: boolean
+  revisionNo?: number
+  rootWorkOrderId?: string | null
   quotationId?: string
   quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
   salesId: string
