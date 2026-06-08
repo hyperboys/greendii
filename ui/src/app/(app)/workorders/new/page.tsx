@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI, UploadAPI } from '@/lib/api'
+import { WorkOrdersAPI, QuotationsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { Quotation } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -85,6 +85,8 @@ export default function NewWorkOrderPage() {
       setForm(prev => ({ ...prev, [key]: e.target.value })),
   })
 
+  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
+
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
@@ -149,6 +151,52 @@ export default function NewWorkOrderPage() {
           <textarea className="form-input" rows={2} {...f('remark')} />
         </div>
       </div>
+
+      {selectedQuotation?.items && selectedQuotation.items.length > 0 && (
+        <div className="card p-5">
+          <h3 className="mb-3 font-semibold text-gray-800">
+            รายละเอียดใบเสนอราคา {selectedQuotation.quoNo}
+          </h3>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr className="bg-gray-50 text-xs text-gray-600">
+                  <th className="w-8 border px-2 py-1.5 text-center">#</th>
+                  <th className="border px-2 py-1.5 text-left">รายละเอียด</th>
+                  <th className="w-16 border px-2 py-1.5 text-right">จำนวน</th>
+                  <th className="w-16 border px-2 py-1.5 text-center">หน่วย</th>
+                </tr>
+              </thead>
+              <tbody>
+                {selectedQuotation.items.map((item, i) => (
+                  <tr key={i} className="border-b">
+                    <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
+                    <td className="border px-2 py-1.5">
+                      <div>{item.desc}</div>
+                      {item.note && <div className="whitespace-pre-line text-xs text-gray-400">{item.note}</div>}
+                      {Array.isArray(item.images) && item.images.length > 0 && (
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          {item.images.map((url, imageIndex) => (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              key={`${i}-${imageIndex}`}
+                              src={resolveFileUrl(url)}
+                              alt="รูปประกอบจากใบเสนอราคา"
+                              className="h-24 w-24 rounded border border-gray-200 bg-white p-1 object-contain"
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </td>
+                    <td className="border px-2 py-1.5 text-right">{item.qty}</td>
+                    <td className="border px-2 py-1.5 text-center">{item.unit}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       <AttachmentsSection
         docField="workOrderId"
