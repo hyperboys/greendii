@@ -85,30 +85,6 @@ export default function HandoverDetailPage() {
     }
   }
 
-  const RATING_OPTIONS = [
-    { value: 5, label: 'ดีมาก' },
-    { value: 4, label: 'ดี' },
-    { value: 3, label: 'ปานกลาง' },
-    { value: 2, label: 'พอใช้' },
-    { value: 1, label: 'ปรับปรุง' },
-  ]
-
-  const ratingLabel = (val: number) => {
-    const opt = RATING_OPTIONS.find(o => o.value === val)
-    return opt ? `${opt.label} (${val}/5)` : `${val}/5`
-  }
-
-  const RatingDisplay = ({ val }: { val: number }) => (
-    <div className="flex flex-wrap gap-3 mt-1">
-      {RATING_OPTIONS.map(opt => (
-        <label key={opt.value} className={`flex items-center gap-1.5 text-sm ${val === opt.value ? 'font-semibold text-green-700' : 'text-gray-400'}`}>
-          <input type="radio" readOnly checked={val === opt.value} className="accent-green-600 w-4 h-4" />
-          {opt.label} ({opt.value})
-        </label>
-      ))}
-    </div>
-  )
-
   return (
     <>
     <HandoverPrint doc={doc} settings={settings} />
@@ -170,24 +146,6 @@ export default function HandoverDetailPage() {
         <div><span className="form-label">ผู้รับผิดชอบ</span><p>{doc.responsibility || '-'}</p></div>
         <div><span className="form-label">วันให้บริการ</span><p>{doc.serviceDate ? new Date(doc.serviceDate).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.comment && <div className="col-span-full"><span className="form-label">ความคิดเห็น</span><p>{doc.comment}</p></div>}
-      </div>
-
-      <div className="card p-5">
-        <h3 className="font-semibold text-gray-800 mb-4">การประเมินคุณภาพ</h3>
-        <div className="space-y-3">
-          <div>
-            <span className="form-label">คุณภาพสินค้า</span>
-            <RatingDisplay val={doc.qualityProduct} />
-          </div>
-          <div>
-            <span className="form-label">คุณภาพงานขาย</span>
-            <RatingDisplay val={doc.qualitySales} />
-          </div>
-          <div>
-            <span className="form-label">คุณภาพการติดตั้ง</span>
-            <RatingDisplay val={doc.qualityInstall} />
-          </div>
-        </div>
       </div>
 
       {/* Approval chain */}

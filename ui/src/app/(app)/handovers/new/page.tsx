@@ -18,40 +18,8 @@ interface FormData {
   product: string
   responsibility: string
   serviceDate: string
-  qualityProduct: number
-  qualitySales: number
-  qualityInstall: number
   comment: string
 }
-
-const RATING_OPTIONS = [
-  { value: 5, label: 'ดีมาก' },
-  { value: 4, label: 'ดี' },
-  { value: 3, label: 'ปานกลาง' },
-  { value: 2, label: 'พอใช้' },
-  { value: 1, label: 'ปรับปรุง' },
-]
-
-const RatingCheckbox = ({ label, name, value, onChange }: { label: string; name: string; value: number; onChange: (v: number) => void }) => (
-  <div>
-    <label className="form-label">{label}</label>
-    <div className="flex flex-wrap gap-4 mt-1">
-      {RATING_OPTIONS.map(opt => (
-        <label key={opt.value} className="flex items-center gap-1.5 cursor-pointer text-sm">
-          <input
-            type="radio"
-            name={name}
-            value={opt.value}
-            checked={value === opt.value}
-            onChange={() => onChange(opt.value)}
-            className="accent-green-600 w-4 h-4"
-          />
-          {opt.label} ({opt.value})
-        </label>
-      ))}
-    </div>
-  </div>
-)
 
 export default function NewHandoverPage() {
   const router = useRouter()
@@ -61,7 +29,7 @@ export default function NewHandoverPage() {
   const [form, setForm] = useState<FormData>({
     quotationId: '', project: '', contractor: '', location: '',
     contactName: '', contactTel: '', product: '', responsibility: '',
-    serviceDate: '', qualityProduct: 5, qualitySales: 5, qualityInstall: 5, comment: '',
+    serviceDate: '', comment: '',
   })
 
   useEffect(() => {
@@ -152,14 +120,7 @@ export default function NewHandoverPage() {
         </div>
       </div>
 
-      <div className="card p-5 space-y-4">
-        <h3 className="font-semibold text-gray-800">การประเมินคุณภาพ</h3>
-        <RatingCheckbox label="คุณภาพสินค้า" name="qualityProduct" value={form.qualityProduct}
-          onChange={v => setForm(f => ({ ...f, qualityProduct: v }))} />
-        <RatingCheckbox label="คุณภาพงานขาย" name="qualitySales" value={form.qualitySales}
-          onChange={v => setForm(f => ({ ...f, qualitySales: v }))} />
-        <RatingCheckbox label="คุณภาพการติดตั้ง" name="qualityInstall" value={form.qualityInstall}
-          onChange={v => setForm(f => ({ ...f, qualityInstall: v }))} />
+      <div className="card p-5">
         <div>
           <label className="form-label">ความคิดเห็น</label>
           <textarea className="form-input" rows={3} value={form.comment}

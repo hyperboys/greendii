@@ -64,16 +64,15 @@ export default function HandoversPage() {
               <th>โครงการ</th>
               <th>เซลล์</th>
               <th>วันให้บริการ</th>
-              <th>คุณภาพสินค้า</th>
               <th>สถานะ</th>
               <th>วันที่</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(h => (
               <tr key={h.id} className="cursor-pointer" onClick={() => router.push(`/handovers/${h.id}`)}>
                 <td className="font-mono text-xs font-semibold text-orange-600">{h.hoNo}</td>
@@ -81,7 +80,6 @@ export default function HandoversPage() {
                 <td className="max-w-[160px] truncate">{h.contractor || '-'}</td>
                 <td>{h.sales?.fullName ?? h.salesId}</td>
                 <td className="text-xs text-gray-500">{h.serviceDate ? new Date(h.serviceDate).toLocaleDateString('en-GB') : '-'}</td>
-                <td><span className="text-sm font-medium">{h.qualityProduct}/5</span></td>
                 <td><span className={`badge badge-${h.status}`}>{STATUS_LABELS[h.status]}</span></td>
                 <td className="text-xs text-gray-500">{new Date(h.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>

@@ -138,6 +138,7 @@ export interface User {
   signatureText?: string
   signatureUrl?: string | null
   active: boolean
+  docCounters?: Record<string, number>
   createdAt: string
 }
 

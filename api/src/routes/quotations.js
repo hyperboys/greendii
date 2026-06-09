@@ -49,11 +49,26 @@ async function nextQuotationBaseNoForUser(user) {
   const yy = String(now.getFullYear()).slice(2);
   const initials = (user.initials || 'XX').toUpperCase();
   const prefix = `QGD-${mm}${yy}-${initials}`;
-  const last = await prisma.quotation.findFirst({
-    where: { quoNo: { startsWith: prefix } },
-    orderBy: { quoNo: 'desc' },
-  });
-  const seq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) + 1 : 1;
+  const [last, freshUser] = await Promise.all([
+    prisma.quotation.findFirst({
+      where: { quoNo: { startsWith: prefix } },
+      orderBy: { quoNo: 'desc' },
+    }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
+  ]);
+  const counters = (freshUser && freshUser.docCounters && typeof freshUser.docCounters === 'object')
+    ? freshUser.docCounters
+    : {};
+  // ล้าง entry ของปีก่อนหน้าออก (fire-and-forget) เพื่อไม่ให้ docCounters โตขึ้นเรื่อยๆ
+  const staleKeys = Object.keys(counters).filter(k => /^\d{4}$/.test(k) && k.slice(2) !== yy);
+  if (staleKeys.length > 0) {
+    const cleaned = { ...counters };
+    staleKeys.forEach(k => delete cleaned[k]);
+    prisma.user.update({ where: { id: user.id }, data: { docCounters: cleaned } }).catch(() => {});
+  }
+  const dbSeq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) : 0;
+  const floor = Number(counters[`${mm}${yy}`]) || 1;
+  const seq = Math.max(dbSeq + 1, floor);
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }
 

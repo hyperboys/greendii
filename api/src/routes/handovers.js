@@ -114,12 +114,19 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
     } = req.body;
     if (!project) return res.status(400).json({ message: 'project required' });
     const yy = String(new Date().getFullYear()).slice(2);
-    const lastHO = await prisma.handOverJob.findFirst({
-      where: { hoNo: { startsWith: `HO${yy}` } },
-      orderBy: { hoNo: 'desc' },
-    });
-    const seq = lastHO ? (parseInt(lastHO.hoNo.replace(`HO${yy}`, ''), 10) || 0) + 1 : 1;
-    const hoNo = `HO${yy}${String(seq).padStart(3, '0')}`;
+    const hoPrefix = `HO${yy}`;
+    const [lastHO, hoSettings] = await Promise.all([
+      prisma.handOverJob.findFirst({
+        where: { hoNo: { startsWith: hoPrefix } },
+        orderBy: { hoNo: 'desc' },
+      }),
+      prisma.settings.findUnique({ where: { id: 'main' }, select: { docCounters: true } }),
+    ]);
+    const hoCounters = (hoSettings && hoSettings.docCounters) || {};
+    const hoDbSeq = lastHO ? (parseInt(lastHO.hoNo.replace(hoPrefix, ''), 10) || 0) : 0;
+    const hoFloor = Number(hoCounters[hoPrefix]) || 1;
+    const hoSeq = Math.max(hoDbSeq + 1, hoFloor);
+    const hoNo = `${hoPrefix}${String(hoSeq).padStart(3, '0')}`;
     await assertQuotationAccessible(req, quotationId);
     const item = await prisma.handOverJob.create({
       data: {

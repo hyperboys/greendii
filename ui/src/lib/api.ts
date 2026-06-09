@@ -149,6 +149,8 @@ export const UsersAPI = {
   },
   deleteSignature: (id: string) =>
     http.delete<User>(`/users/${id}/signature`).then(r => r.data),
+  setDocCounter: (id: string, mmyy: string, nextSeq: number) =>
+    http.put<User>(`/users/${id}/doc-counter`, { mmyy, nextSeq }).then(r => r.data),
 }
 
 // ─── CUSTOMERS ────────────────────────────────────────────────────────────────
@@ -310,6 +312,8 @@ export const UploadAPI = {
 export const SettingsAPI = {
   get: () => http.get<Settings>('/settings').then(r => r.data),
   update: (data: Partial<Settings>) => http.put<Settings>('/settings', data).then(r => r.data),
+  setDocCounter: (prefix: string, nextSeq: number) =>
+    http.post('/settings/doc-counter', { prefix, nextSeq }).then(r => r.data),
 }
 
 // ─── NOTIFICATIONS ──────────────────────────────────────────────────────────────────

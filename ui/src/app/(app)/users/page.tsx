@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { UsersAPI } from '@/lib/api'
 import type { User } from '@/types'
-import { Plus, Pencil, KeyRound, Search, UserCheck, UserX, RefreshCw } from 'lucide-react'
+import { Plus, Pencil, KeyRound, Search, UserCheck, UserX, RefreshCw, Hash } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import toast from 'react-hot-toast'
@@ -26,6 +26,7 @@ export default function UsersPage() {
   const [filterActive, setFilterActive] = useState('')
   const [editing, setEditing] = useState<typeof EMPTY_USER & { id?: string } | null>(null)
   const [pwdModal, setPwdModal] = useState<{ id: string; pw: string } | null>(null)
+  const [counterModal, setCounterModal] = useState<{ id: string; fullName: string; initials: string; mmyy: string; nextSeq: string } | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchSettings() }, [])
@@ -93,6 +94,23 @@ export default function UsersPage() {
       await UsersAPI.forceChangePassword(u.id)
       toast.success('ตั้งค่าสำเร็จ')
     } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
+  }
+
+  const saveCounter = async () => {
+    if (!counterModal) return
+    const seq = parseInt(counterModal.nextSeq, 10)
+    if (!counterModal.mmyy || !/^\d{4}$/.test(counterModal.mmyy)) {
+      return toast.error('เดือน-ปี ต้องเป็นตัวเลข 4 หลัก เช่น 0626')
+    }
+    if (!Number.isInteger(seq) || seq < 1) return toast.error('เลขที่เริ่มต้องเป็นจำนวนเต็มบวก')
+    setSaving(true)
+    try {
+      await UsersAPI.setDocCounter(counterModal.id, counterModal.mmyy, seq)
+      toast.success(`ตั้งค่า QGD-${counterModal.mmyy}-${counterModal.initials} เริ่มที่ ${String(seq).padStart(3, '0')} สำเร็จ`)
+      setCounterModal(null)
+      load()
+    } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
+    finally { setSaving(false) }
   }
 
 
@@ -229,6 +247,55 @@ export default function UsersPage() {
         </div>
       )}
 
+      {/* Doc Counter modal */}
+      {counterModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 w-96 shadow-2xl">
+            <div className="flex items-center gap-2 mb-1">
+              <Hash size={16} className="text-green-main" />
+              <h3 className="font-semibold text-gray-800">ข้ามลำดับเลขใบเสนอราคา</h3>
+            </div>
+            <p className="text-xs text-gray-500 mb-4">
+              {counterModal.fullName} ({counterModal.initials}) — ใบเสนอราคาถัดไปจะได้เลขอย่างน้อยที่กำหนด
+            </p>
+            <div className="flex gap-3 mb-4">
+              <div className="flex-1">
+                <label className="form-label">เดือน-ปี (mmyy)</label>
+                <input
+                  className="form-input font-mono"
+                  placeholder="0626"
+                  maxLength={4}
+                  value={counterModal.mmyy}
+                  onChange={e => setCounterModal(v => v ? { ...v, mmyy: e.target.value.replace(/\D/g, '') } : v)}
+                />
+              </div>
+              <div className="w-28">
+                <label className="form-label">เริ่มที่เลข</label>
+                <input
+                  className="form-input"
+                  type="number"
+                  min={1}
+                  placeholder="3"
+                  value={counterModal.nextSeq}
+                  onChange={e => setCounterModal(v => v ? { ...v, nextSeq: e.target.value } : v)}
+                />
+              </div>
+            </div>
+            {counterModal.mmyy.length === 4 && counterModal.initials && (
+              <p className="text-xs text-green-700 font-mono mb-3">
+                → QGD-{counterModal.mmyy}-{counterModal.initials}{String(parseInt(counterModal.nextSeq) || 1).padStart(3, '0')}
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button className="btn-primary flex-1" onClick={saveCounter} disabled={saving}>
+                {saving ? 'กำลังบันทึก…' : 'ตั้งค่า'}
+              </button>
+              <button className="btn-outline flex-1" onClick={() => setCounterModal(null)}>ยกเลิก</button>
+            </div>
+          </div>
+        </div>
+      )}
+
 
 
       <div className="card overflow-x-auto">
@@ -299,6 +366,16 @@ export default function UsersPage() {
                         onClick={() => forceChangePwd(u)}>
                         <RefreshCw size={12} />
                       </button>
+                      {u.initials && (
+                        <button className="btn-outline btn-sm" title="ข้ามลำดับเลขใบเสนอราคา"
+                          onClick={() => {
+                            const now = new Date()
+                            const mmyy = String(now.getMonth() + 1).padStart(2, '0') + String(now.getFullYear()).slice(2)
+                            setCounterModal({ id: u.id, fullName: u.fullName, initials: u.initials.toUpperCase(), mmyy, nextSeq: '' })
+                          }}>
+                          <Hash size={12} />
+                        </button>
+                      )}
                     </div>
                   </td>
                 )}

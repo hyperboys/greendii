@@ -126,7 +126,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     { v: 1, label: 'ปรับปรุง' },
   ]
 
-  const RatingTextRow = ({ value }: { value: number }) => (
+  const RatingTextRow = () => (
     <div style={{ marginBottom: '9px', fontSize: '10pt', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', gap: '18px' }}>
       {RATING_OPTS.map((opt) => (
         <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
@@ -138,15 +138,10 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '9px',
-              lineHeight: 1,
-              color: '#222',
               background: 'transparent',
               flexShrink: 0,
             }}
-          >
-            {value === opt.v ? '✓' : ''}
-          </span>
+          />
           <span>{opt.label} ({opt.v})</span>
         </span>
       ))}
@@ -279,15 +274,15 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
           <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
           <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow value={doc.qualityProduct} /></div>
+          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
 
           <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
           <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow value={doc.qualitySales} /></div>
+          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
 
           <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
           <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow value={doc.qualityInstall} /></div>
+          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
         </div>
 
         <div style={{ border, padding: '8px 10px', marginBottom: '8px' }}>

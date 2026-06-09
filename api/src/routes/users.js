@@ -11,6 +11,7 @@ const USER_SELECT = {
   role: true, email: true, phone: true, department: true, position: true,
   firstName: true, lastName: true, firstNameEn: true, lastNameEn: true,
   lineUserId: true, signatureText: true, signatureUrl: true, active: true, createdAt: true,
+  docCounters: true,
 };
 
 const sigUpload = multer({
@@ -165,6 +166,35 @@ router.delete('/:id/signature', authenticate, requireRole('admin', 'director', '
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data: { signatureUrl: null },
+      select: USER_SELECT,
+    });
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// PUT /api/users/:id/doc-counter  (admin only — ตั้ง floor ลำดับใบเสนอราคาของ sale คนนั้น)
+// body: { mmyy: "0626", nextSeq: 3 }
+router.put('/:id/doc-counter', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
+  try {
+    const { mmyy, nextSeq } = req.body;
+    if (!mmyy || !/^\d{4}$/.test(mmyy)) {
+      return res.status(400).json({ message: 'mmyy ต้องเป็นตัวเลข 4 หลัก เช่น 0626' });
+    }
+    const seq = parseInt(nextSeq, 10);
+    if (!Number.isInteger(seq) || seq < 1) {
+      return res.status(400).json({ message: 'nextSeq ต้องเป็นจำนวนเต็มบวก' });
+    }
+    const current = await prisma.user.findUniqueOrThrow({
+      where: { id: req.params.id },
+      select: { docCounters: true },
+    });
+    const counters = (current.docCounters && typeof current.docCounters === 'object')
+      ? { ...current.docCounters }
+      : {};
+    counters[mmyy] = seq;
+    const updated = await prisma.user.update({
+      where: { id: req.params.id },
+      data: { docCounters: counters },
       select: USER_SELECT,
     });
     res.json(updated);

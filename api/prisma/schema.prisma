@@ -55,6 +55,7 @@ model User {
   signatureUrl        String?
   active              Boolean  @default(true)
   mustChangePassword  Boolean  @default(false)
+  docCounters         Json?    // { "mmyy": floorSeq } เช่น { "0626": 3 }
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
