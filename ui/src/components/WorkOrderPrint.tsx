@@ -403,7 +403,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </tbody>
         </table>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, border: borderHeavy, tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border: borderHeavy, tableLayout: 'fixed' }}>
           <tbody>
             <tr>
               <td style={{ width: '50%', padding: '6px 9px', borderRight: border, verticalAlign: 'top' }}>
@@ -537,7 +537,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, border: borderHeavy, tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border: borderHeavy, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: '18%' }} />
             <col />
@@ -564,7 +564,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </tbody>
         </table>
 
-        <div style={{ border: borderHeavy, padding: '8px 12px', marginBottom: '8px' }}>
+        <div style={{ border: borderHeavy, borderTop: 'none', padding: '8px 12px', marginBottom: 0 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', justifyContent: 'center', columnGap: '56px' }}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
               {checklistLeft.map(item => (
@@ -587,7 +587,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           <tbody>
             <tr>
               {sigCols.map(({ role, name }) => (
-                <td key={role} style={{ border: borderHeavy, padding: '8px 6px 6px', textAlign: 'center', width: '25%', verticalAlign: 'top' }}>
+                <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: '25%', verticalAlign: 'top' }}>
                   <div style={{ fontSize: '8.9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '30px' }}>{role}</div>
                   <div style={{ borderTop: '1px dotted #555', width: '80%', margin: '0 auto 4px' }} />
                   <div style={{ fontSize: '8.4pt', minHeight: '14px' }}>{name || '(…………………………)'}</div>
