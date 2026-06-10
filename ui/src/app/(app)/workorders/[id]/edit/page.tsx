@@ -51,6 +51,8 @@ interface FormData {
   docChecklist: Record<string, boolean>
 }
 
+type TextFormKey = Exclude<keyof FormData, 'docChecklist'>
+
 export default function EditWorkOrderPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -129,7 +131,7 @@ export default function EditWorkOrderPage() {
     }
   }
 
-  const f = (key: keyof FormData) => ({
+  const f = (key: TextFormKey) => ({
     value: form[key],
     onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
       setForm(prev => ({ ...prev, [key]: e.target.value })),
