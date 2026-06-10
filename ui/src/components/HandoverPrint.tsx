@@ -201,9 +201,14 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
-  const address = settings?.address || '98 Moo. 6, T.Khlong Sii, A.Khlongluang, Pathumtani 12120'
+  const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId = settings?.taxId || '0135549009942'
-  const tel = settings?.tel || '+66 2150 7694-6'
+  const tel = settings?.tel || '+662 150 7694-5'
+  const website = settings?.website || 'www.greendiicompany.com'
+  const salesContact = doc.sales as ({ email?: string; phone?: string } | undefined)
+  const email = salesContact?.email || settings?.email || 'admin2gd@greendii.com'
+  const salesHp = salesContact?.phone?.trim()
+  const addressTh = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
 
   const border = '1px solid #555'
   const borderTh = '1px solid #888'
@@ -337,14 +342,14 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   ]
 
   const RatingTextRow = () => (
-    <div style={{ marginBottom: '5px', fontSize: '8.8pt', lineHeight: 1.2, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+    <div style={{ marginBottom: '5px', fontSize: '10pt', lineHeight: 1.24, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
       {RATING_OPTS.map((opt) => (
         <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <span
             style={{
-              width: '10px',
-              height: '10px',
-              border: '1px solid #555',
+              width: '12px',
+              height: '12px',
+              border: '1.2px solid #555',
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -361,29 +366,45 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderHeader(currentPage: number) {
     return (
       <>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-          <tbody>
-            <tr>
-              <td style={{ width: '118px', verticalAlign: 'middle', paddingRight: '10px' }}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '106px', height: 'auto' }} />
-              </td>
-              <td style={{ verticalAlign: 'middle', paddingRight: '8px' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '12pt', lineHeight: 1.2 }}>{companyName}</div>
-                <div style={{ fontWeight: 'bold', fontSize: '10.5pt', color: '#444', lineHeight: 1.2 }}>{companyNameEn}</div>
-                <div style={{ fontSize: '8.6pt', color: '#555' }}>{address}</div>
-                <div style={{ fontSize: '8.6pt', color: '#555' }}>โทร. {tel}</div>
-                <div style={{ fontSize: '8.6pt', color: '#555' }}>TAX ID : {taxId}</div>
-              </td>
-              <td style={{ width: '210px', textAlign: 'center', borderLeft: '2px solid #555', paddingLeft: '12px', verticalAlign: 'middle' }}>
-                <div style={{ fontSize: '18pt', fontWeight: 'bold', color: '#9e2f2f', letterSpacing: '1px', lineHeight: 1.15 }}>
-                  HAND OVER JOB
-                </div>
-                <div style={{ fontSize: '9pt', marginTop: '6px', color: '#555' }}>Page {currentPage}/{totalPages}</div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <div style={{ marginBottom: '8px' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '120px 1fr 120px',
+              columnGap: 0,
+              alignItems: 'center',
+              fontFamily: 'var(--font-thai)',
+            }}
+          >
+            <div>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
+            </div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '18pt', lineHeight: '1.0' }}>{companyName}</div>
+              <div style={{ fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+            </div>
+            <div />
+          </div>
+
+          <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '2px' }}>
+            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
+              {address}&nbsp;&nbsp;Tel {tel}
+            </div>
+            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
+              {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
+            </div>
+            <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
+            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
+            <div style={{ fontSize: '12pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
+          </div>
+
+          <div style={{ textAlign: 'center', marginTop: '4px' }}>
+            <div style={{ fontSize: '16pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.1 }}>
+              HAND OVER JOB
+            </div>
+          </div>
+        </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
           <tbody>
@@ -494,30 +515,30 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ border, padding: '5px 8px', marginBottom: '6px' }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10pt', marginBottom: '5px' }}>
+        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: '6px' }}>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10.8pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
 
-          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
-          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
+          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
+          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
-          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
+          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
+          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
-          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
+          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
+          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
         </div>
 
-        <div style={{ border, padding: '5px 8px', marginBottom: '6px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '5px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '12px', fontSize: '9pt' }}>
+        <div style={{ border, padding: '5px 8px', marginBottom: '2px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '2px' }}>COMMENT</div>
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>
             {doc.comment || '\u00A0'}
           </div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '1px' }} />
+          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2px' }}>
@@ -525,15 +546,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             <tr>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
                 <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '28px' }}>ผู้ตรวจรับงาน</div>
-                <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 4px' }}></div>
-                <div style={{ fontSize: '9pt' }}>(…………………………)</div>
-                <div style={{ fontSize: '8.6pt', marginTop: '6px' }}>วันที่............/............./.............</div>
+                <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
+                <div style={{ fontSize: '8.6pt', marginTop: '20px' }}>วันที่............/............./.............</div>
               </td>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
                 <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '28px' }}>ผู้ส่งมอบงาน</div>
-                <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 4px' }}></div>
-                <div style={{ fontSize: '9pt' }}>(…………………………)</div>
-                <div style={{ fontSize: '8.6pt', marginTop: '6px' }}>วันที่............/............./.............</div>
+                <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
+                <div style={{ fontSize: '8.6pt', marginTop: '20px' }}>วันที่............/............./.............</div>
               </td>
             </tr>
           </tbody>
