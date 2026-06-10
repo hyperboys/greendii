@@ -95,6 +95,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
           select: {
             id: true,
             quoNo: true,
+            sales: { select: { id: true, fullName: true, email: true, phone: true } },
             items: {
               select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
               orderBy: { seq: 'asc' },
@@ -109,6 +110,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
               select: {
                 id: true,
                 quoNo: true,
+                sales: { select: { id: true, fullName: true, email: true, phone: true } },
                 items: {
                   select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
                   orderBy: { seq: 'asc' },

@@ -205,9 +205,10 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const taxId = settings?.taxId || '0135549009942'
   const tel = settings?.tel || '+662 150 7694-5'
   const website = settings?.website || 'www.greendiicompany.com'
+  const quotationSalesContact = doc.quotation?.sales || doc.workOrder?.quotation?.sales
   const salesContact = doc.sales as ({ email?: string; phone?: string } | undefined)
-  const email = salesContact?.email || settings?.email || 'admin2gd@greendii.com'
-  const salesHp = salesContact?.phone?.trim()
+  const email = quotationSalesContact?.email || salesContact?.email || settings?.email || 'admin2gd@greendii.com'
+  const salesHp = (quotationSalesContact?.phone || salesContact?.phone || '').trim()
   const addressTh = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
 
   const border = '1px solid #555'
