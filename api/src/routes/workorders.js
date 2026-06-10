@@ -42,24 +42,12 @@ function buildRevisionDocNo(baseNo, revisionNo) {
 async function nextWorkOrderBaseNo() {
   const yy = String(new Date().getFullYear()).slice(2);
   const prefix = `WO${yy}`;
-  const [lastWO, settings] = await Promise.all([
-    prisma.workOrder.findFirst({
-      where: { woNo: { startsWith: prefix } },
-      orderBy: { woNo: 'desc' },
-    }),
-    prisma.settings.findUnique({ where: { id: 'main' }, select: { docCounters: true } }),
-  ]);
-  const counters = (settings && settings.docCounters) || {};
-  // ล้าง entry ของปีก่อนหน้า (WOxx, PRxx, HOxx ที่ xx ไม่ตรงปีปัจจุบัน)
-  const staleWoKeys = Object.keys(counters).filter(k => /^(WO|PR|HO)\d{2}$/.test(k) && !k.endsWith(yy));
-  if (staleWoKeys.length > 0) {
-    const cleaned = { ...counters };
-    staleWoKeys.forEach(k => delete cleaned[k]);
-    prisma.settings.update({ where: { id: 'main' }, data: { docCounters: cleaned } }).catch(() => {});
-  }
+  const lastWO = await prisma.workOrder.findFirst({
+    where: { woNo: { startsWith: prefix } },
+    orderBy: { woNo: 'desc' },
+  });
   const dbSeq = lastWO ? (parseInt(stripRevisionSuffix(lastWO.woNo).replace(prefix, ''), 10) || 0) : 0;
-  const floor = Number(counters[prefix]) || 1;
-  const seq = Math.max(dbSeq + 1, floor);
+  const seq = dbSeq + 1;
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }
 

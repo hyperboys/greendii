@@ -22,7 +22,6 @@ router.put('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next
     const {
       companyName, companyNameEn, address, taxId, tel, email, website, logoUrl,
       approvalFlowConfig, menuAccessConfig, rolePermissionsConfig, stepRoleConfig,
-      docCounters,
     } = req.body;
     const data = {};
     if (companyName             !== undefined) data.companyName             = companyName;
@@ -37,7 +36,6 @@ router.put('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next
     if (menuAccessConfig        !== undefined) data.menuAccessConfig        = menuAccessConfig;
     if (rolePermissionsConfig   !== undefined) data.rolePermissionsConfig   = rolePermissionsConfig;
     if (stepRoleConfig          !== undefined) data.stepRoleConfig          = stepRoleConfig;
-    if (docCounters             !== undefined) data.docCounters             = docCounters;
 
     const settings = await prisma.settings.upsert({
       where: { id: 'main' },

@@ -37,6 +37,23 @@ async function assertQuotationAccessible(req, quotationId) {
   }
 }
 
+async function findWorkOrderIdByQuotationId(quotationId) {
+  if (!quotationId) return null;
+  const workOrder = await prisma.workOrder.findFirst({
+    where: {
+      quotationId,
+      active: true,
+      status: { not: 'cancelled' },
+    },
+    orderBy: [
+      { revisionNo: 'desc' },
+      { createdAt: 'desc' },
+    ],
+    select: { id: true },
+  });
+  return workOrder?.id || null;
+}
+
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -74,8 +91,32 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: {
         sales: { select: { id: true, fullName: true } },
-        quotation: { select: { id: true, quoNo: true } },
-        workOrder: { select: { id: true, woNo: true, quotation: { select: { id: true, quoNo: true } } } },
+        quotation: {
+          select: {
+            id: true,
+            quoNo: true,
+            items: {
+              select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+              orderBy: { seq: 'asc' },
+            },
+          },
+        },
+        workOrder: {
+          select: {
+            id: true,
+            woNo: true,
+            quotation: {
+              select: {
+                id: true,
+                quoNo: true,
+                items: {
+                  select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+                  orderBy: { seq: 'asc' },
+                },
+              },
+            },
+          },
+        },
         attachments: true,
         approvalLogs: {
           include: { approver: { select: { id: true, fullName: true, role: true } } },
@@ -115,24 +156,24 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
     if (!project) return res.status(400).json({ message: 'project required' });
     const yy = String(new Date().getFullYear()).slice(2);
     const hoPrefix = `HO${yy}`;
-    const [lastHO, hoSettings] = await Promise.all([
-      prisma.handOverJob.findFirst({
-        where: { hoNo: { startsWith: hoPrefix } },
-        orderBy: { hoNo: 'desc' },
-      }),
-      prisma.settings.findUnique({ where: { id: 'main' }, select: { docCounters: true } }),
-    ]);
-    const hoCounters = (hoSettings && hoSettings.docCounters) || {};
+    const lastHO = await prisma.handOverJob.findFirst({
+      where: { hoNo: { startsWith: hoPrefix } },
+      orderBy: { hoNo: 'desc' },
+    });
     const hoDbSeq = lastHO ? (parseInt(lastHO.hoNo.replace(hoPrefix, ''), 10) || 0) : 0;
-    const hoFloor = Number(hoCounters[hoPrefix]) || 1;
-    const hoSeq = Math.max(hoDbSeq + 1, hoFloor);
+    const hoSeq = hoDbSeq + 1;
     const hoNo = `${hoPrefix}${String(hoSeq).padStart(3, '0')}`;
     await assertQuotationAccessible(req, quotationId);
+
+    // If user selected quotation and did not explicitly send workOrderId,
+    // auto-link the latest active work order created from that quotation.
+    const resolvedWorkOrderId = workOrderId || await findWorkOrderIdByQuotationId(quotationId);
+
     const item = await prisma.handOverJob.create({
       data: {
         hoNo,
         quotationId: quotationId || null,
-        workOrderId: workOrderId || null,
+        workOrderId: resolvedWorkOrderId,
         project, contractor, location,
         contactName, contactTel, product, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : null,

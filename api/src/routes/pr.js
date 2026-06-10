@@ -108,17 +108,12 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
     if (!customer) return res.status(400).json({ message: 'customer required' });
     const yy = String(new Date().getFullYear()).slice(2);
     const prPrefix = `PR${yy}`;
-    const [lastPR, prSettings] = await Promise.all([
-      prisma.purchaseRequest.findFirst({
-        where: { prNo: { startsWith: prPrefix } },
-        orderBy: { prNo: 'desc' },
-      }),
-      prisma.settings.findUnique({ where: { id: 'main' }, select: { docCounters: true } }),
-    ]);
-    const prCounters = (prSettings && prSettings.docCounters) || {};
+    const lastPR = await prisma.purchaseRequest.findFirst({
+      where: { prNo: { startsWith: prPrefix } },
+      orderBy: { prNo: 'desc' },
+    });
     const prDbSeq = lastPR ? (parseInt(lastPR.prNo.replace(prPrefix, ''), 10) || 0) : 0;
-    const prFloor = Number(prCounters[prPrefix]) || 1;
-    const prSeq = Math.max(prDbSeq + 1, prFloor);
+    const prSeq = prDbSeq + 1;
     const prNo = `${prPrefix}${String(prSeq).padStart(3, '0')}`;
     const item = await prisma.purchaseRequest.create({
       data: {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { HandoversAPI, SettingsAPI, downloadBlob } from '@/lib/api'
+import { HandoversAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import type { HandOverJob, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
@@ -66,6 +66,9 @@ export default function HandoverDetailPage() {
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/handover/${id}?token=${encodeURIComponent(previewToken)}` : ''
+  const quotationItems = doc.quotation?.items?.length
+    ? doc.quotation.items
+    : (doc.workOrder?.quotation?.items || [])
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -147,6 +150,28 @@ export default function HandoverDetailPage() {
         <div><span className="form-label">วันให้บริการ</span><p>{doc.serviceDate ? new Date(doc.serviceDate).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.comment && <div className="col-span-full"><span className="form-label">ความคิดเห็น</span><p>{doc.comment}</p></div>}
       </div>
+
+      {quotationItems.length > 0 && (
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-3">รายละเอียดงานจากใบเสนอราคา</h3>
+          <div className="space-y-4">
+            {quotationItems.map((item, idx) => (
+              <div key={item.id || idx} className="border border-gray-200 rounded-lg p-3">
+                <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {item.desc}</div>
+                <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
+                {item.images && item.images.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {item.images.map((url, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={resolveFileUrl(url)} alt="quotation item" className="w-28 h-28 object-cover rounded border" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Approval chain */}
       <div className="card p-5">

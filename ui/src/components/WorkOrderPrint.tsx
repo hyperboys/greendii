@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 import type { WorkOrder, Settings, QuotationItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 
-// Row-weight pack capacities (≈7mm per row of the items table).
-// Non-last pages have more item room; the last page must also hold the
-// remark / team / QC / checklist / signature blocks, so it holds fewer rows.
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 11
 const FRAGMENT_CAP = PACK_CAP_LAST
@@ -39,11 +36,7 @@ function noteLinesWeight(lines: string[]): number {
 }
 
 function itemWeight(fragment: WorkOrderItemFragment): number {
-  return (
-    1 +
-    noteLinesWeight(fragment.noteLines) +
-    fragment.images.length * 3
-  )
+  return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
 }
 
 function splitItemIntoFragments(item: QuotationItem, itemIndex: number): WorkOrderItemFragment[] {
@@ -108,6 +101,7 @@ function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
   const rawPages: WorkOrderItemFragment[][] = []
   let current: WorkOrderItemFragment[] = []
   let currentWeight = 0
+
   for (const item of items) {
     const w = itemWeight(item)
     if (currentWeight + w > PACK_CAP_NON_LAST && current.length > 0) {
@@ -183,7 +177,6 @@ interface Props {
   doc: WorkOrder
   settings: Settings | null
   onReady?: () => void
-  /** When true (default), embed PDF attachments via <object>. Puppeteer passes false because PDFs are merged server-side. */
   embedPdfAttachments?: boolean
 }
 
@@ -200,39 +193,33 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0')
     const now = new Date()
-    const stamp = `${now.getFullYear()}${pad(now.getMonth()+1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`
+    const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}`
     const printTitle = `${doc.woNo}_${stamp}`
     const original = document.title
     const onBefore = () => { document.title = printTitle }
-    const onAfter  = () => { document.title = original }
+    const onAfter = () => { document.title = original }
     window.addEventListener('beforeprint', onBefore)
-    window.addEventListener('afterprint',  onAfter)
+    window.addEventListener('afterprint', onAfter)
     return () => {
       window.removeEventListener('beforeprint', onBefore)
-      window.removeEventListener('afterprint',  onAfter)
+      window.removeEventListener('afterprint', onAfter)
     }
   }, [doc.woNo])
 
-  const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
-  const address       = settings?.address       || '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120'
-  const tel           = settings?.tel           || '+662 150 7694-6'
+  
 
-  const border   = '1px solid #555'
-  const borderTh = '1px solid #888'
+  const border = '1px solid #555'
+  const borderHeavy = '1.4px solid #555'
+  const borderTh = '1px solid #7a7a7a'
+  const sectionGap = '6px'
+  const itemColumnWidths = ['5%', '79%', '8%', '8%']
 
   const checklist: Record<string, boolean> = (doc.docChecklist as Record<string, boolean>) ?? {}
   const chk = (key: string) => !!checklist[key]
 
-  // Quotation items (if linked)
-  const qItems = doc.quotation?.items ?? []
-  const renderItems = buildRenderableItems(qItems)
+  const renderItems = buildRenderableItems(doc.quotation?.items ?? [])
   const totalPages = pages?.length ?? 1
 
-  // Attachment sheets appended after the Work Order pages (no header).
-  // Images render as <img> in every context; PDFs render as <object> only in
-  // on-screen preview — Puppeteer skips them (embedPdfAttachments=false) because
-  // PDF files are merged into the output server-side with pdf-lib.
   const attachmentSheets = (doc.attachments ?? []).filter(att => {
     if (!att.fileUrl) return false
     if (att.mimeType?.startsWith('image/')) return true
@@ -309,134 +296,142 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     ? new Date(doc.qcDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '-'
 
-  /* ─── style helpers ─── */
   const tdS: React.CSSProperties = {
     border,
-    padding: '3px 5px',
-    fontSize: '9pt',
+    padding: '6px 8px',
+    fontSize: '10.5pt',
+    lineHeight: 1.3,
     verticalAlign: 'top',
   }
   const itemCellS: React.CSSProperties = {
     borderLeft: border,
     borderRight: border,
-    padding: '3px 5px',
-    fontSize: '9pt',
+    padding: '4px 6px',
+    fontSize: '9.5pt',
+    lineHeight: 1.35,
     verticalAlign: 'top',
     textAlign: 'center',
   }
   const thS: React.CSSProperties = {
     border: borderTh,
-    padding: '4px 6px',
-    backgroundColor: '#dde',
+    padding: '5px 6px',
+    backgroundColor: '#dfdde8',
     textAlign: 'center',
-    fontSize: '9pt',
+    fontSize: '9.4pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
   }
   const labelS: React.CSSProperties = {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
-    fontSize: '9pt',
-    color: '#333',
+    fontSize: '9.3pt',
+    color: '#222',
+    lineHeight: 1.25,
   }
   const valueS: React.CSSProperties = {
-    fontSize: '9pt',
+    fontSize: '9.3pt',
     borderBottom: '1px dotted #555',
     minWidth: '100px',
-    paddingBottom: '1px',
+    paddingBottom: '3px',
+    lineHeight: 1.25,
   }
 
   const Checkbox = ({ label, checked }: { label: string; checked: boolean }) => (
-    <label style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '9pt', marginRight: '14px' }}>
+    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '7px', fontSize: '10.5pt', lineHeight: 1.25, whiteSpace: 'nowrap' }}>
       <span style={{
-        display: 'inline-block', width: '11px', height: '11px',
-        border: '1.5px solid #555', flexShrink: 0,
-        background: checked ? '#333' : '#fff',
-      }} />
-      {label}
+        display: 'inline-flex',
+        width: '15px',
+        height: '15px',
+        border: '1.5px solid #555',
+        flexShrink: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '11pt',
+        fontWeight: 'bold',
+      }}>{checked ? '✓' : '\u00A0'}</span>
+      <span>{label}</span>
     </label>
   )
 
+  function renderItemsColGroup() {
+    return (
+      <colgroup>
+        {itemColumnWidths.map((width, index) => <col key={index} style={{ width }} />)}
+      </colgroup>
+    )
+  }
+
   function renderHeader(currentPage: number) {
-    const pageText = `${currentPage}/${totalPages}`
+    const leftInfo = [
+      { label: 'PROJECT / โครงการ', value: doc.project },
+      { label: 'LOCATION / สถานที่', value: doc.location },
+      { label: 'PRODUCTS / สินค้า', value: doc.products },
+      { label: 'ผู้รับผิดชอบ', value: doc.responsibility },
+      { label: 'W/O No.', value: doc.woNo },
+    ]
+    const rightInfo = [
+      { label: 'DATE / วันที่', value: dateStr },
+      { label: 'CUSTOMER / ลูกค้า', value: doc.customerName },
+      { label: 'CONTACT / ติดต่อ', value: doc.contactName },
+      { label: 'TEL / เบอร์ติดต่อ', value: doc.contactTel },
+      { label: 'SALES / พนักงานขาย', value: doc.sales?.fullName ?? doc.salesId },
+    ]
+
     return (
       <>
-        {/* ═══ Header ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '38mm' }} />
+            <col />
+            <col style={{ width: '58mm' }} />
+          </colgroup>
           <tbody>
             <tr>
-              {/* Logo */}
-              <td style={{ width: '100px', verticalAlign: 'middle', paddingRight: '10px' }}>
+              <td style={{ verticalAlign: 'top', paddingRight: '4mm' }}>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/logo.jpg" alt="logo" style={{ width: '90px', height: 'auto' }} />
+                <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '35mm', height: 'auto', display: 'block' }} />
               </td>
-              {/* Company info */}
-              <td style={{ verticalAlign: 'middle', paddingRight: '8px' }}>
-                <div style={{ fontWeight: 'bold', fontSize: '11pt' }}>{companyName}</div>
-                <div style={{ fontWeight: 'bold', fontSize: '10pt', color: '#444' }}>{companyNameEn}</div>
-                <div style={{ fontSize: '8pt', color: '#555' }}>{address}</div>
-                <div style={{ fontSize: '8pt', color: '#555' }}>โทร. {tel}</div>
-              </td>
-              {/* Title */}
-              <td style={{ width: '200px', textAlign: 'center', borderLeft: '2px solid #555', paddingLeft: '12px', verticalAlign: 'middle' }}>
-                <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
-                  PROJECT
+              <td />
+              <td style={{ verticalAlign: 'top' }}>
+                <div style={{ border: borderHeavy, padding: '5px 8px 6px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '17.8pt', fontWeight: 'bold', color: '#000', lineHeight: 1.05, letterSpacing: '0.8px' }}>
+                    PROJECT WORK FORM
+                  </div>
                 </div>
-                <div style={{ fontSize: '16pt', fontWeight: 'bold', color: '#cc0000', letterSpacing: '1px' }}>
-                  WORK FORM
-                </div>
-                {totalPages > 1 && (
-                  <div style={{ fontSize: '9pt', color: '#333', marginTop: '2px' }}>Page {pageText}</div>
-                )}
               </td>
             </tr>
           </tbody>
         </table>
 
-        {/* ═══ Info Table ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, border: borderHeavy, tableLayout: 'fixed' }}>
           <tbody>
             <tr>
-              {/* Left column */}
-              <td style={{ width: '50%', padding: '5px 8px', borderRight: border, verticalAlign: 'top' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <td style={{ width: '50%', padding: '6px 9px', borderRight: border, verticalAlign: 'top' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                   <tbody>
-                    {[
-                      { th: 'PROJECT / โครงการ', val: doc.project },
-                      { th: 'LOCATION / สถานที่', val: doc.location },
-                      { th: 'PRODUCTS / สินค้า', val: doc.products },
-                      { th: 'ผู้รับผิดชอบ', val: doc.responsibility },
-                      { th: 'W/O No.', val: doc.woNo },
-                    ].map(({ th, val }) => (
-                      <tr key={th} style={{ marginBottom: '5px' }}>
-                        <td style={{ ...labelS, paddingBottom: '5px', width: '130px', verticalAlign: 'top' }}>
-                          {th} :
+                    {leftInfo.map(({ label, value }) => (
+                      <tr key={label}>
+                        <td style={{ ...labelS, width: '38%', padding: '5px 6px 5px 0', verticalAlign: 'middle' }}>
+                          {label} :
                         </td>
-                        <td style={{ ...valueS, paddingBottom: '5px', width: '100%' }}>
-                          {val || ''}
+                        <td style={{ ...valueS, width: '62%', paddingTop: '5px' }}>
+                          {value || '\u00A0'}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </td>
-              {/* Right column */}
-              <td style={{ width: '50%', padding: '5px 8px', verticalAlign: 'top' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <td style={{ width: '50%', padding: '6px 9px', verticalAlign: 'top' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
                   <tbody>
-                    {[
-                      { th: 'DATE / วันที่', val: dateStr },
-                      { th: 'CUSTOMER / ลูกค้า', val: doc.customerName },
-                      { th: 'CONTACT / ติดต่อ', val: doc.contactName },
-                      { th: 'TEL / เบอร์ติดต่อ', val: doc.contactTel },
-                      { th: 'SALES / พนักงานขาย', val: doc.sales?.fullName ?? doc.salesId },
-                    ].map(({ th, val }) => (
-                      <tr key={th} style={{ marginBottom: '5px' }}>
-                        <td style={{ ...labelS, paddingBottom: '5px', width: '140px', verticalAlign: 'top' }}>
-                          {th} :
+                    {rightInfo.map(({ label, value }) => (
+                      <tr key={label}>
+                        <td style={{ ...labelS, width: '40%', padding: '5px 6px 5px 0', verticalAlign: 'middle' }}>
+                          {label} :
                         </td>
-                        <td style={{ ...valueS, paddingBottom: '5px', width: '100%' }}>
-                          {val || ''}
+                        <td style={{ ...valueS, width: '60%', paddingTop: '5px' }}>
+                          {value || '\u00A0'}
                         </td>
                       </tr>
                     ))}
@@ -447,8 +442,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </tbody>
         </table>
 
-        {/* ═══ Details of Work ═══ */}
-        <div style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '10.2pt', margin: '0 0 3px 1px', textTransform: 'uppercase', letterSpacing: '0.7px' }}>
           Details of Work
         </div>
       </>
@@ -458,30 +452,31 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   function itemsHeadRow() {
     return (
       <tr>
-        <th style={{ ...thS, width: '32px' }}>No.</th>
+        <th style={thS}>No.</th>
         <th style={{ ...thS, textAlign: 'left' }}>Description / รายละเอียด</th>
-        <th style={{ ...thS, width: '50px' }}>Qty</th>
-        <th style={{ ...thS, width: '50px' }}>Unit</th>
+        <th style={thS}>Qty</th>
+        <th style={thS}>Unit</th>
       </tr>
     )
   }
 
   function renderItemRow(item: WorkOrderItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
     return (
-      <tr key={item.key} ref={rowRef} style={{ height: '20px' }}>
+      <tr key={item.key} ref={rowRef} style={{ height: '24px' }}>
         <td style={itemCellS}>{item.displaySeq ?? ''}</td>
         <td style={{ ...itemCellS, textAlign: 'left' }}>
-          {item.desc ?? ''}
+          {item.desc && <div style={{ whiteSpace: 'pre-wrap' }}>{item.desc}</div>}
           {item.noteLines.map((line, idx) => (
-            <span key={idx} style={{ color: '#555', fontSize: '7.5pt', display: 'block' }}>
+            <span key={idx} style={{ color: '#444', fontSize: '8.5pt', lineHeight: 1.35, whiteSpace: 'pre-wrap', display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
+          {!item.desc && item.noteLines.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
             <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: '34mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
               ))}
             </div>
           )}
@@ -494,13 +489,11 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   function renderItemsTable(chunk: PageChunk) {
     return (
-      <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: '8px', border }}>
-        <thead>
-          {itemsHeadRow()}
-        </thead>
+      <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed', border: borderHeavy }}>
+        {renderItemsColGroup()}
+        <thead>{itemsHeadRow()}</thead>
         <tbody>
           {chunk.items.map(item => renderItemRow(item))}
-          {/* Flexible filler row fills remaining vertical space on the page */}
           <tr className="workorder-flex-filler" style={{ height: '100%' }}>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
@@ -514,97 +507,90 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   function renderBottomSections() {
     const sigCols = [
-      { role: 'Sales',             name: doc.sales?.fullName ?? '' },
-      { role: 'Sales Manager',     name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
-      { role: 'Project Manager',   name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
+      { role: 'Sales', name: doc.sales?.fullName ?? '' },
+      { role: 'Sales Manager', name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
+      { role: 'Project Manager', name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
       { role: 'Managing Director', name: doc.approvalLogs?.find(l => l.step === 5)?.approver?.fullName ?? '' },
     ]
+    const teamOptions = [
+      { label: 'ส่งของอย่างเดียว', key: 'team_delivery_only' },
+      { label: 'ทีมพื้น', key: 'team_floor' },
+      { label: 'ทีมโรงงาน 2', key: 'team_factory2' },
+      { label: 'ทีมติดตั้ง', key: 'team_install' },
+      { label: 'ทีมประตู', key: 'team_door' },
+      { label: 'ผู้รับเหมา', key: 'team_contractor' },
+    ]
+    const checklistPairs = [
+      { left: { label: 'PO', key: 'doc_po' }, right: { label: 'PR', key: 'doc_pr' } },
+      { left: { label: 'Quotation', key: 'doc_quotation' }, right: { label: 'Min', key: 'doc_min' } },
+      { left: { label: 'Drawing Confirm', key: 'doc_drawing_confirm' }, right: { label: 'Waiting Confirm', key: 'doc_waiting_confirm' } },
+      { left: { label: 'Hand Over Job', key: 'doc_handover' }, right: { label: 'Check List', key: 'doc_checklist' } },
+    ]
+    const checklistLeft = checklistPairs.map(({ left }) => left)
+    const checklistRight = checklistPairs.map(({ right }) => right)
+
     return (
       <div style={{ flex: '0 0 auto' }}>
-        {/* ═══ Remark ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
-          <tbody>
-            <tr>
-              <td style={{ ...tdS, width: '70px', fontWeight: 'bold', verticalAlign: 'top' }}>Remark :</td>
-              <td style={tdS}>{doc.remark ?? ''}</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* ═══ Team Assignment Checkboxes ═══ */}
-        <div style={{ border, padding: '6px 8px', marginBottom: '8px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '9pt', marginBottom: '5px' }}>Team / ทีมงาน</div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-            <Checkbox label="ส่งของอย่างเดียว" checked={chk('team_delivery_only')} />
-            <Checkbox label="ทีมพื้น" checked={chk('team_floor')} />
-            <Checkbox label="ทีมโรงงาน 2" checked={chk('team_factory2')} />
-            <Checkbox label="ทีมติดตั้ง" checked={chk('team_install')} />
-            <Checkbox label="ทีมประตู" checked={chk('team_door')} />
-            <Checkbox label="ผู้รับเหมา" checked={chk('team_contractor')} />
+        <div style={{ marginBottom: sectionGap, padding: '7px 9px' }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '18px', rowGap: '7px' }}>
+            {teamOptions.map(({ label, key }) => <Checkbox key={key} label={label} checked={chk(key)} />)}
           </div>
-          {doc.teamAssignment && (
-            <div style={{ fontSize: '8.5pt', color: '#444', marginTop: '4px' }}>
-              หมายเหตุทีม: {doc.teamAssignment}
-            </div>
-          )}
         </div>
 
-        {/* ═══ QC / Installation Date / Remark bottom table ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, border: borderHeavy, tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '18%' }} />
+            <col />
+          </colgroup>
           <tbody>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', width: '200px', whiteSpace: 'nowrap' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                 QC Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ผ่านการ QC)</span>
               </td>
-              <td style={tdS}>{qcDateStr}</td>
+              <td style={{ ...tdS, minHeight: '24px', verticalAlign: 'middle' }}>{qcDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
                 Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ติดตั้งแล้ว)</span>
               </td>
-              <td style={tdS}>{installDateStr}</td>
+              <td style={{ ...tdS, minHeight: '24px', verticalAlign: 'middle' }}>{installDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', verticalAlign: 'middle' }}>
                 Remark<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(หมายเหตุ)</span>
               </td>
-              <td style={{ ...tdS, height: '30px' }}></td>
+              <td style={{ ...tdS, minHeight: '34px', whiteSpace: 'pre-wrap' }}>{doc.remark || '\u00A0'}</td>
             </tr>
           </tbody>
         </table>
 
-        {/* ═══ Document Checklist ═══ */}
-        <div style={{ border, padding: '6px 8px', marginBottom: '10px' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {[
-                { left: { label: 'PO', key: 'doc_po' }, right: { label: 'PR', key: 'doc_pr' } },
-                { left: { label: 'Quotation', key: 'doc_quotation' }, right: { label: 'Min', key: 'doc_min' } },
-                { left: { label: 'Drawing Confirm', key: 'doc_drawing_confirm' }, right: { label: 'Waiting Confirm', key: 'doc_waiting_confirm' } },
-                { left: { label: 'Hand Over Job', key: 'doc_handover' }, right: { label: 'Check List', key: 'doc_checklist' } },
-              ].map(({ left, right }) => (
-                <tr key={left.key}>
-                  <td style={{ padding: '2px 8px 2px 0', width: '50%' }}>
-                    <Checkbox label={left.label} checked={chk(left.key)} />
-                  </td>
-                  <td style={{ padding: '2px 0', width: '50%' }}>
-                    <Checkbox label={right.label} checked={chk(right.key)} />
-                  </td>
-                </tr>
+        <div style={{ border: borderHeavy, padding: '8px 12px', marginBottom: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', justifyContent: 'center', columnGap: '56px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              {checklistLeft.map(item => (
+                <div key={item.key} style={{ width: '150px' }}>
+                  <Checkbox label={item.label} checked={chk(item.key)} />
+                </div>
               ))}
-            </tbody>
-          </table>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
+              {checklistRight.map(item => (
+                <div key={item.key} style={{ width: '150px' }}>
+                  <Checkbox label={item.label} checked={chk(item.key)} />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
-        {/* ═══ Signature Row ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <tbody>
             <tr>
               {sigCols.map(({ role, name }) => (
-                <td key={role} style={{ border, padding: '4px 6px', textAlign: 'center', width: '25%' }}>
-                  <div style={{ fontSize: '8.5pt', fontWeight: 'bold', marginBottom: '28px' }}>{role}</div>
-                  <div style={{ borderTop: '1px dotted #555', marginBottom: '3px' }} />
-                  <div style={{ fontSize: '8pt' }}>{name || '(…………………………)'}</div>
+                <td key={role} style={{ border: borderHeavy, padding: '8px 6px 6px', textAlign: 'center', width: '25%', verticalAlign: 'top' }}>
+                  <div style={{ fontSize: '8.9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '30px' }}>{role}</div>
+                  <div style={{ borderTop: '1px dotted #555', width: '80%', margin: '0 auto 4px' }} />
+                  <div style={{ fontSize: '8.4pt', minHeight: '14px' }}>{name || '(…………………………)'}</div>
                 </td>
               ))}
             </tr>
@@ -631,7 +617,8 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
       >
         <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
         <div ref={headerMeasRef}>{renderHeader(1)}</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed', border: borderHeavy }}>
+          {renderItemsColGroup()}
           <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
           <tbody>
             {renderItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
@@ -643,7 +630,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   }
 
   return (
-    <div className="print-sheet workorder-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt', position: 'relative' }}>
+    <div className="print-sheet workorder-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10.2pt', lineHeight: 1.3, position: 'relative' }}>
       {pages === null && renderMeasureLayer()}
       {(pages ?? []).map((page, pi) => (
         <div
@@ -681,7 +668,6 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             }}
           >
             {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={url}
                 alt={att.originalName ?? ''}

@@ -1,10 +1,16 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
-import type { HandOverJob, Settings } from '@/types'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { resolveFileUrl } from '@/lib/api'
+import type { HandOverJob, QuotationItem, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 10
+const FRAGMENT_CAP = PACK_CAP_LAST
+
+const HEADER_GAP = 12
+const SAFETY = 10
+const TAIL_GAP = 10
 
 interface Props {
   doc: HandOverJob
@@ -12,52 +18,194 @@ interface Props {
   onReady?: () => void
 }
 
+interface HandoverItemFragment {
+  key: string
+  desc: string
+  noteLines: string[]
+  images: string[]
+  qty?: number
+  unit?: string
+  displaySeq?: number
+}
+
 interface PageChunk {
-  lines: string[]
+  items: HandoverItemFragment[]
+  isLast: boolean
   tail: boolean
 }
 
-function paginateLines(lines: string[]): PageChunk[] {
-  if (lines.length === 0) return [{ lines: [], tail: true }]
+function splitDescriptionLines(note?: string): string[] {
+  if (note == null) return []
+  const lines = note.split('\n').map(v => v.trim())
+  if (lines.length === 1 && lines[0] === '') return []
+  return lines
+}
 
-  const rawPages: string[][] = []
-  let current: string[] = []
-  let count = 0
+function noteLinesWeight(lines: string[]): number {
+  const nonEmptyNoteLines = lines.filter(Boolean).length
+  const blankNoteLines = lines.length - nonEmptyNoteLines
+  return nonEmptyNoteLines + blankNoteLines * 0.35
+}
 
-  for (const line of lines) {
-    if (count + 1 > PACK_CAP_NON_LAST && current.length > 0) {
+function itemWeight(fragment: HandoverItemFragment): number {
+  return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
+}
+
+function splitItemIntoFragments(item: QuotationItem, itemIndex: number): HandoverItemFragment[] {
+  const noteLines = splitDescriptionLines(item.note)
+  const remainingLines = [...noteLines]
+  const remainingImages = Array.isArray(item.images) ? [...item.images] : []
+  const fragments: HandoverItemFragment[] = []
+  const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
+  let fragmentIndex = 0
+
+  while (fragmentIndex === 0 || remainingLines.length > 0 || remainingImages.length > 0) {
+    const noteChunk: string[] = []
+    const imageChunk: string[] = []
+    let weight = 1
+
+    while (remainingLines.length > 0) {
+      const nextLine = remainingLines[0]
+      const nextWeight = nextLine ? 1 : 0.35
+      if (weight + nextWeight > FRAGMENT_CAP && noteChunk.length > 0) break
+      noteChunk.push(remainingLines.shift() as string)
+      weight += nextWeight
+    }
+
+    while (remainingImages.length > 0) {
+      const nextWeight = 3
+      if (weight + nextWeight > FRAGMENT_CAP && (noteChunk.length > 0 || imageChunk.length > 0)) break
+      imageChunk.push(remainingImages.shift() as string)
+      weight += nextWeight
+    }
+
+    fragments.push({
+      key: `${item.id ?? item.seq ?? itemIndex}-${fragmentIndex}`,
+      desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
+      noteLines: noteChunk,
+      images: imageChunk,
+      qty: fragmentIndex === 0 ? item.qty : undefined,
+      unit: fragmentIndex === 0 ? item.unit : undefined,
+      displaySeq: fragmentIndex === 0 ? displaySeq : undefined,
+    })
+
+    fragmentIndex += 1
+  }
+
+  return fragments
+}
+
+function buildRenderableItems(items: QuotationItem[]): HandoverItemFragment[] {
+  return items.flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
+}
+
+function buildFallbackItems(lines: string[]): HandoverItemFragment[] {
+  return lines.map((line, index) => ({
+    key: `fallback-${index}`,
+    desc: line,
+    noteLines: [],
+    images: [],
+    displaySeq: index + 1,
+  }))
+}
+
+function paginateItems(items: HandoverItemFragment[]): PageChunk[] {
+  if (items.length === 0) {
+    return [{ items: [], isLast: true, tail: true }]
+  }
+
+  const rawPages: HandoverItemFragment[][] = []
+  let current: HandoverItemFragment[] = []
+  let currentWeight = 0
+
+  for (const item of items) {
+    const weight = itemWeight(item)
+    if (currentWeight + weight > PACK_CAP_NON_LAST && current.length > 0) {
       rawPages.push(current)
-      current = [line]
-      count = 1
+      current = [item]
+      currentWeight = weight
     } else {
-      current.push(line)
-      count += 1
+      current.push(item)
+      currentWeight += weight
     }
   }
   if (current.length > 0) rawPages.push(current)
 
-  // Keep room on the last page for quality/comment/signatures.
-  let last = rawPages[rawPages.length - 1]
-  while (last.length > PACK_CAP_LAST) {
-    const overflow = last.splice(PACK_CAP_LAST)
-    rawPages.push(overflow)
-    last = rawPages[rawPages.length - 1]
+  const pages = rawPages.map(pageItems => ({
+    items: pageItems,
+    isLast: false,
+    tail: false,
+  }))
+  const lastPageWeight = rawPages[rawPages.length - 1].reduce((sum, fragment) => sum + itemWeight(fragment), 0)
+
+  if (lastPageWeight <= PACK_CAP_LAST) {
+    const lastPage = pages[pages.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+  } else {
+    pages.push({ items: [], isLast: true, tail: true })
   }
 
-  return rawPages.map((page, i) => ({
-    lines: page,
-    tail: i === rawPages.length - 1,
+  return pages
+}
+
+function packByHeight(items: HandoverItemFragment[], heights: number[], availNonLast: number, availLast: number): PageChunk[] {
+  if (items.length === 0) return [{ items: [], isLast: true, tail: true }]
+
+  type Entry = { item: HandoverItemFragment; height: number }
+  const entries: Entry[] = items.map((item, index) => ({ item, height: heights[index] ?? 0 }))
+
+  const rawPages: Entry[][] = []
+  let current: Entry[] = []
+  let used = 0
+
+  for (const entry of entries) {
+    if (current.length > 0 && used + entry.height > availNonLast) {
+      rawPages.push(current)
+      current = [entry]
+      used = entry.height
+    } else {
+      current.push(entry)
+      used += entry.height
+    }
+  }
+  if (current.length > 0) rawPages.push(current)
+
+  const pages = rawPages.map(pageItems => ({
+    items: pageItems.map(entry => entry.item),
+    isLast: false,
+    tail: false,
   }))
+
+  const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
+  if (lastPageHeight <= availLast) {
+    const lastPage = pages[pages.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+  } else {
+    pages.push({ items: [], isLast: true, tail: true })
+  }
+
+  return pages
 }
 
 export default function HandoverPrint({ doc, settings, onReady }: Props) {
-  const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
-  const address       = settings?.address       || '98 Moo. 6, T.Khlong Sii, A.Khlongluang, Pathumtani 12120'
-  const taxId         = settings?.taxId         || '0135549009942'
-  const tel           = settings?.tel           || '+66 2150 7694-6'
+  const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const probeRef = useRef<HTMLDivElement>(null)
+  const headerMeasRef = useRef<HTMLDivElement>(null)
+  const theadMeasRef = useRef<HTMLTableSectionElement>(null)
+  const tailMeasRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const readyRef = useRef(false)
 
-  const border   = '1px solid #555'
+  const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
+  const address = settings?.address || '98 Moo. 6, T.Khlong Sii, A.Khlongluang, Pathumtani 12120'
+  const taxId = settings?.taxId || '0135549009942'
+  const tel = settings?.tel || '+66 2150 7694-6'
+
+  const border = '1px solid #555'
   const borderTh = '1px solid #888'
 
   const serviceDateStr = doc.serviceDate
@@ -68,13 +216,76 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     () => (doc.product || '').split('\n').map(v => v.trim()).filter(Boolean),
     [doc.product],
   )
-  const pages = useMemo(() => paginateLines(productLines), [productLines])
-  const totalPages = pages.length
+  const quotationItems = useMemo(
+    () => doc.quotation?.items?.length
+      ? doc.quotation.items
+      : (doc.workOrder?.quotation?.items || []),
+    [doc.quotation?.items, doc.workOrder?.quotation?.items],
+  )
+  const renderItems = useMemo(
+    () => quotationItems.length > 0 ? buildRenderableItems(quotationItems) : buildFallbackItems(productLines),
+    [quotationItems, productLines],
+  )
+  const totalPages = pages?.length ?? 1
 
   useEffect(() => {
-    if (!onReady) return
-    requestAnimationFrame(() => { onReady() })
-  }, [onReady, pages])
+    setPages(null)
+    rowRefs.current = []
+    readyRef.current = false
+  }, [doc])
+
+  useEffect(() => {
+    if (pages !== null) return
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        if (typeof document !== 'undefined' && document.fonts?.ready) {
+          await document.fonts.ready
+        }
+
+        const container = measureRef.current
+        if (container) {
+          const images = Array.from(container.querySelectorAll('img'))
+          await Promise.all(images.map(img => img.complete
+            ? Promise.resolve()
+            : new Promise<void>(resolve => {
+              img.addEventListener('load', () => resolve(), { once: true })
+              img.addEventListener('error', () => resolve(), { once: true })
+            })))
+        }
+
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        if (cancelled) return
+
+        const pagePx = probeRef.current?.getBoundingClientRect().height ?? 0
+        const headerHeight = headerMeasRef.current?.getBoundingClientRect().height ?? 0
+        const theadHeight = theadMeasRef.current?.getBoundingClientRect().height ?? 0
+        const tailHeight = tailMeasRef.current?.getBoundingClientRect().height ?? 0
+        const heights = renderItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
+        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY
+        const availLast = availNonLast - tailHeight - TAIL_GAP
+
+        if (!pagePx || availNonLast < 20 || (renderItems.length > 0 && heights.every(height => height <= 0))) {
+          setPages(paginateItems(renderItems))
+          return
+        }
+
+        setPages(packByHeight(renderItems, heights, availNonLast, Math.max(availLast, 20)))
+      } catch {
+        if (!cancelled) setPages(paginateItems(renderItems))
+      }
+    }
+
+    void run()
+    return () => { cancelled = true }
+  }, [pages, renderItems])
+
+  useEffect(() => {
+    if (pages === null || readyRef.current) return
+    readyRef.current = true
+    requestAnimationFrame(() => { onReady?.() })
+  }, [pages, onReady])
 
   const thS: React.CSSProperties = {
     border: borderTh,
@@ -100,7 +311,6 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     padding: '4px 6px',
     fontSize: '10pt',
     verticalAlign: 'top',
-    height: '23px',
     textAlign: 'center',
   }
 
@@ -127,13 +337,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   ]
 
   const RatingTextRow = () => (
-    <div style={{ marginBottom: '9px', fontSize: '10pt', lineHeight: 1.5, display: 'flex', flexWrap: 'wrap', gap: '18px' }}>
+    <div style={{ marginBottom: '5px', fontSize: '8.8pt', lineHeight: 1.2, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
       {RATING_OPTS.map((opt) => (
-        <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '5px' }}>
+        <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <span
             style={{
-              width: '12px',
-              height: '12px',
+              width: '10px',
+              height: '10px',
               border: '1px solid #555',
               display: 'inline-flex',
               alignItems: 'center',
@@ -162,7 +372,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                 <div style={{ fontWeight: 'bold', fontSize: '12pt', lineHeight: 1.2 }}>{companyName}</div>
                 <div style={{ fontWeight: 'bold', fontSize: '10.5pt', color: '#444', lineHeight: 1.2 }}>{companyNameEn}</div>
                 <div style={{ fontSize: '8.6pt', color: '#555' }}>{address}</div>
-                <div style={{ fontSize: '8.6pt', color: '#555' }}>โทร. {tel}&nbsp;&nbsp;Fax. +66 2150 7697</div>
+                <div style={{ fontSize: '8.6pt', color: '#555' }}>โทร. {tel}</div>
                 <div style={{ fontSize: '8.6pt', color: '#555' }}>TAX ID : {taxId}</div>
               </td>
               <td style={{ width: '210px', textAlign: 'center', borderLeft: '2px solid #555', paddingLeft: '12px', verticalAlign: 'middle' }}>
@@ -182,12 +392,12 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {[
-                      ['Project',       doc.project || ''],
-                      ['Contractor',    doc.contractor || ''],
-                      ['Location',      doc.location || ''],
+                      ['Project', doc.project || ''],
+                      ['Contractor', doc.contractor || ''],
+                      ['Location', doc.location || ''],
                       ['Contract Name', doc.contactName || ''],
-                      ['Customer HP.',  doc.contactTel || ''],
-                      ['Product',       productLines[0] || ''],
+                      ['Customer HP.', doc.contactTel || ''],
+                      ['Product', productLines[0] || ''],
                     ].map(([label, val]) => (
                       <tr key={label}>
                         <td style={{ ...labelS, paddingBottom: '6px', width: '132px', verticalAlign: 'top' }}>{label} :</td>
@@ -202,10 +412,10 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                   <tbody>
                     {[
                       ['Hand Over Job NO.', doc.hoNo],
-                      ['Responsibility',    doc.responsibility || ''],
+                      ['Responsibility', doc.responsibility || ''],
                       ['Quotation No. / Work order No.', `${doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'} / ${doc.workOrder?.woNo || '-'}`],
-                      ['Sales',             doc.sales?.fullName || ''],
-                      ['Date of service',   serviceDateStr],
+                      ['Sales', doc.sales?.fullName || ''],
+                      ['Date of service', serviceDateStr],
                     ].map(([label, val]) => (
                       <tr key={label}>
                         <td style={{ ...labelS, paddingBottom: '6px', width: '180px', verticalAlign: 'top' }}>{label} :</td>
@@ -222,41 +432,58 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     )
   }
 
-  function renderItemsTable(lines: string[], offset: number) {
+  function itemsHeadRow() {
+    return (
+      <tr>
+        <th style={{ ...thS, width: '32px' }}>No.</th>
+        <th style={{ ...thS, textAlign: 'left' }}>Description / รายละเอียด</th>
+        <th style={{ ...thS, width: '50px' }}>Qty</th>
+        <th style={{ ...thS, width: '50px' }}>Unit</th>
+      </tr>
+    )
+  }
+
+  function renderItemRow(item: HandoverItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
+    return (
+      <tr key={item.key} ref={rowRef}>
+        <td style={itemCellS}>{item.displaySeq ?? ''}</td>
+        <td style={{ ...itemCellS, textAlign: 'left' }}>
+          {item.desc}
+          {item.noteLines.map((line, index) => (
+            <span key={index} style={{ color: '#555', fontSize: '8pt', display: 'block' }}>
+              {line || '\u00A0'}
+            </span>
+          ))}
+          {item.images.length > 0 && (
+            <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+              {item.images.map((url, index) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img key={index} src={resolveFileUrl(url)} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+              ))}
+            </div>
+          )}
+        </td>
+        <td style={itemCellS}>{item.qty != null ? item.qty : ''}</td>
+        <td style={itemCellS}>{item.unit ?? ''}</td>
+      </tr>
+    )
+  }
+
+  function renderItemsTable(chunk: PageChunk) {
     return (
       <>
-        <div style={{ fontWeight: 'bold', fontSize: '10.5pt', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+        <div style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
           Details of Work
         </div>
         <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: '8px', border }}>
-          <thead>
-            <tr>
-              <th style={{ ...thS, width: '40px' }}>ITEM</th>
-              <th style={thS}>Description</th>
-              <th style={{ ...thS, width: '70px' }}>QTY</th>
-              <th style={{ ...thS, width: '70px' }}>UNIT</th>
-              <th style={{ ...thS, width: '80px' }}>REMARK</th>
-            </tr>
-          </thead>
+          <thead>{itemsHeadRow()}</thead>
           <tbody>
-            {lines.map((line, i) => {
-              const globalIndex = offset + i
-              return (
-                <tr key={i}>
-                  <td style={{ ...itemCellS, fontWeight: globalIndex === 0 ? 'bold' : 'normal' }}>{globalIndex === 0 ? '1' : ''}</td>
-                  <td style={{ ...itemCellS, textAlign: 'left', whiteSpace: 'pre-wrap' }}>{line}</td>
-                  <td style={itemCellS}></td>
-                  <td style={itemCellS}></td>
-                  <td style={itemCellS}></td>
-                </tr>
-              )
-            })}
+            {chunk.items.map(item => renderItemRow(item))}
             <tr style={{ height: '100%' }}>
-              <td style={{ ...itemCellS, height: '100%', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, height: '100%', textAlign: 'left', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, height: '100%', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, height: '100%', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, height: '100%', fontSize: 0, lineHeight: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
             </tr>
           </tbody>
         </table>
@@ -267,30 +494,30 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ border, padding: '8px 10px', marginBottom: '8px' }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11pt', marginBottom: '8px' }}>
+        <div style={{ border, padding: '5px 8px', marginBottom: '6px' }}>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
 
-          <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
-          <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
+          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
+          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
-          <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
+          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
+          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '9.8pt', fontWeight: 'bold', marginBottom: '2px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
-          <div style={{ fontSize: '9.8pt', marginBottom: '3px', marginLeft: '12px', lineHeight: 1.35 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
-          <div style={{ marginLeft: '12px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '8.8pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
+          <div style={{ fontSize: '8.3pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.2 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
+          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
         </div>
 
-        <div style={{ border, padding: '8px 10px', marginBottom: '8px' }}>
-          <div style={{ fontWeight: 'bold', fontSize: '9.5pt', marginBottom: '8px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '16px', fontSize: '10pt' }}>
+        <div style={{ border, padding: '5px 8px', marginBottom: '6px' }}>
+          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '5px' }}>COMMENT</div>
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '12px', fontSize: '9pt' }}>
             {doc.comment || '\u00A0'}
           </div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '16px', height: '1px' }}></div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '1px' }} />
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2px' }}>
@@ -315,42 +542,66 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     )
   }
 
+  function renderMeasureLayer() {
+    return (
+      <div
+        ref={measureRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
+        <div ref={headerMeasRef}>{renderHeader(1)}</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
+          <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
+          <tbody>
+            {renderItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
+          </tbody>
+        </table>
+        <div ref={tailMeasRef}>{renderTail()}</div>
+      </div>
+    )
+  }
+
   return (
-    <div className="print-sheet handover-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt' }}>
-      {pages.map((page, pi) => {
-        const offset = pages.slice(0, pi).reduce((sum, p) => sum + p.lines.length, 0)
-        const pageNum = pi + 1
-        const isLast = pageNum === totalPages
-        return (
-          <div
-            key={pi}
-            className="handover-page"
-            style={{
-              pageBreakAfter: isLast ? 'auto' : 'always',
-              breakAfter: isLast ? 'auto' : 'page',
-              display: 'flex',
-              flexDirection: 'column',
-              minHeight: '281mm',
-              position: 'relative',
-            }}
-          >
-            {renderHeader(pageNum)}
-            {renderItemsTable(page.lines, offset)}
-            {page.tail && renderTail()}
-            {!page.tail && (
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  borderTop: border,
-                }}
-              />
-            )}
-          </div>
-        )
-      })}
+    <div className="print-sheet handover-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt', position: 'relative' }}>
+      {pages === null && renderMeasureLayer()}
+      {(pages ?? []).map((page, index) => (
+        <div
+          key={index}
+          className="handover-page"
+          style={{
+            pageBreakAfter: index < totalPages - 1 ? 'always' : 'auto',
+            breakAfter: index < totalPages - 1 ? 'page' : 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            minHeight: '281mm',
+            position: 'relative',
+          }}
+        >
+          {renderHeader(index + 1)}
+          {renderItemsTable(page)}
+          {page.tail && renderTail()}
+          {!page.tail && (
+            <div
+              style={{
+                position: 'absolute',
+                left: 0,
+                right: 0,
+                bottom: 0,
+                borderTop: border,
+              }}
+            />
+          )}
+        </div>
+      ))}
     </div>
   )
 }

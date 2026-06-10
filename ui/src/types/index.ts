@@ -330,9 +330,9 @@ export interface HandOverJob {
   id: string
   hoNo: string
   quotationId?: string
-  quotation?: { id: string; quoNo: string }
+  quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
   workOrderId?: string
-  workOrder?: { id: string; woNo: string; quotation?: { id: string; quoNo: string } | null }
+  workOrder?: { id: string; woNo: string; quotation?: { id: string; quoNo: string; items?: QuotationItem[] } | null }
   salesId: string
   sales?: { id: string; fullName: string }
   project: string
