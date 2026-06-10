@@ -13,6 +13,31 @@ import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 
+const CHECKLIST_GROUPS = {
+  team: [
+    { label: 'ส่งของอย่างเดียว', key: 'team_delivery_only' },
+    { label: 'ทีมพื้น', key: 'team_floor' },
+    { label: 'ทีมโรงงาน 2', key: 'team_factory2' },
+    { label: 'ทีมติดตั้ง', key: 'team_install' },
+    { label: 'ทีมประตู', key: 'team_door' },
+    { label: 'ผู้รับเหมา', key: 'team_contractor' },
+  ],
+  docs: [
+    { label: 'PO', key: 'doc_po' },
+    { label: 'PR', key: 'doc_pr' },
+    { label: 'Quotation', key: 'doc_quotation' },
+    { label: 'Min', key: 'doc_min' },
+    { label: 'Drawing Confirm', key: 'doc_drawing_confirm' },
+    { label: 'Waiting Confirm', key: 'doc_waiting_confirm' },
+    { label: 'Hand Over Job', key: 'doc_handover' },
+    { label: 'Check List', key: 'doc_checklist' },
+  ],
+} as const
+
+const DEFAULT_DOC_CHECKLIST: Record<string, boolean> = Object.fromEntries(
+  [...CHECKLIST_GROUPS.team, ...CHECKLIST_GROUPS.docs].map(item => [item.key, false]),
+)
+
 export default function WorkOrderDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -63,6 +88,11 @@ export default function WorkOrderDetailPage() {
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
   const canApprove = doc.status === 'pending' && nextStepRole === user?.role
+  const checklist = { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) }
+  const checklistItemClass = (checked: boolean) =>
+    `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked
+      ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
+      : 'border-gray-200 bg-white text-gray-700'}`
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/workorder/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -148,6 +178,43 @@ export default function WorkOrderDetailPage() {
         <div><span className="form-label">วันติดตั้ง</span><p>{doc.installDate ? new Date(doc.installDate).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">วัน QC</span><p>{doc.qcDate ? new Date(doc.qcDate).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.remark && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>}
+      </div>
+
+      <div className="card p-5 space-y-4">
+        <div>
+          <h3 className="font-semibold text-gray-800 mb-2">ทีมงาน (ใบ Work Order)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {CHECKLIST_GROUPS.team.map(item => (
+              <label key={item.key} className={checklistItemClass(!!checklist[item.key])}>
+                <input
+                  type="checkbox"
+                  checked={!!checklist[item.key]}
+                  readOnly
+                  disabled
+                  className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+                />
+                <span>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-800 mb-2">เอกสารประกอบ (ใบ Work Order)</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2">
+            {CHECKLIST_GROUPS.docs.map(item => (
+              <label key={item.key} className={checklistItemClass(!!checklist[item.key])}>
+                <input
+                  type="checkbox"
+                  checked={!!checklist[item.key]}
+                  readOnly
+                  disabled
+                  className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
+                />
+                <span>{item.label}</span>
+              </label>
+            ))}
+          </div>
+        </div>
       </div>
 
       <AttachmentsSection
