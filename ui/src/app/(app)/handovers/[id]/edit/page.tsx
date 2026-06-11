@@ -3,7 +3,6 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, QuotationsAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
-import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { HandOverItem, Quotation, Unit } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -48,11 +47,6 @@ export default function EditHandoverPage() {
     QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
     UnitsAPI.list().then(setUnits).catch(() => {})
     HandoversAPI.get(id).then(doc => {
-      if (!isEditableApprovalDocStatus(doc.status)) {
-        toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
-        router.replace(`/handovers/${id}`)
-        return
-      }
       setForm({
         quotationId: doc.quotationId ?? doc.workOrder?.quotation?.id ?? '',
         project: doc.project ?? '',

@@ -5,21 +5,17 @@ import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import type { HandOverJob, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
-import { useSettingsStore } from '@/store/settings'
 import HandoverPrint from '@/components/HandoverPrint'
 import { useAuthStore } from '@/store/auth'
-import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
+import { ArrowLeft, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export default function HandoverDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
-  const { stepRoleConfig } = useSettingsStore()
   const [doc, setDoc] = useState<HandOverJob | null>(null)
   const [loading, setLoading] = useState(true)
-  const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
@@ -53,14 +49,8 @@ export default function HandoverDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
-  const canSubmit = isMine && doc.status === 'draft'
-  const canResubmit = isMine && doc.status === 'rejected'
-  const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
-
-  const nextStep = doc.approvalStep + 1
-  const nextStepRole = stepRoleConfig[String(nextStep)]
-  const canApprove = doc.status === 'pending' && nextStepRole === user?.role
+  const canEdit = isMine || isAdmin
+  const canDelete = isMine || isAdmin
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/handover/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -70,17 +60,13 @@ export default function HandoverDetailPage() {
         ? doc.quotation.items
         : (doc.workOrder?.quotation?.items || []))
 
-  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
-    if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
+  const actDelete = async () => {
+    if (!confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     setActing(true)
     try {
-      if (action === 'submit') await HandoversAPI.submit(id, comment)
-      else if (action === 'approve') await HandoversAPI.approve(id, comment)
-      else if (action === 'reject') await HandoversAPI.reject(id, comment)
-      else if (action === 'delete') { await HandoversAPI.cancel(id); router.push('/handovers'); return }
-      toast.success('ดำเนินการสำเร็จ')
-      load()
-      setComment('')
+      await HandoversAPI.cancel(id)
+      toast.success('ลบ/ยกเลิกเอกสารสำเร็จ')
+      router.push('/handovers')
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด')
     } finally {
@@ -110,7 +96,7 @@ export default function HandoverDetailPage() {
           </button>
         )}
         {canDelete && (
-          <button className="btn-danger btn-sm" onClick={() => act('delete')} disabled={acting}>
+          <button className="btn-danger btn-sm" onClick={actDelete} disabled={acting}>
             <Trash2 size={14} /> ลบ
           </button>
         )}
@@ -173,36 +159,6 @@ export default function HandoverDetailPage() {
         </div>
       )}
 
-      {/* Action area */}
-      {(canSubmit || canResubmit || canApprove) && (
-        <div className="card p-5 space-y-3">
-          <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
-          <textarea
-            className="form-input"
-            rows={2}
-            placeholder="หมายเหตุ/ความคิดเห็น (ถ้ามี)"
-            value={comment}
-            onChange={e => setComment(e.target.value)}
-          />
-          <div className="flex gap-2">
-            {(canSubmit || canResubmit) && (
-              <button className="btn-primary" disabled={acting} onClick={() => act('submit')}>
-                <SendHorizonal size={15} /> {canResubmit ? 'ส่งอนุมัติอีกครั้ง' : 'ส่งอนุมัติ'}
-              </button>
-            )}
-            {canApprove && (
-              <>
-                <button className="btn-success" disabled={acting} onClick={() => act('approve')}>
-                  <CheckCircle size={15} /> อนุมัติ
-                </button>
-                <button className="btn-danger" disabled={acting} onClick={() => act('reject')}>
-                  <XCircle size={15} /> ปฏิเสธ
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
     {previewOpen && (
       <div className="quotation-preview-modal fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
