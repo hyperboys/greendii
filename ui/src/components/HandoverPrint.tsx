@@ -530,7 +530,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: '1px' }}>
+        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: 0 }}>
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
@@ -548,7 +548,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
         </div>
 
-        <div style={{ borderTop: border, borderLeft: border, borderRight: border, padding: '4px 8px 5px', marginBottom: 0 }}>
+        <div style={{ borderLeft: border, borderRight: border, padding: '2px 8px 5px', marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '2px' }}>COMMENT</div>
           <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>&nbsp;</div>
           <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
