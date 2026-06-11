@@ -355,6 +355,7 @@ export interface HandOverJob {
   contactName?: string
   contactTel?: string
   product?: string
+  items?: HandOverItem[]
   responsibility?: string
   serviceDate?: string
   qualityProduct: number
@@ -367,6 +368,15 @@ export interface HandOverJob {
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
+}
+
+export interface HandOverItem {
+  seq?: number
+  desc: string
+  note?: string
+  qty: number
+  unit: string
+  images?: string[]
 }
 
 // ─── PURCHASE REQUEST ─────────────────────────────────────────────────────────

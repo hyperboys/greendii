@@ -11,13 +11,12 @@ import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
-import AttachmentsSection from '@/components/AttachmentsSection'
 
 export default function HandoverDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
-  const { stepRoleConfig, getRoleLabel } = useSettingsStore()
+  const { stepRoleConfig } = useSettingsStore()
   const [doc, setDoc] = useState<HandOverJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -58,7 +57,6 @@ export default function HandoverDetailPage() {
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
-  const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
 
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
@@ -66,9 +64,11 @@ export default function HandoverDetailPage() {
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/handover/${id}?token=${encodeURIComponent(previewToken)}` : ''
-  const quotationItems = doc.quotation?.items?.length
-    ? doc.quotation.items
-    : (doc.workOrder?.quotation?.items || [])
+  const quotationItems = doc.items?.length
+    ? doc.items
+    : (doc.quotation?.items?.length
+        ? doc.quotation.items
+        : (doc.workOrder?.quotation?.items || []))
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -172,50 +172,6 @@ export default function HandoverDetailPage() {
           </div>
         </div>
       )}
-
-      {/* Approval chain */}
-      <div className="card p-5">
-        <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
-        <div className="flex flex-wrap gap-2">
-          {Object.entries(stepRoleConfig)
-            .map(([step, role]) => ({ step: Number(step), role, label: getRoleLabel(role) }))
-            .sort((a, b) => a.step - b.step)
-            .map(s => {
-            const log = doc.approvalLogs?.find(l => l.step === s.step)
-            const isNext = s.step === nextStep && doc.status === 'pending'
-            return (
-              <div key={s.step} className={`flex flex-col gap-0.5 rounded-lg border px-3 py-2 text-xs min-w-[120px]
-                ${log?.action === 'approve' ? 'border-green-300 bg-green-50' :
-                  log?.action === 'reject'  ? 'border-red-300 bg-red-50' :
-                  isNext                    ? 'border-yellow-300 bg-yellow-50' :
-                                              'border-gray-200 bg-gray-50'}`}>
-                <span className="font-medium text-gray-700">{s.label}</span>
-                {log ? (
-                  <>
-                    <span className={log.action === 'approve' ? 'text-green-600' : 'text-red-600'}>
-                      {log.action === 'approve' ? '✓ อนุมัติ' : '✗ ปฏิเสธ'}
-                    </span>
-                    <span className="text-gray-400">{log.approver?.fullName}</span>
-                    {log.comment && <span className="text-gray-500 italic">{log.comment}</span>}
-                  </>
-                ) : isNext ? (
-                  <span className="text-yellow-600">รออนุมัติ</span>
-                ) : (
-                  <span className="text-gray-400">รอดำเนินการ</span>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <AttachmentsSection
-        attachments={doc.attachments ?? []}
-        docField="handOverJobId"
-        docId={id}
-        onRefresh={load}
-        readOnly={!canManageAttachments}
-      />
 
       {/* Action area */}
       {(canSubmit || canResubmit || canApprove) && (

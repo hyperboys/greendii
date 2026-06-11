@@ -296,6 +296,7 @@ model HandOverJob {
   contactName    String?
   contactTel     String?
   product        String?
+  items          Json       @default("[]")
   responsibility String?
   serviceDate    DateTime?
   qualityProduct Int        @default(0)

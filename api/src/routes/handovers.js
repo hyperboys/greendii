@@ -17,7 +17,55 @@ const handoverValidators = [
   body('qualityProduct').optional().isFloat({ min: 0 }),
   body('qualitySales').optional().isFloat({ min: 0 }),
   body('qualityInstall').optional().isFloat({ min: 0 }),
+  body('items').optional().isArray().withMessage('items ต้องเป็น array'),
 ];
+
+function normalizeHandoverItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item, index) => {
+      const desc = String(item?.desc ?? '').trim();
+      if (!desc) return null;
+      const qtyRaw = Number(item?.qty);
+      const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
+      const unit = String(item?.unit ?? '').trim();
+      const note = item?.note == null ? '' : String(item.note);
+      const images = Array.isArray(item?.images)
+        ? item.images.map(v => String(v || '')).filter(Boolean)
+        : [];
+      return {
+        seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
+        desc,
+        note,
+        qty,
+        unit,
+        images,
+      };
+    })
+    .filter(Boolean);
+}
+
+async function getQuotationItemsSnapshot(quotationId) {
+  if (!quotationId) return [];
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: {
+      items: {
+        select: { seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+        orderBy: { seq: 'asc' },
+      },
+    },
+  });
+  if (!quotation?.items?.length) return [];
+  return quotation.items.map((item, index) => ({
+    seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
+    desc: String(item.desc ?? ''),
+    note: item.note ?? '',
+    qty: Number(item.qty ?? 0),
+    unit: String(item.unit ?? ''),
+    images: Array.isArray(item.images) ? item.images : [],
+  }));
+}
 
 function buildOptionalRelationUpdate(id) {
   if (id === undefined) return undefined;
@@ -119,7 +167,6 @@ router.get('/:id', authenticate, async (req, res, next) => {
             },
           },
         },
-        attachments: true,
         approvalLogs: {
           include: { approver: { select: { id: true, fullName: true, role: true } } },
           orderBy: { actedAt: 'asc' },
@@ -153,7 +200,7 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
     const {
       quotationId, workOrderId, project, contractor, location,
       contactName, contactTel, product, responsibility,
-      serviceDate, qualityProduct, qualitySales, qualityInstall, comment,
+      serviceDate, qualityProduct, qualitySales, qualityInstall, comment, items,
     } = req.body;
     if (!project) return res.status(400).json({ message: 'project required' });
     const yy = String(new Date().getFullYear()).slice(2);
@@ -170,6 +217,10 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
     // If user selected quotation and did not explicitly send workOrderId,
     // auto-link the latest active work order created from that quotation.
     const resolvedWorkOrderId = workOrderId || await findWorkOrderIdByQuotationId(quotationId);
+    const normalizedItems = normalizeHandoverItems(items);
+    const itemsSnapshot = normalizedItems.length > 0
+      ? normalizedItems
+      : await getQuotationItemsSnapshot(quotationId);
 
     const item = await prisma.handOverJob.create({
       data: {
@@ -177,7 +228,7 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
         quotationId: quotationId || null,
         workOrderId: resolvedWorkOrderId,
         project, contractor, location,
-        contactName, contactTel, product, responsibility,
+        contactName, contactTel, product, items: itemsSnapshot, responsibility,
         serviceDate: serviceDate ? new Date(serviceDate) : null,
         qualityProduct: qualityProduct || 0,
         qualitySales: qualitySales || 0,
@@ -200,16 +251,23 @@ router.put('/:id', authenticate, handoverValidators, validate, async (req, res, 
     const {
       quotationId, workOrderId, project, contractor, location, contactName, contactTel,
       product, responsibility, serviceDate,
-      qualityProduct, qualitySales, qualityInstall, comment,
+      qualityProduct, qualitySales, qualityInstall, comment, items,
     } = req.body;
     await assertQuotationAccessible(req, quotationId);
     const quotationRelation = buildOptionalRelationUpdate(quotationId);
     const workOrderRelation = buildOptionalRelationUpdate(workOrderId);
+    const normalizedItems = normalizeHandoverItems(items);
+    const nextItemsSnapshot = items === undefined
+      ? undefined
+      : (normalizedItems.length > 0
+          ? normalizedItems
+          : await getQuotationItemsSnapshot(quotationId));
     const item = await prisma.handOverJob.update({
       where: { id: req.params.id },
       data: {
         project, contractor, location, contactName, contactTel,
         product, responsibility,
+        ...(nextItemsSnapshot !== undefined ? { items: nextItemsSnapshot } : {}),
         serviceDate: serviceDate ? new Date(serviceDate) : undefined,
         qualityProduct, qualitySales, qualityInstall, comment,
         ...(quotationRelation ? { quotation: quotationRelation } : {}),

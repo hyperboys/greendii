@@ -317,19 +317,19 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     padding: '5px 6px',
     backgroundColor: '#dfdde8',
     textAlign: 'center',
-    fontSize: '9.4pt',
+    fontSize: '12pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
   }
   const labelS: React.CSSProperties = {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
-    fontSize: '9.3pt',
+    fontSize: '9.8pt',
     color: '#222',
     lineHeight: 1.25,
   }
   const valueS: React.CSSProperties = {
-    fontSize: '9.3pt',
+    fontSize: '9.8pt',
     borderBottom: '1px dotted #555',
     minWidth: '100px',
     paddingBottom: '3px',
@@ -453,7 +453,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     return (
       <tr>
         <th style={thS}>No.</th>
-        <th style={{ ...thS, textAlign: 'left' }}>Description / รายละเอียด</th>
+        <th style={{ ...thS, textAlign: 'center' }}>Description / รายละเอียด</th>
         <th style={thS}>Qty</th>
         <th style={thS}>Unit</th>
       </tr>
@@ -489,7 +489,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   function renderItemsTable(chunk: PageChunk) {
     return (
-      <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed', border: borderHeavy }}>
+      <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: 0, tableLayout: 'fixed', border: borderHeavy }}>
         {renderItemsColGroup()}
         <thead>{itemsHeadRow()}</thead>
         <tbody>
@@ -508,6 +508,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   function renderBottomSections() {
     const sigCols = [
       { role: 'Sales', name: doc.sales?.fullName ?? '' },
+      { role: 'Review by', name: '' },
       { role: 'Sales Manager', name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
       { role: 'Project Manager', name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
       { role: 'Managing Director', name: doc.approvalLogs?.find(l => l.step === 5)?.approver?.fullName ?? '' },
@@ -520,18 +521,24 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
       { label: 'ทีมประตู', key: 'team_door' },
       { label: 'ผู้รับเหมา', key: 'team_contractor' },
     ]
-    const checklistPairs = [
-      { left: { label: 'PO', key: 'doc_po' }, right: { label: 'PR', key: 'doc_pr' } },
-      { left: { label: 'Quotation', key: 'doc_quotation' }, right: { label: 'Min', key: 'doc_min' } },
-      { left: { label: 'Drawing Confirm', key: 'doc_drawing_confirm' }, right: { label: 'Waiting Confirm', key: 'doc_waiting_confirm' } },
-      { left: { label: 'Hand Over Job', key: 'doc_handover' }, right: { label: 'Check List', key: 'doc_checklist' } },
+    const checklistRows = [
+      [
+        { label: 'PO', key: 'doc_po' },
+        { label: 'Quotation', key: 'doc_quotation' },
+        { label: 'Drawing Confirm', key: 'doc_drawing_confirm' },
+        { label: 'Hand Over Job', key: 'doc_handover' },
+      ],
+      [
+        { label: 'PR', key: 'doc_pr' },
+        { label: 'Min', key: 'doc_min' },
+        { label: 'Waiting Confirm', key: 'doc_waiting_confirm' },
+        { label: 'Check List', key: 'doc_checklist' },
+      ],
     ]
-    const checklistLeft = checklistPairs.map(({ left }) => left)
-    const checklistRight = checklistPairs.map(({ right }) => right)
 
     return (
       <div style={{ flex: '0 0 auto' }}>
-        <div style={{ marginBottom: sectionGap, padding: '7px 9px' }}>
+        <div style={{ marginBottom: 0, padding: '7px 9px', border: borderHeavy, borderBottom: 'none' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '18px', rowGap: '7px' }}>
             {teamOptions.map(({ label, key }) => <Checkbox key={key} label={label} checked={chk(key)} />)}
           </div>
@@ -544,42 +551,33 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </colgroup>
           <tbody>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                QC Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ผ่านการ QC)</span>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+                QC Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ผ่านการ QC)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '24px', verticalAlign: 'middle' }}>{qcDateStr || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '20px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{qcDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle' }}>
-                Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(วันที่ติดตั้งแล้ว)</span>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+                Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ติดตั้งแล้ว)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '24px', verticalAlign: 'middle' }}>{installDateStr || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '20px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{installDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', verticalAlign: 'middle' }}>
-                Remark<br /><span style={{ fontWeight: 'normal', fontSize: '8pt' }}>(หมายเหตุ)</span>
+              <td style={{ ...tdS, fontWeight: 'bold', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+                Remark<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(หมายเหตุ)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '34px', whiteSpace: 'pre-wrap' }}>{doc.remark || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '28px', whiteSpace: 'pre-wrap', fontSize: '12pt', padding: '4px 8px' }}>{doc.remark || '\u00A0'}</td>
             </tr>
           </tbody>
         </table>
 
         <div style={{ border: borderHeavy, borderTop: 'none', padding: '8px 12px', marginBottom: 0 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto auto', justifyContent: 'center', columnGap: '56px' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-              {checklistLeft.map(item => (
-                <div key={item.key} style={{ width: '150px' }}>
-                  <Checkbox label={item.label} checked={chk(item.key)} />
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'center' }}>
-              {checklistRight.map(item => (
-                <div key={item.key} style={{ width: '150px' }}>
-                  <Checkbox label={item.label} checked={chk(item.key)} />
-                </div>
-              ))}
-            </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', columnGap: '18px', rowGap: '8px', justifyItems: 'center' }}>
+            {checklistRows.flat().map(item => (
+              <div key={item.key} style={{ width: '150px' }}>
+                <Checkbox label={item.label} checked={chk(item.key)} />
+              </div>
+            ))}
           </div>
         </div>
 
@@ -587,7 +585,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           <tbody>
             <tr>
               {sigCols.map(({ role, name }) => (
-                <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: '25%', verticalAlign: 'top' }}>
+                <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: `${100 / sigCols.length}%`, verticalAlign: 'top' }}>
                   <div style={{ fontSize: '8.9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '30px' }}>{role}</div>
                   <div style={{ borderTop: '1px dotted #555', width: '80%', margin: '0 auto 4px' }} />
                   <div style={{ fontSize: '8.4pt', minHeight: '14px' }}>{name || '(…………………………)'}</div>

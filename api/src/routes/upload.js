@@ -114,6 +114,9 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
   try {
     const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId } = req.body;
+    if (handOverJobId) {
+      return res.status(400).json({ message: 'ปิดการใช้งานเอกสารแนบสำหรับ HandOver แล้ว' });
+    }
     await assertQuotationAttachmentEditable(req, quotationId);
     await assertWorkOrderAttachmentEditable(req, workOrderId);
     await assertHandoverAttachmentEditable(req, handOverJobId);

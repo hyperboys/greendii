@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveFileUrl } from '@/lib/api'
-import type { HandOverJob, QuotationItem, Settings } from '@/types'
+import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 10
@@ -51,7 +51,9 @@ function itemWeight(fragment: HandoverItemFragment): number {
   return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
 }
 
-function splitItemIntoFragments(item: QuotationItem, itemIndex: number): HandoverItemFragment[] {
+type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'qty' | 'unit' | 'images'>
+
+function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
   const noteLines = splitDescriptionLines(item.note)
   const remainingLines = [...noteLines]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
@@ -80,7 +82,7 @@ function splitItemIntoFragments(item: QuotationItem, itemIndex: number): Handove
     }
 
     fragments.push({
-      key: `${item.id ?? item.seq ?? itemIndex}-${fragmentIndex}`,
+      key: `${item.seq ?? itemIndex}-${fragmentIndex}`,
       desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
       noteLines: noteChunk,
       images: imageChunk,
@@ -95,7 +97,7 @@ function splitItemIntoFragments(item: QuotationItem, itemIndex: number): Handove
   return fragments
 }
 
-function buildRenderableItems(items: QuotationItem[]): HandoverItemFragment[] {
+function buildRenderableItems(items: ItemSource[]): HandoverItemFragment[] {
   return items.flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
 }
 
@@ -223,10 +225,12 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     [doc.product],
   )
   const quotationItems = useMemo(
-    () => doc.quotation?.items?.length
-      ? doc.quotation.items
-      : (doc.workOrder?.quotation?.items || []),
-    [doc.quotation?.items, doc.workOrder?.quotation?.items],
+    () => doc.items?.length
+      ? doc.items
+      : (doc.quotation?.items?.length
+          ? doc.quotation.items
+          : (doc.workOrder?.quotation?.items || [])),
+    [doc.items, doc.quotation?.items, doc.workOrder?.quotation?.items],
   )
   const renderItems = useMemo(
     () => quotationItems.length > 0 ? buildRenderableItems(quotationItems) : buildFallbackItems(productLines),
@@ -343,7 +347,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   ]
 
   const RatingTextRow = () => (
-    <div style={{ marginBottom: '5px', fontSize: '10pt', lineHeight: 1.24, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+    <div style={{ marginBottom: '5px', fontSize: '10.6pt', lineHeight: 1.24, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
       {RATING_OPTS.map((opt) => (
         <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <span
@@ -435,7 +439,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                     {[
                       ['Hand Over Job NO.', doc.hoNo],
                       ['Responsibility', doc.responsibility || ''],
-                      ['Quotation No. / Work order No.', `${doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'} / ${doc.workOrder?.woNo || '-'}`],
+                      ['Quotation No.', doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'],
+                      ['Work order No.', doc.workOrder?.woNo || '-'],
                       ['Sales', doc.sales?.fullName || ''],
                       ['Date of service', serviceDateStr],
                     ].map(([label, val]) => (
@@ -458,7 +463,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     return (
       <tr>
         <th style={{ ...thS, width: '32px' }}>No.</th>
-        <th style={{ ...thS, textAlign: 'left' }}>Description / รายละเอียด</th>
+        <th style={{ ...thS, textAlign: 'center' }}>Description / รายละเอียด</th>
         <th style={{ ...thS, width: '50px' }}>Qty</th>
         <th style={{ ...thS, width: '50px' }}>Unit</th>
       </tr>
@@ -517,28 +522,26 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     return (
       <>
         <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: '6px' }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '10.8pt', marginBottom: '5px' }}>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
 
-          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
-          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
+          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
-          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
+          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
-          <div style={{ fontSize: '9.4pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
+          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
         </div>
 
         <div style={{ border, padding: '5px 8px', marginBottom: '2px' }}>
           <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '2px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>
-            {doc.comment || '\u00A0'}
-          </div>
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>&nbsp;</div>
           <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
         </div>
 
