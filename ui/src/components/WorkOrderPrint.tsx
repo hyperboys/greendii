@@ -210,6 +210,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   const border = '1px solid #555'
   const borderHeavy = '1.4px solid #555'
+  const borderRightStrong = '1.3px solid #444'
   const borderTh = '1px solid #7a7a7a'
   const sectionGap = '6px'
   const itemColumnWidths = ['5%', '79%', '8%', '8%']
@@ -455,7 +456,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <th style={thS}>No.</th>
         <th style={{ ...thS, textAlign: 'center' }}>Description / รายละเอียด</th>
         <th style={thS}>Qty</th>
-        <th style={thS}>Unit</th>
+        <th style={{ ...thS, borderRight: borderRightStrong }}>Unit</th>
       </tr>
     )
   }
@@ -482,14 +483,26 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           )}
         </td>
         <td style={{ ...itemCellS, textAlign: 'center' }}>{item.qty != null ? item.qty : ''}</td>
-        <td style={{ ...itemCellS, textAlign: 'center' }}>{item.unit ?? ''}</td>
+        <td style={{ ...itemCellS, textAlign: 'center', borderRight: borderRightStrong }}>{item.unit ?? ''}</td>
       </tr>
     )
   }
 
   function renderItemsTable(chunk: PageChunk) {
     return (
-      <table className="workorder-items-table" style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: 0, tableLayout: 'fixed', border: borderHeavy }}>
+      <table
+        className="workorder-items-table"
+        style={{
+          width: '100%',
+          flex: '1 1 0',
+          minHeight: 0,
+          borderCollapse: 'collapse',
+          marginBottom: 0,
+          tableLayout: 'fixed',
+          border: borderHeavy,
+          borderBottom: chunk.tail ? 'none' : borderHeavy,
+        }}
+      >
         {renderItemsColGroup()}
         <thead>{itemsHeadRow()}</thead>
         <tbody>
@@ -498,7 +511,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-            <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+            <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0, borderRight: borderRightStrong }}>&nbsp;</td>
           </tr>
         </tbody>
       </table>
@@ -551,22 +564,22 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           </colgroup>
           <tbody>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '10pt', padding: '4px 8px' }}>
                 QC Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ผ่านการ QC)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '20px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{qcDateStr || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '16px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{qcDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '10pt', padding: '4px 8px' }}>
                 Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ติดตั้งแล้ว)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '20px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{installDateStr || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '16px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{installDateStr || '\u00A0'}</td>
             </tr>
             <tr>
-              <td style={{ ...tdS, fontWeight: 'bold', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>
+              <td style={{ ...tdS, fontWeight: 'bold', verticalAlign: 'middle', fontSize: '10pt', padding: '4px 8px' }}>
                 Remark<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(หมายเหตุ)</span>
               </td>
-              <td style={{ ...tdS, minHeight: '28px', whiteSpace: 'pre-wrap', fontSize: '12pt', padding: '4px 8px' }}>{doc.remark || '\u00A0'}</td>
+              <td style={{ ...tdS, minHeight: '16px', whiteSpace: 'pre-wrap', fontSize: '12pt', padding: '4px 8px' }}>{doc.remark || '\u00A0'}</td>
             </tr>
           </tbody>
         </table>
