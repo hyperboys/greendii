@@ -156,7 +156,7 @@ export default function HandoverDetailPage() {
           <h3 className="font-semibold text-gray-800 mb-3">รายละเอียดงานจากใบเสนอราคา</h3>
           <div className="space-y-4">
             {quotationItems.map((item, idx) => (
-              <div key={item.id || idx} className="border border-gray-200 rounded-lg p-3">
+              <div key={`${item.seq ?? idx}-${idx}`} className="border border-gray-200 rounded-lg p-3">
                 <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {item.desc}</div>
                 <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
                 {item.images && item.images.length > 0 && (
