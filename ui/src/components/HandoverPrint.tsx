@@ -10,7 +10,7 @@ const FRAGMENT_CAP = PACK_CAP_LAST
 
 const HEADER_GAP = 12
 const SAFETY = 10
-const TAIL_GAP = 10
+const TAIL_GAP = 0
 
 interface Props {
   doc: HandOverJob
@@ -422,7 +422,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border }}>
           <tbody>
             <tr>
               <td style={{ width: '50%', padding: '6px 9px', borderRight: border, verticalAlign: 'top' }}>
@@ -511,7 +511,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     return (
       <>
         
-        <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: '8px', border }}>
+        <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: 0, border }}>
           <thead>{itemsHeadRow()}</thead>
           <tbody>
             {chunk.items.map(item => renderItemRow(item))}
@@ -530,7 +530,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: 0 }}>
+        <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: '5px 8px', marginTop: 0, marginBottom: 0 }}>
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
