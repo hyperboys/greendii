@@ -202,7 +202,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const readyRef = useRef(false)
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
+  const companyNameEn = settings?.companyNameEn || 'Greendii Co., Ltd.'
   const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId = settings?.taxId || '0135549009942'
   const tel = settings?.tel || '+662 150 7694-5'
@@ -371,43 +371,54 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderHeader(currentPage: number) {
     return (
       <>
-        <div style={{ marginBottom: '8px' }}>
+        <div style={{ marginBottom: '2px' }}>
           <div
             style={{
               display: 'grid',
-              gridTemplateColumns: '120px 1fr 120px',
+              gridTemplateColumns: '150px minmax(0, 1fr) 150px',
               columnGap: 0,
-              alignItems: 'center',
+              alignItems: 'start',
               fontFamily: 'var(--font-thai)',
             }}
           >
-            <div>
+            <div style={{ paddingTop: 0 }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '150px', display: 'block' }} />
             </div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '18pt', lineHeight: '1.0' }}>{companyName}</div>
-              <div style={{ fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '17pt', lineHeight: '1.02' }}>{companyName}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '15pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+              </div>
+
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '560px',
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-thai)',
+                  marginTop: '2px',
+                  marginBottom: 0,
+                }}
+              >
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.02' }}>
+                  {address}&nbsp;&nbsp;Tel {tel}
+                </div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.02' }}>
+                  {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
+                </div>
+                <div style={{ fontSize: '11.8pt', lineHeight: '1.0' }}>{website}</div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
+              </div>
+
+              <div style={{ textAlign: 'center', marginTop: '5px' }}>
+                <div style={{ fontSize: '15pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.05 }}>
+                  HAND OVER JOB
+                </div>
+              </div>
             </div>
             <div />
-          </div>
-
-          <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '2px' }}>
-            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
-              {address}&nbsp;&nbsp;Tel {tel}
-            </div>
-            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
-              {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
-            </div>
-            <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
-            <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
-            <div style={{ fontSize: '12pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
-          </div>
-
-          <div style={{ textAlign: 'center', marginTop: '4px' }}>
-            <div style={{ fontSize: '16pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.1 }}>
-              HAND OVER JOB
-            </div>
           </div>
         </div>
 
@@ -499,9 +510,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderItemsTable(chunk: PageChunk) {
     return (
       <>
-        <div style={{ fontWeight: 'bold', fontSize: '10pt', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-          Details of Work
-        </div>
+        
         <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: '8px', border }}>
           <thead>{itemsHeadRow()}</thead>
           <tbody>
@@ -521,7 +530,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: '6px' }}>
+        <div style={{ border, padding: '5px 8px', marginTop: '16px', marginBottom: '1px' }}>
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '5px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
@@ -539,13 +548,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
         </div>
 
-        <div style={{ border, padding: '5px 8px', marginBottom: '2px' }}>
+        <div style={{ border, padding: '4px 8px 5px', marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '2px' }}>COMMENT</div>
           <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>&nbsp;</div>
           <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '2px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '2px' }}>
           <tbody>
             <tr>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
