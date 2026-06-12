@@ -3,71 +3,156 @@
  * ลบข้อมูล Transaction และข้อมูลลูกค้าทั้งหมด เพื่อเริ่มทดสอบใหม่
  *
  * Run:
+ *   npm run db:reset:testdata
+ *   # or
  *   node scripts/reset-transactions-and-customers.js
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
-const { PrismaClient } = require('@prisma/client');
+const fs = require('fs/promises');
+const path = require('path');
+const prisma = require('../src/lib/prisma');
 const { isR2Enabled, deleteFromR2 } = require('../src/lib/r2');
 
-const prisma = new PrismaClient();
+const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
-async function deleteAttachmentFilesFromR2() {
-  if (!isR2Enabled) {
-    console.log('R2 is not enabled. Skip R2 file deletion.');
-    return;
-  }
+function isRemoteFileUrl(fileUrl) {
+  return /^https?:\/\//i.test(fileUrl || '');
+}
 
+async function getResetCounts() {
+  const [
+    approvalLogs,
+    attachments,
+    notifications,
+    activityLogs,
+    quotationItems,
+    purchaseRequestItems,
+    purchaseRequests,
+    handOverJobs,
+    workOrders,
+    quotations,
+    customers,
+  ] = await prisma.$transaction([
+    prisma.approvalLog.count(),
+    prisma.attachment.count(),
+    prisma.notification.count(),
+    prisma.activityLog.count(),
+    prisma.quotationItem.count(),
+    prisma.purchaseRequestItem.count(),
+    prisma.purchaseRequest.count(),
+    prisma.handOverJob.count(),
+    prisma.workOrder.count(),
+    prisma.quotation.count(),
+    prisma.customer.count(),
+  ]);
+
+  return {
+    approvalLogs,
+    attachments,
+    notifications,
+    activityLogs,
+    quotationItems,
+    purchaseRequestItems,
+    purchaseRequests,
+    handOverJobs,
+    workOrders,
+    quotations,
+    customers,
+  };
+}
+
+async function deleteAttachmentFiles() {
   const attachments = await prisma.attachment.findMany({
-    select: { filename: true },
+    select: { filename: true, fileUrl: true },
   });
 
-  const keys = [...new Set(attachments.map((item) => item.filename).filter(Boolean))];
-  if (keys.length === 0) {
-    console.log('No attachment keys found in DB. Skip R2 file deletion.');
-    return;
+  const uniqueAttachments = [
+    ...new Map(
+      attachments
+        .filter((item) => item.filename)
+        .map((item) => [`${item.filename}::${item.fileUrl || ''}`, item])
+    ).values(),
+  ];
+
+  if (uniqueAttachments.length === 0) {
+    console.log('No attachment records found. Skip file cleanup.');
+    return { deletedRemote: 0, deletedLocal: 0, missingLocal: 0, warnings: [] };
   }
 
-  console.log(`Deleting ${keys.length} file(s) from R2...`);
+  console.log(`Cleaning up ${uniqueAttachments.length} attachment file(s)...`);
 
-  const batchSize = 20;
-  let deleted = 0;
+  const summary = {
+    deletedRemote: 0,
+    deletedLocal: 0,
+    missingLocal: 0,
+    warnings: [],
+  };
 
-  for (let i = 0; i < keys.length; i += batchSize) {
-    const batch = keys.slice(i, i + batchSize);
-    const settled = await Promise.allSettled(batch.map((key) => deleteFromR2(key)));
+  for (const attachment of uniqueAttachments) {
+    const fileUrl = attachment.fileUrl || '';
 
-    for (let j = 0; j < settled.length; j++) {
-      if (settled[j].status === 'fulfilled') {
-        deleted += 1;
-      } else {
-        const key = batch[j];
-        throw new Error(`Failed to delete R2 key: ${key}. ${settled[j].reason?.message || settled[j].reason || ''}`);
+    if (isRemoteFileUrl(fileUrl)) {
+      if (!isR2Enabled) {
+        summary.warnings.push(
+          `Skipped remote file "${attachment.filename}" because R2 is not configured in this environment.`
+        );
+        continue;
       }
+
+      try {
+        await deleteFromR2(attachment.filename);
+        summary.deletedRemote += 1;
+      } catch (error) {
+        summary.warnings.push(
+          `Failed to delete remote file "${attachment.filename}": ${error?.message || error || 'unknown error'}`
+        );
+      }
+
+      continue;
+    }
+
+    const filePath = path.join(UPLOAD_DIR, attachment.filename);
+
+    try {
+      await fs.unlink(filePath);
+      summary.deletedLocal += 1;
+    } catch (error) {
+      if (error && error.code === 'ENOENT') {
+        summary.missingLocal += 1;
+        continue;
+      }
+
+      throw error;
     }
   }
 
-  console.log(`Deleted ${deleted} file(s) from R2.`);
+  if (summary.deletedRemote > 0) {
+    console.log(`Deleted ${summary.deletedRemote} remote attachment file(s).`);
+  }
+  if (summary.deletedLocal > 0) {
+    console.log(`Deleted ${summary.deletedLocal} local attachment file(s).`);
+  }
+  if (summary.missingLocal > 0) {
+    console.log(`${summary.missingLocal} local attachment file(s) were already missing.`);
+  }
+  if (summary.warnings.length > 0) {
+    console.warn('Attachment cleanup warnings:');
+    for (const warning of summary.warnings) {
+      console.warn(`- ${warning}`);
+    }
+  }
+
+  return summary;
 }
 
 async function main() {
-  console.log('Starting reset: transactions + customers (+R2 files)...');
+  console.log('Starting reset: transactions + customers + attachments...');
 
-  await deleteAttachmentFilesFromR2();
-
-  const countsBefore = {
-    approvalLogs: await prisma.approvalLog.count(),
-    attachments: await prisma.attachment.count(),
-    notifications: await prisma.notification.count(),
-    activityLogs: await prisma.activityLog.count(),
-    purchaseRequests: await prisma.purchaseRequest.count(),
-    handOverJobs: await prisma.handOverJob.count(),
-    workOrders: await prisma.workOrder.count(),
-    quotations: await prisma.quotation.count(),
-    customers: await prisma.customer.count(),
-  };
-
+  const countsBefore = await getResetCounts();
   console.log('Rows before reset:', countsBefore);
+
+  const fileCleanup = await deleteAttachmentFiles();
 
   const result = await prisma.$transaction([
     prisma.approvalLog.deleteMany(),
@@ -93,7 +178,24 @@ async function main() {
     customers: result[8].count,
   };
 
+  const countsAfter = await getResetCounts();
+  const remainingRows = Object.entries(countsAfter).filter(([, count]) => count !== 0);
+
   console.log('Deleted rows:', summary);
+  console.log('Attachment cleanup:', {
+    deletedRemote: fileCleanup.deletedRemote,
+    deletedLocal: fileCleanup.deletedLocal,
+    missingLocal: fileCleanup.missingLocal,
+    warnings: fileCleanup.warnings.length,
+  });
+  console.log('Rows after reset:', countsAfter);
+
+  if (remainingRows.length > 0) {
+    throw new Error(
+      `Reset incomplete. Remaining rows: ${remainingRows.map(([name, count]) => `${name}=${count}`).join(', ')}`
+    );
+  }
+
   console.log('Reset complete. Ready for fresh user testing.');
 }
 
