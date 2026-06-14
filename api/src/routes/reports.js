@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { canManageAllQuotations } = require('../lib/roles');
 
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
@@ -69,6 +70,316 @@ router.get('/approval-performance', authenticate, async (req, res, next) => {
       else map[key].reject++;
     }
     res.json(Object.values(map));
+  } catch (e) { next(e); }
+});
+
+// GET /api/reports/quotation-summary
+// Query: from (ISO date), to (ISO date), salesId (optional, managers only)
+router.get('/quotation-summary', authenticate, async (req, res, next) => {
+  try {
+    const { salesId } = req.query;
+    const now = new Date();
+
+    // Default to current month if no date range specified
+    const rawFrom = req.query.from;
+    const rawTo   = req.query.to;
+    const dateFrom = rawFrom ? new Date(rawFrom) : new Date(now.getFullYear(), now.getMonth(), 1);
+    const dateTo   = rawTo   ? new Date(rawTo + 'T23:59:59.999Z') : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const where = {
+      active: true,
+      createdAt: { gte: dateFrom, lte: dateTo },
+    };
+
+    if (!canManageAllQuotations(req.user.role)) {
+      // Non-managers only see their own
+      where.salesId = req.user.id;
+    } else if (salesId) {
+      // Managers can filter by specific salesperson
+      where.salesId = salesId;
+    }
+
+    const quotations = await prisma.quotation.findMany({
+      where,
+      include: {
+        sales: { select: { id: true, fullName: true } },
+        items: { select: { desc: true, qty: true, amount: true } },
+        _count: { select: { workOrders: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    const total = quotations.length;
+    const today = new Date();
+
+    // ─── Status counts & totals ───
+    const byStatus = { draft: 0, pending: 0, approved: 0, rejected: 0, cancelled: 0 };
+    let totalValue = 0;
+    let totalSubTotal = 0;
+    let totalDiscount = 0;
+    let convertedCount = 0; // has linked Work Order = "won"
+    let expiredCount = 0;
+
+    for (const q of quotations) {
+      byStatus[q.status] = (byStatus[q.status] || 0) + 1;
+      totalValue    += Number(q.grandTotal);
+      totalSubTotal += Number(q.subTotal);
+      totalDiscount += Number(q.specialDiscount);
+      if (q._count.workOrders > 0) convertedCount++;
+
+      const expiryDate = new Date(q.createdAt);
+      expiryDate.setDate(expiryDate.getDate() + (q.validityDays || 30));
+      if (expiryDate < today && ['draft', 'pending'].includes(q.status)) expiredCount++;
+    }
+
+    const nonDraftTotal = total - byStatus.draft;
+    const winRate      = nonDraftTotal > 0 ? Math.round((convertedCount / nonDraftTotal) * 1000) / 10 : 0;
+    const avgDealSize  = total > 0 ? Math.round((totalValue / total) * 100) / 100 : 0;
+    const avgDiscountPct = totalSubTotal > 0 ? Math.round((totalDiscount / totalSubTotal) * 1000) / 10 : 0;
+
+    // ─── Status breakdown with value ───
+    const statusDetails = {};
+    for (const status of ['draft', 'pending', 'approved', 'rejected', 'cancelled']) {
+      statusDetails[status] = { count: 0, totalValue: 0 };
+    }
+    for (const q of quotations) {
+      statusDetails[q.status].count++;
+      statusDetails[q.status].totalValue += Number(q.grandTotal);
+    }
+
+    // ─── Per Salesperson ───
+    const salesMap = {};
+    for (const q of quotations) {
+      const key = q.salesId;
+      if (!salesMap[key]) {
+        salesMap[key] = {
+          salesId: key,
+          salesName: q.sales?.fullName || key,
+          count: 0, totalValue: 0, wonCount: 0,
+          pipelineCount: 0, pipelineValue: 0,
+          revisedCount: 0,
+        };
+      }
+      salesMap[key].count++;
+      salesMap[key].totalValue += Number(q.grandTotal);
+      if (q._count.workOrders > 0)            salesMap[key].wonCount++;
+      if (['draft', 'pending'].includes(q.status)) {
+        salesMap[key].pipelineCount++;
+        salesMap[key].pipelineValue += Number(q.grandTotal);
+      }
+      if ((q.revisionNo || 0) > 0) salesMap[key].revisedCount++;
+    }
+    const bySalesperson = Object.values(salesMap).map(s => ({
+      ...s,
+      totalValue: Math.round(s.totalValue * 100) / 100,
+      pipelineValue: Math.round(s.pipelineValue * 100) / 100,
+      winRate: s.count > 0 ? Math.round((s.wonCount / s.count) * 1000) / 10 : 0,
+    })).sort((a, b) => b.totalValue - a.totalValue);
+
+    // ─── Customer Analysis ───
+    const customerMap = {};
+    for (const q of quotations) {
+      const key = q.customerName;
+      if (!customerMap[key]) {
+        customerMap[key] = { customerName: key, customerId: q.customerId, count: 0, totalValue: 0, wonCount: 0 };
+      }
+      customerMap[key].count++;
+      customerMap[key].totalValue += Number(q.grandTotal);
+      if (q._count.workOrders > 0) customerMap[key].wonCount++;
+    }
+    const customerList = Object.values(customerMap).map(c => ({
+      ...c,
+      totalValue: Math.round(c.totalValue * 100) / 100,
+      winRate: c.count > 0 ? Math.round((c.wonCount / c.count) * 1000) / 10 : 0,
+    })).sort((a, b) => b.totalValue - a.totalValue);
+    const top10Customers = customerList.slice(0, 10);
+
+    // New vs returning: first-ever quotation per customer
+    const uniqueCustomerIds = [...new Set(quotations.filter(q => q.customerId).map(q => q.customerId))];
+    let newCustomers = 0, returningCustomers = 0;
+    if (uniqueCustomerIds.length > 0) {
+      const earliest = await prisma.quotation.groupBy({
+        by: ['customerId'],
+        where: { customerId: { in: uniqueCustomerIds } },
+        _min: { createdAt: true },
+      });
+      const firstQuoMap = {};
+      for (const r of earliest) {
+        if (r.customerId) firstQuoMap[r.customerId] = r._min.createdAt;
+      }
+      for (const q of quotations.filter(q => q.customerId)) {
+        const first = firstQuoMap[q.customerId];
+        if (first && first >= dateFrom) newCustomers++;
+        else returningCustomers++;
+      }
+    }
+
+    // Customer type distribution
+    let typeDistribution = [];
+    if (uniqueCustomerIds.length > 0) {
+      const customers = await prisma.customer.findMany({
+        where: { id: { in: uniqueCustomerIds } },
+        select: { id: true, type: true },
+      });
+      const typeMap = {};
+      for (const c of customers) {
+        const t = c.type || 'ไม่ระบุ';
+        typeMap[t] = (typeMap[t] || 0) + 1;
+      }
+      typeDistribution = Object.entries(typeMap).map(([type, count]) => ({ type, count })).sort((a, b) => b.count - a.count);
+    }
+
+    // Overdue pipeline: open quotations past validity
+    const overdueQuotations = quotations
+      .filter(q => {
+        if (!['draft', 'pending'].includes(q.status)) return false;
+        const expiry = new Date(q.createdAt);
+        expiry.setDate(expiry.getDate() + (q.validityDays || 30));
+        return expiry < today;
+      })
+      .map(q => {
+        const expiry = new Date(q.createdAt);
+        expiry.setDate(expiry.getDate() + (q.validityDays || 30));
+        return {
+          id: q.id, quoNo: q.quoNo,
+          customerName: q.customerName,
+          salesName: q.sales?.fullName,
+          grandTotal: Number(q.grandTotal),
+          expiryDate: expiry,
+          status: q.status,
+        };
+      });
+
+    // ─── Top Items ───
+    const itemMap = {};
+    for (const q of quotations) {
+      for (const item of q.items) {
+        const key = item.desc.trim();
+        if (!itemMap[key]) itemMap[key] = { desc: key, count: 0, totalAmount: 0 };
+        itemMap[key].count++;
+        itemMap[key].totalAmount += Number(item.amount);
+      }
+    }
+    const topItems = Object.values(itemMap)
+      .map(i => ({ ...i, totalAmount: Math.round(i.totalAmount * 100) / 100 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 20);
+
+    // ─── Discount Distribution ───
+    const withDiscount = quotations.filter(q => Number(q.specialDiscount) > 0);
+    const discountBuckets = [
+      { range: '0%',    count: quotations.length - withDiscount.length },
+      { range: '1–5%',  count: 0 },
+      { range: '6–10%', count: 0 },
+      { range: '11–20%',count: 0 },
+      { range: '>20%',  count: 0 },
+    ];
+    for (const q of withDiscount) {
+      const pct = Number(q.subTotal) > 0 ? (Number(q.specialDiscount) / Number(q.subTotal)) * 100 : 0;
+      if      (pct <= 5)  discountBuckets[1].count++;
+      else if (pct <= 10) discountBuckets[2].count++;
+      else if (pct <= 20) discountBuckets[3].count++;
+      else                discountBuckets[4].count++;
+    }
+
+    // ─── Monthly Trend ───
+    const monthMap = {};
+    for (const q of quotations) {
+      const d   = new Date(q.createdAt);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthMap[key]) monthMap[key] = { month: key, count: 0, totalValue: 0, wonCount: 0 };
+      monthMap[key].count++;
+      monthMap[key].totalValue += Number(q.grandTotal);
+      if (q._count.workOrders > 0) monthMap[key].wonCount++;
+    }
+    const monthlyTrend = Object.values(monthMap)
+      .map(m => ({ ...m, totalValue: Math.round(m.totalValue * 100) / 100 }))
+      .sort((a, b) => a.month.localeCompare(b.month));
+
+    // ─── Revision Tracking ───
+    const activeRevised  = quotations.filter(q => (q.revisionNo || 0) > 0);
+    const totalRevisionNo = activeRevised.reduce((s, q) => s + (q.revisionNo || 0), 0);
+    const avgRevisionNo  = activeRevised.length > 0 ? Math.round((totalRevisionNo / activeRevised.length) * 10) / 10 : 0;
+
+    // Count deactivated revisions in the same date range
+    const deactivatedRevisionsInRange = await prisma.quotation.count({
+      where: {
+        active: false,
+        revisionNo: { gt: 0 },
+        createdAt: { gte: dateFrom, lte: dateTo },
+      },
+    });
+
+    // ─── Pipeline ───
+    const pipelineQs = quotations.filter(q => ['draft', 'pending'].includes(q.status));
+    const pipelineValue = Math.round(pipelineQs.reduce((s, q) => s + Number(q.grandTotal), 0) * 100) / 100;
+
+    const soonDate = new Date(today);
+    soonDate.setDate(soonDate.getDate() + 7);
+    const expiringSoon = pipelineQs
+      .filter(q => {
+        const expiry = new Date(q.createdAt);
+        expiry.setDate(expiry.getDate() + (q.validityDays || 30));
+        return expiry >= today && expiry <= soonDate;
+      })
+      .map(q => {
+        const expiry = new Date(q.createdAt);
+        expiry.setDate(expiry.getDate() + (q.validityDays || 30));
+        return {
+          id: q.id, quoNo: q.quoNo,
+          customerName: q.customerName,
+          salesName: q.sales?.fullName,
+          grandTotal: Number(q.grandTotal),
+          expiryDate: expiry,
+          status: q.status,
+        };
+      });
+
+    res.json({
+      dateRange: { from: dateFrom, to: dateTo },
+      overview: {
+        total,
+        totalValue: Math.round(totalValue * 100) / 100,
+        byStatus,
+        expiredCount,
+        convertedCount,
+        winRate,
+        avgDealSize,
+        avgDiscountPct,
+      },
+      statusDetails,
+      bySalesperson,
+      customers: {
+        top10: top10Customers,
+        newCount: newCustomers,
+        returningCount: returningCustomers,
+        overdueCount: overdueQuotations.length,
+        overdue: overdueQuotations.slice(0, 10),
+        typeDistribution,
+      },
+      topItems,
+      discountAnalysis: {
+        avgDiscountPct,
+        withDiscountCount: withDiscount.length,
+        noDiscountCount: quotations.length - withDiscount.length,
+        distribution: discountBuckets,
+      },
+      monthlyTrend,
+      revisionTracking: {
+        activeRevisedCount: activeRevised.length,
+        totalRevisedPct: total > 0 ? Math.round((activeRevised.length / total) * 1000) / 10 : 0,
+        avgRevisionNo,
+        deactivatedCount: deactivatedRevisionsInRange,
+      },
+      pipeline: {
+        openCount: pipelineQs.length,
+        openValue: pipelineValue,
+        expiringSoonCount: expiringSoon.length,
+        expiringSoon,
+        overdueCount: overdueQuotations.length,
+        overdue: overdueQuotations.slice(0, 10),
+      },
+    });
   } catch (e) { next(e); }
 });
 

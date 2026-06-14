@@ -291,6 +291,8 @@ export const ReportsAPI = {
   sales: () => http.get<ReportSales[]>('/reports/sales').then(r => r.data),
   approvalPerformance: () =>
     http.get<ReportApprovalPerf[]>('/reports/approval-performance').then(r => r.data),
+  quotationSummary: (params?: { from?: string; to?: string; salesId?: string }) =>
+    http.get<import('@/types').QuoSummaryReport>('/reports/quotation-summary', { params }).then(r => r.data),
 }
 
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────

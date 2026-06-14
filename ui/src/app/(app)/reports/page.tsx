@@ -5,6 +5,7 @@ import { ReportsAPI } from '@/lib/api'
 import type { ReportOverview, ReportSales, ReportApprovalPerf } from '@/types'
 import { ROLE_LABELS } from '@/types'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -38,6 +39,55 @@ export default function ReportsPage() {
           <h2 className="page-title">รายงาน</h2>
           <p className="page-sub">ภาพรวมการดำเนินงาน</p>
         </div>
+      </div>
+
+      {/* Report shortcuts */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Link href="/reports/quotations" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-green-300 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📋</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-green-700">รายงานสรุปใบเสนอราคา</p>
+              <p className="text-xs text-gray-500">Win Rate, Pipeline, Top Customers, Trend</p>
+            </div>
+          </div>
+        </Link>
+        <Link href="/reports/workorders" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-blue-300 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🔧</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-blue-700">รายงานใบสั่งงาน</p>
+              <p className="text-xs text-gray-500">Progress, Deadlines, On-Time Rate, Trend</p>
+            </div>
+          </div>
+        </Link>
+        <Link href="/reports/pr" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-purple-300 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🛒</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-purple-700">รายงานใบขอซื้อ</p>
+              <p className="text-xs text-gray-500">Approvals, Spending, PR Types, Trend</p>
+            </div>
+          </div>
+        </Link>
+        <Link href="/reports/sales" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-blue-400 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🏆</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-blue-700">Sales Performance</p>
+              <p className="text-xs text-gray-500">Rankings, Win Rate, Revenue Trend, Leaderboard</p>
+            </div>
+          </div>
+        </Link>
+        <Link href="/reports/workflow" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-indigo-400 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">🔗</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-indigo-700">Workflow Tracking</p>
+              <p className="text-xs text-gray-500">End-to-End Lifecycle, Funnel, Bottlenecks, Timeline</p>
+            </div>
+          </div>
+        </Link>
       </div>
 
       {/* KPI row */}

@@ -524,3 +524,71 @@ export const STATUS_LABELS: Record<DocStatus, string> = {
   rejected:  'ปฏิเสธ',
   cancelled: 'ยกเลิก',
 }
+
+// ─── QUOTATION SUMMARY REPORT ─────────────────────────────────────────────────
+
+export interface QuoSummaryPipelineItem {
+  id: string
+  quoNo: string
+  customerName: string
+  salesName?: string
+  grandTotal: number
+  expiryDate: string
+  status: DocStatus
+}
+
+export interface QuoSummaryReport {
+  dateRange: { from: string; to: string }
+  overview: {
+    total: number
+    totalValue: number
+    byStatus: Record<DocStatus, number>
+    expiredCount: number
+    convertedCount: number
+    winRate: number
+    avgDealSize: number
+    avgDiscountPct: number
+  }
+  statusDetails: Record<DocStatus, { count: number; totalValue: number }>
+  bySalesperson: Array<{
+    salesId: string
+    salesName: string
+    count: number
+    totalValue: number
+    wonCount: number
+    winRate: number
+    pipelineCount: number
+    pipelineValue: number
+    revisedCount: number
+  }>
+  customers: {
+    top10: Array<{ customerName: string; customerId?: string; count: number; totalValue: number; wonCount: number; winRate: number }>
+    newCount: number
+    returningCount: number
+    overdueCount: number
+    overdue: QuoSummaryPipelineItem[]
+    typeDistribution: Array<{ type: string; count: number }>
+  }
+  topItems: Array<{ desc: string; count: number; totalAmount: number }>
+  discountAnalysis: {
+    avgDiscountPct: number
+    withDiscountCount: number
+    noDiscountCount: number
+    distribution: Array<{ range: string; count: number }>
+  }
+  monthlyTrend: Array<{ month: string; count: number; totalValue: number; wonCount: number }>
+  revisionTracking: {
+    activeRevisedCount: number
+    totalRevisedPct: number
+    avgRevisionNo: number
+    deactivatedCount: number
+  }
+  pipeline: {
+    openCount: number
+    openValue: number
+    expiringSoonCount: number
+    expiringSoon: QuoSummaryPipelineItem[]
+    overdueCount: number
+    overdue: QuoSummaryPipelineItem[]
+  }
+}
