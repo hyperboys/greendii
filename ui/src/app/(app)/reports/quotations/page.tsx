@@ -20,7 +20,7 @@ import type { Quotation, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helpers
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
@@ -34,7 +34,7 @@ function fmtDate(iso: string) {
 }
 function fmtPct(n: number) { return `${n.toFixed(1)}%` }
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Constants
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft:     'badge-draft',
   pending:   'badge-pending',
@@ -52,13 +52,13 @@ const DONUT_COLORS: Partial<Record<DocStatus, string>> = {
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
 const PAGE_SIZES    = [10, 25, 50]
 const DATE_PRESETS  = [
-  { value: 'all',          label: 'à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”' },
-  { value: 'this_month',   label: 'à¹€à¸”à¸·à¸­à¸™à¸™à¸µà¹‰' },
-  { value: 'this_quarter', label: 'à¹„à¸•à¸£à¸¡à¸²à¸ªà¸™à¸µà¹‰' },
-  { value: 'this_year',    label: 'à¸›à¸µà¸™à¸µà¹‰' },
+  { value: 'all',          label: 'ทั้งหมด' },
+  { value: 'this_month',   label: 'เดือนนี้' },
+  { value: 'this_quarter', label: 'ไตรมาสนี้' },
+  { value: 'this_year',    label: 'ปีนี้' },
 ]
 
-// â”€â”€â”€ Date range helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Date range helper
 function getDateRange(preset: string): { from: Date | null; to: Date | null } {
   const now = new Date()
   if (preset === 'this_month')   return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) }
@@ -67,7 +67,7 @@ function getDateRange(preset: string): { from: Date | null; to: Date | null } {
   return { from: null, to: null }
 }
 
-// â”€â”€â”€ Count-up hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Count-up hook
 function useCountUp(target: number, duration = 900, enabled = true) {
   const [val, setVal] = useState(0)
   const raf = useRef<number>(0)
@@ -86,7 +86,7 @@ function useCountUp(target: number, duration = 900, enabled = true) {
   return val
 }
 
-// â”€â”€â”€ Skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Skeleton
 function SkeletonCard() {
   return (
     <div className="bg-white rounded-2xl p-5 border-l-4 border-gray-200 shadow-sm animate-pulse">
@@ -113,7 +113,7 @@ function SkeletonRow() {
   )
 }
 
-// â”€â”€â”€ KPI card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// KPI card
 interface KpiCardProps {
   label: string; value: string; sub?: string; trend?: number
   icon: React.ReactNode; iconBg: string; valueColor?: string; accent: string; loading?: boolean
@@ -133,7 +133,7 @@ function KpiCard({ label, value, sub, trend, icon, iconBg, valueColor = 'text-gr
             <div className={`inline-flex items-center gap-0.5 text-[11px] font-medium mt-1.5
                              ${trend >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {trend >= 0 ? <TrendingUp size={11} /> : <TrendingDown size={11} />}
-              {Math.abs(trend).toFixed(1)}% vs à¹€à¸”à¸·à¸­à¸™à¸—à¸µà¹ˆà¹à¸¥à¹‰à¸§
+              {Math.abs(trend).toFixed(1)}% vs เดือนที่แล้ว
             </div>
           )}
         </div>
@@ -146,7 +146,7 @@ function KpiCard({ label, value, sub, trend, icon, iconBg, valueColor = 'text-gr
   )
 }
 
-// â”€â”€â”€ Status card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Status card
 interface StatusCardProps {
   label: string; value: string; sub: string; count: number; total: number
   icon: React.ReactNode; gradient: string; bar: string; text: string; iconColor: string; tip: string
@@ -168,18 +168,18 @@ function StatusCard({ label, value, sub, count, total, icon, gradient, bar, text
         <div className={`h-full rounded-full transition-all duration-700 ${bar}`}
              style={{ width: `${Math.min(ratio, 100)}%` }} />
       </div>
-      <p className="text-[11px] text-gray-400 mt-1.5">{ratio.toFixed(1)}% à¸‚à¸­à¸‡à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”</p>
+      <p className="text-[11px] text-gray-400 mt-1.5">{ratio.toFixed(1)}% ของทั้งหมด</p>
     </div>
   )
 }
 
-// â”€â”€â”€ Sort icon â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Sort icon
 function SortIcon({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
   if (!active) return <ChevronUp size={11} className="opacity-20" />
   return dir === 'asc' ? <ChevronUp size={11} /> : <ChevronDown size={11} />
 }
 
-// â”€â”€â”€ Pager â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Pager
 function Pager({ page, total, onChange }: { page: number; total: number; onChange: (p: number) => void }) {
   if (total <= 1) return null
   const start = Math.max(1, Math.min(page - 3, total - 6))
@@ -213,7 +213,7 @@ function Pager({ page, total, onChange }: { page: number; total: number; onChang
   )
 }
 
-// â”€â”€â”€ Chart tooltip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Chart tooltip
 function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: { color: string; name: string; dataKey: string; value: number }[]; label?: string }) {
   if (!active || !payload?.length) return null
   return (
@@ -224,7 +224,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
           <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: p.color }} />
           <span className="text-gray-600">{p.name}:</span>
           <span className="font-semibold text-gray-800">
-            {p.dataKey === 'value' ? `à¸¿${fmtCompact(p.value)}` : p.value.toLocaleString()}
+            {p.dataKey === 'value' ? `฿${fmtCompact(p.value)}` : p.value.toLocaleString()}
           </span>
         </div>
       ))}
@@ -232,7 +232,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
   )
 }
 
-// â”€â”€â”€ Main Page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Main Page
 export default function QuotationSummaryReportPage() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -267,7 +267,7 @@ export default function QuotationSummaryReportPage() {
     if (isManager && salesFilter) params.salesId = salesFilter
     QuotationsAPI.list(params)
       .then(data => { setRows(data); setPage(1) })
-      .catch(() => toast.error('à¹‚à¸«à¸¥à¸”à¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ'))
+      .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }, [search, statusFilter, isManager, salesFilter])
 
@@ -382,7 +382,7 @@ export default function QuotationSummaryReportPage() {
   const animApproved = useCountUp(insights.approvedCount, 900, !loading)
 
   async function exportExcel() {
-    if (!filteredRows.length) { toast('à¹„à¸¡à¹ˆà¸¡à¸µà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¸ªà¸³à¸«à¸£à¸±à¸š Export'); return }
+    if (!filteredRows.length) { toast('ไม่มีข้อมูลสำหรับ Export'); return }
     setExporting(true)
     try {
       const XLSX = await import('xlsx')
@@ -390,11 +390,11 @@ export default function QuotationSummaryReportPage() {
       const ws   = XLSX.utils.aoa_to_sheet([
         ['Quotation Summary Report'],
         ['Export Date', new Date().toLocaleDateString('th-TH')],
-        ['à¸„à¸³à¸„à¹‰à¸™', search || '-'],
-        ['à¸ªà¸–à¸²à¸™à¸°', statusFilter ? (STATUS_LABELS[statusFilter as DocStatus] ?? statusFilter) : 'à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”'],
-        ['à¸Šà¹ˆà¸§à¸‡à¹€à¸§à¸¥à¸²', DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”'],
+        ['คำค้น', search || '-'],
+        ['สถานะ', statusFilter ? (STATUS_LABELS[statusFilter as DocStatus] ?? statusFilter) : 'ทั้งหมด'],
+        ['ช่วงเวลา', DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'],
         [],
-        ['à¹€à¸¥à¸‚à¸—à¸µà¹ˆ', 'à¸¥à¸¹à¸à¸„à¹‰à¸²', 'à¹‚à¸„à¸£à¸‡à¸à¸²à¸£', 'à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¸‚à¸²à¸¢', 'à¸¡à¸¹à¸¥à¸„à¹ˆà¸²à¸£à¸§à¸¡', 'à¸ªà¸–à¸²à¸™à¸°', 'à¸§à¸±à¸™à¸—à¸µà¹ˆ'],
+        ['เลขที่', 'ลูกค้า', 'โครงการ', 'พนักงานขาย', 'มูลค่ารวม', 'สถานะ', 'วันที่'],
         ...filteredRows.map(q => [
           q.quoNo, q.customerName, q.project,
           q.sales?.fullName ?? q.salesId,
@@ -402,11 +402,11 @@ export default function QuotationSummaryReportPage() {
         ]),
       ])
       ws['!cols'] = [18, 28, 30, 22, 16, 12, 16].map(wch => ({ wch }))
-      XLSX.utils.book_append_sheet(wb, ws, 'à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²')
+      XLSX.utils.book_append_sheet(wb, ws, 'ใบเสนอราคา')
       XLSX.writeFile(wb, `quotation-summary-${Date.now()}.xlsx`)
-      toast.success('Export Excel à¸ªà¸³à¹€à¸£à¹‡à¸ˆ')
+      toast.success('Export Excel สำเร็จ')
     } catch {
-      toast.error('Export Excel à¹„à¸¡à¹ˆà¸ªà¸³à¹€à¸£à¹‡à¸ˆ')
+      toast.error('Export Excel ไม่สำเร็จ')
     } finally {
       setExporting(false)
     }
@@ -414,28 +414,28 @@ export default function QuotationSummaryReportPage() {
 
   const columns = [
     { label: '#',            key: null,                    right: false },
-    { label: 'à¹€à¸¥à¸‚à¸—à¸µà¹ˆ',       key: 'quoNo'        as const, right: false },
-    { label: 'à¸¥à¸¹à¸à¸„à¹‰à¸²',       key: 'customerName' as const, right: false },
-    { label: 'à¹‚à¸„à¸£à¸‡à¸à¸²à¸£',      key: null,                    right: false },
-    { label: 'à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¸‚à¸²à¸¢',  key: null,                    right: false },
-    { label: 'à¸¡à¸¹à¸¥à¸„à¹ˆà¸²à¸£à¸§à¸¡',   key: 'grandTotal'   as const, right: true  },
-    { label: 'à¸ªà¸–à¸²à¸™à¸°',        key: null,                    right: false },
-    { label: 'à¸§à¸±à¸™à¸—à¸µà¹ˆ',       key: 'createdAt'    as const, right: false },
+    { label: 'เลขที่',       key: 'quoNo'        as const, right: false },
+    { label: 'ลูกค้า',       key: 'customerName' as const, right: false },
+    { label: 'โครงการ',      key: null,                    right: false },
+    { label: 'พนักงานขาย',  key: null,                    right: false },
+    { label: 'มูลค่ารวม',   key: 'grandTotal'   as const, right: true  },
+    { label: 'สถานะ',        key: null,                    right: false },
+    { label: 'วันที่',       key: 'createdAt'    as const, right: false },
     { label: '',              key: null,                    right: false },
   ]
 
   return (
     <div className="space-y-6 pb-10">
 
-      {/* â•â•â•â•â•â•â•â•â•â• HEADER â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Header */}
       <div className="rounded-2xl overflow-hidden shadow-md"
            style={{ background: 'linear-gradient(135deg, #1B5E20 0%, #2d6a2e 60%, #388E3C 100%)' }}>
         <div className="px-6 pt-4 flex items-center gap-1.5 text-green-200/70 text-[11px] font-medium">
-          <Link href="/dashboard" className="hover:text-white transition-colors">à¸«à¸™à¹‰à¸²à¸«à¸¥à¸±à¸</Link>
+          <Link href="/dashboard" className="hover:text-white transition-colors">หน้าหลัก</Link>
           <ChevronRight size={11} />
-          <Link href="/reports" className="hover:text-white transition-colors">à¸£à¸²à¸¢à¸‡à¸²à¸™</Link>
+          <Link href="/reports" className="hover:text-white transition-colors">รายงาน</Link>
           <ChevronRight size={11} />
-          <span className="text-white/90">à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²</span>
+          <span className="text-white/90">ใบเสนอราคา</span>
         </div>
         <div className="px-6 pt-3 pb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
           <div>
@@ -448,64 +448,64 @@ export default function QuotationSummaryReportPage() {
               Quotation Summary Report
             </h1>
             <p className="text-green-200/75 text-sm mt-1.5">
-              Overview for management Â· Search, view data, and export to Excel
+              Overview for management - Search, view data, and export to Excel
             </p>
           </div>
           <Link href="/reports"
                 className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5
                            px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20
                            text-white text-sm font-medium transition-all duration-150 whitespace-nowrap">
-            â† à¸£à¸²à¸¢à¸‡à¸²à¸™à¸«à¸¥à¸±à¸
+            กลับหน้ารายงาน
           </Link>
         </div>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â• KPI CARDS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* KPI cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4">
         <KpiCard loading={loading}
-          label="à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”"
-          value={loading ? 'â€”' : animCount.toLocaleString()}
-          sub={loading ? '' : `${animApproved} à¸­à¸™à¸¸à¸¡à¸±à¸•à¸´à¹à¸¥à¹‰à¸§`}
+          label="ใบเสนอราคาทั้งหมด"
+          value={loading ? '-' : animCount.toLocaleString()}
+          sub={loading ? '' : `${animApproved} อนุมัติแล้ว`}
           trend={insights.countTrend}
           icon={<FileText size={18} className="text-slate-500" />}
           iconBg="bg-slate-100" accent="border-l-slate-400" />
         <KpiCard loading={loading}
-          label="à¸¡à¸¹à¸¥à¸„à¹ˆà¸²à¸£à¸§à¸¡"
-          value={loading ? 'â€”' : `à¸¿${fmtMoney(insights.totalValue)}`}
+          label="มูลค่ารวม"
+          value={loading ? '-' : `฿${fmtMoney(insights.totalValue)}`}
           sub="THB"
           trend={insights.valueTrend}
           valueColor="text-blue-700"
           icon={<Wallet size={18} className="text-blue-500" />}
           iconBg="bg-blue-50" accent="border-l-blue-500" />
         <KpiCard loading={loading}
-          label="à¸­à¸±à¸•à¸£à¸²à¸­à¸™à¸¸à¸¡à¸±à¸•à¸´"
-          value={loading ? 'â€”' : fmtPct(insights.approvalRate)}
-          sub={loading ? '' : `${insights.approvedCount} / ${insights.totalCount} à¹ƒà¸š`}
+          label="อัตราอนุมัติ"
+          value={loading ? '-' : fmtPct(insights.approvalRate)}
+          sub={loading ? '' : `${insights.approvedCount} / ${insights.totalCount} ใบ`}
           valueColor={insights.approvalRate >= 50 ? 'text-emerald-700' : 'text-orange-600'}
           icon={<CheckCircle2 size={18} className="text-emerald-500" />}
           iconBg="bg-emerald-50" accent="border-l-emerald-500" />
         <KpiCard loading={loading}
           label="Average Deal Size"
-          value={loading ? 'â€”' : `à¸¿${fmtMoney(insights.avgDeal)}`}
-          sub="à¸•à¹ˆà¸­à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²"
+          value={loading ? '-' : `฿${fmtMoney(insights.avgDeal)}`}
+          sub="ต่อใบเสนอราคา"
           valueColor="text-indigo-700"
           icon={<TrendingUp size={18} className="text-indigo-500" />}
           iconBg="bg-indigo-50" accent="border-l-indigo-500" />
         <KpiCard loading={loading}
           label="Top Sales"
-          value={loading ? 'â€”' : (insights.topSales?.name ?? '-')}
-          sub={loading ? '' : `à¸¿${fmtMoney(insights.topSales?.total ?? 0)}`}
+          value={loading ? '-' : (insights.topSales?.name ?? '-')}
+          sub={loading ? '' : `฿${fmtMoney(insights.topSales?.total ?? 0)}`}
           icon={<Trophy size={18} className="text-amber-500" />}
           iconBg="bg-amber-50" accent="border-l-amber-500" />
         <KpiCard loading={loading}
           label="Top Customer"
-          value={loading ? 'â€”' : (insights.topCustomer?.name ?? '-')}
-          sub={loading ? '' : `à¸¿${fmtMoney(insights.topCustomer?.total ?? 0)}`}
+          value={loading ? '-' : (insights.topCustomer?.name ?? '-')}
+          sub={loading ? '' : `฿${fmtMoney(insights.topCustomer?.total ?? 0)}`}
           icon={<Building2 size={18} className="text-purple-500" />}
           iconBg="bg-purple-50" accent="border-l-purple-500" />
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â• FILTER BAR â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Filter bar */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
         <div className="flex flex-wrap gap-3 items-end">
           <div className="relative flex-1 min-w-[200px] max-w-xs">
@@ -513,31 +513,31 @@ export default function QuotationSummaryReportPage() {
             <input
               ref={searchRef}
               className="form-input pl-9 py-2 w-full text-sm"
-              placeholder="à¸„à¹‰à¸™à¸«à¸²à¹€à¸¥à¸‚à¸—à¸µà¹ˆ / à¸¥à¸¹à¸à¸„à¹‰à¸² / à¹‚à¸„à¸£à¸‡à¸à¸²à¸£"
+              placeholder="ค้นหาเลขที่ / ลูกค้า / โครงการ"
               value={search}
               onChange={e => setSearch(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && load()}
             />
           </div>
           <div>
-            <label className="text-[11px] font-medium text-gray-500 block mb-1">à¸ªà¸–à¸²à¸™à¸°</label>
+            <label className="text-[11px] font-medium text-gray-500 block mb-1">สถานะ</label>
             <select className="form-input py-2 text-sm" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-              <option value="">à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”</option>
+              <option value="">ทั้งหมด</option>
               {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
           {isManager && (
             <div>
-              <label className="text-[11px] font-medium text-gray-500 block mb-1">à¸žà¸™à¸±à¸à¸‡à¸²à¸™à¸‚à¸²à¸¢</label>
+              <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
               <select className="form-input py-2 text-sm" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
-                <option value="">à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”</option>
+                <option value="">ทั้งหมด</option>
                 {salesList.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
               </select>
             </div>
           )}
           <div>
             <label className="text-[11px] font-medium text-gray-500 block mb-1">
-              <Calendar size={10} className="inline mr-1" />à¸Šà¹ˆà¸§à¸‡à¹€à¸§à¸¥à¸²
+              <Calendar size={10} className="inline mr-1" />ช่วงเวลา
             </label>
             <select className="form-input py-2 text-sm" value={datePreset} onChange={e => { setDatePreset(e.target.value); setPage(1) }}>
               {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -546,11 +546,11 @@ export default function QuotationSummaryReportPage() {
           <div className="self-end">
             <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
                              bg-[#E8F5E9] text-[#1B5E20] text-xs font-semibold border border-green-200">
-              {filteredRows.length.toLocaleString()} à¸£à¸²à¸¢à¸à¸²à¸£
+              {filteredRows.length.toLocaleString()} รายการ
             </span>
           </div>
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={load} title="à¸£à¸µà¹€à¸Ÿà¸£à¸Š"
+            <button onClick={load} title="รีเฟรช"
               className="w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
                          flex items-center justify-center text-gray-500 hover:text-gray-800
                          transition-all duration-150 shadow-sm">
@@ -559,45 +559,45 @@ export default function QuotationSummaryReportPage() {
             <button onClick={exportExcel} disabled={exporting || filteredRows.length === 0}
               className="btn-primary inline-flex items-center gap-1.5 px-4 disabled:opacity-50 text-sm">
               <Download size={15} />
-              {exporting ? 'à¸à¸³à¸¥à¸±à¸‡ Exportâ€¦' : 'Export Excel'}
+              {exporting ? 'กำลัง Export...' : 'Export Excel'}
             </button>
           </div>
         </div>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â• STATUS SUMMARY CARDS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Status summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <StatusCard label="Approved Value"
-          value={`à¸¿${fmtMoney(insights.approvedValue)}`}
-          sub={`${insights.approvedCount} à¸£à¸²à¸¢à¸à¸²à¸£à¸—à¸µà¹ˆà¸­à¸™à¸¸à¸¡à¸±à¸•à¸´à¹à¸¥à¹‰à¸§`}
+          value={`฿${fmtMoney(insights.approvedValue)}`}
+          sub={`${insights.approvedCount} รายการที่อนุมัติแล้ว`}
           count={insights.approvedCount} total={insights.totalCount}
           icon={<CheckCircle2 />} gradient="bg-gradient-to-br from-emerald-50 to-white"
           bar="bg-emerald-500" text="text-emerald-700" iconColor="text-emerald-500"
-          tip="à¸¡à¸¹à¸¥à¸„à¹ˆà¸²à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²à¸—à¸µà¹ˆà¹„à¸”à¹‰à¸£à¸±à¸šà¸à¸²à¸£à¸­à¸™à¸¸à¸¡à¸±à¸•à¸´à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”" />
+          tip="มูลค่าใบเสนอราคาที่ได้รับการอนุมัติทั้งหมด" />
         <StatusCard label="Open Pipeline"
-          value={`à¸¿${fmtMoney(insights.pendingValue)}`}
-          sub={`${insights.pendingCount} à¸”à¸µà¸¥à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¹€à¸›à¸´à¸”à¸­à¸¢à¸¹à¹ˆ`}
+          value={`฿${fmtMoney(insights.pendingValue)}`}
+          sub={`${insights.pendingCount} ดีลที่ยังเปิดอยู่`}
           count={insights.pendingCount} total={insights.totalCount}
           icon={<Clock />} gradient="bg-gradient-to-br from-amber-50 to-white"
           bar="bg-amber-400" text="text-amber-600" iconColor="text-amber-500"
-          tip="à¸¡à¸¹à¸¥à¸„à¹ˆà¸²à¸”à¸µà¸¥à¸—à¸µà¹ˆà¸¢à¸±à¸‡à¹€à¸›à¸´à¸”à¸­à¸¢à¸¹à¹ˆ à¸£à¸­à¸à¸²à¸£à¸”à¸³à¹€à¸™à¸´à¸™à¸à¸²à¸£" />
+          tip="มูลค่าดีลที่ยังเปิดอยู่ รอการดำเนินการ" />
         <StatusCard label="Rejected Risk"
           value={fmtPct(insights.rejectedRate)}
-          sub="à¸ªà¸±à¸”à¸ªà¹ˆà¸§à¸™à¹ƒà¸šà¸—à¸µà¹ˆà¸–à¸¹à¸à¸›à¸à¸´à¹€à¸ªà¸˜"
+          sub="สัดส่วนใบที่ถูกปฏิเสธ"
           count={insights.rejectedCount} total={insights.totalCount}
           icon={<AlertTriangle />} gradient="bg-gradient-to-br from-red-50 to-white"
           bar="bg-red-400" text="text-red-600" iconColor="text-red-500"
-          tip="à¸¢à¸´à¹ˆà¸‡à¸•à¹ˆà¸³à¸¢à¸´à¹ˆà¸‡à¸”à¸µ â€” à¸ªà¸±à¸”à¸ªà¹ˆà¸§à¸™à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²à¸—à¸µà¹ˆà¸–à¸¹à¸à¸›à¸à¸´à¹€à¸ªà¸˜" />
+          tip="ยิ่งต่ำยิ่งดี - สัดส่วนใบเสนอราคาที่ถูกปฏิเสธ" />
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â• CHARTS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        {/* Monthly trend â€” 3/5 cols */}
+        {/* Monthly trend - 3/5 cols */}
         <div className="lg:col-span-3 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-700">Monthly Quotation Trend</h3>
-              <p className="text-xs text-gray-400 mt-0.5">à¸ˆà¸³à¸™à¸§à¸™à¹ƒà¸šà¹à¸¥à¸°à¸¡à¸¹à¸¥à¸„à¹ˆà¸² 12 à¹€à¸”à¸·à¸­à¸™à¸¥à¹ˆà¸²à¸ªà¸¸à¸”</p>
+              <p className="text-xs text-gray-400 mt-0.5">จำนวนใบและมูลค่า 12 เดือนล่าสุด</p>
             </div>
             <BarChart2 size={16} className="text-gray-300" />
           </div>
@@ -611,24 +611,24 @@ export default function QuotationSummaryReportPage() {
                        axisLine={false} tickLine={false} tickFormatter={(v: number) => fmtCompact(v)} />
                 <Tooltip content={<ChartTooltip />} />
                 <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} />
-                <Bar yAxisId="count" dataKey="count" name="à¸ˆà¸³à¸™à¸§à¸™ (à¹ƒà¸š)" fill="#BBF7D0" radius={[4, 4, 0, 0]} maxBarSize={32} />
-                <Line yAxisId="value" dataKey="value" name="à¸¡à¸¹à¸¥à¸„à¹ˆà¸² (à¸¿)" type="monotone"
+                <Bar yAxisId="count" dataKey="count" name="จำนวน (ใบ)" fill="#BBF7D0" radius={[4, 4, 0, 0]} maxBarSize={32} />
+                <Line yAxisId="value" dataKey="value" name="มูลค่า (฿)" type="monotone"
                       stroke="#1B5E20" strokeWidth={2.5} dot={false} />
               </ComposedChart>
             </ResponsiveContainer>
           ) : (
             <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">
-              à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸‚à¹‰à¸­à¸¡à¸¹à¸¥à¹€à¸žà¸µà¸¢à¸‡à¸žà¸­à¸ªà¸³à¸«à¸£à¸±à¸šà¹à¸ªà¸”à¸‡à¸à¸£à¸²à¸Ÿ
+              ยังไม่มีข้อมูลเพียงพอสำหรับแสดงกราฟ
             </div>
           )}
         </div>
 
-        {/* Status donut â€” 2/5 cols */}
+        {/* Status donut - 2/5 cols */}
         <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-semibold text-gray-700">Status Distribution</h3>
-              <p className="text-xs text-gray-400 mt-0.5">à¸à¸²à¸£à¸à¸£à¸°à¸ˆà¸²à¸¢à¸•à¸²à¸¡à¸ªà¸–à¸²à¸™à¸°à¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²</p>
+              <p className="text-xs text-gray-400 mt-0.5">การกระจายตามสถานะใบเสนอราคา</p>
             </div>
             <BarChart2 size={16} className="text-gray-300" />
           </div>
@@ -646,7 +646,7 @@ export default function QuotationSummaryReportPage() {
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
                   <p className="text-2xl font-bold text-gray-800 tabular-nums">{insights.totalCount}</p>
-                  <p className="text-[11px] text-gray-400">à¸—à¸±à¹‰à¸‡à¸«à¸¡à¸”</p>
+                  <p className="text-[11px] text-gray-400">ทั้งหมด</p>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 mt-2 w-full max-w-[180px]">
@@ -661,26 +661,26 @@ export default function QuotationSummaryReportPage() {
             </div>
           ) : (
             <div className="h-[220px] flex items-center justify-center text-gray-400 text-sm">
-              à¸¢à¸±à¸‡à¹„à¸¡à¹ˆà¸¡à¸µà¸‚à¹‰à¸­à¸¡à¸¹à¸¥
+              ยังไม่มีข้อมูล
             </div>
           )}
         </div>
       </div>
 
-      {/* â•â•â•â•â•â•â•â•â•â• DATA TABLE â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+      {/* Data table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {/* toolbar */}
         <div className="px-5 py-3 border-b border-gray-100 bg-gray-50/60 flex items-center justify-between gap-3">
           <span className="text-xs text-gray-500">
-            à¹à¸ªà¸”à¸‡ <strong>{pagedRows.length}</strong> / {filteredRows.length.toLocaleString()} à¸£à¸²à¸¢à¸à¸²à¸£
+            แสดง <strong>{pagedRows.length}</strong> / {filteredRows.length.toLocaleString()} รายการ
           </span>
           <div className="flex items-center gap-2 text-xs text-gray-500">
-            <span>à¹à¸ªà¸”à¸‡à¸—à¸µà¸¥à¸°</span>
+            <span>แสดงทีละ</span>
             <select className="form-input py-1 text-xs" style={{ width: 64 }}
               value={pageSize} onChange={e => { setPageSize(+e.target.value); setPage(1) }}>
               {PAGE_SIZES.map(n => <option key={n} value={n}>{n}</option>)}
             </select>
-            <span>à¸£à¸²à¸¢à¸à¸²à¸£</span>
+            <span>รายการ</span>
           </div>
         </div>
 
@@ -710,9 +710,9 @@ export default function QuotationSummaryReportPage() {
                   <td colSpan={9} className="text-center py-20">
                     <div className="flex flex-col items-center gap-3 text-gray-400">
                       <FileText size={48} strokeWidth={1} />
-                      <p className="text-base font-semibold text-gray-500">à¹„à¸¡à¹ˆà¸žà¸šà¹ƒà¸šà¹€à¸ªà¸™à¸­à¸£à¸²à¸„à¸²</p>
-                      <p className="text-sm text-gray-400">à¸¥à¸­à¸‡à¹€à¸›à¸¥à¸µà¹ˆà¸¢à¸™à¸„à¸³à¸„à¹‰à¸™à¸«à¸²à¸«à¸£à¸·à¸­à¸•à¸±à¸§à¸à¸£à¸­à¸‡à¹à¸¥à¹‰à¸§à¸¥à¸­à¸‡à¹ƒà¸«à¸¡à¹ˆ</p>
-                      <button onClick={load} className="btn-outline mt-1 text-sm px-4 py-1.5">à¸£à¸µà¹€à¸Ÿà¸£à¸Šà¸‚à¹‰à¸­à¸¡à¸¹à¸¥</button>
+                      <p className="text-base font-semibold text-gray-500">ไม่พบใบเสนอราคา</p>
+                      <p className="text-sm text-gray-400">ลองเปลี่ยนคำค้นหาหรือตัวกรองแล้วลองใหม่</p>
+                      <button onClick={load} className="btn-outline mt-1 text-sm px-4 py-1.5">รีเฟรชข้อมูล</button>
                     </div>
                   </td>
                 </tr>
@@ -730,7 +730,7 @@ export default function QuotationSummaryReportPage() {
                   <td className="px-4 py-3 text-sm text-gray-500 max-w-[180px] truncate">{q.project}</td>
                   <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{q.sales?.fullName ?? q.salesId}</td>
                   <td className="px-4 py-3 text-sm font-semibold text-right tabular-nums text-gray-800 whitespace-nowrap">
-                    à¸¿{fmtMoney(+q.grandTotal)}
+                    ฿{fmtMoney(+q.grandTotal)}
                   </td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold
@@ -741,17 +741,17 @@ export default function QuotationSummaryReportPage() {
                   <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{fmtDate(q.createdAt)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <button onClick={() => router.push(`/quotations/${q.id}`)} title="à¸”à¸¹à¸£à¸²à¸¢à¸¥à¸°à¹€à¸­à¸µà¸¢à¸”"
+                      <button onClick={() => router.push(`/quotations/${q.id}`)} title="ดูรายละเอียด"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-[#1B5E20] hover:bg-[#E8F5E9]
                                    transition-all duration-150">
                         <Eye size={14} />
                       </button>
-                      <button onClick={() => router.push(`/quotations/${q.id}/edit`)} title="à¹à¸à¹‰à¹„à¸‚"
+                      <button onClick={() => router.push(`/quotations/${q.id}/edit`)} title="แก้ไข"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50
                                    transition-all duration-150">
                         <Edit3 size={14} />
                       </button>
-                      <button onClick={() => router.push(`/print/quotation/${q.id}`)} title="à¸žà¸´à¸¡à¸žà¹Œ"
+                      <button onClick={() => router.push(`/print/quotation/${q.id}`)} title="พิมพ์"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-purple-600 hover:bg-purple-50
                                    transition-all duration-150">
                         <Printer size={14} />
@@ -766,7 +766,7 @@ export default function QuotationSummaryReportPage() {
 
         {totalPages > 1 && (
           <div className="px-5 py-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-3">
-            <span className="text-xs text-gray-500">à¸«à¸™à¹‰à¸² {page} à¸ˆà¸²à¸ {totalPages}</span>
+            <span className="text-xs text-gray-500">หน้า {page} จาก {totalPages}</span>
             <Pager page={page} total={totalPages} onChange={setPage} />
           </div>
         )}
