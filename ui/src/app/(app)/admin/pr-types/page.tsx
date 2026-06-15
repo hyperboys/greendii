@@ -10,10 +10,10 @@ import toast from 'react-hot-toast'
 
 interface Draft {
   name: string
-  approvalSteps: number[]
+  approvalRoles: string[]
 }
 
-const emptyDraft = (): Draft => ({ name: '', approvalSteps: [] })
+const emptyDraft = (): Draft => ({ name: '', approvalRoles: [] })
 
 export default function PrTypesPage() {
   const { rolePermissionsConfig, fetchSettings } = useSettingsStore()
@@ -44,15 +44,61 @@ export default function PrTypesPage() {
     load()
   }, [])
 
-  // ── step helpers ────────────────────────────────────────────────────────────
-  const stepEntries = Object.entries(stepRoleConfig)
-    .map(([s, r]) => ({ step: Number(s), role: r }))
-    .sort((a, b) => a.step - b.step)
+  const isStepToken = (value: string) => value.startsWith('step:')
+  const parseStepToken = (value: string) => Number(value.slice(5))
 
   const getRoleLabel = (roleKey: string) => allRoles.find(r => r.key === roleKey)?.label ?? roleKey
-  const getStepLabel = (stepNum: number) => {
-    const roleKey = stepRoleConfig[String(stepNum)]
-    return roleKey ? getRoleLabel(roleKey) : `Step ${stepNum}`
+
+  const getRoleChipLabel = (roleKeyOrToken: string) => {
+    if (isStepToken(roleKeyOrToken)) {
+      const step = parseStepToken(roleKeyOrToken)
+      return Number.isFinite(step) ? `Step ${step}` : roleKeyOrToken
+    }
+    return getRoleLabel(roleKeyOrToken)
+  }
+
+  const stepsToRoles = (steps: number[]) => {
+    return (steps ?? []).map(step => stepRoleConfig[String(step)] || `step:${step}`)
+  }
+
+  const rolesToSteps = async (roles: string[]) => {
+    const currentMap = { ...stepRoleConfig }
+    const roleToStep = new Map<string, number>()
+
+    for (const [stepStr, roleKey] of Object.entries(currentMap)) {
+      const stepNum = Number(stepStr)
+      if (!Number.isInteger(stepNum) || stepNum < 1) continue
+      if (!roleToStep.has(roleKey)) roleToStep.set(roleKey, stepNum)
+    }
+
+    let maxStep = Object.keys(currentMap)
+      .map(Number)
+      .filter(n => Number.isInteger(n) && n > 0)
+      .reduce((m, n) => Math.max(m, n), 0)
+
+    let changed = false
+    const steps = roles.map(roleKeyOrToken => {
+      if (isStepToken(roleKeyOrToken)) {
+        const step = parseStepToken(roleKeyOrToken)
+        return Number.isFinite(step) ? step : 0
+      }
+
+      const existingStep = roleToStep.get(roleKeyOrToken)
+      if (existingStep) return existingStep
+
+      maxStep += 1
+      currentMap[String(maxStep)] = roleKeyOrToken
+      roleToStep.set(roleKeyOrToken, maxStep)
+      changed = true
+      return maxStep
+    }).filter(step => step > 0)
+
+    if (changed) {
+      await SettingsAPI.update({ stepRoleConfig: currentMap })
+      setStepRoleConfig(currentMap)
+    }
+
+    return steps
   }
 
   // ── create ──────────────────────────────────────────────────────────────────
@@ -60,7 +106,8 @@ export default function PrTypesPage() {
     if (!creating?.name.trim()) { toast.error('กรุณาระบุชื่อประเภท'); return }
     setSaving(true)
     try {
-      await PrTypesAPI.create({ name: creating.name.trim(), approvalSteps: creating.approvalSteps })
+      const approvalSteps = await rolesToSteps(creating.approvalRoles)
+      await PrTypesAPI.create({ name: creating.name.trim(), approvalSteps })
       setCreating(null)
       load()
       toast.success('เพิ่มประเภท PR สำเร็จ')
@@ -71,13 +118,14 @@ export default function PrTypesPage() {
   // ── edit ──────────────────────────────────────────────────────────────────
   const startEdit = (t: PrType) => {
     setEditingId(t.id)
-    setEditDraft({ name: t.name, approvalSteps: [...(t.approvalSteps ?? [])] })
+    setEditDraft({ name: t.name, approvalRoles: stepsToRoles(t.approvalSteps ?? []) })
   }
   const saveEdit = async () => {
     if (!editDraft.name.trim()) { toast.error('กรุณาระบุชื่อประเภท'); return }
     setSaving(true)
     try {
-      await PrTypesAPI.update(editingId!, { name: editDraft.name.trim(), approvalSteps: editDraft.approvalSteps })
+      const approvalSteps = await rolesToSteps(editDraft.approvalRoles)
+      await PrTypesAPI.update(editingId!, { name: editDraft.name.trim(), approvalSteps })
       setEditingId(null)
       load()
       toast.success('บันทึกสำเร็จ')
@@ -131,10 +179,10 @@ export default function PrTypesPage() {
               placeholder="เช่น ซื้อทั่วไป, ซื้อโครงการ, ซื้อด่วน" />
           </div>
           <FlowEditor
-            steps={creating.approvalSteps}
-            stepEntries={stepEntries}
-            getStepLabel={getStepLabel}
-            onChange={steps => setCreating(d => d ? { ...d, approvalSteps: steps } : d)}
+            roles={creating.approvalRoles}
+            availableRoles={allRoles.map(r => r.key)}
+            getRoleLabel={getRoleChipLabel}
+            onChange={roles => setCreating(d => d ? { ...d, approvalRoles: roles } : d)}
           />
           <div className="flex justify-end gap-2">
             <button className="btn-outline btn-sm" onClick={() => setCreating(null)}>ยกเลิก</button>
@@ -157,10 +205,10 @@ export default function PrTypesPage() {
                     onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} />
                 </div>
                 <FlowEditor
-                  steps={editDraft.approvalSteps}
-                  stepEntries={stepEntries}
-                  getStepLabel={getStepLabel}
-                  onChange={steps => setEditDraft(d => ({ ...d, approvalSteps: steps }))}
+                  roles={editDraft.approvalRoles}
+                  availableRoles={allRoles.map(r => r.key)}
+                  getRoleLabel={getRoleChipLabel}
+                  onChange={roles => setEditDraft(d => ({ ...d, approvalRoles: roles }))}
                 />
                 <div className="flex justify-end gap-2">
                   <button className="btn-outline btn-sm" onClick={() => setEditingId(null)}>ยกเลิก</button>
@@ -190,11 +238,11 @@ export default function PrTypesPage() {
                   {(t.approvalSteps ?? []).length === 0 ? (
                     <span className="text-xs text-gray-400">— ใช้สายอนุมัติ PR เริ่มต้น —</span>
                   ) : (
-                    (t.approvalSteps ?? []).map(s => (
-                      <div key={s} className="flex items-center gap-1.5">
+                    stepsToRoles(t.approvalSteps ?? []).map(roleKey => (
+                      <div key={`${t.id}-${roleKey}`} className="flex items-center gap-1.5">
                         <span className="text-gray-300 text-sm">→</span>
                         <span className="px-2.5 py-1.5 rounded-lg border-2 border-green-200 bg-white text-xs font-semibold text-gray-700">
-                          {getStepLabel(s)}
+                          {getRoleChipLabel(roleKey)}
                         </span>
                       </div>
                     ))
@@ -214,19 +262,19 @@ export default function PrTypesPage() {
 
 // ── Reusable flow editor (chips + drag reorder) ───────────────────────────────
 function FlowEditor({
-  steps, stepEntries, getStepLabel, onChange,
+  roles, availableRoles, getRoleLabel, onChange,
 }: {
-  steps: number[]
-  stepEntries: { step: number; role: string }[]
-  getStepLabel: (step: number) => string
-  onChange: (steps: number[]) => void
+  roles: string[]
+  availableRoles: string[]
+  getRoleLabel: (roleKey: string) => string
+  onChange: (roles: string[]) => void
 }) {
   const dragIdx = useRef<number | null>(null)
   const [dragOver, setDragOver] = useState<number | null>(null)
-  const available = stepEntries.filter(s => !steps.includes(s.step))
+  const available = availableRoles.filter(roleKey => !roles.includes(roleKey))
 
   const reorder = (from: number, to: number) => {
-    const arr = [...steps]
+    const arr = [...roles]
     const [item] = arr.splice(from, 1)
     arr.splice(to, 0, item)
     onChange(arr)
@@ -237,8 +285,8 @@ function FlowEditor({
       <p className="text-xs text-gray-500 font-medium mb-2">สายอนุมัติ (เรียงตามลำดับ)</p>
       <div className="flex flex-wrap items-center gap-2 min-h-[52px] p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
         <div className="px-3 py-2 rounded-lg bg-green-main text-white text-xs font-semibold select-none">ผู้สร้าง</div>
-        {steps.map((stepNum, idx) => (
-          <div key={stepNum} className="flex items-center gap-1.5">
+        {roles.map((roleKey, idx) => (
+          <div key={`${roleKey}-${idx}`} className="flex items-center gap-1.5">
             <span className="text-gray-300 text-sm">→</span>
             <div
               draggable
@@ -258,16 +306,15 @@ function FlowEditor({
               }`}
             >
               <GripVertical size={13} className="text-gray-400" />
-              <span className="text-[10px] text-gray-400 font-normal mr-0.5">#{stepNum}</span>
-              {getStepLabel(stepNum)}
-              <button onClick={() => onChange(steps.filter(s => s !== stepNum))}
+              {getRoleLabel(roleKey)}
+              <button onClick={() => onChange(roles.filter(r => r !== roleKey))}
                 className="ml-1 text-gray-400 hover:text-red-500 transition-colors">
                 <X size={12} />
               </button>
             </div>
           </div>
         ))}
-        {steps.length === 0 && (
+        {roles.length === 0 && (
           <span className="text-xs text-gray-400">ไม่มีขั้นตอน (ใช้สายอนุมัติ PR เริ่มต้น)</span>
         )}
       </div>
@@ -276,12 +323,11 @@ function FlowEditor({
         <div className="mt-3">
           <p className="text-xs text-gray-500 font-medium mb-2">เพิ่มขั้นตอน</p>
           <div className="flex flex-wrap gap-2">
-            {available.map(s => (
-              <button key={s.step} onClick={() => onChange([...steps, s.step])}
+            {available.map(roleKey => (
+              <button key={roleKey} onClick={() => onChange([...roles, roleKey])}
                 className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
                 <Plus size={12} />
-                <span className="text-[10px] text-gray-400">#{s.step}</span>
-                {getStepLabel(s.step)}
+                {getRoleLabel(roleKey)}
               </button>
             ))}
           </div>

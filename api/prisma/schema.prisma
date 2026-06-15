@@ -164,6 +164,7 @@ model Settings {
   email               String   @default("")
   website             String   @default("")
   logoUrl             String   @default("")
+  stepRoleConfig          Json?    // { "1":"sales", "2":"sale_mgr", ... }
   approvalFlowConfig      Json?    // { quotation:[1,2,3,4,5], workOrder:[3,4,5], pr:[3,4,5,6], handover:[3,4,5] }
   menuAccessConfig      Json?    // { quotations:['admin','sales',...], workorders:[...], ... }
   rolePermissionsConfig Json?    // { roles:[{key,label,description}], permissions:[{key,label,roles[]}] }

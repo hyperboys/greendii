@@ -23,6 +23,9 @@ export default function ApprovalFlowPage() {
   const [newStepNum, setNewStepNum] = useState('')
   const [newStepRole, setNewStepRole] = useState('')
 
+  // PR flow is configured from "ประเภทใบขอซื้อ (PR)" page per PR type.
+  const docTypesForGenericFlow = DOC_TYPES.filter(doc => doc.key !== 'pr')
+
   useEffect(() => {
     fetchSettings()
     SettingsAPI.get().then(s => {
@@ -90,8 +93,11 @@ export default function ApprovalFlowPage() {
   const save = async () => {
     setSaving(true)
     try {
+      const genericFlowConfig = Object.fromEntries(
+        docTypesForGenericFlow.map(doc => [doc.key, config[doc.key] ?? []])
+      )
       await Promise.all([
-        AdminAPI.updateApprovalFlow(config),
+        AdminAPI.updateApprovalFlow(genericFlowConfig),
         SettingsAPI.update({ stepRoleConfig }),
       ])
       toast.success('บันทึกการตั้งค่าสายอนุมัติสำเร็จ')
@@ -103,7 +109,13 @@ export default function ApprovalFlowPage() {
   }
 
   const reset = () => {
-    setConfig(DEFAULT_APPROVAL_FLOW)
+    setConfig(prev => {
+      const next = { ...prev }
+      for (const doc of docTypesForGenericFlow) {
+        next[doc.key] = DEFAULT_APPROVAL_FLOW[doc.key] ?? []
+      }
+      return next
+    })
     setStepRoleConfig(DEFAULT_STEP_ROLE)
     toast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
   }
@@ -211,12 +223,12 @@ export default function ApprovalFlowPage() {
           ลากไอคอน <strong>grip</strong> เพื่อเรียงลำดับขั้นตอน &nbsp;·&nbsp;
           คลิก <strong>+</strong> เพื่อเพิ่มขั้นตอน &nbsp;·&nbsp;
           คลิก <strong>×</strong> เพื่อลบออก &nbsp;·&nbsp;
-          การเปลี่ยนแปลงมีผลกับเอกสารที่สร้างใหม่
+          การเปลี่ยนแปลงมีผลกับเอกสารที่สร้างใหม่ (ใบขอซื้อให้ตั้งค่าในหน้า ประเภทใบขอซื้อ (PR))
         </span>
       </div>
 
       <div className="space-y-6">
-        {DOC_TYPES.map(doc => (
+        {docTypesForGenericFlow.map(doc => (
           <DocFlowCard
             key={doc.key}
             label={doc.label}
