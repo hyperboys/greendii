@@ -51,6 +51,8 @@ export default function UsersPage() {
           fullName: editing.fullName, initials: editing.initials, role: editing.role,
           lineUserId: editing.lineUserId, email: editing.email, phone: editing.phone,
           department: editing.department, position: editing.position,
+          firstName: editing.firstName, lastName: editing.lastName,
+          firstNameEn: editing.firstNameEn, lastNameEn: editing.lastNameEn,
         })
       } else {
         if (!editing.password) { toast.error('กรุณาตั้งรหัสผ่าน'); setSaving(false); return }
@@ -58,6 +60,8 @@ export default function UsersPage() {
           username: editing.username, fullName: editing.fullName, initials: editing.initials,
           role: editing.role, password: editing.password, lineUserId: editing.lineUserId,
           email: editing.email, phone: editing.phone, department: editing.department, position: editing.position,
+          firstName: editing.firstName, lastName: editing.lastName,
+          firstNameEn: editing.firstNameEn, lastNameEn: editing.lastNameEn,
         })
       }
       toast.success('บันทึกสำเร็จ')

@@ -4,10 +4,10 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ReportsAPI, ApprovalsAPI } from '@/lib/api'
 import type { ReportOverview, PendingApprovals } from '@/types'
-import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
+import { hasRole } from '@/lib/roleAliases'
 import { FileText, ClipboardList, Handshake, ShoppingCart, CheckSquare } from 'lucide-react'
-import toast from 'react-hot-toast'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -15,12 +15,14 @@ function fmtMoney(n: number) {
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
+  const { fetchSettings, menuAccessConfig } = useSettingsStore()
   const router = useRouter()
   const [overview, setOverview] = useState<ReportOverview | null>(null)
   const [pending, setPending] = useState<PendingApprovals | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    fetchSettings()
     Promise.all([
       ReportsAPI.overview().catch(() => null),
       ApprovalsAPI.pending().catch(() => null),
@@ -31,11 +33,29 @@ export default function DashboardPage() {
     })
   }, [])
 
+  const canSeeMenu = (menuKey: string) => {
+    if (!user) return false
+    const roles = menuAccessConfig[menuKey]
+    return !roles || hasRole(user.role, roles)
+  }
+
+  const canViewQuotations = canSeeMenu('quotations')
+  const canViewWorkOrders = canSeeMenu('workorders')
+  const canViewHandovers = canSeeMenu('handovers')
+  const canViewPrs = canSeeMenu('pr')
+  const canViewApprovals = canSeeMenu('approvals')
+  const canViewRecentLogs = canSeeMenu('reports') || hasRole(user?.role || '', ['admin', 'director', 'admin_mgr'])
+
+  const visiblePendingQuotations = canViewQuotations ? (pending?.quotations ?? []) : []
+  const visiblePendingWorkOrders = canViewWorkOrders ? (pending?.workOrders ?? []) : []
+  const visiblePendingPrs = canViewPrs ? (pending?.prs ?? []) : []
+  const visiblePendingHandovers = canViewHandovers ? (pending?.handovers ?? []) : []
+
   const pendingCount =
-    (pending?.quotations.length ?? 0) +
-    (pending?.workOrders.length ?? 0) +
-    (pending?.prs.length ?? 0) +
-    (pending?.handovers.length ?? 0)
+    visiblePendingQuotations.length +
+    visiblePendingWorkOrders.length +
+    visiblePendingPrs.length +
+    visiblePendingHandovers.length
 
   if (loading) {
     return (
@@ -57,6 +77,7 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        {canViewQuotations && (
         <div className="stat-card border-l-4 border-green-main" onClick={() => router.push('/quotations')}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-green-pale rounded-lg shrink-0">
@@ -72,7 +93,9 @@ export default function DashboardPage() {
             ฿{fmtMoney(overview?.quotations.grandTotal ?? 0)}
           </div>
         </div>
+        )}
 
+        {canViewWorkOrders && (
         <div className="stat-card border-l-4 border-blue-500" onClick={() => router.push('/workorders')}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-blue-50 rounded-lg shrink-0">
@@ -85,7 +108,9 @@ export default function DashboardPage() {
             อนุมัติแล้ว {overview?.workOrders.approved ?? 0} รายการ
           </div>
         </div>
+        )}
 
+        {canViewHandovers && (
         <div className="stat-card border-l-4 border-orange-400" onClick={() => router.push('/handovers')}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-orange-50 rounded-lg shrink-0">
@@ -96,7 +121,9 @@ export default function DashboardPage() {
           <div className="stat-value text-orange-500">{overview?.handOverJobs.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>
         </div>
+        )}
 
+        {canViewPrs && (
         <div className="stat-card border-l-4 border-purple-500" onClick={() => router.push('/pr')}>
           <div className="flex items-center gap-3">
             <div className="p-2 bg-purple-50 rounded-lg shrink-0">
@@ -107,17 +134,18 @@ export default function DashboardPage() {
           <div className="stat-value text-purple-600">{overview?.purchaseRequests.total ?? '-'}</div>
           <div className="stat-label">รายการทั้งหมด</div>
         </div>
+        )}
       </div>
 
       {/* Pending approvals */}
-      {pendingCount > 0 && (
+      {canViewApprovals && pendingCount > 0 && (
         <div className="card p-5">
           <div className="flex items-center gap-2 mb-4">
             <CheckSquare size={18} className="text-orange-500" />
             <h3 className="font-semibold text-gray-800">รออนุมัติ ({pendingCount} รายการ)</h3>
           </div>
           <div className="space-y-2">
-            {pending?.quotations.map(q => (
+            {visiblePendingQuotations.map(q => (
               <div
                 key={q.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
@@ -130,7 +158,7 @@ export default function DashboardPage() {
                 <span className="badge badge-pending">ใบเสนอราคา</span>
               </div>
             ))}
-            {pending?.workOrders.map(w => (
+            {visiblePendingWorkOrders.map(w => (
               <div
                 key={w.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-blue-50 cursor-pointer hover:bg-blue-100 transition-colors"
@@ -143,7 +171,7 @@ export default function DashboardPage() {
                 <span className="badge badge-pending">ใบสั่งงาน</span>
               </div>
             ))}
-            {pending?.prs.map(p => (
+            {visiblePendingPrs.map(p => (
               <div
                 key={p.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-purple-50 cursor-pointer hover:bg-purple-100 transition-colors"
@@ -156,7 +184,7 @@ export default function DashboardPage() {
                 <span className="badge badge-pending">ใบขอซื้อ</span>
               </div>
             ))}
-            {pending?.handovers.map(h => (
+            {visiblePendingHandovers.map(h => (
               <div
                 key={h.id}
                 className="flex items-center justify-between p-3 rounded-lg bg-orange-50 cursor-pointer hover:bg-orange-100 transition-colors"
@@ -172,7 +200,7 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-      {overview?.recentLogs && overview.recentLogs.length > 0 && (
+      {canViewRecentLogs && overview?.recentLogs && overview.recentLogs.length > 0 && (
         <div className="card p-5">
           <h3 className="font-semibold text-gray-800 mb-4">กิจกรรมล่าสุด</h3>
           <div className="space-y-2">
