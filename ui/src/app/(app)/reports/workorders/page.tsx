@@ -18,6 +18,7 @@ import { WorkOrdersAPI, UsersAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import type { WorkOrder, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
+import { hasRole } from '@/lib/roleAliases'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -315,7 +316,7 @@ export default function WorkOrderReportPage() {
   useEffect(() => {
     if (!isManager) return
     UsersAPI.list({ active: 'true' })
-      .then(users => setSalesList(users.filter(u => ['sales', 'sale_mgr'].includes(u.role))))
+      .then(users => setSalesList(users.filter(u => hasRole(u.role, ['sales', 'sale_mgr']))))
       .catch(() => {})
   }, [isManager])
 

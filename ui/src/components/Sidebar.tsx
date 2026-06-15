@@ -11,6 +11,7 @@ import {
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/store/settings'
+import { hasRole } from '@/lib/roleAliases'
 
 interface NavItem {
   href: string
@@ -82,12 +83,12 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (!user) return false
     const configRoles = menuAccessConfig[menuKey]
     const roles = configRoles ?? fallbackRoles
-    return !roles || roles.includes(user.role as UserRole)
+    return !roles || hasRole(user.role, roles)
   }
 
   // Admin menu always uses hardcoded roles (never DB-configurable)
   const canSee = (roles?: UserRole[]) =>
-    !roles || !user || roles.includes(user.role as UserRole)
+    !roles || !user || hasRole(user.role, roles)
 
   return (
     <>

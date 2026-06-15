@@ -8,6 +8,7 @@ import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
+import { normalizeUserRole } from '@/lib/roleAliases'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
@@ -63,7 +64,7 @@ export default function PRDetailPage() {
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
-  const canApprove = doc.status === 'pending' && nextStepRole === user?.role
+  const canApprove = doc.status === 'pending' && normalizeUserRole(nextStepRole) === normalizeUserRole(user?.role)
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''

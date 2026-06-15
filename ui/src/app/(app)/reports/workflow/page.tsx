@@ -17,6 +17,7 @@ import toast from 'react-hot-toast'
 import { QuotationsAPI, WorkOrdersAPI, HandoversAPI, PRAPI, UsersAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import type { Quotation, WorkOrder, HandOverJob, PurchaseRequest, User } from '@/types'
+import { hasRole } from '@/lib/roleAliases'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -433,7 +434,7 @@ export default function WorkflowTrackingReportPage() {
         setWorkOrders(wos)
         setHandovers(hos)
         setPrs(prList)
-        setSalesUsers(users.filter(u => ['sales', 'sale_mgr'].includes(u.role)))
+        setSalesUsers(users.filter(u => hasRole(u.role, ['sales', 'sale_mgr'])))
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))

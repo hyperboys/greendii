@@ -2,6 +2,12 @@ import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { AuthUser } from '@/types'
 import { AuthAPI } from '@/lib/api'
+import { normalizeUserRole } from '@/lib/roleAliases'
+
+function normalizeAuthUser(user: AuthUser | null): AuthUser | null {
+  if (!user) return null
+  return { ...user, role: normalizeUserRole(user.role) }
+}
 
 interface AuthState {
   user: AuthUser | null
@@ -25,8 +31,9 @@ export const useAuthStore = create<AuthState>()(
         const data = await AuthAPI.login(username, password)
         localStorage.setItem('gd_token', data.token)
         localStorage.setItem('gd_refresh', data.refreshToken)
-        localStorage.setItem('gd_user', JSON.stringify(data.user))
-        set({ user: data.user as AuthUser, token: data.token })
+        const normalizedUser = normalizeAuthUser(data.user as AuthUser)
+        localStorage.setItem('gd_user', JSON.stringify(normalizedUser))
+        set({ user: normalizedUser, token: data.token })
       },
 
       logout: () => {
@@ -44,13 +51,15 @@ export const useAuthStore = create<AuthState>()(
 
       refreshMe: async () => {
         const user = await AuthAPI.me()
-        set({ user: user as AuthUser })
+        const normalizedUser = normalizeAuthUser(user as AuthUser)
+        set({ user: normalizedUser })
       },
     }),
     {
       name: 'gd-auth',
       partialize: (s) => ({ user: s.user, token: s.token }),
       onRehydrateStorage: () => (state) => {
+        if (state?.user) state.user = normalizeAuthUser(state.user)
         state?.setHasHydrated(true)
       },
     }

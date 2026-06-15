@@ -1,6 +1,7 @@
 const prisma = require('./prisma');
 const nodemailer = require('nodemailer');
 const { STEP_ROLE, getStepRoleMapping } = require('./approvalFlow');
+const { expandRoleAliases } = require('./roleAliases');
 
 // ─── LINE Messaging API ─────────────────────────────────────────────────────
 // Requires env: LINE_CHANNEL_ACCESS_TOKEN
@@ -101,8 +102,9 @@ async function notifyUser(userId, text) {
 
 // Notify all active users of a given role (in-app + LINE + email)
 async function notifyByRole(role, text) {
+  const candidateRoles = expandRoleAliases(role);
   const users = await prisma.user.findMany({
-    where: { role, active: true },
+    where: { role: { in: candidateRoles }, active: true },
     select: { id: true, lineUserId: true, email: true },
   });
   if (!users.length) return;

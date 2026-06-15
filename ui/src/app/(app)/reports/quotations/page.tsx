@@ -18,6 +18,7 @@ import { QuotationsAPI, UsersAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import type { Quotation, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
+import { hasRole } from '@/lib/roleAliases'
 
 // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function fmtMoney(n: number) {
@@ -254,7 +255,7 @@ export default function QuotationSummaryReportPage() {
   useEffect(() => {
     if (!isManager) return
     UsersAPI.list({ active: 'true' })
-      .then(users => setSalesList(users.filter(u => ['sales', 'sale_mgr'].includes(u.role))))
+      .then(users => setSalesList(users.filter(u => hasRole(u.role, ['sales', 'sale_mgr']))))
       .catch(() => {})
   }, [isManager])
 

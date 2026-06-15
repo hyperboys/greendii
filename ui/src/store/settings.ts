@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { SettingsAPI } from '@/lib/api'
 import type { UserRole, RolePermissionsConfig } from '@/types'
 import { DEFAULT_MENU_ACCESS, DEFAULT_ROLES, DEFAULT_PERMISSIONS, DEFAULT_STEP_ROLE } from '@/types'
+import { normalizeUserRole } from '@/lib/roleAliases'
 
 interface SettingsState {
   menuAccessConfig: Record<string, UserRole[]>
@@ -44,7 +45,8 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
   hasPerm: (permKey, userRole) => {
     const { rolePermissionsConfig } = get()
     const perm = rolePermissionsConfig.permissions.find(p => p.key === permKey)
-    return perm?.roles.includes(userRole) ?? false
+    const normalizedRole = normalizeUserRole(userRole)
+    return perm?.roles.map(normalizeUserRole).includes(normalizedRole) ?? false
   },
 
   getRoleLabel: (roleKey) => {

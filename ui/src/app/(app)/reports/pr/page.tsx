@@ -18,6 +18,7 @@ import { PRAPI, PrTypesAPI, UsersAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import type { PurchaseRequest, User, PrType } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
+import { hasRole } from '@/lib/roleAliases'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtMoney(n: number) {
@@ -273,7 +274,7 @@ export default function PurchaseRequestReportPage() {
     if (isManager) {
       UsersAPI.list({ active: 'true' })
         .then(users => setSalesList(users.filter(u =>
-          ['sales', 'sale_mgr', 'admin_mgr', 'procurement'].includes(u.role)
+          hasRole(u.role, ['sales', 'sale_mgr', 'admin_mgr', 'procurement'])
         )))
         .catch(() => {})
     }

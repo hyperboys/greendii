@@ -18,6 +18,7 @@
  */
 
 const prisma = require('./prisma');
+const { normalizeRole } = require('./roleAliases');
 
 // ─── DEFAULTS (fallback when DB has no stepRoleConfig) ───────────────────────
 
@@ -79,8 +80,9 @@ async function getStepRoleMapping() {
   const roleStep = {};
   for (const [stepStr, role] of Object.entries(raw)) {
     const step = Number(stepStr);
-    stepRole[step] = role;
-    roleStep[role] = step;
+    const normalizedRole = normalizeRole(role);
+    stepRole[step] = normalizedRole;
+    roleStep[normalizedRole] = step;
   }
   return { stepRole, roleStep };
 }
@@ -97,7 +99,7 @@ async function getFlowSteps(docType) {
 
 /**
  * Return the first step when a document is submitted.
- * e.g. quotation → 1 (sales2), workOrder → 3 (admin_mgr)
+ * e.g. quotation → 1 (sales), workOrder → 3 (admin_mgr)
  */
 async function getFirstStep(docType) {
   const steps = await getFlowSteps(docType);
@@ -124,7 +126,8 @@ async function getNextStep(docType, currentStep) {
  */
 function filterCreatorSteps(steps, creatorRole, stepRole) {
   if (!creatorRole) return [...steps];
-  return steps.filter(step => stepRole[step] !== creatorRole);
+  const normalizedCreatorRole = normalizeRole(creatorRole);
+  return steps.filter(step => normalizeRole(stepRole[step]) !== normalizedCreatorRole);
 }
 
 /**

@@ -9,6 +9,7 @@ import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
+import { normalizeUserRole } from '@/lib/roleAliases'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
@@ -87,7 +88,7 @@ export default function WorkOrderDetailPage() {
 
   const nextStep = doc.approvalStep + 1
   const nextStepRole = stepRoleConfig[String(nextStep)]
-  const canApprove = doc.status === 'pending' && nextStepRole === user?.role
+  const canApprove = doc.status === 'pending' && normalizeUserRole(nextStepRole) === normalizeUserRole(user?.role)
   const checklist = { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) }
   const checklistItemClass = (checked: boolean) =>
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked

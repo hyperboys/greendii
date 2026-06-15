@@ -2,6 +2,7 @@ const router = require('express').Router();
 const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
+const { normalizeRole } = require('../lib/roleAliases');
 const {
   signAccessToken, issueRefreshToken, findValidRefreshToken,
   revokeRefreshToken, rotateRefreshToken,
@@ -22,7 +23,8 @@ router.post('/login', async (req, res, next) => {
     if (!valid) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
-    const token = signAccessToken(user);
+    const normalizedUser = { ...user, role: normalizeRole(user.role) };
+    const token = signAccessToken(normalizedUser);
     const refreshToken = await issueRefreshToken(user.id);
     res.json({
       token,
@@ -33,7 +35,7 @@ router.post('/login', async (req, res, next) => {
         username: user.username,
         fullName: user.fullName,
         initials: user.initials,
-        role: user.role,
+        role: normalizedUser.role,
         lineUserId: user.lineUserId,
         mustChangePassword: user.mustChangePassword,
         firstName: user.firstName,

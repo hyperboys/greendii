@@ -408,7 +408,7 @@ export default function UsersPage() {
               {[
                 { role: 'admin',       label: 'System Admin',        q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓', s: '✓' },
                 { role: 'sales',       label: 'พนักงานขาย',          q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
-                { role: 'sales2',      label: 'พนักงานขาย 2',       q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
+                { role: 'sales2',      label: 'Senior Sales Executive (เทียบเท่า Sales)', q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '-',  rp: '-',  m: '-',  u: '-',  s: '-' },
                 { role: 'sale_mgr',    label: 'ผู้จัดการฝ่ายขาย',    q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '-',  s: '-' },
                 { role: 'admin_mgr',   label: 'ผู้จัดการธุรการ',      q: '✓', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '✓', u: '✓', s: '-' },
                 { role: 'project_mgr', label: 'ผู้จัดการโปรเจกต์',   q: '-', wo: '✓', ho: '✓', pr: '✓', ap: '✓', rp: '✓', m: '-',  u: '-',  s: '-' },

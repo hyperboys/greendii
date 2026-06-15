@@ -15,6 +15,7 @@ import toast from 'react-hot-toast'
 import { QuotationsAPI, UsersAPI } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
 import type { Quotation, User } from '@/types'
+import { hasRole } from '@/lib/roleAliases'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtMoney(n: number) {
@@ -366,7 +367,7 @@ export default function SalesPerformanceReportPage() {
     ])
       .then(([qs, us]) => {
         setQuotations(qs)
-        setSalesUsers(us.filter(u => ['sales', 'sale_mgr'].includes(u.role)))
+        setSalesUsers(us.filter(u => hasRole(u.role, ['sales', 'sale_mgr'])))
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))

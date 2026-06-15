@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
+const { normalizeRole } = require('../lib/roleAliases');
 
 async function authenticate(req, res, next) {
   const header = req.headers.authorization;
@@ -22,7 +23,7 @@ async function authenticate(req, res, next) {
     if (!user || !user.active) {
       return res.status(401).json({ message: 'User not found or inactive' });
     }
-    req.user = user;
+    req.user = { ...user, role: normalizeRole(user.role) };
     next();
   } catch {
     return res.status(401).json({ message: 'Invalid or expired token' });
@@ -31,7 +32,9 @@ async function authenticate(req, res, next) {
 
 function requireRole(...roles) {
   return (req, res, next) => {
-    if (!roles.includes(req.user?.role)) {
+    const allowedRoles = roles.map(normalizeRole);
+    const currentRole = normalizeRole(req.user?.role);
+    if (!allowedRoles.includes(currentRole)) {
       return res.status(403).json({ message: 'Forbidden: insufficient role' });
     }
     next();
