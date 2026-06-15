@@ -376,7 +376,7 @@ export default function SalesPerformanceReportPage() {
 
   // Unique departments from salesUsers
   const departments = useMemo(
-    () => [...new Set(salesUsers.map(u => u.department).filter((d): d is string => !!d))],
+    () => Array.from(new Set(salesUsers.map(u => u.department).filter((d): d is string => !!d))),
     [salesUsers]
   )
 

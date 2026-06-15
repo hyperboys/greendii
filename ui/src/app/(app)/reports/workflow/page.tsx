@@ -153,7 +153,6 @@ function buildChains(
       if (wo.status === 'approved' || wo.isClosed) currentStage = 'inprogress'
     }
     if (ho) {
-      currentStage = ho.isClosed ?? (ho.status === 'approved') ? 'complete' : 'handover'
       if (ho.status === 'approved') currentStage = 'complete'
       else currentStage = 'handover'
     }
@@ -457,7 +456,7 @@ export default function WorkflowTrackingReportPage() {
 
   // All unique customers
   const uniqueCustomers = useMemo(
-    () => [...new Set(dateFilteredChains.map(c => c.customer))].sort(),
+    () => Array.from(new Set(dateFilteredChains.map(c => c.customer))).sort(),
     [dateFilteredChains]
   )
 
