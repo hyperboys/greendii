@@ -251,6 +251,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const [scale, setScale] = useState(1)
+  const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
   const totalPages = pages ? pages.length : 1
 
   const measureRef = useRef<HTMLDivElement>(null)
@@ -272,9 +273,21 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   useEffect(() => {
     setPages(null)
     setScale(1)
+    setImageOrientation({})
     fallbackRef.current = null
     readyRef.current = false
   }, [doc])
+
+  function getImageKey(item: Item, imageIndex: number, url: string): string {
+    const seqPart = item.seq !== undefined ? String(item.seq) : item.desc || 'item'
+    return `${seqPart}::${imageIndex}::${url}`
+  }
+
+  function onImageLoad(imageKey: string, naturalWidth: number, naturalHeight: number) {
+    if (!naturalWidth || !naturalHeight) return
+    const next: 'landscape' | 'portrait' = naturalWidth > naturalHeight ? 'landscape' : 'portrait'
+    setImageOrientation(prev => (prev[imageKey] === next ? prev : { ...prev, [imageKey]: next }))
+  }
 
   // Measure real rendered heights at the current font scale, then paginate.
   // If the summary block would land alone on a trailing page, shrink the font a
@@ -480,11 +493,39 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             </span>
           ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
-            <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
-              {item.images.map((url, idx) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: `${(30 * scale).toFixed(3)}mm`, height: 'auto', objectFit: 'contain', display: 'block' }} />
-              ))}
+            <div
+              style={{
+                marginTop: '2mm',
+                display: 'grid',
+                // Mixed layout: portrait = 1 column, landscape = 2 columns.
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridAutoFlow: 'dense',
+                gap: '2mm',
+                alignItems: 'start',
+              }}
+            >
+              {item.images.map((url, idx) => {
+                const imageKey = getImageKey(item, idx, url)
+                const orientation = imageOrientation[imageKey]
+                const isLandscape = orientation === 'landscape'
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={idx}
+                    src={resolveFileUrl(url)}
+                    alt=""
+                    onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      maxHeight: `${(34 * scale).toFixed(3)}mm`,
+                      objectFit: 'contain',
+                      display: 'block',
+                      gridColumn: isLandscape ? 'span 2' : 'span 1',
+                    }}
+                  />
+                )
+              })}
             </div>
           )}
         </td>
