@@ -425,7 +425,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           </div>
           <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
           <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
-          <div style={{ fontSize: '12pt', lineHeight: '1.0', color: '#cc0000' }}>E-Mail : {email}</div>
+          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
         </div>
 
         {/* ═══ QUOTATION title ═══ */}
