@@ -402,7 +402,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       { leftLabel: 'Attn', leftValue: doc.attn || '', rightLabel: 'Page', rightValue: pageText },
       { leftLabel: 'Address', leftValue: addressLines[0], rightLabel: 'Tel', rightValue: doc.tel || '' },
       { leftLabel: '', leftValue: addressLines[1], rightLabel: 'Quo.No', rightValue: doc.quoNo },
-      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: salesHp || '' },
+      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: '' },
       { leftLabel: 'Project', leftValue: doc.project || '', rightLabel: '', rightValue: '' },
     ]
 
@@ -415,10 +415,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             gridTemplateColumns: '120px 1fr 120px',
             columnGap: 0,
             alignItems: 'center',
+            marginTop: '-1.5mm',
             fontFamily: 'var(--font-thai)',
           }}
         >
-          <div>
+          <div style={{ marginTop: '2mm' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
           </div>
@@ -436,7 +437,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
             {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
           </div>
-          <div style={{ fontSize: '14pt', lineHeight: '1.0' }}>{website}</div>
           <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
           <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
         </div>

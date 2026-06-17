@@ -407,7 +407,6 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.02' }}>
                   {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
                 </div>
-                <div style={{ fontSize: '11.8pt', lineHeight: '1.0' }}>{website}</div>
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
               </div>
