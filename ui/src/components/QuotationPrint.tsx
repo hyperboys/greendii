@@ -366,13 +366,13 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
   const thS: React.CSSProperties = {
     border,
-    padding: '4px 5px',
+    padding: '2px 4px',
     backgroundColor: '#c6e0b4',
     textAlign: 'center',
     fontSize: fpt(8),
     fontWeight: 'bold',
     verticalAlign: 'middle',
-    lineHeight: '1.0',
+    lineHeight: '0.9',
   }
 
   const tdS: React.CSSProperties = {
@@ -388,9 +388,9 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
   const tfootTdS: React.CSSProperties = {
     ...tdS,
-    padding: '1px 5px',
+    padding: '0 5px',
     height: 'auto',
-    lineHeight: 0.8,
+    lineHeight: 0.75,
     verticalAlign: 'middle',
   }
 
@@ -414,6 +414,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             display: 'grid',
             gridTemplateColumns: '120px 1fr 120px',
             columnGap: 0,
+            rowGap: 0,
             alignItems: 'center',
             marginTop: '-1.5mm',
             fontFamily: 'var(--font-thai)',
@@ -423,28 +424,28 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
           </div>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '18pt', lineHeight: '1.0' }}>{companyName}</div>
-            <div style={{ fontWeight: 'bold', fontSize: '14pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+          <div style={{ textAlign: 'center', marginTop: '-2mm', lineHeight: 0.92 }}>
+            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '14pt', lineHeight: '0.92', margin: 0 }}>{companyName}</div>
+            <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '0.92', fontFamily: 'var(--font-display)', margin: 0 }}>{companyNameEn}</div>
           </div>
           <div />
         </div>
 
-        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginBottom: '2px' }}>
-          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginTop: '-1.5mm', marginBottom: '0px', lineHeight: 0.92 }}>
+          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>
             {address}&nbsp;&nbsp;Tel {tel}
           </div>
-          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>
+          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>
             {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
           </div>
-          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
-          <div style={{ fontSize: '12pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
+          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>TAX ID : {taxId}</div>
+          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>E-Mail : {email}</div>
         </div>
 
         {/* ═══ QUOTATION title ═══ */}
         <div style={{
-          textAlign: 'center', fontWeight: 'bold', fontSize: '16pt',
-          textDecoration: 'underline', marginBottom: '4px', fontFamily: 'var(--font-thai)',
+          textAlign: 'center', fontWeight: 'bold', fontSize: '14pt',
+          textDecoration: 'underline', marginBottom: '2px', fontFamily: 'var(--font-thai)',
         }}>
           QUOTATION
         </div>
@@ -463,12 +464,12 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             <tbody>
               {infoRows.map((row, idx) => (
                 <tr key={idx}>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '2px 0', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
-                  <td style={{ padding: '2px 6px', fontSize: '12pt', lineHeight: '0.8', height: '20px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
+                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '1px 0', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
+                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
+                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
+                  <td style={{ textAlign: 'center', padding: '1px 0', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
+                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
                 </tr>
               ))}
             </tbody>
@@ -485,10 +486,10 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? displaySeq : ''}
         </td>
-        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
+        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           {item?.desc ?? ''}
           {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#555', fontSize: fpt(10), display: 'block', fontFamily: 'var(--font-thai)' }}>
+            <span key={idx} style={{ color: '#555', fontSize: fpt(10), lineHeight: 1, display: 'block', fontFamily: 'var(--font-thai)' }}>
               {line || '\u00A0'}
             </span>
           ))}
@@ -594,7 +595,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
   function renderItemsTable(chunk: PageChunk, itemOffset: number) {
     return (
-      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
         <colgroup>
           <col style={{ width: '5%' }} />
           <col style={{ width: '47%' }} />
@@ -605,7 +606,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           <col style={{ width: '11%' }} />
         </colgroup>
         <thead>{itemsHeadRows()}</thead>
-        <tbody>
+        <tbody style={{ height: '100%' }}>
           {chunk.items.map((item, i) => {
             const globalIndex = itemOffset + i
             const displaySeq = (item.seq !== undefined ? item.seq + 1 : globalIndex + 1)
@@ -640,11 +641,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       ...tfootTdS,
       border: 'none',
       textAlign: 'right',
-      paddingTop: '2px',
-      paddingBottom: '2px',
+      paddingTop: '0px',
+      paddingBottom: '0px',
       paddingLeft: '10px',
       paddingRight: '10px',
-      lineHeight: 1,
+      lineHeight: 0.85,
       whiteSpace: 'nowrap',
     }
     const totalsValueTd: React.CSSProperties = {
@@ -654,11 +655,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       borderBottom: 'none',
       borderLeft: border,
       textAlign: 'right',
-      paddingTop: '2px',
-      paddingBottom: '2px',
+      paddingTop: '0px',
+      paddingBottom: '0px',
       paddingLeft: '8px',
       paddingRight: '10px',
-      lineHeight: 1,
+      lineHeight: 0.85,
       whiteSpace: 'nowrap',
     }
     return (
@@ -706,7 +707,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   function renderTermsAndSignatures() {
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '8px', fontSize: fpt(11) }}>
-        <div style={{ width: '65%', paddingRight: '8px', lineHeight: 1.3 }}>
+        <div style={{ width: '65%', paddingRight: '8px', lineHeight: 1.15 }}>
           <div><strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}</div>
           <div><strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}</div>
           <div><strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}</div>
@@ -718,7 +719,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           <div style={{
             fontFamily: 'var(--font-signature)',
             fontStyle: 'italic',
-            fontSize: fpt(18),
+            fontSize: fpt(14),
             marginTop: '2px',
             marginBottom: '0',
             lineHeight: 1,
@@ -837,9 +838,13 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         >
           {renderHeader(pi + 1)}
           {renderItemsTable(page, offsets[pi])}
-          {page.tail && renderTotalsTable()}
-          {page.tail && renderTermsAndSignatures()}
-          {page.tail && renderBottomNote()}
+          {page.tail && (
+            <div style={{ marginTop: 'auto' }}>
+              {renderTotalsTable()}
+              {renderTermsAndSignatures()}
+              {renderBottomNote()}
+            </div>
+          )}
           {!page.tail && (
             <div
               className="quotation-page-bottom-line"
