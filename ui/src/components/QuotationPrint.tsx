@@ -420,18 +420,18 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             fontFamily: 'var(--font-thai)',
           }}
         >
-          <div style={{ marginTop: '2mm' }}>
+          <div style={{ marginTop: '1mm' }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
           </div>
-          <div style={{ textAlign: 'center', marginTop: '-2mm', lineHeight: 0.92 }}>
+          <div style={{ textAlign: 'center', marginTop: '-2.8mm', lineHeight: 0.92 }}>
             <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '14pt', lineHeight: '0.92', margin: 0 }}>{companyName}</div>
             <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '0.92', fontFamily: 'var(--font-display)', margin: 0 }}>{companyNameEn}</div>
           </div>
           <div />
         </div>
 
-        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginTop: '-1.5mm', marginBottom: '0px', lineHeight: 0.92 }}>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginTop: '-2.3mm', marginBottom: '0px', lineHeight: 0.92 }}>
           <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>
             {address}&nbsp;&nbsp;Tel {tel}
           </div>
