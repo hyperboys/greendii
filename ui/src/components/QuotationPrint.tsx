@@ -445,13 +445,13 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         {/* ═══ QUOTATION title ═══ */}
         <div style={{
           textAlign: 'center', fontWeight: 'bold', fontSize: '14pt',
-          textDecoration: 'underline', marginBottom: '2px', fontFamily: 'var(--font-thai)',
+          textDecoration: 'underline', marginBottom: '0px', fontFamily: 'var(--font-thai)',
         }}>
           QUOTATION
         </div>
 
         {/* ═══ Customer Info — Single box with 2 columns ═══ */}
-        <div style={{ border: '2px solid #000', marginBottom: '10px', fontFamily: 'var(--font-thai)' }}>
+        <div style={{ border: '2px solid #000', marginBottom: '0px', fontFamily: 'var(--font-thai)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '10%' }} />
@@ -487,9 +487,9 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           {item ? displaySeq : ''}
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
-          {item?.desc ?? ''}
+          <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
           {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#555', fontSize: fpt(10), lineHeight: 1, display: 'block', fontFamily: 'var(--font-thai)' }}>
+            <span key={idx} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
               {line || '\u00A0'}
             </span>
           ))}
