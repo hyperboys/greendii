@@ -409,43 +409,54 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     return (
       <>
         {/* ═══ Company Header ═══ */}
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: '120px 1fr 120px',
-            columnGap: 0,
-            rowGap: 0,
-            alignItems: 'center',
-            marginTop: '-1.5mm',
-            fontFamily: 'var(--font-thai)',
-          }}
-        >
-          <div style={{ marginTop: '1mm' }}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '120px', display: 'block' }} />
-          </div>
-          <div style={{ textAlign: 'center', marginTop: '-2.8mm', lineHeight: 0.92 }}>
-            <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '14pt', lineHeight: '0.92', margin: 0 }}>{companyName}</div>
-            <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '0.92', fontFamily: 'var(--font-display)', margin: 0 }}>{companyNameEn}</div>
-          </div>
-          <div />
-        </div>
+        <div style={{ marginBottom: 0 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '150px minmax(0, 1fr) 150px',
+              columnGap: 0,
+              alignItems: 'start',
+              fontFamily: 'var(--font-thai)',
+            }}
+          >
+            <div style={{ paddingTop: 0 }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '150px', display: 'block' }} />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '14pt', lineHeight: '1.02' }}>{companyName}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+              </div>
 
-        <div style={{ textAlign: 'center', fontFamily: 'var(--font-thai)', marginTop: '-2.3mm', marginBottom: '0px', lineHeight: 0.92 }}>
-          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>
-            {address}&nbsp;&nbsp;Tel {tel}
+              <div
+                style={{
+                  width: '100%',
+                  maxWidth: '560px',
+                  textAlign: 'center',
+                  fontFamily: 'var(--font-thai)',
+                  marginTop: '2px',
+                  marginBottom: 0,
+                }}
+              >
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>
+                  {address}&nbsp;&nbsp;Tel {tel}
+                </div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>
+                  {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
+                </div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
+              </div>
+            </div>
+            <div />
           </div>
-          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>
-            {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
-          </div>
-          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>TAX ID : {taxId}</div>
-          <div style={{ fontSize: '12pt', lineHeight: '0.92', margin: 0 }}>E-Mail : {email}</div>
         </div>
 
         {/* ═══ QUOTATION title ═══ */}
         <div style={{
           textAlign: 'center', fontWeight: 'bold', fontSize: '14pt',
-          textDecoration: 'underline', marginBottom: '0px', fontFamily: 'var(--font-thai)',
+          textDecoration: 'underline', marginBottom: '0px', fontFamily: 'var(--font-thai)', lineHeight: 1.05,
         }}>
           QUOTATION
         </div>

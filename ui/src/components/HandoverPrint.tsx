@@ -8,7 +8,7 @@ const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 10
 const FRAGMENT_CAP = PACK_CAP_LAST
 
-const HEADER_GAP = 12
+const HEADER_GAP = 1
 const SAFETY = 10
 const TAIL_GAP = 0
 
@@ -202,7 +202,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const readyRef = useRef(false)
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
-  const companyNameEn = settings?.companyNameEn || 'Greendii Co., Ltd.'
+  const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId = settings?.taxId || '0135549009942'
   const tel = settings?.tel || '+662 150 7694-5'
@@ -215,6 +215,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
   const border = '1px solid #555'
   const borderTh = '1px solid #888'
+  const headerFrameBorder = border
 
   const serviceDateStr = doc.serviceDate
     ? new Date(doc.serviceDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -299,7 +300,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
   const thS: React.CSSProperties = {
     border: borderTh,
-    padding: '5px 6px',
+    padding: '0px 6px',
     backgroundColor: '#dde',
     textAlign: 'center',
     fontSize: '10pt',
@@ -328,14 +329,15 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
     fontSize: '10pt',
+    lineHeight: 0.9,
     color: '#333',
   }
 
   const valueS: React.CSSProperties = {
     fontSize: '10pt',
-    borderBottom: '1px dotted #555',
+    lineHeight: 0.9,
     minWidth: '100px',
-    paddingBottom: '2px',
+    paddingBottom: 0,
   }
 
   const RATING_OPTS = [
@@ -371,7 +373,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderHeader(currentPage: number) {
     return (
       <>
-        <div style={{ marginBottom: '2px' }}>
+        <div style={{ marginBottom: 0 }}>
           <div
             style={{
               display: 'grid',
@@ -387,8 +389,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 0 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '17pt', lineHeight: '1.02' }}>{companyName}</div>
-                <div style={{ fontWeight: 'bold', fontSize: '15pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
+                <div style={{ fontWeight: 'bold', fontFamily: 'var(--font-thai)', fontSize: '14pt', lineHeight: '1.02' }}>{companyName}</div>
+                <div style={{ fontWeight: 'bold', fontSize: '10pt', lineHeight: '1.0', fontFamily: 'var(--font-display)' }}>{companyNameEn}</div>
               </div>
 
               <div
@@ -401,17 +403,17 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                   marginBottom: 0,
                 }}
               >
-                <div style={{ fontSize: '10.8pt', lineHeight: '1.02' }}>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>
                   {address}&nbsp;&nbsp;Tel {tel}
                 </div>
-                <div style={{ fontSize: '10.8pt', lineHeight: '1.02' }}>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>
                   {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
                 </div>
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
               </div>
 
-              <div style={{ textAlign: 'center', marginTop: '5px' }}>
+              <div style={{ textAlign: 'center', marginTop: '0px' }}>
                 <div style={{ fontSize: '15pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.05 }}>
                   HAND OVER JOB
                 </div>
@@ -421,10 +423,10 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           </div>
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border: headerFrameBorder }}>
           <tbody>
             <tr>
-              <td style={{ width: '50%', padding: '6px 9px', borderRight: border, verticalAlign: 'top' }}>
+              <td style={{ width: '50%', padding: '2px 6px', verticalAlign: 'top' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {[
@@ -436,14 +438,14 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                       ['Product', productLines[0] || ''],
                     ].map(([label, val]) => (
                       <tr key={label}>
-                        <td style={{ ...labelS, paddingBottom: '6px', width: '132px', verticalAlign: 'top' }}>{label} :</td>
-                        <td style={{ ...valueS, paddingBottom: '6px', width: '100%' }}>{val}</td>
+                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '132px', verticalAlign: 'top', height: '14px' }}>{label} :</td>
+                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}>{val}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </td>
-              <td style={{ width: '50%', padding: '6px 9px', verticalAlign: 'top' }}>
+              <td style={{ width: '50%', padding: '2px 6px', verticalAlign: 'top' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {[
@@ -455,8 +457,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                       ['Date of service', serviceDateStr],
                     ].map(([label, val]) => (
                       <tr key={label}>
-                        <td style={{ ...labelS, paddingBottom: '6px', width: '180px', verticalAlign: 'top' }}>{label} :</td>
-                        <td style={{ ...valueS, paddingBottom: '6px', width: '100%' }}>{val}</td>
+                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '180px', verticalAlign: 'top', height: '14px' }}>{label} :</td>
+                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}>{val}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -487,7 +489,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc}
           {item.noteLines.map((line, index) => (
-            <span key={index} style={{ color: '#555', fontSize: '8pt', display: 'block' }}>
+            <span key={index} style={{ color: '#555', fontSize: '10pt', display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
@@ -590,7 +592,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
       >
         <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
         <div ref={headerMeasRef}>{renderHeader(1)}</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '8px', border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border }}>
           <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
           <tbody>
             {renderItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
