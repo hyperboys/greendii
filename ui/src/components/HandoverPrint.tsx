@@ -349,7 +349,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   ]
 
   const RatingTextRow = () => (
-    <div style={{ marginBottom: '5px', fontSize: '10.6pt', lineHeight: 1.24, display: 'flex', flexWrap: 'wrap', gap: '12px' }}>
+    <div style={{ marginBottom: '2px', fontSize: '10.6pt', lineHeight: 1.1, display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
       {RATING_OPTS.map((opt) => (
         <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
           <span
@@ -531,42 +531,42 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: '5px 8px', marginTop: 0, marginBottom: 0 }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '5px' }}>
+        <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: '1px 8px', marginTop: 0, marginBottom: 0 }}>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '0px' }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
-          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
-          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
+          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
+          <div style={{ marginLeft: '10px', marginBottom: '2px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
-          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
-          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
+          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
+          <div style={{ marginLeft: '10px', marginBottom: '2px' }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '1px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
-          <div style={{ fontSize: '10pt', marginBottom: '2px', marginLeft: '10px', lineHeight: 1.26 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
-          <div style={{ marginLeft: '10px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
+          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
+          <div style={{ marginLeft: '10px', marginBottom: '0px' }}><RatingTextRow /></div>
         </div>
 
         <div style={{ borderLeft: border, borderRight: border, padding: '2px 8px 5px', marginBottom: 0 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '2px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '9pt' }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
+          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '0px' }}>COMMENT</div>
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '7px', fontSize: '7px' }}>&nbsp;</div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: '7px', height: '7px' }} />
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '2px' }}>
           <tbody>
             <tr>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '28px' }}>ผู้ตรวจรับงาน</div>
+                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '20px' }}>ผู้ตรวจรับงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '20px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: '8.6pt', marginTop: '10px' }}>วันที่............/............./.............</div>
               </td>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '28px' }}>ผู้ส่งมอบงาน</div>
+                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '20px' }}>ผู้ส่งมอบงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '20px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: '8.6pt', marginTop: '10px' }}>วันที่............/............./.............</div>
               </td>
             </tr>
           </tbody>
