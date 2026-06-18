@@ -224,6 +224,7 @@ model QuotationItem {
   seq         Int       @default(0)
   desc        String
   note        String?   // free-form description / spec
+  detailRows  Json?     // [{ desc, qty, unit, materialPrice, labourPrice, price, amount }]
   qty         Decimal   @default(0) @db.Decimal(10, 3)
   unit        String
   materialPrice Decimal @default(0) @db.Decimal(12, 2)

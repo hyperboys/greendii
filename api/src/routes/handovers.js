@@ -51,7 +51,7 @@ async function getQuotationItemsSnapshot(quotationId) {
     where: { id: quotationId },
     select: {
       items: {
-        select: { seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+        select: { seq: true, desc: true, note: true, detailRows: true, qty: true, unit: true, images: true },
         orderBy: { seq: 'asc' },
       },
     },
@@ -61,6 +61,7 @@ async function getQuotationItemsSnapshot(quotationId) {
     seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
     desc: String(item.desc ?? ''),
     note: item.note ?? '',
+    detailRows: Array.isArray(item.detailRows) ? item.detailRows : [],
     qty: Number(item.qty ?? 0),
     unit: String(item.unit ?? ''),
     images: Array.isArray(item.images) ? item.images : [],
@@ -145,7 +146,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
             quoNo: true,
             sales: { select: { id: true, fullName: true, email: true, phone: true } },
             items: {
-              select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+              select: { id: true, seq: true, desc: true, note: true, detailRows: true, qty: true, unit: true, images: true },
               orderBy: { seq: 'asc' },
             },
           },
@@ -160,7 +161,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
                 quoNo: true,
                 sales: { select: { id: true, fullName: true, email: true, phone: true } },
                 items: {
-                  select: { id: true, seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+                  select: { id: true, seq: true, desc: true, note: true, detailRows: true, qty: true, unit: true, images: true },
                   orderBy: { seq: 'asc' },
                 },
               },

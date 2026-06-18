@@ -488,11 +488,25 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
-          {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
-              {line || '\u00A0'}
-            </span>
-          ))}
+            {item?.detailRows?.map((row, idx) => {
+              const rowTotal = Number(row.amount ?? 0)
+              return (
+                <span key={idx} style={{ color: '#555', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
+                  {row.desc || `รายละเอียด ${idx + 1}`}
+                  {row.qty || row.unit || row.materialPrice || row.labourPrice ? (
+                    <>
+                      {' '}
+                      ({fmtQty(Number(row.qty || 0))}{row.unit ? ` ${row.unit}` : ''} × {fmtAmt(Number(row.materialPrice || 0) + Number(row.labourPrice || 0))} = {fmtAmt(rowTotal)})
+                    </>
+                  ) : null}
+                </span>
+              )
+            })}
+            {item && splitDescriptionLines(item.note).map((line, idx) => (
+              <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
+                {line || '\u00A0'}
+              </span>
+            ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
             <div
               style={{

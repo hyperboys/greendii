@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { useAuthStore } from '@/store/auth'
-import type { Customer, Unit, QuotationItem } from '@/types'
+import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -23,7 +23,19 @@ interface FormData {
   items: QuotationItem[]
 }
 
-const emptyItem = (): QuotationItem => ({ desc: '', note: '', qty: 1, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0, images: [] })
+const emptyDetailRow = (): QuotationItemDetail => ({ desc: '', qty: 0, unit: '', materialPrice: 0, labourPrice: 0, price: 0, amount: 0 })
+const emptyItem = (): QuotationItem => ({
+  desc: '',
+  note: '',
+  qty: 1,
+  unit: '',
+  materialPrice: 0,
+  labourPrice: 0,
+  price: 0,
+  amount: 0,
+  detailRows: [emptyDetailRow()],
+  images: [],
+})
 const VAT_RATE = 0.07
 const PAYMENT_TERM_OPTIONS = ['เงินสด', 'เครดิต'] as const
 const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'] as const
@@ -42,12 +54,35 @@ const getLeadTimeDays = (value: string): string => {
   return match ? match[1] : ''
 }
 
-const parseDescLines = (note?: string): string[] => {
-  const lines = (note ?? '').split('\n')
-  return lines.length > 0 ? lines : ['']
+const calcLinePrice = (row: Pick<QuotationItem | QuotationItemDetail, 'materialPrice' | 'labourPrice'>) =>
+  Number(row.materialPrice) + Number(row.labourPrice)
+
+const emptyWhenZero = (value: number) => (Number(value) === 0 ? '' : value)
+
+const normalizeDetailRow = (row: Partial<QuotationItemDetail> | undefined): QuotationItemDetail => {
+  const detail = { ...emptyDetailRow(), ...(row || {}) }
+  detail.desc = String(detail.desc || '')
+  detail.qty = Number(detail.qty) || 0
+  detail.unit = String(detail.unit || '')
+  detail.materialPrice = Number(detail.materialPrice) || 0
+  detail.labourPrice = Number(detail.labourPrice) || 0
+  detail.price = calcLinePrice(detail)
+  detail.amount = Number(detail.qty) * detail.price
+  return detail
 }
 
-const stringifyDescLines = (lines: string[]): string => lines.join('\n')
+const normalizeItem = (item: QuotationItem): QuotationItem => {
+  const detailRows = (Array.isArray(item.detailRows) && item.detailRows.length > 0)
+    ? item.detailRows.map(normalizeDetailRow)
+    : [emptyDetailRow()]
+  const normalized = { ...item, detailRows }
+  normalized.qty = Number(normalized.qty) || 0
+  normalized.materialPrice = Number(normalized.materialPrice) || 0
+  normalized.labourPrice = Number(normalized.labourPrice) || 0
+  normalized.price = calcLinePrice(normalized)
+  normalized.amount = (Number(normalized.qty) * normalized.price) + detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  return normalized
+}
 
 export default function NewQuotationPage() {
   const router = useRouter()
@@ -69,7 +104,7 @@ export default function NewQuotationPage() {
       .then(([c, u]) => { setCustomers(c); setUnits(u) })
   }, [user?.id])
 
-  const subTotal = form.items.reduce((s, i) => s + Number(i.qty) * (Number(i.materialPrice) + Number(i.labourPrice)), 0)
+  const subTotal = form.items.reduce((s, i) => s + normalizeItem(i).amount, 0)
   const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = Math.round(afterDiscount * VAT_RATE)
   const grandTotal = afterDiscount + vat
@@ -80,9 +115,36 @@ export default function NewQuotationPage() {
   const setItem = (idx: number, key: keyof QuotationItem, val: string | number) => {
     setForm(f => {
       const items = [...f.items]
-      items[idx] = { ...items[idx], [key]: val }
-      items[idx].price = Number(items[idx].materialPrice) + Number(items[idx].labourPrice)
-      items[idx].amount = Number(items[idx].qty) * items[idx].price
+      items[idx] = normalizeItem({ ...items[idx], [key]: val })
+      return { ...f, items }
+    })
+  }
+
+  const setDetailRow = (itemIdx: number, rowIdx: number, key: keyof QuotationItemDetail, val: string | number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const detailRows = [...(items[itemIdx].detailRows || [emptyDetailRow()])]
+      detailRows[rowIdx] = normalizeDetailRow({ ...detailRows[rowIdx], [key]: val })
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows })
+      return { ...f, items }
+    })
+  }
+
+  const addDetailRow = (itemIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const detailRows = [...(items[itemIdx].detailRows || []), emptyDetailRow()]
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows })
+      return { ...f, items }
+    })
+  }
+
+  const removeDetailRow = (itemIdx: number, rowIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const detailRows = [...(items[itemIdx].detailRows || [])]
+      detailRows.splice(rowIdx, 1)
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows: detailRows.length > 0 ? detailRows : [emptyDetailRow()] })
       return { ...f, items }
     })
   }
@@ -96,41 +158,6 @@ export default function NewQuotationPage() {
       address: c?.address ?? f.address,
       tel: c?.tel ?? f.tel,
     }))
-  }
-
-  const setDescriptionLine = (itemIdx: number, lineIdx: number, value: string) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      while (lines.length <= lineIdx) lines.push('')
-      lines[lineIdx] = value
-      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      return { ...f, items }
-    })
-  }
-
-  const addDescriptionLine = (itemIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      lines.push('')
-      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      return { ...f, items }
-    })
-  }
-
-  const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      if (lines.length <= 1) {
-        items[itemIdx] = { ...items[itemIdx], note: '' }
-      } else {
-        lines.splice(lineIdx, 1)
-        items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      }
-      return { ...f, items }
-    })
   }
 
   const uploadItemImages = async (itemIdx: number, files: FileList | null) => {
@@ -206,8 +233,12 @@ export default function NewQuotationPage() {
       }
 
       const created = await QuotationsAPI.create({
-        ...form, customerId, subTotal, vat, grandTotal,
-        items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
+        ...form,
+        customerId,
+        subTotal,
+        vat,
+        grandTotal,
+        items: form.items.map((item, i) => ({ ...normalizeItem(item), seq: i + 1 })),
       })
       toast.success('สร้างใบเสนอราคาสำเร็จ')
       router.replace(`/quotations/${created.id}`)
@@ -365,105 +396,170 @@ export default function NewQuotationPage() {
               </thead>
               <tbody>
                 {form.items.map((item, i) => (
-                  <tr key={i} className="border-t border-gray-100 align-top">
-                    <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
-                    <td className="py-2 px-2">
-                      <input className="form-input py-1 w-full" value={item.desc} required
-                        onChange={e => setItem(i, 'desc', e.target.value)}
-                        placeholder="ชื่อสินค้า/บริการ *" />
-                      <div className="mt-1.5 space-y-1.5">
-                        {parseDescLines(item.note).map((line, lineIdx) => (
-                          <div key={lineIdx} className="flex items-center gap-1.5">
+                  <Fragment key={i}>
+                    <tr className="border-t border-gray-100 align-top">
+                      <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
+                      <td className="py-2 px-2">
+                        <input className="form-input py-1 w-full" value={item.desc} required
+                          onChange={e => setItem(i, 'desc', e.target.value)}
+                          placeholder="ชื่อสินค้า/บริการ *" />
+                        <textarea
+                          className="form-input mt-2 py-1 text-xs"
+                          rows={2}
+                          value={item.note || ''}
+                          onChange={e => setItem(i, 'note', e.target.value)}
+                          placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                        />
+                        {/* Item images */}
+                        <div className="mt-2">
+                          {item.images && item.images.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-1.5">
+                              {item.images.map((url, imgIdx) => (
+                                <div key={imgIdx} className="relative group">
+                                  <img
+                                    src={resolveFileUrl(url)}
+                                    alt=""
+                                    className="w-14 h-14 object-cover rounded border border-gray-200"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeItemImage(i, imgIdx)}
+                                    className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                    title="ลบรูป"
+                                  >
+                                    <X size={10} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <label className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium cursor-pointer">
+                            <ImagePlus size={12} /> เพิ่มรูปภาพ
                             <input
-                              className="form-input py-1 text-xs w-full text-gray-700"
-                              value={line}
-                              onChange={e => setDescriptionLine(i, lineIdx, e.target.value)}
-                              placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                              type="file"
+                              accept="image/*"
+                              multiple
+                              className="hidden"
+                              onChange={e => {
+                                uploadItemImages(i, e.target.files)
+                                e.target.value = ''
+                              }}
                             />
-                            <button
-                              type="button"
-                              className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                              onClick={() => removeDescriptionLine(i, lineIdx)}
-                              title="ลบบรรทัด"
-                            >
-                              <Trash2 size={13} />
-                            </button>
-                          </div>
-                        ))}
+                          </label>
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
+                          value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input list="units-datalist" className="form-input py-1"
+                          value={item.unit}
+                          onChange={e => setItem(i, 'unit', e.target.value)}
+                          placeholder="-" />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                          value={item.materialPrice} onChange={e => setItem(i, 'materialPrice', +e.target.value)} />
+                      </td>
+                      <td className="py-2 px-2">
+                        <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                          value={item.labourPrice} onChange={e => setItem(i, 'labourPrice', +e.target.value)} />
+                      </td>
+                      <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(normalizeItem(item).amount)}</td>
+                      <td className="py-2.5 px-2 pt-3">
+                        {form.items.length > 1 && (
+                          <button type="button" onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))}
+                            className="p-1 text-red-400 hover:text-red-600 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                    {(item.detailRows && item.detailRows.length > 0 ? item.detailRows : [emptyDetailRow()]).map((detail, detailIdx) => (
+                      <tr key={`${i}-${detailIdx}`} className="border-t border-gray-100 bg-white/60 align-top">
+                        <td className="py-1.5 px-2" />
+                        <td className="py-1.5 px-2">
+                          <input
+                            className="form-input py-1 text-xs w-full text-gray-700"
+                            value={detail.desc}
+                            onChange={e => setDetailRow(i, detailIdx, 'desc', e.target.value)}
+                            placeholder={`รายละเอียดบรรทัดที่ ${detailIdx + 1} (ไม่บังคับ)`}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className="form-input py-1 text-xs text-right"
+                            value={emptyWhenZero(detail.qty)}
+                            onChange={e => setDetailRow(i, detailIdx, 'qty', +e.target.value)}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            list="units-datalist"
+                            className="form-input py-1 text-xs"
+                            value={detail.unit}
+                            onChange={e => setDetailRow(i, detailIdx, 'unit', e.target.value)}
+                            placeholder="-"
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className="form-input py-1 text-xs text-right"
+                            value={emptyWhenZero(detail.materialPrice)}
+                            onChange={e => setDetailRow(i, detailIdx, 'materialPrice', +e.target.value)}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2">
+                          <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            className="form-input py-1 text-xs text-right"
+                            value={emptyWhenZero(detail.labourPrice)}
+                            onChange={e => setDetailRow(i, detailIdx, 'labourPrice', +e.target.value)}
+                          />
+                        </td>
+                        <td className="py-1.5 px-2 text-right pr-2">
+                          <span className="inline-block min-w-[72px] rounded bg-gray-100 px-2 py-1 text-right text-xs font-semibold text-gray-700">
+                            {(() => {
+                              const detailAmount = Number(detail.qty) * (Number(detail.materialPrice) + Number(detail.labourPrice))
+                              return detailAmount === 0 ? '' : fmt(detailAmount)
+                            })()}
+                          </span>
+                        </td>
+                        <td className="py-1.5 px-2 text-right">
+                          <button
+                            type="button"
+                            className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                            onClick={() => removeDetailRow(i, detailIdx)}
+                            title="ลบรายละเอียด"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                    <tr>
+                      <td className="px-2 py-1.5" />
+                      <td className="px-2 py-1.5">
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
-                          onClick={() => addDescriptionLine(i)}
+                          onClick={() => addDetailRow(i)}
                         >
-                          <Plus size={12} /> เพิ่มบรรทัด Description
+                          <Plus size={12} /> เพิ่มรายละเอียด
                         </button>
-                      </div>
-                      {/* Item images */}
-                      <div className="mt-2">
-                        {item.images && item.images.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-1.5">
-                            {item.images.map((url, imgIdx) => (
-                              <div key={imgIdx} className="relative group">
-                                <img
-                                  src={resolveFileUrl(url)}
-                                  alt=""
-                                  className="w-14 h-14 object-cover rounded border border-gray-200"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeItemImage(i, imgIdx)}
-                                  className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  title="ลบรูป"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <label className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium cursor-pointer">
-                          <ImagePlus size={12} /> เพิ่มรูปภาพ
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={e => {
-                              uploadItemImages(i, e.target.files)
-                              e.target.value = ''
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </td>
-                    <td className="py-2 px-2">
-                      <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
-                        value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
-                    </td>
-                    <td className="py-2 px-2">
-                      <input list="units-datalist" className="form-input py-1"
-                        value={item.unit}
-                        onChange={e => setItem(i, 'unit', e.target.value)}
-                        placeholder="-" />
-                    </td>
-                    <td className="py-2 px-2">
-                      <input type="number" min={0} step="any" className="form-input py-1 text-right"
-                        value={item.materialPrice} onChange={e => setItem(i, 'materialPrice', +e.target.value)} />
-                    </td>
-                    <td className="py-2 px-2">
-                      <input type="number" min={0} step="any" className="form-input py-1 text-right"
-                        value={item.labourPrice} onChange={e => setItem(i, 'labourPrice', +e.target.value)} />
-                    </td>
-                    <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(Number(item.qty) * (Number(item.materialPrice) + Number(item.labourPrice)))}</td>
-                    <td className="py-2.5 px-2 pt-3">
-                      {form.items.length > 1 && (
-                        <button type="button" onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))}
-                          className="p-1 text-red-400 hover:text-red-600 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </td>
-                  </tr>
+                      </td>
+                      <td colSpan={6} className="px-2 py-1.5" />
+                    </tr>
+                  </Fragment>
                 ))}
               </tbody>
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">

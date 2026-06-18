@@ -246,6 +246,7 @@ export interface QuotationItem {
   seq?: number
   desc: string
   note?: string
+  detailRows?: QuotationItemDetail[]
   qty: number
   unit: string
   materialPrice: number
@@ -253,6 +254,16 @@ export interface QuotationItem {
   price: number
   amount: number
   images?: string[]
+}
+
+export interface QuotationItemDetail {
+  desc: string
+  qty: number
+  unit: string
+  materialPrice: number
+  labourPrice: number
+  price: number
+  amount: number
 }
 
 export interface Quotation {

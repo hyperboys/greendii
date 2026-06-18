@@ -35,6 +35,41 @@ const INCLUDE_FULL = {
 
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
 
+function normalizeQuotationDetailRow(row) {
+  const desc = String(row?.desc ?? '').trim()
+  const qty = Number(row?.qty ?? 0) || 0
+  const unit = String(row?.unit ?? '').trim()
+  const materialPrice = Number(row?.materialPrice ?? 0) || 0
+  const labourPrice = Number(row?.labourPrice ?? 0) || 0
+  const price = materialPrice + labourPrice
+  const amount = qty * price
+  if (!desc && qty === 0 && !unit && materialPrice === 0 && labourPrice === 0) return null
+  return { desc, qty, unit, materialPrice, labourPrice, price, amount }
+}
+
+function normalizeQuotationItem(item) {
+  const qty = Number(item?.qty ?? 0) || 0
+  const materialPrice = Number(item?.materialPrice ?? 0) || 0
+  const labourPrice = Number(item?.labourPrice ?? 0) || 0
+  const price = materialPrice + labourPrice
+  const detailRows = Array.isArray(item?.detailRows)
+    ? item.detailRows.map(normalizeQuotationDetailRow).filter(Boolean)
+    : []
+  const amount = (qty * price) + detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  return {
+    desc: String(item?.desc ?? '').trim(),
+    note: item?.note == null ? null : String(item.note),
+    qty,
+    unit: String(item?.unit ?? '').trim(),
+    materialPrice,
+    labourPrice,
+    price,
+    amount,
+    detailRows,
+    images: Array.isArray(item?.images) ? item.images.filter(Boolean) : [],
+  }
+}
+
 function stripRevisionSuffix(docNo = '') {
   return String(docNo).replace(/-R\d+$/i, '')
 }
@@ -170,10 +205,8 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
         remark, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
         items: {
           create: items.map((it, i) => ({
-            seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
-            price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
-            images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
+            seq: i,
+            ...normalizeQuotationItem(it),
           })),
         },
       },
@@ -233,15 +266,7 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           items: {
             create: source.items.map((it) => ({
               seq: it.seq,
-              desc: it.desc,
-              note: it.note,
-              qty: it.qty,
-              unit: it.unit,
-              materialPrice: it.materialPrice,
-              labourPrice: it.labourPrice,
-              price: it.price,
-              amount: it.amount,
-              images: Array.isArray(it.images) ? it.images : [],
+              ...normalizeQuotationItem(it),
             })),
           },
         },
@@ -281,10 +306,8 @@ router.put('/:id', authenticate, quotationValidators, validate, async (req, res,
           remark,
           items: {
             create: items.map((it, i) => ({
-              seq: i, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-              materialPrice: it.materialPrice || 0, labourPrice: it.labourPrice || 0,
-              price: (it.materialPrice || 0) + (it.labourPrice || 0), amount: it.amount,
-              images: Array.isArray(it.images) ? it.images.filter(Boolean) : [],
+              seq: i,
+              ...normalizeQuotationItem(it),
             })),
           },
         },
