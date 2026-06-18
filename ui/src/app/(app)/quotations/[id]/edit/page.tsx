@@ -56,6 +56,14 @@ const getLeadTimeDays = (value: string): string => {
   return match ? match[1] : ''
 }
 
+const parseDescLines = (note?: string): string[] => {
+  if (!note) return []
+  return String(note).split('\n')
+}
+
+const stringifyDescLines = (lines: string[]): string =>
+  lines.map(line => String(line ?? '').trimEnd()).join('\n').trim()
+
 const calcLinePrice = (row: Pick<QuotationItem | QuotationItemDetail, 'materialPrice' | 'labourPrice'>) =>
   Number(row.materialPrice) + Number(row.labourPrice)
 
@@ -145,7 +153,7 @@ export default function QuotationFormPage() {
               price: Number(it.price),
               amount: Number(it.amount),
               images: Array.isArray(it.images) ? it.images : [],
-            }).map(normalizeItem)) : [emptyItem()],
+            })).map(normalizeItem) : [emptyItem()],
             specialDiscount: Number(doc.specialDiscount ?? 0),
           })
           setIsCustomLeadTime(Boolean(leadTime) && !LEAD_TIME_OPTIONS.includes(leadTime as typeof LEAD_TIME_OPTIONS[number]))
