@@ -475,12 +475,23 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             <tbody>
               {infoRows.map((row, idx) => (
                 <tr key={idx}>
-                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '1px 0', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
-                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.leftValue}</td>
-                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
-                  <td style={{ textAlign: 'center', padding: '1px 0', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
-                  <td style={{ padding: '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
+                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '20px' : '16px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
+                  <td style={{ textAlign: 'center', padding: idx === 0 ? '3px 0 1px' : '1px 0', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
+                  <td
+                    style={{
+                      padding: row.leftLabel === 'Address' ? '2px 6px' : idx === 0 ? '3px 6px 1px' : '1px 6px',
+                      fontSize: '11pt',
+                      lineHeight: row.leftLabel === 'Address' ? '1.1' : '0.8',
+                      height: row.leftLabel === 'Address' ? 'auto' : idx === 0 ? '18px' : '16px',
+                      verticalAlign: 'middle',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    {row.leftValue}
+                  </td>
+                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
+                  <td style={{ textAlign: 'center', padding: idx === 0 ? '3px 0 1px' : '1px 0', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
+                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
                 </tr>
               ))}
             </tbody>
