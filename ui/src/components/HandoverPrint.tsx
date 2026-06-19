@@ -303,7 +303,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     padding: '0px 6px',
     backgroundColor: '#dde',
     textAlign: 'center',
-    fontSize: '10pt',
+    fontSize: '12pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
   }
@@ -438,8 +438,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                       ['Product', productLines[0] || ''],
                     ].map(([label, val]) => (
                       <tr key={label}>
-                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '132px', verticalAlign: 'top', height: '14px' }}>{label} :</td>
-                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}>{val}</td>
+                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '132px', verticalAlign: 'top', height: '14px' }}>{label} </td>
+                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}> : {val}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -457,8 +457,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                       ['Date of service', serviceDateStr],
                     ].map(([label, val]) => (
                       <tr key={label}>
-                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '180px', verticalAlign: 'top', height: '14px' }}>{label} :</td>
-                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}>{val}</td>
+                        <td style={{ ...labelS, padding: '1px 6px 1px 0', width: '180px', verticalAlign: 'top', height: '14px' }}>{label} </td>
+                        <td style={{ ...valueS, padding: '1px 0 1px 6px', width: '100%', height: '14px' }}> : {val}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -551,8 +551,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
         <div style={{ borderLeft: border, borderRight: border, padding: '2px 8px 5px', marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '0px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '7px', fontSize: '7px' }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '7px', height: '7px' }} />
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '10px' }}>&nbsp;</div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '2px' }}>

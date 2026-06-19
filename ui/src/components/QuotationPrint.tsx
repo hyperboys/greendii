@@ -73,7 +73,7 @@ function splitAddressLines(address?: string, maxLines: number = 3): string[] {
       let current = ''
       for (const chunk of chunks) {
         const next = current ? `${current}, ${chunk}` : chunk
-        if (next.length > 42 && current) {
+        if (next.length > 34 && current) {
           lines.push(current)
           current = chunk
         } else {
@@ -462,7 +462,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </div>
 
         {/* ═══ Customer Info — Single box with 2 columns ═══ */}
-        <div style={{ border: '2px solid #000', marginBottom: '0px', fontFamily: 'var(--font-thai)' }}>
+        <div style={{ borderTop: '2px solid #000', borderLeft: '2px solid #000', borderRight: '2px solid #000', borderBottom: 'none', marginBottom: '0px', fontFamily: 'var(--font-thai)' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <colgroup>
               <col style={{ width: '10%' }} />
@@ -481,7 +481,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
                     style={{
                       padding: row.leftLabel === 'Address' ? '2px 6px' : idx === 0 ? '3px 6px 1px' : '1px 6px',
                       fontSize: '11pt',
-                      lineHeight: row.leftLabel === 'Address' ? '1.1' : '0.8',
+                      lineHeight: row.leftLabel === 'Address' ? '1.2' : '0.8',
                       height: row.leftLabel === 'Address' ? 'auto' : idx === 0 ? '18px' : '16px',
                       verticalAlign: 'middle',
                       wordBreak: 'break-word',
@@ -681,7 +681,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       paddingBottom: '0px',
       paddingLeft: '10px',
       paddingRight: '10px',
-      lineHeight: 0.85,
+      lineHeight: 1,
       whiteSpace: 'nowrap',
     }
     const totalsValueTd: React.CSSProperties = {
@@ -695,7 +695,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       paddingBottom: '0px',
       paddingLeft: '8px',
       paddingRight: '10px',
-      lineHeight: 0.85,
+      lineHeight: 1,
       whiteSpace: 'nowrap',
     }
     return (
@@ -744,9 +744,9 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     return (
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginTop: '8px', fontSize: fpt(11) }}>
         <div style={{ width: '65%', paddingRight: '8px', lineHeight: 1.15 }}>
-          <div><strong>Condition Term</strong>&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}</div>
-          <div><strong>Validity Period</strong>&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}</div>
-          <div><strong>Lead Time</strong>&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}</div>
+          <div><strong>Condition Term</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;{doc.conditionTerm || 'Local Price'}</div>
+          <div><strong>Validity Period</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;{doc.validityDays ? `${doc.validityDays} Days` : '30 Days'}</div>
+          <div><strong>Lead Time</strong>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;:&nbsp;{doc.leadTime || ''}</div>
           <div>
             <strong style={{ color: 'red' }}>Term Of Payment</strong>&nbsp;&nbsp;:&nbsp;
             <span style={{ color: 'red' }}>{doc.paymentTerm || 'Credit 30 Days'}</span>
