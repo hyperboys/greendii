@@ -11,7 +11,8 @@
     "db:studio": "npx prisma studio",
     "db:seed": "node prisma/seed.js",
     "db:reset": "npx prisma migrate reset --force && node prisma/seed.js",
-    "db:reset:testdata": "node scripts/reset-transactions-and-customers.js"
+    "db:reset:testdata": "node scripts/reset-transactions-and-customers.js --with-customers",
+    "db:reset:transactions": "node scripts/reset-transactions-and-customers.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1038.0",

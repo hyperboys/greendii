@@ -1,11 +1,16 @@
 /**
  * Script: reset-transactions-and-customers.js
- * ลบข้อมูล Transaction และข้อมูลลูกค้าทั้งหมด เพื่อเริ่มทดสอบใหม่
+ * ล้างข้อมูล Transaction เพื่อเริ่มทดสอบใหม่
+ *
+ * Default: ล้างเฉพาะข้อมูล Transaction
+ * Optional: ใส่ --with-customers เพื่อให้ล้างข้อมูลลูกค้าด้วย
  *
  * Run:
- *   npm run db:reset:testdata
+ *   npm run db:reset:transactions
  *   # or
  *   node scripts/reset-transactions-and-customers.js
+ *   node scripts/reset-transactions-and-customers.js --with-customers
+ *   node scripts/reset-transactions-and-customers.js --dry-run
  */
 
 require('dotenv').config({ path: require('path').join(__dirname, '../.env') });
@@ -18,6 +23,15 @@ const UPLOAD_DIR = path.join(__dirname, '../uploads');
 
 function isRemoteFileUrl(fileUrl) {
   return /^https?:\/\//i.test(fileUrl || '');
+}
+
+function getOptions() {
+  const args = new Set(process.argv.slice(2));
+
+  return {
+    withCustomers: args.has('--with-customers'),
+    dryRun: args.has('--dry-run'),
+  };
 }
 
 async function getResetCounts() {
@@ -147,14 +161,27 @@ async function deleteAttachmentFiles() {
 }
 
 async function main() {
-  console.log('Starting reset: transactions + customers + attachments...');
+  const options = getOptions();
+
+  console.log('Starting reset: transactions + attachments...');
+  if (options.withCustomers) {
+    console.log('Option enabled: customer data will be reset as well.');
+  }
+  if (options.dryRun) {
+    console.log('Dry run mode: no rows/files will be deleted.');
+  }
 
   const countsBefore = await getResetCounts();
   console.log('Rows before reset:', countsBefore);
 
+  if (options.dryRun) {
+    console.log('Dry run complete.');
+    return;
+  }
+
   const fileCleanup = await deleteAttachmentFiles();
 
-  const result = await prisma.$transaction([
+  const deleteOps = [
     prisma.approvalLog.deleteMany(),
     prisma.attachment.deleteMany(),
     prisma.notification.deleteMany(),
@@ -163,8 +190,13 @@ async function main() {
     prisma.handOverJob.deleteMany(),
     prisma.workOrder.deleteMany(),
     prisma.quotation.deleteMany(),
-    prisma.customer.deleteMany(),
-  ]);
+  ];
+
+  if (options.withCustomers) {
+    deleteOps.push(prisma.customer.deleteMany());
+  }
+
+  const result = await prisma.$transaction(deleteOps);
 
   const summary = {
     approvalLogs: result[0].count,
@@ -175,11 +207,17 @@ async function main() {
     handOverJobs: result[5].count,
     workOrders: result[6].count,
     quotations: result[7].count,
-    customers: result[8].count,
+    customers: options.withCustomers ? result[8].count : 0,
   };
 
   const countsAfter = await getResetCounts();
-  const remainingRows = Object.entries(countsAfter).filter(([, count]) => count !== 0);
+  const remainingRows = Object.entries(countsAfter).filter(([name, count]) => {
+    if (!options.withCustomers && name === 'customers') {
+      return false;
+    }
+
+    return count !== 0;
+  });
 
   console.log('Deleted rows:', summary);
   console.log('Attachment cleanup:', {
