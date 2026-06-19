@@ -426,7 +426,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border: headerFrameBorder }}>
           <tbody>
             <tr>
-              <td style={{ width: '50%', padding: '2px 6px', verticalAlign: 'top' }}>
+              <td style={{ width: '2%', padding: '2px 6px', verticalAlign: 'top' }}></td>
+              <td style={{ width: '68%', padding: '2px 6px', verticalAlign: 'top' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {[
@@ -445,7 +446,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                   </tbody>
                 </table>
               </td>
-              <td style={{ width: '50%', padding: '2px 6px', verticalAlign: 'top' }}>
+              <td style={{ width: '30%', padding: '2px 6px', verticalAlign: 'top' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <tbody>
                     {[
@@ -551,22 +552,22 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
         <div style={{ borderLeft: border, borderRight: border, padding: '2px 8px 5px', marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '0px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '10px', fontSize: '10px' }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '10px', height: '10px' }} />
+          <div style={{ borderBottom: '1px dotted #555', minHeight: '16px', fontSize: '16px' }}>&nbsp;</div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: '16px', height: '16px' }} />
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '2px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '0px' }}>
           <tbody>
             <tr>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '20px' }}>ผู้ตรวจรับงาน</div>
+                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '24px' }}>ผู้ตรวจรับงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '10px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: '8.6pt', marginTop: '16px' }}>วันที่............/............./.............</div>
               </td>
               <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '20px' }}>ผู้ส่งมอบงาน</div>
+                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '24px' }}>ผู้ส่งมอบงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '10px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: '8.6pt', marginTop: '16px' }}>วันที่............/............./.............</div>
               </td>
             </tr>
           </tbody>
