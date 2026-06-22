@@ -210,6 +210,9 @@ export default function QuotationDetailPage() {
                     <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
                     <td className="py-2 px-3 break-words">
                       <div className="font-medium text-gray-800">{item.desc}</div>
+                      {splitDescriptionLines(item.note).map((line, idx) => (
+                        <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
+                      ))}
                       {item.detailRows?.map((row, idx) => (
                         <p key={idx} className="text-xs text-gray-500 mt-0.5">
                           {row.desc || `รายละเอียด ${idx + 1}`}
@@ -218,9 +221,6 @@ export default function QuotationDetailPage() {
                             `(${new Intl.NumberFormat('th-TH', { maximumFractionDigits: 3 }).format(Number(row.qty || 0))}${row.unit ? ` ${row.unit}` : ''} × ${fmtMoney(Number(row.materialPrice || 0) + Number(row.labourPrice || 0))} = ${fmtMoney(Number(row.amount || 0))})`
                             : ''}
                         </p>
-                      ))}
-                      {splitDescriptionLines(item.note).map((line, idx) => (
-                        <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
                       ))}
                     </td>
                     <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>

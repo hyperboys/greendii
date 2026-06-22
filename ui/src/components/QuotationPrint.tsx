@@ -510,6 +510,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
+            {item && splitDescriptionLines(item.note).map((line, idx) => (
+              <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
+                {line || '\u00A0'}
+              </span>
+            ))}
             {item?.detailRows?.map((row, idx) => {
               const rowTotal = Number(row.amount ?? 0)
               return (
@@ -524,11 +529,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
                 </span>
               )
             })}
-            {item && splitDescriptionLines(item.note).map((line, idx) => (
-              <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
-                {line || '\u00A0'}
-              </span>
-            ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
             <div
               style={{
