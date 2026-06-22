@@ -6,8 +6,9 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
-const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
+const { getFirstStep, getNextStep, getStepRoleMapping } = require('../lib/approvalFlow');
+const { normalizeRole } = require('../lib/roleAliases');
+const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
 
 const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
@@ -126,6 +127,21 @@ async function ensureQuotationAccessible(req, quotationId) {
   assertQuotationAccessible(req, quotation);
 }
 
+async function assertWorkOrderAccessible(req, workOrder) {
+  if (!workOrder) return;
+  if (canManageAllDocs(req.user.role) || workOrder.salesId === req.user.id) return;
+
+  if (workOrder.status === 'pending') {
+    const { stepRole } = await getStepRoleMapping();
+    const requiredRole = stepRole[workOrder.approvalStep];
+    if (requiredRole && normalizeRole(requiredRole) === normalizeRole(req.user.role)) return;
+  }
+
+  const error = new Error('ไม่มีสิทธิ์เข้าถึงเอกสารของผู้อื่น');
+  error.status = 403;
+  throw error;
+}
+
 // GET /api/workorders/by-quotation/:quotationId/previous
 // Returns the currently active Work Order in the same quotation chain,
 // used as the source when creating a WO from a revised quotation (R1/R2/...)
@@ -206,7 +222,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
-    assertDocAccessible(req, item);
+    await assertWorkOrderAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -229,7 +245,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
         },
       },
     });
-    assertDocAccessible(req, item);
+    await assertWorkOrderAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     const finalPdf = await appendPdfAttachments(pdf, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
@@ -444,6 +460,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
 router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
     const nextStep = await getNextStep('workOrder', wo.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
@@ -475,6 +492,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
 router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },

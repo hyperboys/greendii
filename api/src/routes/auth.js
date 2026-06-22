@@ -11,11 +11,14 @@ const {
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
   try {
-    const { username, password } = req.body;
-    if (!username || !password) {
+    const usernameInput = String(req.body?.username ?? '').trim();
+    const password = req.body?.password;
+    if (!usernameInput || !password) {
       return res.status(400).json({ message: 'username and password required' });
     }
-    const user = await prisma.user.findUnique({ where: { username } });
+    const user = await prisma.user.findFirst({
+      where: { username: { equals: usernameInput, mode: 'insensitive' } },
+    });
     if (!user || !user.active) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
