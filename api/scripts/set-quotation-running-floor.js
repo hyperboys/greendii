@@ -76,7 +76,7 @@ async function main() {
       : {}
 
     counters[targetMmyy] = item.nextSeq
-    counters.quotationSeqFloor = item.nextSeq
+    delete counters.quotationSeqFloor
 
     const updated = await prisma.user.update({
       where: { id: user.id },

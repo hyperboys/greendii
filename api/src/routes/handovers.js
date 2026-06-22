@@ -103,6 +103,19 @@ async function findWorkOrderIdByQuotationId(quotationId) {
   return workOrder?.id || null;
 }
 
+async function getDocNumberFloor(prefix) {
+  const settings = await prisma.settings.findUnique({
+    where: { id: 'main' },
+    select: { approvalFlowConfig: true },
+  });
+  const cfg = settings?.approvalFlowConfig;
+  const floors = (cfg && typeof cfg === 'object' && cfg.docNoFloors && typeof cfg.docNoFloors === 'object')
+    ? cfg.docNoFloors
+    : {};
+  const floor = Number(floors[prefix]);
+  return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+}
+
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -211,7 +224,8 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
       orderBy: { hoNo: 'desc' },
     });
     const hoDbSeq = lastHO ? (parseInt(lastHO.hoNo.replace(hoPrefix, ''), 10) || 0) : 0;
-    const hoSeq = hoDbSeq + 1;
+    const hoFloor = await getDocNumberFloor(hoPrefix);
+    const hoSeq = Math.max(hoDbSeq + 1, hoFloor);
     const hoNo = `${hoPrefix}${String(hoSeq).padStart(3, '0')}`;
     await assertQuotationAccessible(req, quotationId);
 

@@ -99,7 +99,7 @@ async function nextQuotationBaseNoForUser(user) {
     prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
   ]);
 
-  const basePattern = new RegExp(`^QGD-\\d{4}-${escapeRegExp(initials)}(\\d+)$`, 'i')
+  const basePattern = new RegExp(`^QGD-\\d{2}${yy}-${escapeRegExp(initials)}(\\d+)$`, 'i')
   const dbSeq = userQuotations.reduce((maxSeq, row) => {
     const baseNo = stripRevisionSuffix(row.quoNo)
     const matched = baseNo.match(basePattern)
@@ -112,7 +112,7 @@ async function nextQuotationBaseNoForUser(user) {
   const counters = (freshUser && freshUser.docCounters && typeof freshUser.docCounters === 'object')
     ? freshUser.docCounters
     : {};
-  const floor = Number(counters.quotationSeqFloor ?? counters[`${mm}${yy}`]) || 1;
+  const floor = Number(counters[`${mm}${yy}`]) || 1;
   const seq = Math.max(dbSeq + 1, floor);
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }

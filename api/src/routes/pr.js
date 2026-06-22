@@ -35,6 +35,19 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+async function getDocNumberFloor(prefix) {
+  const settings = await prisma.settings.findUnique({
+    where: { id: 'main' },
+    select: { approvalFlowConfig: true },
+  });
+  const cfg = settings?.approvalFlowConfig;
+  const floors = (cfg && typeof cfg === 'object' && cfg.docNoFloors && typeof cfg.docNoFloors === 'object')
+    ? cfg.docNoFloors
+    : {};
+  const floor = Number(floors[prefix]);
+  return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+}
+
 // GET /api/pr
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -113,7 +126,8 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
       orderBy: { prNo: 'desc' },
     });
     const prDbSeq = lastPR ? (parseInt(lastPR.prNo.replace(prPrefix, ''), 10) || 0) : 0;
-    const prSeq = prDbSeq + 1;
+    const prFloor = await getDocNumberFloor(prPrefix);
+    const prSeq = Math.max(prDbSeq + 1, prFloor);
     const prNo = `${prPrefix}${String(prSeq).padStart(3, '0')}`;
     const item = await prisma.purchaseRequest.create({
       data: {

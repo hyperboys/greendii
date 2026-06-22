@@ -39,6 +39,19 @@ function buildRevisionDocNo(baseNo, revisionNo) {
   return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`
 }
 
+async function getDocNumberFloor(prefix) {
+  const settings = await prisma.settings.findUnique({
+    where: { id: 'main' },
+    select: { approvalFlowConfig: true },
+  });
+  const cfg = settings?.approvalFlowConfig;
+  const floors = (cfg && typeof cfg === 'object' && cfg.docNoFloors && typeof cfg.docNoFloors === 'object')
+    ? cfg.docNoFloors
+    : {};
+  const floor = Number(floors[prefix]);
+  return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+}
+
 async function nextWorkOrderBaseNo() {
   const yy = String(new Date().getFullYear()).slice(2);
   const prefix = `WO${yy}`;
@@ -47,7 +60,8 @@ async function nextWorkOrderBaseNo() {
     orderBy: { woNo: 'desc' },
   });
   const dbSeq = lastWO ? (parseInt(stripRevisionSuffix(lastWO.woNo).replace(prefix, ''), 10) || 0) : 0;
-  const seq = dbSeq + 1;
+  const floor = await getDocNumberFloor(prefix);
+  const seq = Math.max(dbSeq + 1, floor);
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }
 
