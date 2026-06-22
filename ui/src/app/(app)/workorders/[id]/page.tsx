@@ -86,9 +86,9 @@ export default function WorkOrderDetailPage() {
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
 
-  const nextStep = doc.approvalStep + 1
-  const nextStepRole = stepRoleConfig[String(nextStep)]
-  const canApprove = doc.status === 'pending' && normalizeUserRole(nextStepRole) === normalizeUserRole(user?.role)
+  const currentStep = doc.approvalStep
+  const currentStepRole = stepRoleConfig[String(currentStep)]
+  const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
   const checklist = { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) }
   const checklistItemClass = (checked: boolean) =>
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked
@@ -282,7 +282,7 @@ export default function WorkOrderDetailPage() {
             .sort((a, b) => a.step - b.step)
             .map(s => {
             const log = doc.approvalLogs?.find(l => l.step === s.step)
-            const isNext = s.step === nextStep && doc.status === 'pending'
+            const isNext = s.step === currentStep && doc.status === 'pending'
             return (
               <div key={s.step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
                 log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
