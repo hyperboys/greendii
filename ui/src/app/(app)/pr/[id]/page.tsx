@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
+import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
@@ -65,6 +66,7 @@ export default function PRDetailPage() {
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
+  const prFlowSteps = doc.prType?.approvalSteps?.length ? doc.prType.approvalSteps : DEFAULT_APPROVAL_FLOW.pr
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -179,20 +181,19 @@ export default function PRDetailPage() {
       <div className="card p-5 no-print">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(stepRoleConfig)
-            .map(([step, role]) => ({ step: Number(step), role, label: getRoleLabel(role) }))
-            .sort((a, b) => a.step - b.step)
-            .map(s => {
-            const log = doc.approvalLogs?.find(l => l.step === s.step)
-            const isNext = s.step === currentStep && doc.status === 'pending'
+          {prFlowSteps.map(step => {
+            const role = stepRoleConfig[String(step)]
+            const label = role ? getRoleLabel(role) : `Step ${step}`
+            const log = doc.approvalLogs?.find(l => l.step === step)
+            const isNext = step === currentStep && doc.status === 'pending'
             return (
-              <div key={s.step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
+              <div key={step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
                 log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
                 log?.action === 'reject' ? 'bg-red-50 border-red-300 text-red-700' :
                 isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
                 'bg-gray-50 border-gray-200 text-gray-500'
               }`}>
-                <span className="font-semibold">{s.label}</span>
+                <span className="font-semibold">{label}</span>
                 {log ? <span>{log.action === 'approve' ? '✓' : '✕'}</span> : isNext ? <span>รออนุมัติ</span> : null}
               </div>
             )

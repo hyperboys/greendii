@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { WorkOrdersAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS } from '@/types'
@@ -94,6 +95,10 @@ export default function WorkOrderDetailPage() {
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked
       ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
       : 'border-gray-200 bg-white text-gray-700'}`
+
+  const workOrderFlowSteps = settings?.approvalFlowConfig?.workOrder?.length
+    ? settings.approvalFlowConfig.workOrder
+    : DEFAULT_APPROVAL_FLOW.workOrder
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/workorder/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -277,20 +282,19 @@ export default function WorkOrderDetailPage() {
       <div className="card p-5">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
         <div className="flex flex-wrap gap-2">
-          {Object.entries(stepRoleConfig)
-            .map(([step, role]) => ({ step: Number(step), role, label: getRoleLabel(role) }))
-            .sort((a, b) => a.step - b.step)
-            .map(s => {
-            const log = doc.approvalLogs?.find(l => l.step === s.step)
-            const isNext = s.step === currentStep && doc.status === 'pending'
+          {workOrderFlowSteps.map(step => {
+            const role = stepRoleConfig[String(step)]
+            const label = role ? getRoleLabel(role) : `Step ${step}`
+            const log = doc.approvalLogs?.find(l => l.step === step)
+            const isNext = step === currentStep && doc.status === 'pending'
             return (
-              <div key={s.step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
+              <div key={step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
                 log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
                 log?.action === 'reject' ? 'bg-red-50 border-red-300 text-red-700' :
                 isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
                 'bg-gray-50 border-gray-200 text-gray-500'
               }`}>
-                <span className="font-semibold">{s.label}</span>
+                <span className="font-semibold">{label}</span>
                 {log ? <span>{log.action === 'approve' ? '✓' : '✕'}</span> : isNext ? <span>รออนุมัติ</span> : null}
               </div>
             )
