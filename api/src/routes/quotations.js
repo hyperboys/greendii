@@ -78,31 +78,41 @@ function buildRevisionDocNo(baseNo, revisionNo) {
   return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`
 }
 
+function escapeRegExp(value = '') {
+  return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
 async function nextQuotationBaseNoForUser(user) {
   const now = new Date();
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const yy = String(now.getFullYear()).slice(2);
   const initials = (user.initials || 'XX').toUpperCase();
   const prefix = `QGD-${mm}${yy}-${initials}`;
-  const [last, freshUser] = await Promise.all([
-    prisma.quotation.findFirst({
-      where: { quoNo: { startsWith: prefix } },
-      orderBy: { quoNo: 'desc' },
+  const [userQuotations, freshUser] = await Promise.all([
+    prisma.quotation.findMany({
+      where: {
+        salesId: user.id,
+        quoNo: { contains: `-${initials}` },
+      },
+      select: { quoNo: true },
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
   ]);
+
+  const basePattern = new RegExp(`^QGD-\\d{4}-${escapeRegExp(initials)}(\\d+)$`, 'i')
+  const dbSeq = userQuotations.reduce((maxSeq, row) => {
+    const baseNo = stripRevisionSuffix(row.quoNo)
+    const matched = baseNo.match(basePattern)
+    if (!matched) return maxSeq
+    const seq = parseInt(matched[1], 10)
+    if (!Number.isFinite(seq)) return maxSeq
+    return Math.max(maxSeq, seq)
+  }, 0)
+
   const counters = (freshUser && freshUser.docCounters && typeof freshUser.docCounters === 'object')
     ? freshUser.docCounters
     : {};
-  // ล้าง entry ของปีก่อนหน้าออก (fire-and-forget) เพื่อไม่ให้ docCounters โตขึ้นเรื่อยๆ
-  const staleKeys = Object.keys(counters).filter(k => /^\d{4}$/.test(k) && k.slice(2) !== yy);
-  if (staleKeys.length > 0) {
-    const cleaned = { ...counters };
-    staleKeys.forEach(k => delete cleaned[k]);
-    prisma.user.update({ where: { id: user.id }, data: { docCounters: cleaned } }).catch(() => {});
-  }
-  const dbSeq = last ? (parseInt(last.quoNo.replace(prefix, ''), 10) || 0) : 0;
-  const floor = Number(counters[`${mm}${yy}`]) || 1;
+  const floor = Number(counters.quotationSeqFloor ?? counters[`${mm}${yy}`]) || 1;
   const seq = Math.max(dbSeq + 1, floor);
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }
