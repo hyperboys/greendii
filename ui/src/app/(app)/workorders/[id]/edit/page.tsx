@@ -2,13 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI, resolveFileUrl } from '@/lib/api'
+import { WorkOrdersAPI, QuotationsAPI, UnitsAPI } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { Quotation, Attachment } from '@/types'
+import type { Quotation, Attachment, Unit, WorkOrderItem } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import AttachmentsSection from '@/components/AttachmentsSection'
+import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
+import {
+  createEmptyWorkOrderItem,
+  mapQuotationItemsToWorkOrderItems,
+  mapWorkOrderItems,
+  normalizeWorkOrderItems,
+} from '@/lib/workOrderItems'
 
 const CHECKLIST_GROUPS = {
   team: [
@@ -43,6 +50,7 @@ interface FormData {
   project: string
   location: string
   products: string
+  items: WorkOrderItem[]
   responsibility: string
   teamAssignment: string
   installDate: string
@@ -51,19 +59,20 @@ interface FormData {
   docChecklist: Record<string, boolean>
 }
 
-type TextFormKey = Exclude<keyof FormData, 'docChecklist'>
+type TextFormKey = Exclude<keyof FormData, 'docChecklist' | 'items'>
 
 export default function EditWorkOrderPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
     quotationId: '', customerName: '', contactName: '', contactTel: '',
-    project: '', location: '', products: '', responsibility: '',
+    project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: '',
     teamAssignment: '', installDate: '', qcDate: '', remark: '',
     docChecklist: { ...DEFAULT_DOC_CHECKLIST },
   })
@@ -71,10 +80,12 @@ export default function EditWorkOrderPage() {
   useEffect(() => {
     Promise.all([
       QuotationsAPI.list({ status: 'approved' }),
+      UnitsAPI.list(),
       WorkOrdersAPI.get(id),
     ])
-      .then(([qList, doc]) => {
+      .then(([qList, unitList, doc]) => {
         setQuotations(qList)
+        setUnits(unitList)
         if (!isEditableApprovalDocStatus(doc.status)) {
           toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
           router.replace(`/workorders/${id}`)
@@ -89,6 +100,9 @@ export default function EditWorkOrderPage() {
           project: doc.project ?? '',
           location: doc.location ?? '',
           products: doc.products ?? '',
+          items: doc.items?.length
+            ? mapWorkOrderItems(doc.items)
+            : (doc.quotation?.items?.length ? mapQuotationItemsToWorkOrderItems(doc.quotation.items) : [createEmptyWorkOrderItem(0)]),
           responsibility: doc.responsibility ?? '',
           teamAssignment: doc.teamAssignment ?? '',
           installDate: doc.installDate ? doc.installDate.slice(0, 10) : '',
@@ -110,6 +124,7 @@ export default function EditWorkOrderPage() {
       project: q?.project ?? f.project,
       contactName: q?.attn ?? f.contactName,
       contactTel: q?.tel ?? f.contactTel,
+      items: q?.items?.length ? mapQuotationItemsToWorkOrderItems(q.items) : f.items,
     }))
   }
 
@@ -119,9 +134,14 @@ export default function EditWorkOrderPage() {
       toast.error('กรุณากรอกลูกค้าและโครงการ')
       return
     }
+    const normalizedItems = normalizeWorkOrderItems(form.items)
+    if (normalizedItems.length === 0) {
+      toast.error('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ')
+      return
+    }
     setSaving(true)
     try {
-      await WorkOrdersAPI.update(id, form)
+      await WorkOrdersAPI.update(id, { ...form, items: normalizedItems })
       toast.success('บันทึกสำเร็จ')
       router.push(`/workorders/${id}`)
     } catch (err) {
@@ -156,8 +176,6 @@ export default function EditWorkOrderPage() {
       .then(doc => setAttachments(doc.attachments ?? []))
       .catch(() => {})
   }
-
-  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
@@ -260,51 +278,7 @@ export default function EditWorkOrderPage() {
         </div>
       </div>
 
-      {selectedQuotation?.items && selectedQuotation.items.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-3 font-semibold text-gray-800">
-            รายละเอียดใบเสนอราคา {selectedQuotation.quoNo}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-xs text-gray-600">
-                  <th className="w-8 border px-2 py-1.5 text-center">#</th>
-                  <th className="border px-2 py-1.5 text-left">รายละเอียด</th>
-                  <th className="w-16 border px-2 py-1.5 text-right">จำนวน</th>
-                  <th className="w-16 border px-2 py-1.5 text-center">หน่วย</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedQuotation.items.map((item, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
-                    <td className="border px-2 py-1.5">
-                      <div>{item.desc}</div>
-                      {item.note && <div className="whitespace-pre-line text-xs text-gray-400">{item.note}</div>}
-                      {Array.isArray(item.images) && item.images.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.images.map((url, imageIndex) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={`${i}-${imageIndex}`}
-                              src={resolveFileUrl(url)}
-                              alt="รูปประกอบจากใบเสนอราคา"
-                              className="h-24 w-24 rounded border border-gray-200 bg-white p-1 object-contain"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="border px-2 py-1.5 text-right">{item.qty}</td>
-                    <td className="border px-2 py-1.5 text-center">{item.unit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <WorkOrderItemsEditor items={form.items} units={units} onChange={items => setForm(prev => ({ ...prev, items }))} />
 
       <AttachmentsSection
         attachments={attachments}

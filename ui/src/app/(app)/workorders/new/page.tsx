@@ -2,12 +2,19 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
-import type { Quotation } from '@/types'
+import { WorkOrdersAPI, QuotationsAPI, UnitsAPI, UploadAPI } from '@/lib/api'
+import type { Quotation, Unit, WorkOrderItem } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import AttachmentsSection, { type PendingAttachment } from '@/components/AttachmentsSection'
+import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
+import {
+  createEmptyWorkOrderItem,
+  mapQuotationItemsToWorkOrderItems,
+  mapWorkOrderItems,
+  normalizeWorkOrderItems,
+} from '@/lib/workOrderItems'
 
 const CHECKLIST_GROUPS = {
   team: [
@@ -42,6 +49,7 @@ interface FormData {
   project: string
   location: string
   products: string
+  items: WorkOrderItem[]
   responsibility: string
   teamAssignment: string
   installDate: string
@@ -50,24 +58,29 @@ interface FormData {
   docChecklist: Record<string, boolean>
 }
 
-type TextFormKey = Exclude<keyof FormData, 'docChecklist'>
+type TextFormKey = Exclude<keyof FormData, 'docChecklist' | 'items'>
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
     quotationId: '', customerName: '', contactName: '', contactTel: '',
-    project: '', location: '', products: '', responsibility: '',
+    project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: '',
     teamAssignment: '', installDate: '', qcDate: '', remark: '',
     docChecklist: { ...DEFAULT_DOC_CHECKLIST },
   })
 
   useEffect(() => {
-    QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
+    Promise.all([QuotationsAPI.list({ status: 'approved' }), UnitsAPI.list()])
+      .then(([quotationList, unitList]) => {
+        setQuotations(quotationList)
+        setUnits(unitList)
+      })
   }, [])
 
   const handleQuotation = async (id: string) => {
@@ -79,6 +92,7 @@ export default function NewWorkOrderPage() {
       project: q?.project ?? f.project,
       contactName: q?.attn ?? f.contactName,
       contactTel: q?.tel ?? f.contactTel,
+      items: q?.items?.length ? mapQuotationItemsToWorkOrderItems(q.items) : f.items,
     }))
 
     setSourceWorkOrder(null)
@@ -102,6 +116,9 @@ export default function NewWorkOrderPage() {
         project: source.project || f.project,
         location: source.location ?? f.location,
         products: source.products ?? f.products,
+        items: Array.isArray(source.items) && source.items.length > 0
+          ? mapWorkOrderItems(source.items)
+          : (q?.items?.length ? mapQuotationItemsToWorkOrderItems(q.items) : f.items),
         responsibility: source.responsibility ?? f.responsibility,
         contactName: source.contactName ?? f.contactName,
         contactTel: source.contactTel ?? f.contactTel,
@@ -119,9 +136,11 @@ export default function NewWorkOrderPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!form.customerName || !form.project) { toast.error('กรุณากรอกลูกค้าและโครงการ'); return }
+    const normalizedItems = normalizeWorkOrderItems(form.items)
+    if (normalizedItems.length === 0) { toast.error('กรุณาเพิ่มรายการอย่างน้อย 1 รายการ'); return }
     setSaving(true)
     try {
-      const created = await WorkOrdersAPI.create({ ...form })
+      const created = await WorkOrdersAPI.create({ ...form, items: normalizedItems })
       if (pendingAttachments.length > 0) {
         const byCategory = pendingAttachments.reduce<Record<string, File[]>>((acc, p) => {
           (acc[p.category] ??= []).push(p.file)
@@ -162,8 +181,6 @@ export default function NewWorkOrderPage() {
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm transition-colors ${checked
       ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
       : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'}`
-
-  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
 
   return (
     <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
@@ -271,51 +288,7 @@ export default function NewWorkOrderPage() {
         </div>
       )}
 
-      {selectedQuotation?.items && selectedQuotation.items.length > 0 && (
-        <div className="card p-5">
-          <h3 className="mb-3 font-semibold text-gray-800">
-            รายละเอียดใบเสนอราคา {selectedQuotation.quoNo}
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-50 text-xs text-gray-600">
-                  <th className="w-8 border px-2 py-1.5 text-center">#</th>
-                  <th className="border px-2 py-1.5 text-left">รายละเอียด</th>
-                  <th className="w-16 border px-2 py-1.5 text-right">จำนวน</th>
-                  <th className="w-16 border px-2 py-1.5 text-center">หน่วย</th>
-                </tr>
-              </thead>
-              <tbody>
-                {selectedQuotation.items.map((item, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
-                    <td className="border px-2 py-1.5">
-                      <div>{item.desc}</div>
-                      {item.note && <div className="whitespace-pre-line text-xs text-gray-400">{item.note}</div>}
-                      {Array.isArray(item.images) && item.images.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.images.map((url, imageIndex) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={`${i}-${imageIndex}`}
-                              src={resolveFileUrl(url)}
-                              alt="รูปประกอบจากใบเสนอราคา"
-                              className="h-24 w-24 rounded border border-gray-200 bg-white p-1 object-contain"
-                            />
-                          ))}
-                        </div>
-                      )}
-                    </td>
-                    <td className="border px-2 py-1.5 text-right">{item.qty}</td>
-                    <td className="border px-2 py-1.5 text-center">{item.unit}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
+      <WorkOrderItemsEditor items={form.items} units={units} onChange={items => setForm(prev => ({ ...prev, items }))} />
 
       <AttachmentsSection
         docField="workOrderId"

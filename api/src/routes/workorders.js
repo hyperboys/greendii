@@ -15,6 +15,7 @@ const workOrderValidators = [
   body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
   body('qcDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
   body('installDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('items').optional().isArray().withMessage('items ต้องเป็น array'),
 ];
 
 const INCLUDE_FULL = {
@@ -76,6 +77,53 @@ function normalizeOptionalId(value) {
 function buildOptionalRelationUpdate(id) {
   if (id === undefined) return undefined;
   return id ? { connect: { id } } : { disconnect: true };
+}
+
+function normalizeWorkOrderItems(items) {
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item, index) => {
+      const desc = String(item?.desc ?? '').trim();
+      if (!desc) return null;
+      const qtyRaw = Number(item?.qty);
+      const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
+      const unit = String(item?.unit ?? '').trim();
+      const note = item?.note == null ? '' : String(item.note);
+      const images = Array.isArray(item?.images)
+        ? item.images.map(v => String(v || '')).filter(Boolean)
+        : [];
+      return {
+        seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
+        desc,
+        note,
+        qty,
+        unit,
+        images,
+      };
+    })
+    .filter(Boolean);
+}
+
+async function getQuotationItemsSnapshot(quotationId) {
+  if (!quotationId) return [];
+  const quotation = await prisma.quotation.findUnique({
+    where: { id: quotationId },
+    select: {
+      items: {
+        select: { seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+        orderBy: { seq: 'asc' },
+      },
+    },
+  });
+  if (!quotation?.items?.length) return [];
+  return quotation.items.map((item, index) => ({
+    seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
+    desc: String(item.desc ?? ''),
+    note: item.note ?? '',
+    qty: Number(item.qty ?? 0),
+    unit: String(item.unit ?? ''),
+    images: Array.isArray(item.images) ? item.images : [],
+  }));
 }
 
 async function loadAttachmentBytes(att) {
@@ -258,12 +306,16 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 router.post('/', authenticate, workOrderValidators, validate, async (req, res, next) => {
   try {
     const {
-      quotationId, project, location, products, responsibility,
+      quotationId, project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     await ensureQuotationAccessible(req, normalizedQuotationId);
+    const normalizedItems = normalizeWorkOrderItems(items);
+    const quotationItemsSnapshot = normalizedQuotationId
+      ? await getQuotationItemsSnapshot(normalizedQuotationId)
+      : [];
 
     const linkedQuotation = normalizedQuotationId
       ? await prisma.quotation.findUnique({
@@ -287,6 +339,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       let projectValue = project
       let locationValue = location
       let productsValue = products
+      let itemsValue = normalizedItems.length > 0 ? normalizedItems : quotationItemsSnapshot
       let responsibilityValue = responsibility
       let customerNameValue = customerName
       let contactNameValue = contactName
@@ -321,6 +374,11 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           projectValue = project || prevActiveWo.project
           locationValue = location ?? prevActiveWo.location
           productsValue = products ?? prevActiveWo.products
+          itemsValue = normalizedItems.length > 0
+            ? normalizedItems
+            : (Array.isArray(prevActiveWo.items) && prevActiveWo.items.length > 0
+                ? prevActiveWo.items
+                : quotationItemsSnapshot)
           responsibilityValue = responsibility ?? prevActiveWo.responsibility
           customerNameValue = customerName || prevActiveWo.customerName
           contactNameValue = contactName ?? prevActiveWo.contactName
@@ -336,6 +394,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           woNo = buildRevisionDocNo(await nextWorkOrderBaseNo(), revisionNo)
           projectValue = project || linkedQuotation.project
           customerNameValue = customerName || linkedQuotation.customerName
+          itemsValue = normalizedItems.length > 0 ? normalizedItems : quotationItemsSnapshot
         }
       }
 
@@ -355,6 +414,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           project: projectValue,
           location: locationValue,
           products: productsValue,
+          items: itemsValue,
           responsibility: responsibilityValue,
           customerName: customerNameValue,
           contactName: contactNameValue,
@@ -394,17 +454,18 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     }
     const {
       quotationId,
-      project, location, products, responsibility,
+      project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     await ensureQuotationAccessible(req, normalizedQuotationId);
+    const normalizedItems = normalizeWorkOrderItems(items);
     const quotationRelation = buildOptionalRelationUpdate(normalizedQuotationId);
     const wo = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: {
-        project, location, products, responsibility,
+        project, location, products, items: normalizedItems, responsibility,
         customerName, contactName, contactTel, teamAssignment,
         qcDate: qcDate ? new Date(qcDate) : null,
         installDate: installDate ? new Date(installDate) : null,

@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
@@ -91,6 +92,7 @@ export default function WorkOrderDetailPage() {
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
   const checklist = { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) }
+  const workOrderItems = getWorkOrderItemsSource(doc)
   const checklistItemClass = (checked: boolean) =>
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked
       ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
@@ -232,10 +234,10 @@ export default function WorkOrderDetailPage() {
       />
 
       {/* Quotation items / Details of Work */}
-      {doc.quotation?.items && doc.quotation.items.length > 0 && (
+      {workOrderItems.length > 0 && (
         <div className="card p-5">
           <h3 className="font-semibold text-gray-800 mb-3">
-            รายการงาน — อ้างอิงจากใบเสนอราคา {doc.quotation.quoNo}
+            รายการงาน {doc.quotation?.quoNo ? `— อ้างอิงจากใบเสนอราคา ${doc.quotation.quoNo}` : ''}
           </h3>
           <div className="overflow-x-auto">
             <table className="w-full text-sm border-collapse">
@@ -248,7 +250,7 @@ export default function WorkOrderDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {doc.quotation.items.map((item, i) => (
+                {workOrderItems.map((item, i) => (
                   <tr key={i} className="border-b">
                     <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
                     <td className="border px-2 py-1.5">

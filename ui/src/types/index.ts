@@ -316,6 +316,7 @@ export interface WorkOrder {
   project: string
   location?: string
   products?: string
+  items?: WorkOrderItem[]
   responsibility?: string
   customerName: string
   contactName?: string
@@ -333,6 +334,15 @@ export interface WorkOrder {
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
+}
+
+export interface WorkOrderItem {
+  seq?: number
+  desc: string
+  note?: string
+  qty: number
+  unit: string
+  images?: string[]
 }
 
 // ─── HAND OVER JOB ────────────────────────────────────────────────────────────

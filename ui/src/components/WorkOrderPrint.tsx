@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import type { WorkOrder, Settings, QuotationItem } from '@/types'
+import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 11
@@ -39,12 +40,15 @@ function itemWeight(fragment: WorkOrderItemFragment): number {
   return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
 }
 
-function splitItemIntoFragments(item: QuotationItem, itemIndex: number): WorkOrderItemFragment[] {
+type ItemSource = Pick<QuotationItem, 'id' | 'seq' | 'desc' | 'note' | 'qty' | 'unit' | 'images'> | WorkOrderItem
+
+function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderItemFragment[] {
   const noteLines = splitDescriptionLines(item.note)
   const remainingLines = [...noteLines]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: WorkOrderItemFragment[] = []
   const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
+  const itemId = 'id' in item ? item.id : undefined
   let fragmentIndex = 0
 
   while (fragmentIndex === 0 || remainingLines.length > 0 || remainingImages.length > 0) {
@@ -68,7 +72,7 @@ function splitItemIntoFragments(item: QuotationItem, itemIndex: number): WorkOrd
     }
 
     fragments.push({
-      key: `${item.id ?? item.seq ?? itemIndex}-${fragmentIndex}`,
+      key: `${itemId ?? item.seq ?? itemIndex}-${fragmentIndex}`,
       desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
       noteLines: noteChunk,
       images: imageChunk,
@@ -83,7 +87,7 @@ function splitItemIntoFragments(item: QuotationItem, itemIndex: number): WorkOrd
   return fragments
 }
 
-function buildRenderableItems(items: QuotationItem[]): WorkOrderItemFragment[] {
+function buildRenderableItems(items: ItemSource[]): WorkOrderItemFragment[] {
   return items.flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
 }
 
@@ -218,7 +222,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   const checklist: Record<string, boolean> = (doc.docChecklist as Record<string, boolean>) ?? {}
   const chk = (key: string) => !!checklist[key]
 
-  const renderItems = buildRenderableItems(doc.quotation?.items ?? [])
+  const renderItems = buildRenderableItems(getWorkOrderItemsSource(doc))
   const totalPages = pages?.length ?? 1
 
   const attachmentSheets = (doc.attachments ?? []).filter(att => {

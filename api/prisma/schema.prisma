@@ -255,6 +255,7 @@ model WorkOrder {
   project        String
   location       String?
   products       String?   // text description
+  items          Json      @default("[]")
   responsibility String?
   customerName   String
   contactName    String?
