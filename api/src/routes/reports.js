@@ -40,7 +40,7 @@ router.get('/overview', authenticate, async (req, res, next) => {
 router.get('/sales', authenticate, async (req, res, next) => {
   try {
     const quotations = await prisma.quotation.findMany({
-      where: { status: { not: 'cancelled' } },
+      where: { active: true, status: { not: 'cancelled' } },
       select: { customerName: true, grandTotal: true, status: true, createdAt: true },
     });
     // Group by customerName
