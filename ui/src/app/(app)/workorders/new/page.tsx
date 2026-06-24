@@ -9,6 +9,8 @@ import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import AttachmentsSection, { type PendingAttachment } from '@/components/AttachmentsSection'
 import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
+import { useAuthStore } from '@/store/auth'
+import { normalizeUserRole } from '@/lib/roleAliases'
 import {
   createEmptyWorkOrderItem,
   mapQuotationItemsToWorkOrderItems,
@@ -62,11 +64,13 @@ type TextFormKey = Exclude<keyof FormData, 'docChecklist' | 'items'>
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
+  const { user } = useAuthStore()
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
   const [saving, setSaving] = useState(false)
+  const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
 
   const [form, setForm] = useState<FormData>({
     quotationId: '', customerName: '', contactName: '', contactTel: '',
@@ -248,13 +252,20 @@ export default function NewWorkOrderPage() {
         <div className="md:col-span-2 rounded-2xl border border-emerald-100 bg-gradient-to-br from-emerald-50/60 via-white to-sky-50/30 p-4 space-y-4 shadow-sm">
           <div>
             <p className="text-sm font-semibold text-gray-700 mb-2">ทีมงาน (ใบ Work Order)</p>
+            {!canEditTeamChecklist && (
+              <p className="mb-2 text-xs text-gray-500">เฉพาะ Project Manager เท่านั้นที่สามารถติ๊กส่วนนี้ก่อนอนุมัติได้</p>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
               {CHECKLIST_GROUPS.team.map(item => (
-                <label key={item.key} className={checklistItemClass(!!form.docChecklist[item.key])}>
+                <label
+                  key={item.key}
+                  className={`${checklistItemClass(!!form.docChecklist[item.key])} ${canEditTeamChecklist ? '' : 'opacity-60 cursor-not-allowed'}`}
+                >
                   <input
                     type="checkbox"
                     checked={!!form.docChecklist[item.key]}
-                    onChange={() => toggleChecklist(item.key)}
+                    onChange={() => canEditTeamChecklist && toggleChecklist(item.key)}
+                    disabled={!canEditTeamChecklist}
                     className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
                   />
                   <span>{item.label}</span>

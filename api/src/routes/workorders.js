@@ -11,6 +11,14 @@ const { normalizeRole, expandRoleAliases } = require('../lib/roleAliases');
 const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify';
+const TEAM_CHECKLIST_KEYS = [
+  'team_delivery_only',
+  'team_floor',
+  'team_factory2',
+  'team_install',
+  'team_door',
+  'team_contractor',
+];
 
 const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
@@ -79,6 +87,24 @@ function normalizeOptionalId(value) {
 function buildOptionalRelationUpdate(id) {
   if (id === undefined) return undefined;
   return id ? { connect: { id } } : { disconnect: true };
+}
+
+function normalizeDocChecklist(input, fallback = {}, canEditTeamChecklist = false) {
+  const source = input && typeof input === 'object' ? input : {};
+  const next = { ...fallback };
+
+  for (const [key, value] of Object.entries(source)) {
+    if (TEAM_CHECKLIST_KEYS.includes(key) && !canEditTeamChecklist) continue;
+    next[key] = Boolean(value);
+  }
+
+  if (!canEditTeamChecklist) {
+    for (const key of TEAM_CHECKLIST_KEYS) {
+      if (!(key in next)) next[key] = Boolean(fallback[key] ?? false);
+    }
+  }
+
+  return next;
 }
 
 function normalizeWorkOrderItems(items) {
@@ -371,6 +397,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
     const quotationItemsSnapshot = normalizedQuotationId
       ? await getQuotationItemsSnapshot(normalizedQuotationId)
       : [];
+    const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
 
     const linkedQuotation = normalizedQuotationId
       ? await prisma.quotation.findUnique({
@@ -403,7 +430,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       let qcDateValue = qcDate
       let installDateValue = installDate
       let remarkValue = remark
-      let checklistValue = docChecklist || {}
+      let checklistValue = normalizeDocChecklist(docChecklist, {}, canEditTeamChecklist)
 
       if (isRevisionQuote) {
         const rootQuotationId = linkedQuotation.rootQuotationId || linkedQuotation.id
@@ -442,7 +469,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           qcDateValue = qcDate || (prevActiveWo.qcDate ? prevActiveWo.qcDate.toISOString().slice(0, 10) : null)
           installDateValue = installDate || (prevActiveWo.installDate ? prevActiveWo.installDate.toISOString().slice(0, 10) : null)
           remarkValue = remark ?? prevActiveWo.remark
-          checklistValue = docChecklist || prevActiveWo.docChecklist || {}
+          checklistValue = normalizeDocChecklist(docChecklist, prevActiveWo.docChecklist || {}, canEditTeamChecklist)
 
           await tx.workOrder.update({ where: { id: prevActiveWo.id }, data: { active: false } })
         } else {
@@ -517,6 +544,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     await ensureQuotationAccessible(req, normalizedQuotationId);
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationRelation = buildOptionalRelationUpdate(normalizedQuotationId);
+    const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
     const wo = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: {
@@ -524,7 +552,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
         customerName, contactName, contactTel, teamAssignment,
         qcDate: qcDate ? new Date(qcDate) : null,
         installDate: installDate ? new Date(installDate) : null,
-        remark, docChecklist: docChecklist || existing.docChecklist,
+        remark, docChecklist: normalizeDocChecklist(docChecklist, existing.docChecklist || {}, canEditTeamChecklist),
         ...(quotationRelation ? { quotation: quotationRelation } : {}),
       },
     });
