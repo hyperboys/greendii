@@ -101,10 +101,16 @@ async function notifyUser(userId, text) {
 }
 
 // Notify all active users of a given role (in-app + LINE + email)
-async function notifyByRole(role, text) {
+// options.excludeUserId: skip a specific actor (e.g. submitter) from recipients
+async function notifyByRole(role, text, options = {}) {
+  const { excludeUserId } = options;
   const candidateRoles = expandRoleAliases(role);
   const users = await prisma.user.findMany({
-    where: { role: { in: candidateRoles }, active: true },
+    where: {
+      role: { in: candidateRoles },
+      active: true,
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    },
     select: { id: true, lineUserId: true, email: true },
   });
   if (!users.length) return;
@@ -121,11 +127,11 @@ async function notifyByRole(role, text) {
 }
 
 // Notify approvers for a specific approval step
-async function notifyStep(step, text) {
+async function notifyStep(step, text, options = {}) {
   const { stepRole } = await getStepRoleMapping();
   const role = stepRole[step];
   if (!role) return;
-  await notifyByRole(role, text);
+  await notifyByRole(role, text, options);
 }
 
 module.exports = { notifyByRole, notifyUser, notifyStep, sendLine, sendEmail };

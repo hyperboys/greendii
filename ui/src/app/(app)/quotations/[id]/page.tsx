@@ -76,6 +76,8 @@ export default function QuotationDetailPage() {
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
+  const vatIncluded = Number(doc.vat ?? 0) !== 0
+
   const isMine = doc.salesId === user?.id
   const canEdit = isMine && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
@@ -243,8 +245,10 @@ export default function QuotationDetailPage() {
                   </tr>
                 )}
                 <tr className="bg-gray-50">
-                  <td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT 7%</td>
-                  <td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td>
+                  <td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td>
+                  <td className="text-right text-gray-500 px-4 py-2">
+                    {vatIncluded ? `฿${fmtMoney(doc.vat)}` : 'ไม่รวม VAT'}
+                  </td>
                 </tr>
                 <tr className="bg-green-pale">
                   <td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดรวมทั้งสิ้น</td>

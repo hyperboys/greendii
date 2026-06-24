@@ -239,6 +239,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   const addressTh = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
 
   const totalAmount = doc.subTotal - doc.specialDiscount
+  const vatIncluded = Number(doc.vat ?? 0) !== 0
 
   // Signature text: use signatureText if set, otherwise derive "FirstName L." from fullName
   const sigName = (() => {
@@ -727,8 +728,8 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
-            <td colSpan={2} style={{ ...totalsLabelTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Vat 7%</td>
-            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{fmtAmt(doc.vat)}</td>
+            <td colSpan={2} style={{ ...totalsLabelTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Vat</td>
+            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{vatIncluded ? fmtAmt(doc.vat) : 'Not included'}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>

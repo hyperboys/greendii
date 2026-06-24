@@ -351,7 +351,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       },
     });
     if (!autoApprove) {
-      await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+      await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -378,7 +378,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     if (newStatus === 'approved') {
       await notifyUser(quo.salesId, `ใบเสนอราคา ${quo.quoNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(nextStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`).catch(() => {});
+      await notifyStep(nextStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }

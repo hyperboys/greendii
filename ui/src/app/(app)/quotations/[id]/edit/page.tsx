@@ -108,10 +108,10 @@ export default function QuotationFormPage() {
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
   const [editable, setEditable] = useState(true)
 
-  const [form, setForm] = useState<FormData & { specialDiscount: number }>({
+  const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
     address: '', tel: '', conditionTerm: '', validityDays: 30,
-    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0,
+    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
   useEffect(() => {
@@ -155,6 +155,7 @@ export default function QuotationFormPage() {
               images: Array.isArray(it.images) ? it.images : [],
             })).map(normalizeItem) : [emptyItem()],
             specialDiscount: Number(doc.specialDiscount ?? 0),
+            includeVat: Number(doc.vat ?? 0) !== 0,
           })
           setIsCustomLeadTime(Boolean(leadTime) && !LEAD_TIME_OPTIONS.includes(leadTime as typeof LEAD_TIME_OPTIONS[number]))
         })
@@ -165,7 +166,7 @@ export default function QuotationFormPage() {
 
   const subTotal = form.items.reduce((s, i) => s + normalizeItem(i).amount, 0)
   const afterDiscount = subTotal - Number(form.specialDiscount)
-  const vat = Math.round(afterDiscount * VAT_RATE)
+  const vat = form.includeVat ? Math.round(afterDiscount * VAT_RATE) : 0
   const grandTotal = afterDiscount + vat
   const paymentTermSelectValue = getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, CUSTOM_PAYMENT_TERM)
   const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
@@ -732,9 +733,20 @@ export default function QuotationFormPage() {
                   <td></td>
                 </tr>
                 <tr className="bg-gray-50">
-                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">VAT 7%</td>
+                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.includeVat}
+                        onChange={e => setForm(f => ({ ...f, includeVat: e.target.checked }))}
+                      />
+                      <span>คิด VAT 7%</span>
+                    </label>
+                  </td>
                   <td className="text-right text-gray-500 pr-2">
-                    {new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(vat)}
+                    {form.includeVat
+                      ? new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(vat)
+                      : '-'}
                   </td>
                   <td></td>
                 </tr>

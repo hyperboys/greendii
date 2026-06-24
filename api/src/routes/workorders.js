@@ -535,7 +535,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
+    await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -566,7 +566,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     if (newStatus === 'approved') {
       await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`).catch(() => {});
+      await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }

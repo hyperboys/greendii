@@ -92,10 +92,10 @@ export default function NewQuotationPage() {
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
 
-  const [form, setForm] = useState<FormData & { specialDiscount: number }>({
+  const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
     address: '', tel: '', conditionTerm: '', validityDays: 30,
-    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0,
+    leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
   useEffect(() => {
@@ -106,7 +106,7 @@ export default function NewQuotationPage() {
 
   const subTotal = form.items.reduce((s, i) => s + normalizeItem(i).amount, 0)
   const afterDiscount = subTotal - Number(form.specialDiscount)
-  const vat = Math.round(afterDiscount * VAT_RATE)
+  const vat = form.includeVat ? Math.round(afterDiscount * VAT_RATE) : 0
   const grandTotal = afterDiscount + vat
   const paymentTermSelectValue = getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, CUSTOM_PAYMENT_TERM)
   const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
@@ -565,7 +565,20 @@ export default function NewQuotationPage() {
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr><td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
                 <tr><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block" value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} /></td><td /></tr>
-                <tr><td colSpan={6} className="text-right text-gray-500 px-2 py-1">VAT 7%</td><td className="text-right text-gray-500 pr-2">{fmt(vat)}</td><td /></tr>
+                <tr>
+                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">
+                    <label className="inline-flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={form.includeVat}
+                        onChange={e => setForm(f => ({ ...f, includeVat: e.target.checked }))}
+                      />
+                      <span>คิด VAT 7%</span>
+                    </label>
+                  </td>
+                  <td className="text-right text-gray-500 pr-2">{form.includeVat ? fmt(vat) : '-'}</td>
+                  <td />
+                </tr>
                 <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดรวมทั้งสิ้น</td><td className="text-right font-bold text-green-dark pr-2 text-base">฿{fmt(grandTotal)}</td><td /></tr>
               </tfoot>
             </table>

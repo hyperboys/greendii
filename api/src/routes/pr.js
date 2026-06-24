@@ -234,7 +234,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       // ทุกขั้นถูกข้าม (ผู้สร้างครอบคลุมสายอนุมัติ) หรือไม่มีขั้นอนุมัติ → อนุมัติทันที
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(firstStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
+      await notifyStep(firstStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -265,7 +265,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     if (newStatus === 'approved') {
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(nextStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`).catch(() => {});
+      await notifyStep(nextStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
