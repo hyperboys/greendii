@@ -7,8 +7,10 @@ const { getPagination, paginated } = require('../lib/pagination');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep, getStepRoleMapping, getFlowSteps } = require('../lib/approvalFlow');
-const { normalizeRole } = require('../lib/roleAliases');
+const { normalizeRole, expandRoleAliases } = require('../lib/roleAliases');
 const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
+
+const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify';
 
 const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
@@ -211,6 +213,63 @@ async function assertWorkOrderViewAccessible(req, workOrder) {
   const error = new Error('ไม่มีสิทธิ์เข้าถึงเอกสารของผู้อื่น');
   error.status = 403;
   throw error;
+}
+
+function buildWorkOrderNotifyMessage(template, wo) {
+  const fallback = 'ใบสั่งงาน {woNo} อนุมัติครบแล้ว';
+  const source = (typeof template === 'string' && template.trim()) ? template : fallback;
+  return source
+    .replaceAll('{woNo}', wo.woNo || '-')
+    .replaceAll('{project}', wo.project || '-')
+    .replaceAll('{customerName}', wo.customerName || '-');
+}
+
+async function notifyWorkOrderApprovedTargets(wo, actorUserId) {
+  const settings = await prisma.settings.findUnique({
+    where: { id: 'main' },
+    select: { approvalFlowConfig: true },
+  });
+
+  const notifyCfg = settings?.approvalFlowConfig?.[WO_APPROVED_NOTIFY_KEY];
+  if (!notifyCfg || typeof notifyCfg !== 'object') return;
+
+  const enabled = Boolean(notifyCfg.enabled);
+  if (!enabled) return;
+
+  const roles = Array.isArray(notifyCfg.roles)
+    ? notifyCfg.roles.map(r => String(r || '').trim()).filter(Boolean)
+    : [];
+  const userIds = Array.isArray(notifyCfg.userIds)
+    ? notifyCfg.userIds.map(id => String(id || '').trim()).filter(Boolean)
+    : [];
+
+  const roleCandidates = Array.from(new Set(roles.flatMap(expandRoleAliases)));
+  const [roleUsers, directUsers] = await Promise.all([
+    roleCandidates.length
+      ? prisma.user.findMany({
+          where: { role: { in: roleCandidates }, active: true },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+    userIds.length
+      ? prisma.user.findMany({
+          where: { id: { in: userIds }, active: true },
+          select: { id: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const recipientIds = new Set([
+    ...roleUsers.map(u => u.id),
+    ...directUsers.map(u => u.id),
+  ]);
+
+  if (actorUserId) recipientIds.delete(actorUserId);
+  if (wo.salesId) recipientIds.delete(wo.salesId);
+  if (recipientIds.size === 0) return;
+
+  const text = buildWorkOrderNotifyMessage(notifyCfg.messageTemplate, wo);
+  await Promise.all([...recipientIds].map(userId => notifyUser(userId, text).catch(() => {})));
 }
 
 // GET /api/workorders/by-quotation/:quotationId/previous
@@ -565,6 +624,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     });
     if (newStatus === 'approved') {
       await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+      await notifyWorkOrderApprovedTargets(wo, req.user.id).catch(() => {});
     } else {
       await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }

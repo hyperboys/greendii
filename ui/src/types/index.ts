@@ -203,7 +203,19 @@ export interface Settings {
   email: string
   website: string
   logoUrl: string
-  approvalFlowConfig?: Record<string, number[]>
+  approvalFlowConfig?: {
+    quotation?: number[]
+    workOrder?: number[]
+    pr?: number[]
+    handover?: number[]
+    workOrderApprovedNotify?: {
+      enabled?: boolean
+      roles?: string[]
+      userIds?: string[]
+      messageTemplate?: string
+    }
+    [key: string]: unknown
+  }
   menuAccessConfig?: Record<string, UserRole[]>
   rolePermissionsConfig?: {
     roles: { key: string; label: string; description: string }[]

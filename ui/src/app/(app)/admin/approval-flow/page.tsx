@@ -1,11 +1,20 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { SettingsAPI, AdminAPI } from '@/lib/api'
+import { SettingsAPI, AdminAPI, UsersAPI } from '@/lib/api'
 import { DOC_TYPES, DEFAULT_APPROVAL_FLOW, DEFAULT_STEP_ROLE } from '@/types'
 import { useSettingsStore } from '@/store/settings'
+import type { User } from '@/types'
 import { GripVertical, Plus, Save, RefreshCw, X, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify'
+const DEFAULT_WO_APPROVED_NOTIFY = {
+  enabled: false,
+  roles: [] as string[],
+  userIds: [] as string[],
+  messageTemplate: 'ใบสั่งงาน {woNo} อนุมัติครบแล้ว',
+}
 
 export default function ApprovalFlowPage() {
   const { rolePermissionsConfig, fetchSettings } = useSettingsStore()
@@ -15,6 +24,9 @@ export default function ApprovalFlowPage() {
   const [config, setConfig] = useState<Record<string, number[]>>(DEFAULT_APPROVAL_FLOW)
   // stepRoleConfig: { "1": "sales", "2": "sale_mgr", ... }
   const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
+  const [woApprovedNotify, setWoApprovedNotify] = useState(DEFAULT_WO_APPROVED_NOTIFY)
+  const [allUsers, setAllUsers] = useState<User[]>([])
+  const [rawApprovalFlowConfig, setRawApprovalFlowConfig] = useState<Record<string, unknown>>({})
 
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -26,11 +38,44 @@ export default function ApprovalFlowPage() {
   // PR flow is configured from "ประเภทใบขอซื้อ (PR)" page per PR type.
   const docTypesForGenericFlow = DOC_TYPES.filter(doc => doc.key !== 'pr')
 
+  const parseWoApprovedNotify = (raw: unknown) => {
+    if (!raw || typeof raw !== 'object') return { ...DEFAULT_WO_APPROVED_NOTIFY }
+    const cfg = raw as {
+      enabled?: unknown
+      roles?: unknown
+      userIds?: unknown
+      messageTemplate?: unknown
+    }
+    return {
+      enabled: Boolean(cfg.enabled),
+      roles: Array.isArray(cfg.roles) ? cfg.roles.map(String).filter(Boolean) : [],
+      userIds: Array.isArray(cfg.userIds) ? cfg.userIds.map(String).filter(Boolean) : [],
+      messageTemplate: typeof cfg.messageTemplate === 'string' && cfg.messageTemplate.trim()
+        ? cfg.messageTemplate
+        : DEFAULT_WO_APPROVED_NOTIFY.messageTemplate,
+    }
+  }
+
   useEffect(() => {
     fetchSettings()
-    SettingsAPI.get().then(s => {
-      if (s.approvalFlowConfig) setConfig(s.approvalFlowConfig as Record<string, number[]>)
-      if (s.stepRoleConfig)     setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
+    Promise.all([
+      SettingsAPI.get(),
+      UsersAPI.list({ active: 'true' }),
+    ]).then(([s, users]) => {
+      const approvalFlowConfig = (s.approvalFlowConfig ?? {}) as Record<string, unknown>
+      setRawApprovalFlowConfig(approvalFlowConfig)
+      setConfig(prev => ({
+        ...prev,
+        ...Object.fromEntries(
+          docTypesForGenericFlow.map(doc => {
+            const value = approvalFlowConfig[doc.key]
+            return [doc.key, Array.isArray(value) ? value.map(Number).filter(Number.isFinite) : (prev[doc.key] ?? [])]
+          })
+        ),
+      }))
+      if (s.stepRoleConfig) setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
+      setWoApprovedNotify(parseWoApprovedNotify(approvalFlowConfig[WO_APPROVED_NOTIFY_KEY]))
+      setAllUsers(users)
     }).finally(() => setLoading(false))
   }, [])
 
@@ -96,10 +141,21 @@ export default function ApprovalFlowPage() {
       const genericFlowConfig = Object.fromEntries(
         docTypesForGenericFlow.map(doc => [doc.key, config[doc.key] ?? []])
       )
+      const nextApprovalFlowConfig = {
+        ...rawApprovalFlowConfig,
+        ...genericFlowConfig,
+        [WO_APPROVED_NOTIFY_KEY]: {
+          enabled: woApprovedNotify.enabled,
+          roles: Array.from(new Set(woApprovedNotify.roles)),
+          userIds: Array.from(new Set(woApprovedNotify.userIds)),
+          messageTemplate: woApprovedNotify.messageTemplate?.trim() || DEFAULT_WO_APPROVED_NOTIFY.messageTemplate,
+        },
+      }
       await Promise.all([
-        AdminAPI.updateApprovalFlow(genericFlowConfig),
+        AdminAPI.updateApprovalFlow(nextApprovalFlowConfig),
         SettingsAPI.update({ stepRoleConfig }),
       ])
+      setRawApprovalFlowConfig(nextApprovalFlowConfig)
       toast.success('บันทึกการตั้งค่าสายอนุมัติสำเร็จ')
     } catch {
       toast.error('บันทึกไม่สำเร็จ')
@@ -228,6 +284,80 @@ export default function ApprovalFlowPage() {
       </div>
 
       <div className="space-y-6">
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-1">แจ้งเตือนหลังอนุมัติ Work Order ครบ</h3>
+          <p className="text-xs text-gray-500 mb-4">เมื่อ Work Order อนุมัติครบ ให้แจ้งเตือนทีม (ตามบทบาท) หรือผู้ใช้รายบุคคลที่กำหนด</p>
+
+          <label className="inline-flex items-center gap-2 text-sm mb-4">
+            <input
+              type="checkbox"
+              checked={woApprovedNotify.enabled}
+              onChange={e => setWoApprovedNotify(prev => ({ ...prev, enabled: e.target.checked }))}
+            />
+            <span>เปิดใช้งานการแจ้งเตือนหลังอนุมัติครบ</span>
+          </label>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-2">เลือกทีม (Role)</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+                {allRoles.map(role => {
+                  const checked = woApprovedNotify.roles.includes(role.key)
+                  return (
+                    <label key={role.key} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => setWoApprovedNotify(prev => ({
+                          ...prev,
+                          roles: e.target.checked
+                            ? Array.from(new Set([...prev.roles, role.key]))
+                            : prev.roles.filter(r => r !== role.key),
+                        }))}
+                      />
+                      <span>{role.label} ({role.key})</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-2">เลือกผู้รับเฉพาะคน</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+                {allUsers.map(user => {
+                  const checked = woApprovedNotify.userIds.includes(user.id)
+                  return (
+                    <label key={user.id} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => setWoApprovedNotify(prev => ({
+                          ...prev,
+                          userIds: e.target.checked
+                            ? Array.from(new Set([...prev.userIds, user.id]))
+                            : prev.userIds.filter(id => id !== user.id),
+                        }))}
+                      />
+                      <span>{user.fullName} ({user.role})</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="form-label">ข้อความแจ้งเตือน (รองรับตัวแปร {`{woNo}`}, {`{project}`}, {`{customerName}`})</label>
+            <input
+              className="form-input"
+              value={woApprovedNotify.messageTemplate}
+              onChange={e => setWoApprovedNotify(prev => ({ ...prev, messageTemplate: e.target.value }))}
+              placeholder="ใบสั่งงาน {woNo} อนุมัติครบแล้ว"
+            />
+          </div>
+        </div>
+
         {docTypesForGenericFlow.map(doc => (
           <DocFlowCard
             key={doc.key}
