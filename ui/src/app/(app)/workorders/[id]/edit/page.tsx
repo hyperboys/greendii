@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI, UnitsAPI } from '@/lib/api'
+import { WorkOrdersAPI, QuotationsAPI, UnitsAPI, HandoversAPI } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { Quotation, Attachment, Unit, WorkOrderItem } from '@/types'
+import type { Quotation, Attachment, Unit, WorkOrderItem, HandOverJob } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
@@ -45,6 +45,7 @@ const DEFAULT_DOC_CHECKLIST: Record<string, boolean> = Object.fromEntries(
 )
 
 interface FormData {
+  handOverJobId: string
   quotationId: string
   customerName: string
   contactName: string
@@ -68,6 +69,7 @@ export default function EditWorkOrderPage() {
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [handovers, setHandovers] = useState<HandOverJob[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
@@ -75,6 +77,7 @@ export default function EditWorkOrderPage() {
   const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
 
   const [form, setForm] = useState<FormData>({
+    handOverJobId: '',
     quotationId: '', customerName: '', contactName: '', contactTel: '',
     project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: '',
     teamAssignment: '', installDate: '', qcDate: '', remark: '',
@@ -84,11 +87,13 @@ export default function EditWorkOrderPage() {
   useEffect(() => {
     Promise.all([
       QuotationsAPI.list({ status: 'approved' }),
+      HandoversAPI.list(),
       UnitsAPI.list(),
       WorkOrdersAPI.get(id),
     ])
-      .then(([qList, unitList, doc]) => {
+      .then(([qList, handoverList, unitList, doc]) => {
         setQuotations(qList)
+        setHandovers(handoverList.filter(h => h.status !== 'cancelled'))
         setUnits(unitList)
         if (!isEditableApprovalDocStatus(doc.status)) {
           toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
@@ -97,6 +102,7 @@ export default function EditWorkOrderPage() {
         }
         setAttachments(doc.attachments ?? [])
         setForm({
+          handOverJobId: doc.handOverJobs?.[0]?.id ?? '',
           quotationId: doc.quotationId ?? '',
           customerName: doc.customerName ?? '',
           contactName: doc.contactName ?? '',
@@ -119,11 +125,22 @@ export default function EditWorkOrderPage() {
       .finally(() => setLoading(false))
   }, [id])
 
+  const filteredHandovers = form.quotationId
+    ? handovers.filter(h => h.quotationId === form.quotationId)
+    : handovers
+  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
+
   const handleQuotation = (qId: string) => {
     const q = quotations.find(x => x.id === qId)
+    const shouldKeepSelectedHandOver = form.handOverJobId
+      ? (qId
+          ? handovers.some(h => h.id === form.handOverJobId && h.quotationId === qId)
+          : handovers.some(h => h.id === form.handOverJobId))
+      : true
     setForm(f => ({
       ...f,
       quotationId: qId,
+      handOverJobId: shouldKeepSelectedHandOver ? f.handOverJobId : '',
       customerName: q?.customerName ?? f.customerName,
       project: q?.project ?? f.project,
       contactName: q?.attn ?? f.contactName,
@@ -199,6 +216,22 @@ export default function EditWorkOrderPage() {
             <option value="">— ไม่ระบุ —</option>
             {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
           </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">อ้างอิง HandOver (ถ้ามี)</label>
+          <select className="form-input" value={form.handOverJobId} onChange={e => setForm(prev => ({ ...prev, handOverJobId: e.target.value }))}>
+            <option value="">— ไม่ระบุ —</option>
+            {filteredHandovers.map(h => (
+              <option key={h.id} value={h.id}>
+                {h.hoNo} — {h.project}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {form.quotationId
+              ? `กำลังกรองตาม Quotation: ${selectedQuotation?.quoNo || '-'} (${filteredHandovers.length} รายการ)`
+              : `ยังไม่เลือก Quotation: แสดง HandOver ทั้งหมด (${filteredHandovers.length} รายการ)`}
+          </p>
         </div>
         <div>
           <label className="form-label">ลูกค้า *</label>

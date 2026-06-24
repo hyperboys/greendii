@@ -339,6 +339,9 @@ export interface WorkOrder {
   rootWorkOrderId?: string | null
   quotationId?: string
   quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
+  handOverJobId?: string
+  handOverJob?: { id: string; hoNo: string; quotationId?: string }
+  handOverJobs?: Array<{ id: string; hoNo: string; quotationId?: string }>
   salesId: string
   sales?: { id: string; fullName: string; signatureText?: string }
   project: string

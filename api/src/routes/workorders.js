@@ -23,6 +23,7 @@ const TEAM_CHECKLIST_KEYS = [
 const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
   body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
+  body('handOverJobId').optional({ nullable: true }).isString().withMessage('รูปแบบ handOverJobId ไม่ถูกต้อง'),
   body('qcDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
   body('installDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
   body('items').optional().isArray().withMessage('items ต้องเป็น array'),
@@ -39,6 +40,19 @@ const INCLUDE_FULL = {
   approvalLogs: {
     include: { approver: { select: { id: true, fullName: true, role: true, signatureText: true } } },
     orderBy: { actedAt: 'asc' },
+  },
+  handOverJobs: {
+    select: {
+      id: true,
+      hoNo: true,
+      quotationId: true,
+      workOrderId: true,
+      project: true,
+      status: true,
+      createdAt: true,
+      updatedAt: true,
+    },
+    orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
   },
   attachments: true,
 };
@@ -189,6 +203,25 @@ async function appendPdfAttachments(basePdf, attachments) {
   return Buffer.from(await merged.save());
 }
 
+async function mergePdfBuffers(buffers) {
+  const validBuffers = (buffers || []).filter(b => Buffer.isBuffer(b) && b.length > 0);
+  if (validBuffers.length === 0) return Buffer.alloc(0);
+  if (validBuffers.length === 1) return validBuffers[0];
+
+  const { PDFDocument } = require('pdf-lib');
+  const merged = await PDFDocument.create();
+  for (const pdfBuffer of validBuffers) {
+    try {
+      const src = await PDFDocument.load(pdfBuffer);
+      const copied = await merged.copyPages(src, src.getPageIndices());
+      copied.forEach(page => merged.addPage(page));
+    } catch {
+      // Skip unreadable buffers and continue merging the remaining PDFs.
+    }
+  }
+  return Buffer.from(await merged.save());
+}
+
 async function ensureQuotationAccessible(req, quotationId) {
   if (!quotationId) return;
   const quotation = await prisma.quotation.findUnique({
@@ -201,6 +234,60 @@ async function ensureQuotationAccessible(req, quotationId) {
     throw error;
   }
   assertQuotationAccessible(req, quotation);
+}
+
+async function ensureHandOverSelectable(quotationId, handOverJobId, currentWorkOrderId) {
+  if (!handOverJobId) return null;
+
+  const handover = await prisma.handOverJob.findUnique({
+    where: { id: handOverJobId },
+    select: { id: true, quotationId: true, workOrderId: true },
+  });
+
+  if (!handover) {
+    const error = new Error('ไม่พบเอกสารส่งมอบงานที่เลือก');
+    error.status = 400;
+    throw error;
+  }
+
+  if (quotationId && handover.quotationId !== quotationId) {
+    const error = new Error('เอกสารส่งมอบงานที่เลือกไม่สอดคล้องกับใบเสนอราคา');
+    error.status = 400;
+    throw error;
+  }
+
+  if (handover.workOrderId && handover.workOrderId !== currentWorkOrderId) {
+    const error = new Error('เอกสารส่งมอบงานนี้ถูกผูกกับใบสั่งงานอื่นแล้ว');
+    error.status = 400;
+    throw error;
+  }
+
+  return handover;
+}
+
+async function syncSelectedHandOverJob(workOrderId, handOverJobId, tx = prisma) {
+  if (handOverJobId === undefined) return;
+
+  if (!handOverJobId) {
+    await tx.handOverJob.updateMany({
+      where: { workOrderId },
+      data: { workOrderId: null },
+    });
+    return;
+  }
+
+  await tx.handOverJob.updateMany({
+    where: {
+      workOrderId,
+      id: { not: handOverJobId },
+    },
+    data: { workOrderId: null },
+  });
+
+  await tx.handOverJob.update({
+    where: { id: handOverJobId },
+    data: { workOrderId },
+  });
 }
 
 async function assertWorkOrderAccessible(req, workOrder) {
@@ -363,20 +450,51 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
-    const url = `${uiBase}/print/workorder/${req.params.id}?token=${encodeURIComponent(token)}&mode=pdf`;
     const item = await prisma.workOrder.findUniqueOrThrow({
       where: { id: req.params.id },
       select: {
+        id: true,
         woNo: true,
+        quotationId: true,
         salesId: true,
+        handOverJobs: {
+          select: { id: true, hoNo: true, quotationId: true, updatedAt: true, createdAt: true },
+          orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+          take: 1,
+        },
         attachments: {
           select: { filename: true, fileUrl: true, mimeType: true, originalName: true },
           orderBy: { uploadedAt: 'asc' },
         },
       },
     });
-    const pdf = await renderUrlToPdf(url);
-    const finalPdf = await appendPdfAttachments(pdf, item.attachments);
+
+    const workOrderUrl = `${uiBase}/print/workorder/${item.id}?token=${encodeURIComponent(token)}&mode=pdf`;
+    const buffers = [await renderUrlToPdf(workOrderUrl)];
+
+    if (item.quotationId) {
+      const quotationUrl = `${uiBase}/print/quotation/${item.quotationId}?token=${encodeURIComponent(token)}&mode=pdf`;
+      try {
+        const quotationPdf = await renderUrlToPdf(quotationUrl);
+        buffers.push(quotationPdf);
+      } catch {
+        // Skip quotation PDF if rendering fails.
+      }
+    }
+
+    const selectedHandOver = item.handOverJobs?.[0] || null;
+    if (selectedHandOver?.id) {
+      const handOverUrl = `${uiBase}/print/handover/${selectedHandOver.id}?token=${encodeURIComponent(token)}&mode=pdf`;
+      try {
+        const handOverPdf = await renderUrlToPdf(handOverUrl);
+        buffers.push(handOverPdf);
+      } catch {
+        // Skip handover PDF if rendering fails.
+      }
+    }
+
+    const mergedMain = await mergePdfBuffers(buffers);
+    const finalPdf = await appendPdfAttachments(mergedMain, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.woNo || 'workorder'}.pdf"`);
     res.send(finalPdf);
@@ -387,12 +505,15 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 router.post('/', authenticate, workOrderValidators, validate, async (req, res, next) => {
   try {
     const {
+      handOverJobId,
       quotationId, project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
+    const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
     await ensureQuotationAccessible(req, normalizedQuotationId);
+    await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, null);
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationItemsSnapshot = normalizedQuotationId
       ? await getQuotationItemsSnapshot(normalizedQuotationId)
@@ -486,7 +607,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
         throw error
       }
 
-      return tx.workOrder.create({
+      const created = await tx.workOrder.create({
         data: {
           woNo,
           active: true,
@@ -510,6 +631,9 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           status: 'draft',
         },
       })
+
+      await syncSelectedHandOverJob(created.id, normalizedHandOverJobId, tx)
+      return created
     })
 
     await prisma.approvalLog.create({
@@ -535,27 +659,35 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
       return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
+      handOverJobId,
       quotationId,
       project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, remark, docChecklist,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
+    const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
     await ensureQuotationAccessible(req, normalizedQuotationId);
+    await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, req.params.id);
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationRelation = buildOptionalRelationUpdate(normalizedQuotationId);
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
-    const wo = await prisma.workOrder.update({
-      where: { id: req.params.id },
-      data: {
-        project, location, products, items: normalizedItems, responsibility,
-        customerName, contactName, contactTel, teamAssignment,
-        qcDate: qcDate ? new Date(qcDate) : null,
-        installDate: installDate ? new Date(installDate) : null,
-        remark, docChecklist: normalizeDocChecklist(docChecklist, existing.docChecklist || {}, canEditTeamChecklist),
-        ...(quotationRelation ? { quotation: quotationRelation } : {}),
-      },
-    });
+    const wo = await prisma.$transaction(async (tx) => {
+      const updated = await tx.workOrder.update({
+        where: { id: req.params.id },
+        data: {
+          project, location, products, items: normalizedItems, responsibility,
+          customerName, contactName, contactTel, teamAssignment,
+          qcDate: qcDate ? new Date(qcDate) : null,
+          installDate: installDate ? new Date(installDate) : null,
+          remark, docChecklist: normalizeDocChecklist(docChecklist, existing.docChecklist || {}, canEditTeamChecklist),
+          ...(quotationRelation ? { quotation: quotationRelation } : {}),
+        },
+      });
+
+      await syncSelectedHandOverJob(req.params.id, normalizedHandOverJobId, tx)
+      return updated
+    })
     res.json(wo);
   } catch (e) { next(e); }
 });

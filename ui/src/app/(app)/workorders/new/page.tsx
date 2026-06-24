@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkOrdersAPI, QuotationsAPI, UnitsAPI, UploadAPI } from '@/lib/api'
-import type { Quotation, Unit, WorkOrderItem } from '@/types'
+import { WorkOrdersAPI, QuotationsAPI, UnitsAPI, UploadAPI, HandoversAPI } from '@/lib/api'
+import type { Quotation, Unit, WorkOrderItem, HandOverJob } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
@@ -44,6 +44,7 @@ const DEFAULT_DOC_CHECKLIST: Record<string, boolean> = Object.fromEntries(
 )
 
 interface FormData {
+  handOverJobId: string
   quotationId: string
   customerName: string
   contactName: string
@@ -66,6 +67,7 @@ export default function NewWorkOrderPage() {
   const router = useRouter()
   const { user } = useAuthStore()
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [handovers, setHandovers] = useState<HandOverJob[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
@@ -73,6 +75,7 @@ export default function NewWorkOrderPage() {
   const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
 
   const [form, setForm] = useState<FormData>({
+    handOverJobId: '',
     quotationId: '', customerName: '', contactName: '', contactTel: '',
     project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: '',
     teamAssignment: '', installDate: '', qcDate: '', remark: '',
@@ -80,18 +83,31 @@ export default function NewWorkOrderPage() {
   })
 
   useEffect(() => {
-    Promise.all([QuotationsAPI.list({ status: 'approved' }), UnitsAPI.list()])
-      .then(([quotationList, unitList]) => {
+    Promise.all([QuotationsAPI.list({ status: 'approved' }), HandoversAPI.list(), UnitsAPI.list()])
+      .then(([quotationList, handoverList, unitList]) => {
         setQuotations(quotationList)
+        setHandovers(handoverList.filter(h => h.status !== 'cancelled'))
         setUnits(unitList)
       })
   }, [])
 
+  const filteredHandovers = form.quotationId
+    ? handovers.filter(h => h.quotationId === form.quotationId)
+    : handovers
+  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
+
   const handleQuotation = async (id: string) => {
     const q = quotations.find(x => x.id === id)
+    const shouldKeepSelectedHandOver = form.handOverJobId
+      ? (id
+          ? handovers.some(h => h.id === form.handOverJobId && h.quotationId === id)
+          : handovers.some(h => h.id === form.handOverJobId))
+      : true
+
     setForm(f => ({
       ...f,
       quotationId: id,
+      handOverJobId: shouldKeepSelectedHandOver ? f.handOverJobId : '',
       customerName: q?.customerName ?? f.customerName,
       project: q?.project ?? f.project,
       contactName: q?.attn ?? f.contactName,
@@ -202,6 +218,22 @@ export default function NewWorkOrderPage() {
             <option value="">— ไม่ระบุ —</option>
             {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
           </select>
+        </div>
+        <div className="md:col-span-2">
+          <label className="form-label">อ้างอิง HandOver (ถ้ามี)</label>
+          <select className="form-input" value={form.handOverJobId} onChange={e => setForm(prev => ({ ...prev, handOverJobId: e.target.value }))}>
+            <option value="">— ไม่ระบุ —</option>
+            {filteredHandovers.map(h => (
+              <option key={h.id} value={h.id}>
+                {h.hoNo} — {h.project}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-gray-500">
+            {form.quotationId
+              ? `กำลังกรองตาม Quotation: ${selectedQuotation?.quoNo || '-'} (${filteredHandovers.length} รายการ)`
+              : `ยังไม่เลือก Quotation: แสดง HandOver ทั้งหมด (${filteredHandovers.length} รายการ)`}
+          </p>
         </div>
         <div>
           <label className="form-label">ลูกค้า *</label>

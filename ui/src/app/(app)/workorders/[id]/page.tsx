@@ -53,6 +53,8 @@ export default function WorkOrderDetailPage() {
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewBlobUrl, setPreviewBlobUrl] = useState('')
+  const [previewLoading, setPreviewLoading] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -76,6 +78,42 @@ export default function WorkOrderDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
+
+  useEffect(() => {
+    if (!previewOpen) {
+      if (previewBlobUrl) {
+        URL.revokeObjectURL(previewBlobUrl)
+        setPreviewBlobUrl('')
+      }
+      setPreviewLoading(false)
+      return
+    }
+
+    let cancelled = false
+    setPreviewLoading(true)
+    WorkOrdersAPI.pdf(id)
+      .then(blob => {
+        if (cancelled) return
+        const url = URL.createObjectURL(blob)
+        setPreviewBlobUrl(prev => {
+          if (prev) URL.revokeObjectURL(prev)
+          return url
+        })
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setPreviewBlobUrl('')
+          toast.error('โหลดพรีวิวไม่สำเร็จ')
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [id, previewOpen])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -101,9 +139,13 @@ export default function WorkOrderDetailPage() {
   const workOrderFlowSteps = settings?.approvalFlowConfig?.workOrder?.length
     ? settings.approvalFlowConfig.workOrder
     : DEFAULT_APPROVAL_FLOW.workOrder
-
-  const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
-  const previewUrl = previewToken ? `/print/workorder/${id}?token=${encodeURIComponent(previewToken)}` : ''
+  const selectedHandover = doc.handOverJobs?.[0]
+  const mergedPdfParts = [
+    `1. WorkOrder: ${doc.woNo || '-'}`,
+    doc.quotation?.quoNo ? `2. Quotation: ${doc.quotation.quoNo}` : '2. Quotation: -',
+    selectedHandover?.hoNo ? `3. HandOver: ${selectedHandover.hoNo}` : '3. HandOver: -',
+    `4. เอกสารแนบ PDF: ${(doc.attachments ?? []).filter(a => a.mimeType === 'application/pdf').length} ไฟล์`,
+  ]
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -180,6 +222,8 @@ export default function WorkOrderDetailPage() {
         <div><span className="form-label">โครงการ</span><p>{doc.project}</p></div>
         <div><span className="form-label">สถานที่</span><p>{doc.location || '-'}</p></div>
         <div><span className="form-label">เซลล์</span><p>{doc.sales?.fullName ?? doc.salesId}</p></div>
+        <div><span className="form-label">ใบเสนอราคา</span><p>{doc.quotation?.quoNo || '-'}</p></div>
+        <div><span className="form-label">HandOver</span><p>{doc.handOverJobs?.[0]?.hoNo || '-'}</p></div>
         <div><span className="form-label">สินค้า/บริการ</span><p>{doc.products || '-'}</p></div>
         <div><span className="form-label">ผู้รับผิดชอบ</span><p>{doc.responsibility || '-'}</p></div>
         <div><span className="form-label">ทีมงาน</span><p>{doc.teamAssignment || '-'}</p></div>
@@ -359,11 +403,23 @@ export default function WorkOrderDetailPage() {
           </button>
         </div>
         <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto mb-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
+            <div className="text-xs font-semibold text-gray-700">ลำดับเอกสารที่รวมใน PDF</div>
+            <ul className="mt-2 space-y-1 text-xs text-gray-600">
+              {mergedPdfParts.map((part, index) => (
+                <li key={index}>{part}</li>
+              ))}
+            </ul>
+          </div>
           <div className="mx-auto w-fit">
-            {previewUrl ? (
+            {previewLoading ? (
+              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                กำลังโหลดพรีวิวเอกสาร…
+              </div>
+            ) : previewBlobUrl ? (
               <iframe
                 title={`Work Order preview ${doc.woNo}`}
-                src={previewUrl}
+                src={previewBlobUrl}
                 className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
               />
             ) : (
