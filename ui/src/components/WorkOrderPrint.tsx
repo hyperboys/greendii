@@ -300,6 +300,15 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   const qcDateStr = doc.qcDate
     ? new Date(doc.qcDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '-'
+  const fpt = (n: number) => `${n}pt`
+
+  function formatSignatureText(signatureText?: string | null, fullName?: string | null): string {
+    if (signatureText?.trim()) return signatureText.trim()
+    const name = fullName?.trim()
+    if (!name) return ''
+    const parts = name.split(/\s+/)
+    return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
+  }
 
   const tdS: React.CSSProperties = {
     border,
@@ -523,12 +532,42 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   }
 
   function renderBottomSections() {
+    const approvedLogs = [...(doc.approvalLogs ?? [])]
+      .filter(log => log.action === 'approve')
+      .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
+
+    // Keep Sales as document owner, then map approvers by actual approval order.
+    const reviewLog = approvedLogs[0]
+    const salesManagerLog = approvedLogs[1]
+    const managingDirectorLog = approvedLogs[2]
+    const managerLog = approvedLogs[3]
+
     const sigCols = [
-      { role: 'Sales', name: doc.sales?.fullName ?? '' },
-      { role: 'Review by', name: '' },
-      { role: 'Sales Manager', name: doc.approvalLogs?.find(l => l.step === 2)?.approver?.fullName ?? '' },
-      { role: 'Project Manager', name: doc.approvalLogs?.find(l => l.step === 4)?.approver?.fullName ?? '' },
-      { role: 'Managing Director', name: doc.approvalLogs?.find(l => l.step === 5)?.approver?.fullName ?? '' },
+      {
+        role: 'Sales',
+        name: doc.sales?.fullName ?? '',
+        signature: formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName),
+      },
+      {
+        role: 'Review by',
+        name: reviewLog?.approver?.fullName ?? '',
+        signature: formatSignatureText(reviewLog?.approver?.signatureText, reviewLog?.approver?.fullName),
+      },
+      {
+        role: 'Sales Manager',
+        name: salesManagerLog?.approver?.fullName ?? '',
+        signature: formatSignatureText(salesManagerLog?.approver?.signatureText, salesManagerLog?.approver?.fullName),
+      },
+      {
+        role: 'Managing Director',
+        name: managingDirectorLog?.approver?.fullName ?? '',
+        signature: formatSignatureText(managingDirectorLog?.approver?.signatureText, managingDirectorLog?.approver?.fullName),
+      },
+      {
+        role: 'Manager',
+        name: managerLog?.approver?.fullName ?? '',
+        signature: formatSignatureText(managerLog?.approver?.signatureText, managerLog?.approver?.fullName),
+      },
     ]
     const teamOptions = [
       { label: 'ส่งของอย่างเดียว', key: 'team_delivery_only' },
@@ -601,9 +640,18 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <tbody>
             <tr>
-              {sigCols.map(({ role, name }) => (
+              {sigCols.map(({ role, name, signature }) => (
                 <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: `${100 / sigCols.length}%`, verticalAlign: 'top' }}>
                   <div style={{ fontSize: '8.9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '30px' }}>{role}</div>
+                  <div style={{
+                    fontFamily: 'var(--font-signature)',
+                    fontStyle: 'italic',
+                    fontSize: fpt(14),
+                    marginTop: '2px',
+                    marginBottom: '0',
+                    lineHeight: 1,
+                    minHeight: '16px',
+                  }}>{signature || '\u00A0'}</div>
                   <div style={{ borderTop: '1px dotted #555', width: '80%', margin: '0 auto 4px' }} />
                   <div style={{ fontSize: '8.4pt', minHeight: '14px' }}>{name || '(…………………………)'}</div>
                 </td>

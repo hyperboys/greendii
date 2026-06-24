@@ -21,7 +21,7 @@ const workOrderValidators = [
 ];
 
 const INCLUDE_FULL = {
-  sales: { select: { id: true, fullName: true, initials: true } },
+  sales: { select: { id: true, fullName: true, initials: true, signatureText: true } },
   quotation: {
     select: {
       id: true, quoNo: true,
@@ -29,7 +29,7 @@ const INCLUDE_FULL = {
     },
   },
   approvalLogs: {
-    include: { approver: { select: { id: true, fullName: true, role: true } } },
+    include: { approver: { select: { id: true, fullName: true, role: true, signatureText: true } } },
     orderBy: { actedAt: 'asc' },
   },
   attachments: true,

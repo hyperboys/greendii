@@ -324,7 +324,7 @@ export interface WorkOrder {
   quotationId?: string
   quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
   salesId: string
-  sales?: { id: string; fullName: string }
+  sales?: { id: string; fullName: string; signatureText?: string }
   project: string
   location?: string
   products?: string
@@ -459,7 +459,7 @@ export interface ApprovalLog {
   id: string
   docType: string
   approverId: string
-  approver?: { id: string; fullName: string; role: string }
+  approver?: { id: string; fullName: string; role: string; signatureText?: string }
   step: number
   action: 'approve' | 'reject'
   comment?: string
