@@ -63,7 +63,7 @@ export default function ApprovalsPage() {
 
           {(data?.workOrders.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบสั่งงาน (WO) · {data!.workOrders.length} รายการ</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">Work Orders · {data!.workOrders.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th>วันติดตั้ง</th><th>วันที่</th></tr>
@@ -106,7 +106,7 @@ export default function ApprovalsPage() {
 
           {(data?.handovers.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ส่งมอบงาน (HO) · {data!.handovers.length} รายการ</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">Handovers · {data!.handovers.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>โครงการ</th><th>วันที่</th></tr>

@@ -43,7 +43,7 @@ export default function WorkOrdersPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ใบสั่งงาน (WO)</h2>
+          <h2 className="page-title">Work Orders</h2>
           <p className="page-sub">รายการใบสั่งงานทั้งหมด</p>
         </div>
         {canCreate && (

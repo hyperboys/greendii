@@ -36,7 +36,7 @@ export default function HandoversPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ส่งมอบงาน (HO)</h2>
+          <h2 className="page-title">Handovers</h2>
           <p className="page-sub">รายการส่งมอบงานทั้งหมด</p>
         </div>
         {canCreate && (
