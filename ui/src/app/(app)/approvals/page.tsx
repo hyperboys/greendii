@@ -41,7 +41,7 @@ export default function ApprovalsPage() {
         <div className="space-y-6">
           {(data?.quotations.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบเสนอราคา (QO) · {data!.quotations.length} รายการ</h3>
+              <h3 className="font-semibold text-gray-800 mb-3"> Quotation · {data!.quotations.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th>โครงการ</th><th className="text-right">ยอดรวม</th><th>วันที่</th></tr>

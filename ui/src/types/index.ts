@@ -37,19 +37,35 @@ export const DEFAULT_ROLES: RoleDef[] = [
 ]
 
 export const DEFAULT_PERMISSIONS: PermissionDef[] = [
+  { key: 'dashboard_view', label: 'ดู Dashboard', roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'] },
+  { key: 'quotations_view', label: 'ดูใบเสนอราคา', roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'] },
   { key: 'quo_create',    label: 'สร้างใบเสนอราคา',   roles: ['admin','sales','sale_mgr'] },
   { key: 'quo_edit',      label: 'แก้ไขใบเสนอราคา',   roles: ['admin','sales','sale_mgr'] },
   { key: 'quo_approve',   label: 'อนุมัติใบเสนอราคา', roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
+  { key: 'workorders_view', label: 'ดูใบสั่งงาน',    roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'] },
   { key: 'wo_create',     label: 'สร้างใบสั่งงาน',    roles: ['admin','sales','sale_mgr','admin_mgr'] },
   { key: 'wo_approve',    label: 'อนุมัติใบสั่งงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
+  { key: 'pr_view',       label: 'ดูใบขอซื้อ',       roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement'] },
   { key: 'pr_create',     label: 'สร้างใบขอซื้อ',     roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr'] },
   { key: 'pr_approve',    label: 'อนุมัติใบขอซื้อ',   roles: ['admin','admin_mgr','project_mgr','director','procurement'] },
+  { key: 'handovers_view', label: 'ดูส่งมอบงาน',     roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'] },
   { key: 'ho_create',     label: 'สร้างส่งมอบงาน',    roles: ['admin','sales','sale_mgr'] },
   { key: 'ho_approve',    label: 'อนุมัติส่งมอบงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
+  { key: 'approvals_view', label: 'ดูเมนูรออนุมัติ',  roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'] },
   { key: 'view_reports',  label: 'ดูรายงาน',          roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
+  { key: 'customers_view', label: 'ดูลูกค้า',         roles: ['admin','sale_mgr','admin_mgr','director'] },
+  { key: 'products_view', label: 'ดูสินค้า',          roles: ['admin','sale_mgr','admin_mgr','director'] },
+  { key: 'units_view',    label: 'ดูหน่วยนับ',        roles: ['admin','sale_mgr','admin_mgr','director'] },
   { key: 'manage_users',  label: 'จัดการผู้ใช้',       roles: ['admin','admin_mgr','director'] },
   { key: 'manage_master', label: 'จัดการข้อมูลหลัก',   roles: ['admin','sale_mgr','admin_mgr','director'] },
   { key: 'admin_settings',label: 'ตั้งค่าระบบ/Admin', roles: ['admin','director'] },
+  { key: 'users_view',          label: 'ดูผู้ใช้งาน',              roles: ['admin','admin_mgr','director'] },
+  { key: 'approval_flow_view',  label: 'ดูสายการอนุมัติ',          roles: ['admin','director'] },
+  { key: 'pr_types_view',       label: 'ดูประเภทใบขอซื้อ',         roles: ['admin','director'] },
+  { key: 'roles_view',          label: 'ดูบทบาท สิทธิ์ และเมนู',    roles: ['admin','director'] },
+  { key: 'audit_log_view',      label: 'ดูบันทึกกิจกรรม',           roles: ['admin','admin_mgr','director'] },
+  { key: 'activity_log_view',   label: 'ดู Activity Log',           roles: ['admin','director'] },
+  { key: 'settings_view',       label: 'ดูตั้งค่าระบบ',             roles: ['admin','director'] },
 ]
 
 // Fallback label lookup for when settings haven't loaded

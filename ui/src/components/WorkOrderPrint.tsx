@@ -564,7 +564,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         signature: formatSignatureText(managingDirectorLog?.approver?.signatureText, managingDirectorLog?.approver?.fullName),
       },
       {
-        role: 'Manager',
+        role: 'Project Manager',
         name: managerLog?.approver?.fullName ?? '',
         signature: formatSignatureText(managerLog?.approver?.signatureText, managerLog?.approver?.fullName),
       },

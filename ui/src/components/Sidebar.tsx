@@ -21,34 +21,34 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { href: '/dashboard', label: '📊 Dashboard'  },
-  { href: '/quotations', label: ' 📋 ใบเสนอราคา' },
+  { href: '/quotations', label: ' 📋 Quotation' },
   { href: '/workorders', label: ' 🔧 Work Order' },
   { href: '/handovers', label: ' 🤝 Handover' },
   { href: '/pr', label: ' 🛒 Purchase Request' },
-  { href: '/approvals', label: ' ✅ รออนุมัติ' },
-  { href: '/reports', label: ' 📊 รายงาน', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/approvals', label: ' ✅ Pending Approvals' },
+  { href: '/reports', label: ' 📊 Reports', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
 ]
 
 const MASTER: NavItem[] = [
-  { href: '/customers', label: '👥 ลูกค้า', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/products', label: '📦 สินค้า', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/units', label: '📏 หน่วยนับ', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/customers', label: '👥 Customers', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/products', label: '📦 Products', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/units', label: '📏 Units', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
 ]
 
 const ADMIN_MENU: NavItem[] = [
-  { href: '/users',                label: '👤 ผู้ใช้งาน',                  roles: ['admin', 'admin_mgr', 'director'] },
-  { href: '/admin/approval-flow',  label: '🏢 สายการอนุมัติ',            roles: ['admin', 'director'] },
-  { href: '/admin/pr-types',       label: '🛒 ประเภทใบขอซื้อ',           roles: ['admin', 'director'] },
-  { href: '/admin/roles',          label: '🔒 บทบาท สิทธิ์ เมนู',         roles: ['admin', 'director'] },
-  { href: '/admin/audit-log',      label: '📜 บันทึกกิจกรรม',            roles: ['admin', 'admin_mgr', 'director'] },
+  { href: '/users',                label: '👤 Users',                  roles: ['admin', 'admin_mgr', 'director'] },
+  { href: '/admin/approval-flow',  label: '🏢 Approval Flow',            roles: ['admin', 'director'] },
+  { href: '/admin/pr-types',       label: '🛒 PR Types',           roles: ['admin', 'director'] },
+  { href: '/admin/roles',          label: '🔒 Roles & Permissions',         roles: ['admin', 'director'] },
+  { href: '/admin/audit-log',      label: '📜 Audit Log',            roles: ['admin', 'admin_mgr', 'director'] },
   { href: '/admin/activity-log',   label: '📋 Activity Log',              roles: ['admin', 'director'] },
-  { href: '/settings',             label: '⚙️ ตั้งค่าระบบ',               roles: ['admin', 'director'] },
+  { href: '/settings',             label: '⚙️ System Settings',               roles: ['admin', 'director'] },
 ]
 
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
-  const { menuAccessConfig } = useSettingsStore()
+  const { menuAccessConfig, canViewMenuByPermission } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
   // Persist collapsed state across reloads
@@ -83,12 +83,17 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (!user) return false
     const configRoles = menuAccessConfig[menuKey]
     const roles = configRoles ?? fallbackRoles
-    return !roles || hasRole(user.role, roles)
+    const allowedByMenuAccess = !roles || hasRole(user.role, roles)
+    return allowedByMenuAccess && canViewMenuByPermission(menuKey, user.role)
   }
 
   // Admin menu always uses hardcoded roles (never DB-configurable)
-  const canSee = (roles?: UserRole[]) =>
-    !roles || !user || hasRole(user.role, roles)
+  const canSee = (roles?: UserRole[], menuKey?: string) => {
+    if (!user) return false
+    const allowedByRole = !roles || hasRole(user.role, roles)
+    const allowedByView = menuKey ? canViewMenuByPermission(menuKey, user.role) : true
+    return allowedByRole && allowedByView
+  }
 
   return (
     <>
@@ -188,7 +193,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         )}
 
         {/* Admin section */}
-        {ADMIN_MENU.some(item => canSee(item.roles)) && (
+        {ADMIN_MENU.some(item => canSee(item.roles, item.href.replace('/admin/', '').replace('/', ''))) && (
           <>
             {!collapsed && (
               <div className="flex items-center gap-2 px-3 pt-4 pb-1">
@@ -197,7 +202,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             )}
-            {ADMIN_MENU.filter(item => canSee(item.roles)).map(item => {
+            {ADMIN_MENU.filter(item => canSee(item.roles, item.href.replace('/admin/', '').replace('/', ''))).map(item => {
               const active = pathname === item.href || (item.href !== '/settings' && item.href !== '/users' && pathname.startsWith(item.href))
               return (
                 <Link

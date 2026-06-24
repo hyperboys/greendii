@@ -12,8 +12,33 @@ interface SettingsState {
   loaded: boolean
   fetchSettings: () => Promise<void>
   hasPerm: (permKey: string, userRole: string) => boolean
+  canViewMenuByPermission: (menuKey: string, userRole: string) => boolean
   getRoleLabel: (roleKey: string) => string
   getStepLabel: (step: number) => string
+}
+
+const MENU_VIEW_PERMISSION: Record<string, string> = {
+  dashboard: 'dashboard_view',
+  quotations: 'quotations_view',
+  workorders: 'workorders_view',
+  handovers: 'handovers_view',
+  pr: 'pr_view',
+  approvals: 'approvals_view',
+  reports: 'view_reports',
+  customers: 'customers_view',
+  products: 'products_view',
+  units: 'units_view',
+  users: 'users_view',
+  approvalflow: 'approval_flow_view',
+  'approval-flow': 'approval_flow_view',
+  prtypes: 'pr_types_view',
+  'pr-types': 'pr_types_view',
+  roles: 'roles_view',
+  auditlog: 'audit_log_view',
+  'audit-log': 'audit_log_view',
+  activitylog: 'activity_log_view',
+  'activity-log': 'activity_log_view',
+  settings: 'settings_view',
 }
 
 const DEFAULT_ROLE_PERMISSIONS: RolePermissionsConfig = {
@@ -47,6 +72,17 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     const perm = rolePermissionsConfig.permissions.find(p => p.key === permKey)
     const normalizedRole = normalizeUserRole(userRole)
     return perm?.roles.map(normalizeUserRole).includes(normalizedRole) ?? false
+  },
+
+  canViewMenuByPermission: (menuKey, userRole) => {
+    const permKey = MENU_VIEW_PERMISSION[menuKey]
+    if (!permKey) return true
+    const { rolePermissionsConfig } = get()
+    const perm = rolePermissionsConfig.permissions.find(p => p.key === permKey)
+    // Backward compatibility: if permission is not configured yet, allow by menu access rules.
+    if (!perm) return true
+    const normalizedRole = normalizeUserRole(userRole)
+    return perm.roles.map(normalizeUserRole).includes(normalizedRole)
   },
 
   getRoleLabel: (roleKey) => {

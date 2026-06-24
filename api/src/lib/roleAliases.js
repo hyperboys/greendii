@@ -1,5 +1,6 @@
 const ROLE_ALIASES = {
   sales2: 'sales',
+  managing_director: 'director',
 };
 
 function normalizeRole(role) {
@@ -10,6 +11,7 @@ function normalizeRole(role) {
 function expandRoleAliases(role) {
   const normalized = normalizeRole(role);
   if (normalized === 'sales') return ['sales', 'sales2'];
+  if (normalized === 'director') return ['director', 'managing_director'];
   return [normalized];
 }
 

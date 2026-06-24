@@ -36,11 +36,34 @@ export default function RolesPage() {
 
   useEffect(() => {
     SettingsAPI.get().then(s => {
+      const mergePermissions = (incoming: PermissionDef[] = []) => {
+        const byKey = new Map<string, PermissionDef>()
+        for (const perm of incoming) {
+          byKey.set(perm.key, { ...perm, roles: [...perm.roles] })
+        }
+        for (const def of DEFAULT_PERMISSIONS) {
+          if (!byKey.has(def.key)) {
+            byKey.set(def.key, { ...def, roles: [...def.roles] })
+          }
+        }
+        return Array.from(byKey.values())
+      }
+
+      const mergeMenuAccess = (incoming: Record<string, UserRole[]> = {}) => {
+        const merged: Record<string, UserRole[]> = { ...DEFAULT_MENU_ACCESS }
+        for (const [k, v] of Object.entries(incoming)) merged[k] = v
+        return merged
+      }
+
       if (s.rolePermissionsConfig) {
         if (s.rolePermissionsConfig.roles?.length)       setRoles(s.rolePermissionsConfig.roles)
-        if (s.rolePermissionsConfig.permissions?.length) setPermissions(s.rolePermissionsConfig.permissions)
+        if (s.rolePermissionsConfig.permissions?.length) setPermissions(mergePermissions(s.rolePermissionsConfig.permissions))
+        else setPermissions(mergePermissions([]))
+      } else {
+        setPermissions(mergePermissions([]))
       }
-      if (s.menuAccessConfig) setMenuAccess(s.menuAccessConfig as Record<string, UserRole[]>)
+      if (s.menuAccessConfig) setMenuAccess(mergeMenuAccess(s.menuAccessConfig as Record<string, UserRole[]>))
+      else setMenuAccess(mergeMenuAccess())
     }).catch(() => {}).finally(() => setLoading(false))
   }, [])
 

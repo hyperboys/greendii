@@ -50,12 +50,12 @@ export default function QuotationsPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ใบเสนอราคา (QO)</h2>
-          <p className="page-sub">รายการใบเสนอราคาทั้งหมด</p>
+          <h2 className="page-title">Quotation</h2>
+          <p className="page-sub">All quotations</p>
         </div>
         {canCreate && (
           <button className="btn-primary" onClick={() => router.push('/quotations/new')}>
-            <Plus size={16} /> สร้างใหม่
+            <Plus size={16} /> Create New
           </button>
         )}
       </div>

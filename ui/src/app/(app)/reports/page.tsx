@@ -36,8 +36,8 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="page-header">
         <div>
-          <h2 className="page-title">รายงาน</h2>
-          <p className="page-sub">ภาพรวมการดำเนินงาน</p>
+          <h2 className="page-title">Reports</h2>
+          <p className="page-sub">Operational Overview</p>
         </div>
       </div>
 
@@ -47,7 +47,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-3">
             <span className="text-3xl">📋</span>
             <div>
-              <p className="font-semibold text-gray-800 group-hover:text-green-700">รายงานสรุปใบเสนอราคา</p>
+              <p className="font-semibold text-gray-800 group-hover:text-green-700">Quotation Summary Report</p>
               <p className="text-xs text-gray-500">Win Rate, Pipeline, Top Customers, Trend</p>
             </div>
           </div>
@@ -56,7 +56,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-3">
             <span className="text-3xl">🔧</span>
             <div>
-              <p className="font-semibold text-gray-800 group-hover:text-blue-700">รายงานใบสั่งงาน</p>
+              <p className="font-semibold text-gray-800 group-hover:text-blue-700">Work Order Report</p>
               <p className="text-xs text-gray-500">Progress, Deadlines, On-Time Rate, Trend</p>
             </div>
           </div>
@@ -65,7 +65,7 @@ export default function ReportsPage() {
           <div className="flex items-center gap-3">
             <span className="text-3xl">🛒</span>
             <div>
-              <p className="font-semibold text-gray-800 group-hover:text-purple-700">รายงานใบขอซื้อ</p>
+              <p className="font-semibold text-gray-800 group-hover:text-purple-700">Purchase Request Report</p>
               <p className="text-xs text-gray-500">Approvals, Spending, PR Types, Trend</p>
             </div>
           </div>
@@ -94,22 +94,22 @@ export default function ReportsPage() {
       {overview && (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <div className="card p-5">
-            <p className="text-sm text-gray-500">ใบเสนอราคาทั้งหมด</p>
+            <p className="text-sm text-gray-500">Total Quotations</p>
             <p className="stat-value text-green-dark">{overview.quotations.total}</p>
-            <p className="stat-label">อนุมัติ {overview.quotations.approved} รายการ</p>
+            <p className="stat-label">Approved {overview.quotations.approved} items</p>
             <p className="text-xs text-gray-400 mt-1">฿{fmtMoney(overview.quotations.grandTotal)}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm text-gray-500">ใบสั่งงานทั้งหมด</p>
+            <p className="text-sm text-gray-500">Total Work Orders</p>
             <p className="stat-value text-blue-600">{overview.workOrders.total}</p>
-            <p className="stat-label">รออนุมัติ {overview.workOrders.pending} รายการ</p>
+            <p className="stat-label">Pending {overview.workOrders.pending} items</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm text-gray-500">ส่งมอบงาน</p>
+            <p className="text-sm text-gray-500">Handed Over Jobs</p>
             <p className="stat-value text-orange-500">{overview.handOverJobs.total}</p>
           </div>
           <div className="card p-5">
-            <p className="text-sm text-gray-500">ใบขอซื้อ</p>
+            <p className="text-sm text-gray-500">Purchase Requests</p>
             <p className="stat-value text-purple-600">{overview.purchaseRequests.total}</p>
           </div>
         </div>
@@ -118,13 +118,13 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales by customer */}
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">ยอดขายตามลูกค้า</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">Sales by Customer</h3>
           {sales.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-6">ไม่มีข้อมูล</p>
+            <p className="text-gray-400 text-sm text-center py-6">No data available</p>
           ) : (
             <table className="data-table">
               <thead>
-                <tr><th>ลูกค้า</th><th className="text-right">จำนวน</th><th className="text-right">ยอดรวม</th></tr>
+                <tr><th>Customer</th><th className="text-right">Count</th><th className="text-right">Total</th></tr>
               </thead>
               <tbody>
                 {sales.map((s, i) => (
@@ -141,13 +141,13 @@ export default function ReportsPage() {
 
         {/* Approval performance */}
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">ประสิทธิภาพการอนุมัติ</h3>
+          <h3 className="font-semibold text-gray-800 mb-4">Approval Performance</h3>
           {perf.length === 0 ? (
-            <p className="text-gray-400 text-sm text-center py-6">ไม่มีข้อมูล</p>
+            <p className="text-gray-400 text-sm text-center py-6">No data available</p>
           ) : (
             <table className="data-table">
               <thead>
-                <tr><th>ชื่อ</th><th>ตำแหน่ง</th><th className="text-right text-green-dark">อนุมัติ</th><th className="text-right text-red-500">ปฏิเสธ</th></tr>
+                <tr><th>Name</th><th>Role</th><th className="text-right text-green-dark">Approved</th><th className="text-right text-red-500">Rejected</th></tr>
               </thead>
               <tbody>
                 {perf.map(p => (
