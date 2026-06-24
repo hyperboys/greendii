@@ -7,7 +7,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getPrFirstStep, getPrNextStep } = require('../lib/approvalFlow');
-const { canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
+const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 
 const prValidators = [
   body('customer').trim().notEmpty().withMessage('กรุณาระบุลูกค้า'),
@@ -59,8 +59,6 @@ router.get('/', authenticate, async (req, res, next) => {
       { customer: { contains: q, mode: 'insensitive' } },
       { projectRef: { contains: q, mode: 'insensitive' } },
     ];
-    if (!canManageAllDocs(req.user.role)) where.salesId = req.user.id;
-
     const listInclude = {
       sales: { select: { id: true, fullName: true } },
       items: true,
@@ -89,7 +87,6 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
-    assertDocAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -102,7 +99,6 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id }, select: { prNo: true, salesId: true } });
-    assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);

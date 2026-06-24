@@ -7,7 +7,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
-const { DOC_MANAGER_ROLES, canManageAllDocs, canDeleteOthersDocs, assertDocAccessible } = require('../lib/roles');
+const { DOC_MANAGER_ROLES, canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 
 const MANAGER_ROLES = DOC_MANAGER_ROLES;
 
@@ -126,8 +126,6 @@ router.get('/', authenticate, async (req, res, next) => {
       { hoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
     ];
-    if (!canManageAllDocs(req.user.role)) where.salesId = req.user.id;
-
     const listInclude = { sales: { select: { id: true, fullName: true } } };
     const pg = getPagination(req.query);
     if (pg) {
@@ -187,7 +185,6 @@ router.get('/:id', authenticate, async (req, res, next) => {
         },
       },
     });
-    assertDocAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -200,7 +197,6 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/handover/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id }, select: { hoNo: true, salesId: true } });
-    assertDocAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.hoNo || 'handover'}.pdf"`);
