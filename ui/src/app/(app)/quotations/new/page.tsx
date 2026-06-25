@@ -565,6 +565,7 @@ export default function NewQuotationPage() {
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr><td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
                 <tr><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block" value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} /></td><td /></tr>
+                <tr><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ยอดรวมหลังหักส่วนลด</td><td className="text-right text-gray-500 pr-2">{fmt(afterDiscount)}</td><td /></tr>
                 <tr>
                   <td colSpan={6} className="text-right text-gray-500 px-2 py-1">
                     <label className="inline-flex items-center gap-2">

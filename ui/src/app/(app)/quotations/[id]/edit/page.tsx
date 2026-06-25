@@ -733,6 +733,13 @@ export default function QuotationFormPage() {
                   <td></td>
                 </tr>
                 <tr className="bg-gray-50">
+                  <td colSpan={6} className="text-right text-gray-500 px-2 py-1">ยอดรวมหลังหักส่วนลด</td>
+                  <td className="text-right text-gray-500 pr-2">
+                    {new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(afterDiscount)}
+                  </td>
+                  <td></td>
+                </tr>
+                <tr className="bg-gray-50">
                   <td colSpan={6} className="text-right text-gray-500 px-2 py-1">
                     <label className="inline-flex items-center gap-2">
                       <input
