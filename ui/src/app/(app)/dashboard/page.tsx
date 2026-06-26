@@ -15,7 +15,7 @@ function fmtMoney(n: number) {
 
 export default function DashboardPage() {
   const { user } = useAuthStore()
-  const { fetchSettings, menuAccessConfig, canViewMenuByPermission } = useSettingsStore()
+  const { fetchSettings, menuAccessConfig } = useSettingsStore()
   const router = useRouter()
   const [overview, setOverview] = useState<ReportOverview | null>(null)
   const [pending, setPending] = useState<PendingApprovals | null>(null)
@@ -36,7 +36,7 @@ export default function DashboardPage() {
   const canSeeMenu = (menuKey: string) => {
     if (!user) return false
     const roles = menuAccessConfig[menuKey]
-    return (!roles || hasRole(user.role, roles)) && canViewMenuByPermission(menuKey, user.role)
+    return !roles || hasRole(user.role, roles)
   }
 
   const canViewQuotations = canSeeMenu('quotations')

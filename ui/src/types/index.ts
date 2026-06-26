@@ -480,7 +480,7 @@ export interface ApprovalLog {
   approverId: string
   approver?: { id: string; fullName: string; role: string; signatureText?: string }
   step: number
-  action: 'approve' | 'reject'
+  action: 'approve' | 'reject' | 'submit'
   comment?: string
   actedAt: string
 }

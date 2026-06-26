@@ -48,7 +48,7 @@ const ADMIN_MENU: NavItem[] = [
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
-  const { menuAccessConfig, canViewMenuByPermission } = useSettingsStore()
+  const { menuAccessConfig } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
   // Persist collapsed state across reloads
@@ -83,16 +83,13 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (!user) return false
     const configRoles = menuAccessConfig[menuKey]
     const roles = configRoles ?? fallbackRoles
-    const allowedByMenuAccess = !roles || hasRole(user.role, roles)
-    return allowedByMenuAccess && canViewMenuByPermission(menuKey, user.role)
+    return !roles || hasRole(user.role, roles)
   }
 
   // Admin menu always uses hardcoded roles (never DB-configurable)
-  const canSee = (roles?: UserRole[], menuKey?: string) => {
+  const canSee = (roles?: UserRole[]) => {
     if (!user) return false
-    const allowedByRole = !roles || hasRole(user.role, roles)
-    const allowedByView = menuKey ? canViewMenuByPermission(menuKey, user.role) : true
-    return allowedByRole && allowedByView
+    return !roles || hasRole(user.role, roles)
   }
 
   return (
@@ -193,7 +190,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         )}
 
         {/* Admin section */}
-        {ADMIN_MENU.some(item => canSee(item.roles, item.href.replace('/admin/', '').replace('/', ''))) && (
+        {ADMIN_MENU.some(item => canSee(item.roles)) && (
           <>
             {!collapsed && (
               <div className="flex items-center gap-2 px-3 pt-4 pb-1">
@@ -202,7 +199,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             )}
-            {ADMIN_MENU.filter(item => canSee(item.roles, item.href.replace('/admin/', '').replace('/', ''))).map(item => {
+            {ADMIN_MENU.filter(item => canSee(item.roles)).map(item => {
               const active = pathname === item.href || (item.href !== '/settings' && item.href !== '/users' && pathname.startsWith(item.href))
               return (
                 <Link

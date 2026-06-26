@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { QuotationsAPI, downloadBlob } from '@/lib/api'
+import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { Quotation, Settings } from '@/types'
@@ -43,6 +43,7 @@ export default function QuotationDetailPage() {
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
+  const [settings, setSettings] = useState<Settings | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
 
   const load = () => {
@@ -54,6 +55,7 @@ export default function QuotationDetailPage() {
   }
 
   useEffect(() => { load() }, [id])
+  useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
   useEffect(() => {
     if (!previewOpen) return
 
