@@ -6,7 +6,7 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getPrFirstStep, getPrNextStep } = require('../lib/approvalFlow');
+const { getPrFirstStep, getPrNextStep, resolvePrFlow } = require('../lib/approvalFlow');
 const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 
 const prValidators = [
@@ -212,11 +212,19 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
 
     const firstStep = await getPrFirstStep(pr.prType?.approvalSteps, pr.sales.role);
-    const newStatus = firstStep === null ? 'approved' : 'pending';
+    let resumeStep = firstStep;
+    if (pr.status === 'rejected') {
+      const steps = await resolvePrFlow(pr.prType?.approvalSteps, pr.sales.role);
+      const currentStep = Number(pr.approvalStep);
+      if (steps.includes(currentStep)) {
+        resumeStep = currentStep;
+      }
+    }
+    const newStatus = resumeStep === null ? 'approved' : 'pending';
 
     const updated = await prisma.purchaseRequest.update({
       where: { id: req.params.id },
-      data: { status: newStatus, approvalStep: firstStep ?? 0 },
+      data: { status: newStatus, approvalStep: resumeStep ?? 0 },
     });
     await prisma.approvalLog.create({
       data: {
@@ -230,7 +238,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       // ทุกขั้นถูกข้าม (ผู้สร้างครอบคลุมสายอนุมัติ) หรือไม่มีขั้นอนุมัติ → อนุมัติทันที
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(firstStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+      await notifyStep(resumeStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -272,16 +280,29 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
     if (pr.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const updated = await prisma.purchaseRequest.update({
-      where: { id: req.params.id },
-      data: { status: 'rejected' },
-    });
-    await prisma.approvalLog.create({
-      data: {
-        docType: 'pr', prId: pr.id,
-        approverId: req.user.id, step: pr.approvalStep,
-        action: 'reject', comment: req.body.comment || '',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.approvalLog.deleteMany({
+        where: {
+          docType: 'pr',
+          prId: pr.id,
+          action: 'approve',
+        },
+      });
+
+      const rejected = await tx.purchaseRequest.update({
+        where: { id: req.params.id },
+        data: { status: 'rejected' },
+      });
+
+      await tx.approvalLog.create({
+        data: {
+          docType: 'pr', prId: pr.id,
+          approverId: req.user.id, step: pr.approvalStep,
+          action: 'reject', comment: req.body.comment || '',
+        },
+      });
+
+      return rejected;
     });
     await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);

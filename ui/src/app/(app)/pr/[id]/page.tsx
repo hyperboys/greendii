@@ -13,6 +13,7 @@ import { normalizeUserRole } from '@/lib/roleAliases'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
+import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -178,28 +179,15 @@ export default function PRDetailPage() {
         </table>
       </div>
 
-      <div className="card p-5 no-print">
-        <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
-        <div className="flex flex-wrap gap-2">
-          {prFlowSteps.map(step => {
-            const role = stepRoleConfig[String(step)]
-            const label = role ? getRoleLabel(role) : `Step ${step}`
-            const log = doc.approvalLogs?.find(l => l.step === step)
-            const isNext = step === currentStep && doc.status === 'pending'
-            return (
-              <div key={step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
-                log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
-                log?.action === 'reject' ? 'bg-red-50 border-red-300 text-red-700' :
-                isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
-                'bg-gray-50 border-gray-200 text-gray-500'
-              }`}>
-                <span className="font-semibold">{label}</span>
-                {log ? <span>{log.action === 'approve' ? '✓' : '✕'}</span> : isNext ? <span>รออนุมัติ</span> : null}
-              </div>
-            )
-          })}
-        </div>
-      </div>
+      <ApprovalFlowSteps
+        title="สายการอนุมัติ"
+        steps={prFlowSteps}
+        currentStep={currentStep}
+        status={doc.status}
+        approvalLogs={doc.approvalLogs}
+        stepRoleConfig={stepRoleConfig}
+        getRoleLabel={getRoleLabel}
+      />
 
       {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3 no-print">

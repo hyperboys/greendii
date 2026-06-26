@@ -4,11 +4,13 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { Quotation } from '@/types'
-import { STATUS_LABELS } from '@/types'
+import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
+import type { Quotation, Settings } from '@/types'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { ArrowLeft, CheckCircle, Trash2, Pencil, Loader2, Eye, X, Download } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -35,6 +37,7 @@ export default function QuotationDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
+  const { stepRoleConfig, getRoleLabel } = useSettingsStore()
   const [doc, setDoc] = useState<Quotation | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -77,6 +80,9 @@ export default function QuotationDetailPage() {
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
 
   const vatIncluded = Number(doc.vat ?? 0) !== 0
+  const quotationFlowSteps = settings?.approvalFlowConfig?.quotation?.length
+    ? settings.approvalFlowConfig.quotation
+    : DEFAULT_APPROVAL_FLOW.quotation
 
   const isMine = doc.salesId === user?.id
   const canEdit = isMine && isEditableApprovalDocStatus(doc.status)
@@ -259,6 +265,16 @@ export default function QuotationDetailPage() {
           </div>
         </div>
       </div>
+
+      <ApprovalFlowSteps
+        title="สายการอนุมัติ"
+        steps={quotationFlowSteps}
+        currentStep={doc.approvalStep}
+        status={doc.status}
+        approvalLogs={doc.approvalLogs}
+        stepRoleConfig={stepRoleConfig}
+        getRoleLabel={getRoleLabel}
+      />
 
 
 

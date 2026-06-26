@@ -3,17 +3,20 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { HandOverJob, Settings } from '@/types'
-import { STATUS_LABELS } from '@/types'
 import HandoverPrint from '@/components/HandoverPrint'
 import { useAuthStore } from '@/store/auth'
+import { useSettingsStore } from '@/store/settings'
 import { ArrowLeft, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
 export default function HandoverDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
+  const { stepRoleConfig, getRoleLabel } = useSettingsStore()
   const [doc, setDoc] = useState<HandOverJob | null>(null)
   const [loading, setLoading] = useState(true)
   const [acting, setActing] = useState(false)
@@ -59,6 +62,9 @@ export default function HandoverDetailPage() {
     : (doc.quotation?.items?.length
         ? doc.quotation.items
         : (doc.workOrder?.quotation?.items || []))
+  const handoverFlowSteps = settings?.approvalFlowConfig?.handover?.length
+    ? settings.approvalFlowConfig.handover
+    : DEFAULT_APPROVAL_FLOW.handover
 
   const actDelete = async () => {
     if (!confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -158,6 +164,16 @@ export default function HandoverDetailPage() {
           </div>
         </div>
       )}
+
+      <ApprovalFlowSteps
+        title="สายการอนุมัติ"
+        steps={handoverFlowSteps}
+        currentStep={doc.approvalStep}
+        status={doc.status}
+        approvalLogs={doc.approvalLogs}
+        stepRoleConfig={stepRoleConfig}
+        getRoleLabel={getRoleLabel}
+      />
 
     </div>
     {previewOpen && (

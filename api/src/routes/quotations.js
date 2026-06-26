@@ -6,7 +6,7 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
+const { getFirstStep, getNextStep, getFlowSteps } = require('../lib/approvalFlow');
 const { canManageAllQuotations, assertQuotationAccessible } = require('../lib/roles');
 
 const quotationValidators = [
@@ -335,11 +335,19 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     assertQuotationAccessible(req, quo);
     if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('quotation');
+    let resumeStep = firstStep;
+    if (quo.status === 'rejected') {
+      const steps = await getFlowSteps('quotation');
+      const currentStep = Number(quo.approvalStep);
+      if (steps.includes(currentStep)) {
+        resumeStep = currentStep;
+      }
+    }
     // If no approval steps configured, auto-approve immediately
-    const autoApprove = firstStep === null;
+    const autoApprove = resumeStep === null;
     const updated = await prisma.quotation.update({
       where: { id: req.params.id },
-      data: { status: autoApprove ? 'approved' : 'pending', approvalStep: firstStep ?? 0 },
+      data: { status: autoApprove ? 'approved' : 'pending', approvalStep: resumeStep ?? 0 },
       include: INCLUDE_FULL,
     });
     await prisma.approvalLog.create({
@@ -351,7 +359,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       },
     });
     if (!autoApprove) {
-      await notifyStep(firstStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+      await notifyStep(resumeStep, `ใบเสนอราคา ${quo.quoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -389,16 +397,29 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (quo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const updated = await prisma.quotation.update({
-      where: { id: req.params.id },
-      data: { status: 'rejected' },
-    });
-    await prisma.approvalLog.create({
-      data: {
-        docType: 'quotation', quotationId: quo.id,
-        approverId: req.user.id, step: quo.approvalStep,
-        action: 'reject', comment: req.body.comment || '',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.approvalLog.deleteMany({
+        where: {
+          docType: 'quotation',
+          quotationId: quo.id,
+          action: 'approve',
+        },
+      });
+
+      const rejected = await tx.quotation.update({
+        where: { id: req.params.id },
+        data: { status: 'rejected' },
+      });
+
+      await tx.approvalLog.create({
+        data: {
+          docType: 'quotation', quotationId: quo.id,
+          approverId: req.user.id, step: quo.approvalStep,
+          action: 'reject', comment: req.body.comment || '',
+        },
+      });
+
+      return rejected;
     });
     await notifyUser(quo.salesId, `ใบเสนอราคา ${quo.quoNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);

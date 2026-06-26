@@ -532,9 +532,20 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   }
 
   function renderBottomSections() {
-    const approvedLogs = [...(doc.approvalLogs ?? [])]
-      .filter(log => log.action === 'approve')
+    const historyLogs = [...(doc.approvalLogs ?? [])]
       .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
+
+    const latestSubmitAt = [...historyLogs]
+      .reverse()
+      .find(log => log.action === 'submit')?.actedAt
+
+    const cycleLogs = latestSubmitAt
+      ? historyLogs.filter(log => new Date(log.actedAt).getTime() >= new Date(latestSubmitAt).getTime())
+      : historyLogs
+
+    const approvedLogs = cycleLogs
+      .filter(log => log.action === 'approve')
+      .sort((a, b) => a.step - b.step || new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
 
     // Keep Sales as document owner, then map approvers by actual approval order.
     const reviewLog = approvedLogs[0]

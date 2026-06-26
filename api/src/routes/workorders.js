@@ -716,9 +716,18 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(wo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('workOrder');
+    let resumeStep = firstStep;
+    if (wo.status === 'rejected') {
+      const steps = await getFlowSteps('workOrder');
+      const currentStep = Number(wo.approvalStep);
+      if (steps.includes(currentStep)) {
+        // Continue from the step that previously rejected the document.
+        resumeStep = currentStep;
+      }
+    }
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: firstStep },
+      data: { status: 'pending', approvalStep: resumeStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -727,7 +736,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+    await notifyStep(resumeStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -771,16 +780,30 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const updated = await prisma.workOrder.update({
-      where: { id: req.params.id },
-      data: { status: 'rejected' },
-    });
-    await prisma.approvalLog.create({
-      data: {
-        docType: 'workorder', workOrderId: wo.id,
-        approverId: req.user.id, step: wo.approvalStep,
-        action: 'reject', comment: req.body.comment || '',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      // Clear completed approval sequence/signatures from the rejected cycle.
+      await tx.approvalLog.deleteMany({
+        where: {
+          docType: 'workorder',
+          workOrderId: wo.id,
+          action: 'approve',
+        },
+      });
+
+      const rejected = await tx.workOrder.update({
+        where: { id: req.params.id },
+        data: { status: 'rejected' },
+      });
+
+      await tx.approvalLog.create({
+        data: {
+          docType: 'workorder', workOrderId: wo.id,
+          approverId: req.user.id, step: wo.approvalStep,
+          action: 'reject', comment: req.body.comment || '',
+        },
+      });
+
+      return rejected;
     });
     await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);

@@ -6,7 +6,7 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep } = require('../lib/approvalFlow');
+const { getFirstStep, getNextStep, getFlowSteps } = require('../lib/approvalFlow');
 const { DOC_MANAGER_ROLES, canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 
 const MANAGER_ROLES = DOC_MANAGER_ROLES;
@@ -313,9 +313,17 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(ho.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('handover');
+    let resumeStep = firstStep;
+    if (ho.status === 'rejected') {
+      const steps = await getFlowSteps('handover');
+      const currentStep = Number(ho.approvalStep);
+      if (steps.includes(currentStep)) {
+        resumeStep = currentStep;
+      }
+    }
     const updated = await prisma.handOverJob.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: firstStep },
+      data: { status: 'pending', approvalStep: resumeStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -324,7 +332,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(firstStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+    await notifyStep(resumeStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -361,16 +369,29 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
-    const updated = await prisma.handOverJob.update({
-      where: { id: req.params.id },
-      data: { status: 'rejected' },
-    });
-    await prisma.approvalLog.create({
-      data: {
-        docType: 'handover', handOverJobId: ho.id,
-        approverId: req.user.id, step: ho.approvalStep,
-        action: 'reject', comment: req.body.comment || '',
-      },
+    const updated = await prisma.$transaction(async (tx) => {
+      await tx.approvalLog.deleteMany({
+        where: {
+          docType: 'handover',
+          handOverJobId: ho.id,
+          action: 'approve',
+        },
+      });
+
+      const rejected = await tx.handOverJob.update({
+        where: { id: req.params.id },
+        data: { status: 'rejected' },
+      });
+
+      await tx.approvalLog.create({
+        data: {
+          docType: 'handover', handOverJobId: ho.id,
+          approverId: req.user.id, step: ho.approvalStep,
+          action: 'reject', comment: req.body.comment || '',
+        },
+      });
+
+      return rejected;
     });
     await notifyUser(ho.salesId, `ใบส่งมอบงาน ${ho.hoNo} ถูกปฏิเสธ`).catch(() => {});
     res.json(updated);
