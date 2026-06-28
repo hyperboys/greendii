@@ -21,6 +21,8 @@ const MENU_VIEW_PERMISSION: Record<string, string> = {
   dashboard: 'dashboard_view',
   quotations: 'quotations_view',
   workorders: 'workorders_view',
+  workorderemail: 'workorder_email_view',
+  'workorder-email': 'workorder_email_view',
   handovers: 'handovers_view',
   pr: 'pr_view',
   approvals: 'approvals_view',
@@ -38,6 +40,8 @@ const MENU_VIEW_PERMISSION: Record<string, string> = {
   'audit-log': 'audit_log_view',
   activitylog: 'activity_log_view',
   'activity-log': 'activity_log_view',
+  emaillog: 'email_log_view',
+  'email-log': 'email_log_view',
   settings: 'settings_view',
 }
 

@@ -3,7 +3,8 @@ import type {
   User, Customer, Product, Unit, PrType, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
-  Attachment, AuditPage, UserRole, ActivityLogPage,
+  Attachment, AuditPage, UserRole, ActivityLogPage, EmailLogPage,
+  WorkOrderEmailCandidate, WorkOrderEmailContext, EmailHistoryEntry,
 } from '@/types'
 
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
@@ -240,6 +241,21 @@ export const WorkOrdersAPI = {
   pdf: (id: string) => http.get(`/workorders/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }
 
+// ─── WORK ORDER EMAILS ───────────────────────────────────────────────────────
+
+export const WorkOrderEmailsAPI = {
+  listApprovedWorkOrders: (params?: { woNo?: string; customerName?: string; dateFrom?: string; dateTo?: string }) =>
+    http.get<WorkOrderEmailCandidate[]>('/workorder-emails/workorders', { params }).then(r => r.data),
+  getContext: (workOrderId: string) =>
+    http.get<WorkOrderEmailContext>(`/workorder-emails/workorders/${workOrderId}/context`).then(r => r.data),
+  history: (params?: { q?: string; customerId?: string; limit?: number }) =>
+    http.get<EmailHistoryEntry[]>('/workorder-emails/history', { params }).then(r => r.data),
+  send: (payload: FormData) =>
+    http.post<{ ok: boolean; message: string; recipientCount: number }>('/workorder-emails/send', payload, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data),
+}
+
 // ─── HAND OVER JOBS ───────────────────────────────────────────────────────────
 
 export const HandoversAPI = {
@@ -333,6 +349,8 @@ export const AdminAPI = {
     http.get<AuditPage>('/audit', { params }).then(r => r.data),
   getActivityLogs: (params?: Record<string, string>) =>
     http.get<ActivityLogPage>('/activity-logs', { params }).then(r => r.data),
+  getEmailLogs: (params?: Record<string, string>) =>
+    http.get<EmailLogPage>('/workorder-emails/logs', { params }).then(r => r.data),
   updateApprovalFlow: (config: Record<string, unknown>) =>
     http.put<Settings>('/settings', { approvalFlowConfig: config }).then(r => r.data),
   updateMenuAccess: (config: Record<string, UserRole[]>) =>

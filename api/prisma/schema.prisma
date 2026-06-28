@@ -66,6 +66,7 @@ model User {
   approvalLogs     ApprovalLog[]
   notifications    Notification[]
   activityLogs     ActivityLog[]
+  sentEmailLogs    EmailLog[]
   customers        Customer[]
   refreshTokens    RefreshToken[]
 
@@ -105,8 +106,26 @@ model Customer {
   updatedAt     DateTime @updatedAt
 
   quotations Quotation[]
+  emailHistory EmailHistory[]
 
   @@map("customers")
+}
+
+model EmailHistory {
+  id         String    @id @default(cuid())
+  email      String
+  name       String?
+  lastUsedAt DateTime  @default(now())
+  useCount   Int       @default(1)
+  customerId String?
+  customer   Customer? @relation(fields: [customerId], references: [id])
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@unique([email, customerId])
+  @@index([customerId])
+  @@index([useCount, lastUsedAt])
+  @@map("email_history")
 }
 
 model Product {
@@ -213,6 +232,7 @@ model Quotation {
   handOverJobs HandOverJob[]
   approvalLogs ApprovalLog[]
   attachments  Attachment[]
+  emailLogs    EmailLog[]
 
   @@map("quotations")
 }
@@ -276,6 +296,7 @@ model WorkOrder {
   purchaseRequests PurchaseRequest[]
   approvalLogs     ApprovalLog[]
   attachments      Attachment[]
+  emailLogs        EmailLog[]
 
   @@map("work_orders")
 }
@@ -313,6 +334,7 @@ model HandOverJob {
 
   attachments  Attachment[]
   approvalLogs ApprovalLog[]
+  emailLogs    EmailLog[]
 
   @@map("hand_over_jobs")
 }
@@ -405,6 +427,38 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@map("notifications")
+}
+
+model EmailLog {
+  id            String     @id @default(cuid())
+  workOrderId   String?
+  workOrder     WorkOrder? @relation(fields: [workOrderId], references: [id])
+  quotationId   String?
+  quotation     Quotation? @relation(fields: [quotationId], references: [id])
+  handOverJobId String?
+  handOverJob   HandOverJob? @relation(fields: [handOverJobId], references: [id])
+  sentById      String
+  sentBy        User       @relation(fields: [sentById], references: [id])
+  toRecipients  Json
+  ccRecipients  Json?
+  bccRecipients Json?
+  subject       String
+  bodyHtml      String
+  bodyText      String?
+  attachments   Json?
+  status        String     @default("sent")
+  errorMessage  String?
+  sentAt        DateTime   @default(now())
+  ipAddress     String?
+  userAgent     String?
+  createdAt     DateTime   @default(now())
+
+  @@index([workOrderId])
+  @@index([quotationId])
+  @@index([handOverJobId])
+  @@index([sentById])
+  @@index([sentAt])
+  @@map("email_logs")
 }
 
 // ─────────────────────────────────────────────

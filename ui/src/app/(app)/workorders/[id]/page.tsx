@@ -45,7 +45,7 @@ export default function WorkOrderDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
-  const { stepRoleConfig, getRoleLabel } = useSettingsStore()
+  const { stepRoleConfig, getRoleLabel, hasPerm } = useSettingsStore()
   const [doc, setDoc] = useState<WorkOrder | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
@@ -125,6 +125,7 @@ export default function WorkOrderDetailPage() {
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
 
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
@@ -182,6 +183,11 @@ export default function WorkOrderDetailPage() {
           <p className="page-sub">{doc.project}</p>
         </div>
         <div className="flex gap-2">
+        {canEmailWorkOrder && (
+          <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/email?woId=${id}`)}>
+            ส่งอีเมล
+          </button>
+        )}
         {canEdit && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/${id}/edit`)}>
             <Pencil size={14} /> แก้ไข

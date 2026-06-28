@@ -38,6 +38,7 @@ export default function WorkOrdersPage() {
   useEffect(() => { load() }, [statusFilter])
 
   const canCreate = hasPerm('wo_create', user?.role ?? '')
+  const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
 
   return (
     <div>
@@ -46,11 +47,18 @@ export default function WorkOrdersPage() {
           <h2 className="page-title">Work Orders</h2>
           <p className="page-sub">รายการใบสั่งงานทั้งหมด</p>
         </div>
-        {canCreate && (
-          <button className="btn-primary" onClick={() => router.push('/workorders/new')}>
-            <Plus size={16} /> สร้างใหม่
-          </button>
-        )}
+        <div className="flex items-center gap-2">
+          {canEmailWorkOrder && (
+            <button className="btn-outline" onClick={() => router.push('/workorders/email')}>
+              ส่งอีเมล WO
+            </button>
+          )}
+          {canCreate && (
+            <button className="btn-primary" onClick={() => router.push('/workorders/new')}>
+              <Plus size={16} /> สร้างใหม่
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="toolbar">

@@ -43,6 +43,7 @@ export const DEFAULT_PERMISSIONS: PermissionDef[] = [
   { key: 'quo_edit',      label: 'แก้ไขใบเสนอราคา',   roles: ['admin','sales','sale_mgr'] },
   { key: 'quo_approve',   label: 'อนุมัติใบเสนอราคา', roles: ['admin','sale_mgr','admin_mgr','project_mgr','director'] },
   { key: 'workorders_view', label: 'ดูใบสั่งงาน',    roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'] },
+  { key: 'workorder_email_view', label: 'ดูเมนูส่งอีเมล Work Order', roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'] },
   { key: 'wo_create',     label: 'สร้างใบสั่งงาน',    roles: ['admin','sales','sale_mgr','admin_mgr'] },
   { key: 'wo_approve',    label: 'อนุมัติใบสั่งงาน',  roles: ['admin','admin_mgr','project_mgr','director'] },
   { key: 'pr_view',       label: 'ดูใบขอซื้อ',       roles: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement'] },
@@ -65,6 +66,7 @@ export const DEFAULT_PERMISSIONS: PermissionDef[] = [
   { key: 'roles_view',          label: 'ดูบทบาท สิทธิ์ และเมนู',    roles: ['admin','director'] },
   { key: 'audit_log_view',      label: 'ดูบันทึกกิจกรรม',           roles: ['admin','admin_mgr','director'] },
   { key: 'activity_log_view',   label: 'ดู Activity Log',           roles: ['admin','director'] },
+  { key: 'email_log_view',      label: 'ดู Email Log',              roles: ['admin','admin_mgr','director'] },
   { key: 'settings_view',       label: 'ดูตั้งค่าระบบ',             roles: ['admin','director'] },
 ]
 
@@ -112,6 +114,7 @@ export const MENU_ITEMS = [
   { key: 'dashboard',  label: 'Dashboard' },
   { key: 'quotations', label: 'ใบเสนอราคา' },
   { key: 'workorders', label: 'ใบสั่งงาน' },
+  { key: 'workorder-email', label: 'ส่งอีเมล WO' },
   { key: 'handovers',  label: 'ส่งมอบงาน' },
   { key: 'pr',         label: 'ใบขอซื้อ' },
   { key: 'approvals',  label: 'รออนุมัติ' },
@@ -125,6 +128,7 @@ export const DEFAULT_MENU_ACCESS: Record<string, UserRole[]> = {
   dashboard:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
   quotations: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'],
   workorders: ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
+  'workorder-email': ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'],
   handovers:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director'],
   pr:         ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement'],
   approvals:  ['admin','sales','sale_mgr','admin_mgr','project_mgr','director','procurement','factory'],
@@ -503,6 +507,63 @@ export interface Attachment {
   category?: string
   fileUrl?: string
   uploadedAt: string
+}
+
+export interface WorkOrderEmailAttachment extends Attachment {
+  sourceType: 'workorder' | 'quotation' | 'handover'
+  sourceDocNo: string
+  sourceLabel: string
+  virtualType?: 'workorder-pdf' | 'quotation-pdf' | 'handover-pdf'
+}
+
+export interface WorkOrderEmailCandidate extends WorkOrder {
+  workflowStatus: 'Approved' | 'Completed'
+}
+
+export interface EmailHistoryEntry {
+  id: string
+  email: string
+  name?: string
+  lastUsedAt: string
+  useCount: number
+  customerId?: string | null
+}
+
+export interface WorkOrderEmailContext {
+  workOrder: WorkOrder
+  customerId?: string | null
+  defaultSubject: string
+  defaultBodyHtml: string
+  attachments: WorkOrderEmailAttachment[]
+}
+
+export interface EmailLogEntry {
+  id: string
+  workOrderId?: string | null
+  workOrder?: { id: string; woNo: string; project: string; customerName: string }
+  quotation?: { id: string; quoNo: string } | null
+  handOverJob?: { id: string; hoNo: string } | null
+  sentById: string
+  sentBy?: { id: string; fullName: string; role: string }
+  toRecipients: string[]
+  ccRecipients?: string[]
+  bccRecipients?: string[]
+  subject: string
+  bodyHtml: string
+  bodyText?: string | null
+  attachments?: Array<{ filename: string; sourceType: string; sourceLabel: string; sourceDocNo: string; generated?: boolean }>
+  status: 'sent' | 'failed' | string
+  errorMessage?: string | null
+  sentAt: string
+  ipAddress?: string | null
+  userAgent?: string | null
+}
+
+export interface EmailLogPage {
+  rows: EmailLogEntry[]
+  total: number
+  page: number
+  limit: number
 }
 
 // ─── NOTIFICATION ────────────────────────────────────────────────────────

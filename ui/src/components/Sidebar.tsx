@@ -17,38 +17,41 @@ interface NavItem {
   href: string
   label: string
   roles?: UserRole[]
+  menuKey?: string
 }
 
 const NAV: NavItem[] = [
-  { href: '/dashboard', label: '📊 Dashboard'  },
-  { href: '/quotations', label: ' 📋 Quotation' },
-  { href: '/workorders', label: ' 🔧 Work Order' },
-  { href: '/handovers', label: ' 🤝 Handover' },
-  { href: '/pr', label: ' 🛒 Purchase Request' },
-  { href: '/approvals', label: ' ✅ Pending Approvals' },
-  { href: '/reports', label: ' 📊 Reports', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/dashboard', label: '📊 Dashboard', menuKey: 'dashboard' },
+  { href: '/quotations', label: ' 📋 Quotation', menuKey: 'quotations' },
+  { href: '/workorders', label: ' 🔧 Work Order', menuKey: 'workorders' },
+  { href: '/workorders/email', label: ' ✉️ ส่งอีเมล WO', menuKey: 'workorder-email', roles: ['admin', 'sales', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/handovers', label: ' 🤝 Handover', menuKey: 'handovers' },
+  { href: '/pr', label: ' 🛒 Purchase Request', menuKey: 'pr' },
+  { href: '/approvals', label: ' ✅ Pending Approvals', menuKey: 'approvals' },
+  { href: '/reports', label: ' 📊 Reports', menuKey: 'reports', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
 ]
 
 const MASTER: NavItem[] = [
-  { href: '/customers', label: '👥 Customers', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/products', label: '📦 Products', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
-  { href: '/units', label: '📏 Units', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'] },
+  { href: '/customers', label: '👥 Customers', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'customers' },
+  { href: '/products', label: '📦 Products', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'products' },
+  { href: '/units', label: '📏 Units', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'units' },
 ]
 
 const ADMIN_MENU: NavItem[] = [
-  { href: '/users',                label: '👤 Users',                  roles: ['admin', 'admin_mgr', 'director'] },
-  { href: '/admin/approval-flow',  label: '🏢 Approval Flow',            roles: ['admin', 'director'] },
-  { href: '/admin/pr-types',       label: '🛒 PR Types',           roles: ['admin', 'director'] },
-  { href: '/admin/roles',          label: '🔒 Roles & Permissions',         roles: ['admin', 'director'] },
-  { href: '/admin/audit-log',      label: '📜 Audit Log',            roles: ['admin', 'admin_mgr', 'director'] },
-  { href: '/admin/activity-log',   label: '📋 Activity Log',              roles: ['admin', 'director'] },
-  { href: '/settings',             label: '⚙️ System Settings',               roles: ['admin', 'director'] },
+  { href: '/users',                label: '👤 Users', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'users' },
+  { href: '/admin/approval-flow',  label: '🏢 Approval Flow', roles: ['admin', 'director'], menuKey: 'approval-flow' },
+  { href: '/admin/pr-types',       label: '🛒 PR Types', roles: ['admin', 'director'], menuKey: 'pr-types' },
+  { href: '/admin/roles',          label: '🔒 Roles & Permissions', roles: ['admin', 'director'], menuKey: 'roles' },
+  { href: '/admin/audit-log',      label: '📜 Audit Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'audit-log' },
+  { href: '/admin/activity-log',   label: '📋 Activity Log', roles: ['admin', 'director'], menuKey: 'activity-log' },
+  { href: '/admin/email-log',      label: '📧 Email Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'email-log' },
+  { href: '/settings',             label: '⚙️ System Settings', roles: ['admin', 'director'], menuKey: 'settings' },
 ]
 
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const pathname = usePathname()
   const { user, logout } = useAuthStore()
-  const { menuAccessConfig } = useSettingsStore()
+  const { menuAccessConfig, canViewMenuByPermission } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
 
   // Persist collapsed state across reloads
@@ -83,13 +86,14 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
     if (!user) return false
     const configRoles = menuAccessConfig[menuKey]
     const roles = configRoles ?? fallbackRoles
-    return !roles || hasRole(user.role, roles)
+    const allowedByRole = !roles || hasRole(user.role, roles)
+    const allowedByPermission = canViewMenuByPermission(menuKey, user.role)
+    return allowedByRole && allowedByPermission
   }
 
-  // Admin menu always uses hardcoded roles (never DB-configurable)
-  const canSee = (roles?: UserRole[]) => {
+  const canSeeAdminMenu = (menuKey: string, roles?: UserRole[]) => {
     if (!user) return false
-    return !roles || hasRole(user.role, roles)
+    return (!roles || hasRole(user.role, roles)) && canViewMenuByPermission(menuKey, user.role)
   }
 
   return (
@@ -149,7 +153,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
             <div className="h-px flex-1 bg-white/10" />
           </div>
         )}
-        {NAV.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
+        {NAV.filter(item => canSeeMenu(item.menuKey || item.href.replace('/', ''), item.roles)).map(item => {
           const active = pathname.startsWith(item.href)
           return (
             <Link
@@ -164,7 +168,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         })}
 
         {/* Master Data section */}
-        {MASTER.some(item => canSeeMenu(item.href.replace('/', ''), item.roles)) && (
+        {MASTER.some(item => canSeeMenu(item.menuKey || item.href.replace('/', ''), item.roles)) && (
           <>
             {!collapsed && (
               <div className="flex items-center gap-2 px-3 pt-4 pb-1">
@@ -173,7 +177,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             )}
-            {MASTER.filter(item => canSeeMenu(item.href.replace('/', ''), item.roles)).map(item => {
+            {MASTER.filter(item => canSeeMenu(item.menuKey || item.href.replace('/', ''), item.roles)).map(item => {
               const active = pathname.startsWith(item.href)
               return (
                 <Link
@@ -190,7 +194,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
         )}
 
         {/* Admin section */}
-        {ADMIN_MENU.some(item => canSee(item.roles)) && (
+        {ADMIN_MENU.some(item => canSeeAdminMenu(item.menuKey || item.href.replace('/', ''), item.roles)) && (
           <>
             {!collapsed && (
               <div className="flex items-center gap-2 px-3 pt-4 pb-1">
@@ -199,7 +203,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                 <div className="h-px flex-1 bg-white/10" />
               </div>
             )}
-            {ADMIN_MENU.filter(item => canSee(item.roles)).map(item => {
+            {ADMIN_MENU.filter(item => canSeeAdminMenu(item.menuKey || item.href.replace('/', ''), item.roles)).map(item => {
               const active = pathname === item.href || (item.href !== '/settings' && item.href !== '/users' && pathname.startsWith(item.href))
               return (
                 <Link
