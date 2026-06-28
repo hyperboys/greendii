@@ -83,6 +83,14 @@ function parseSelectedAttachmentIds(raw) {
   return parseArrayField(raw).map(v => String(v || '').trim()).filter(Boolean);
 }
 
+function normalizeRecipientsArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(v => extractEmail(v))
+    .filter(Boolean)
+    .filter((v, i, arr) => arr.indexOf(v) === i);
+}
+
 function isPrismaUniqueError(err) {
   return err && typeof err === 'object' && err.code === 'P2002';
 }
@@ -318,6 +326,41 @@ async function createEmailLog({ req, workOrder, to, cc, bcc, subject, bodyHtml, 
   });
 }
 
+async function resolveCustomerIdForWorkOrder(workOrderId) {
+  if (!workOrderId) return null;
+  const workOrder = await prisma.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: { quotation: { select: { customerId: true } } },
+  });
+  return workOrder?.quotation?.customerId || null;
+}
+
+function isHistorySyncPendingMessage(message) {
+  return String(message || '').includes('email_history sync failed');
+}
+
+async function resyncHistoryByEmailLog(log) {
+  const to = normalizeRecipientsArray(log.toRecipients);
+  const cc = normalizeRecipientsArray(log.ccRecipients);
+  const bcc = normalizeRecipientsArray(log.bccRecipients);
+  const recipients = [...new Set([...to, ...cc, ...bcc])];
+  if (recipients.length === 0) {
+    const error = new Error('ไม่พบผู้รับอีเมลสำหรับ re-sync');
+    error.status = 400;
+    throw error;
+  }
+
+  const customerId = await resolveCustomerIdForWorkOrder(log.workOrderId);
+  await retry(() => updateEmailHistory(recipients, customerId), HISTORY_RETRY);
+
+  await prisma.emailLog.update({
+    where: { id: log.id },
+    data: { errorMessage: null },
+  });
+
+  return recipients.length;
+}
+
 // GET /api/workorder-emails/workorders
 router.get('/workorders', authenticate, async (req, res, next) => {
   try {
@@ -370,11 +413,11 @@ router.get('/workorders/:id/context', authenticate, async (req, res, next) => {
     const { workOrder, attachments, customerId } = await getRelatedAttachments(req.params.id);
     assertDocAccessible(req, workOrder);
 
-    const defaultSubject = `Work Order #${workOrder.woNo} - ${workOrder.customerName}`;
+    const defaultSubject = `Work Order #${workOrder.woNo} - ${workOrder.project}`;
     const defaultBodyHtml = [
-      `<p>เรียน ${workOrder.contactName || workOrder.customerName},</p>`,
-      `<p>ทางบริษัทขอส่งเอกสารสำหรับงาน <strong>${workOrder.project}</strong> เลขที่ Work Order <strong>${workOrder.woNo}</strong> มาเพื่อทราบและดำเนินการต่อครับ/ค่ะ</p>`,
-      '<ul><li>ตรวจสอบรายละเอียดเอกสารแนบ</li><li>หากมีข้อสงสัยสามารถติดต่อทีมงานได้ทันที</li></ul>',
+      '<p>เรียนทีมงาน,</p>',
+      `<p>ขอส่งเอกสารภายในสำหรับงาน <strong>${workOrder.project}</strong> เลขที่ Work Order <strong>${workOrder.woNo}</strong> เพื่อดำเนินการต่อครับ/ค่ะ</p>`,
+      '<ul><li>ตรวจสอบรายละเอียดเอกสารแนบ</li><li>อัปเดตสถานะงานในระบบหลังดำเนินการ</li></ul>',
       '<p>ขอบคุณครับ/ค่ะ</p>',
     ].join('');
 
@@ -481,6 +524,82 @@ router.get('/logs', authenticate, requireRole(...ADMIN_ROLES), async (req, res, 
     ]);
 
     res.json({ rows, total, page: Number(page), limit: Number(limit) });
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorder-emails/logs/:id/resync-history
+router.post('/logs/:id/resync-history', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const log = await prisma.emailLog.findUnique({
+      where: { id: req.params.id },
+      select: {
+        id: true,
+        workOrderId: true,
+        toRecipients: true,
+        ccRecipients: true,
+        bccRecipients: true,
+      },
+    });
+
+    if (!log) return res.status(404).json({ message: 'ไม่พบ Email Log' });
+
+    const recipientCount = await resyncHistoryByEmailLog(log);
+
+    res.json({ ok: true, logId: log.id, recipients: recipientCount, historySynced: true });
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorder-emails/logs/resync-history
+router.post('/logs/resync-history', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
+  try {
+    const ids = Array.isArray(req.body?.ids)
+      ? req.body.ids.map(v => String(v || '').trim()).filter(Boolean)
+      : [];
+    const limit = Math.min(Math.max(Number(req.body?.limit) || 50, 1), 200);
+
+    const where = ids.length
+      ? { id: { in: ids } }
+      : {
+          status: 'sent',
+          errorMessage: { contains: 'email_history sync failed', mode: 'insensitive' },
+        };
+
+    const logs = await prisma.emailLog.findMany({
+      where,
+      select: {
+        id: true,
+        workOrderId: true,
+        toRecipients: true,
+        ccRecipients: true,
+        bccRecipients: true,
+        errorMessage: true,
+      },
+      orderBy: { sentAt: 'desc' },
+      take: ids.length ? undefined : limit,
+    });
+
+    let synced = 0;
+    const failures = [];
+    for (const log of logs) {
+      if (!ids.length && !isHistorySyncPendingMessage(log.errorMessage)) continue;
+      try {
+        await resyncHistoryByEmailLog(log);
+        synced += 1;
+      } catch (err) {
+        failures.push({
+          id: log.id,
+          message: err?.message || 'resync failed',
+        });
+      }
+    }
+
+    res.json({
+      ok: true,
+      total: logs.length,
+      synced,
+      failed: failures.length,
+      failures,
+    });
   } catch (e) { next(e); }
 });
 

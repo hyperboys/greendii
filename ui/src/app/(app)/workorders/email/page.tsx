@@ -140,6 +140,9 @@ export default function WorkOrderEmailPage() {
     try {
       const result = await WorkOrderEmailsAPI.send(fd)
       toast.success(`${result.message} (${result.recipientCount} ผู้รับ)`)
+      if (result.historySynced === false) {
+        toast.error('ส่งเมลสำเร็จ แต่บันทึก Email History ไม่สมบูรณ์ (สามารถ Re-sync ได้จาก Email Log)')
+      }
       setToEmails([])
       setCcEmails([])
       setBccEmails([])
@@ -162,7 +165,7 @@ export default function WorkOrderEmailPage() {
           </button>
           <div>
             <h2 className="page-title">ส่งอีเมล Work Order</h2>
-            <p className="page-sub">เลือก Work Order ที่อนุมัติแล้ว แล้วส่งอีเมลพร้อมไฟล์แนบให้ลูกค้า</p>
+            <p className="page-sub">เลือก Work Order ที่อนุมัติแล้ว แล้วส่งอีเมลพร้อมไฟล์แนบให้ทีมงานภายใน</p>
           </div>
         </div>
         <button className="btn-outline" onClick={loadWorkOrders}>
@@ -190,8 +193,8 @@ export default function WorkOrderEmailPage() {
               <thead>
                 <tr>
                   <th>WO No.</th>
-                  <th>ลูกค้า</th>
                   <th>โครงการ</th>
+                  <th>ฝ่ายขาย</th>
                   <th>สถานะ</th>
                 </tr>
               </thead>
@@ -207,8 +210,8 @@ export default function WorkOrderEmailPage() {
                     className={`cursor-pointer ${selectedWorkOrderId === row.id ? 'bg-green-pale/40' : ''}`}
                   >
                     <td className="font-mono text-xs font-semibold text-blue-700">{row.woNo}</td>
-                    <td>{row.customerName}</td>
                     <td className="max-w-[240px] truncate">{row.project}</td>
+                    <td>{row.sales?.fullName || '-'}</td>
                     <td>
                       <span className={`badge ${row.workflowStatus === 'Completed' ? 'badge-approved' : 'badge-pending'}`}>
                         {row.workflowStatus}

@@ -251,7 +251,7 @@ export const WorkOrderEmailsAPI = {
   history: (params?: { q?: string; customerId?: string; limit?: number }) =>
     http.get<EmailHistoryEntry[]>('/workorder-emails/history', { params }).then(r => r.data),
   send: (payload: FormData) =>
-    http.post<{ ok: boolean; message: string; recipientCount: number }>('/workorder-emails/send', payload, {
+    http.post<{ ok: boolean; message: string; recipientCount: number; historySynced?: boolean }>('/workorder-emails/send', payload, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data),
 }
@@ -351,6 +351,13 @@ export const AdminAPI = {
     http.get<ActivityLogPage>('/activity-logs', { params }).then(r => r.data),
   getEmailLogs: (params?: Record<string, string>) =>
     http.get<EmailLogPage>('/workorder-emails/logs', { params }).then(r => r.data),
+  resyncEmailHistory: (logId: string) =>
+    http.post<{ ok: boolean; logId: string; recipients: number; historySynced: boolean }>(`/workorder-emails/logs/${logId}/resync-history`, {}).then(r => r.data),
+  bulkResyncEmailHistory: (ids?: string[], limit?: number) =>
+    http.post<{ ok: boolean; total: number; synced: number; failed: number; failures: Array<{ id: string; message: string }> }>(
+      '/workorder-emails/logs/resync-history',
+      { ids, limit }
+    ).then(r => r.data),
   updateApprovalFlow: (config: Record<string, unknown>) =>
     http.put<Settings>('/settings', { approvalFlowConfig: config }).then(r => r.data),
   updateMenuAccess: (config: Record<string, UserRole[]>) =>

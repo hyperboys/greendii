@@ -19,6 +19,8 @@ export default function EmailLogPage() {
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [syncingLogId, setSyncingLogId] = useState<string | null>(null)
+  const [syncingAll, setSyncingAll] = useState(false)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const [status, setStatus] = useState('')
@@ -61,6 +63,10 @@ export default function EmailLogPage() {
   }, [canView, load, router])
 
   const totalPages = useMemo(() => Math.max(1, Math.ceil(total / LIMIT)), [total])
+  const pendingSyncRows = useMemo(
+    () => rows.filter(row => row.status === 'sent' && row.errorMessage?.includes('email_history sync failed')),
+    [rows],
+  )
 
   if (!canView) return null
 
@@ -71,9 +77,35 @@ export default function EmailLogPage() {
           <h2 className="page-title">Email Log</h2>
           <p className="page-sub">ประวัติการส่งอีเมล Work Order พร้อม Audit Trail</p>
         </div>
-        <button className="btn-outline btn-sm" onClick={() => load(page)}>
-          <RefreshCw size={14} /> รีเฟรช
-        </button>
+        <div className="flex items-center gap-2">
+          {pendingSyncRows.length > 0 && (
+            <button
+              className="btn-outline btn-sm"
+              disabled={syncingAll}
+              onClick={async () => {
+                setSyncingAll(true)
+                try {
+                  const ids = pendingSyncRows.map(r => r.id)
+                  const result = await AdminAPI.bulkResyncEmailHistory(ids)
+                  toast.success(`Re-sync แล้ว ${result.synced}/${result.total} รายการ`)
+                  if (result.failed > 0) {
+                    toast.error(`ยังเหลือที่ไม่สำเร็จ ${result.failed} รายการ`)
+                  }
+                  await load(page)
+                } catch {
+                  toast.error('Re-sync แบบกลุ่มไม่สำเร็จ')
+                } finally {
+                  setSyncingAll(false)
+                }
+              }}
+            >
+              {syncingAll ? 'กำลัง Re-sync ทั้งหมด...' : `Re-sync ที่ค้าง (${pendingSyncRows.length})`}
+            </button>
+          )}
+          <button className="btn-outline btn-sm" onClick={() => load(page)}>
+            <RefreshCw size={14} /> รีเฟรช
+          </button>
+        </div>
       </div>
 
       <div className="toolbar flex-wrap gap-2">
@@ -124,6 +156,7 @@ export default function EmailLogPage() {
                 <tr><td colSpan={7} className="text-center py-10 text-gray-400">ไม่พบข้อมูล</td></tr>
               ) : rows.map((row) => {
                 const isExpanded = expandedId === row.id
+                const historyPending = row.status === 'sent' && row.errorMessage?.includes('email_history sync failed')
                 return (
                   <Fragment key={row.id}>
                     <tr key={row.id} className={row.status === 'failed' ? 'bg-red-50/50' : ''}>
@@ -136,9 +169,16 @@ export default function EmailLogPage() {
                       <td className="text-sm">{row.sentBy?.fullName || row.sentById}</td>
                       <td className="text-xs">{(row.toRecipients || []).slice(0, 2).join(', ')}{(row.toRecipients || []).length > 2 ? ` +${(row.toRecipients || []).length - 2}` : ''}</td>
                       <td>
-                        <span className={`badge ${row.status === 'sent' ? 'badge-approved' : 'badge-rejected'}`}>
-                          {row.status === 'sent' ? 'sent' : 'failed'}
-                        </span>
+                        <div className="flex flex-wrap gap-1">
+                          <span className={`badge ${row.status === 'sent' ? 'badge-approved' : 'badge-rejected'}`}>
+                            {row.status === 'sent' ? 'sent' : 'failed'}
+                          </span>
+                          {row.status === 'sent' && (
+                            <span className={`badge ${historyPending ? 'badge-rejected' : 'badge-approved'}`}>
+                              {historyPending ? 'History Pending' : 'History Synced'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td>
                         <button className="btn-outline btn-sm" onClick={() => setExpandedId(isExpanded ? null : row.id)}>
@@ -157,6 +197,28 @@ export default function EmailLogPage() {
                             <div><span className="font-medium">Handover:</span> {row.handOverJob?.hoNo || '-'}</div>
                             <div><span className="font-medium">IP:</span> {row.ipAddress || '-'} | <span className="font-medium">UA:</span> {row.userAgent || '-'}</div>
                             {row.errorMessage && <div className="text-red-600"><span className="font-medium">Error:</span> {row.errorMessage}</div>}
+                            {row.errorMessage?.includes('email_history sync failed') && (
+                              <div>
+                                <button
+                                  className="btn-outline btn-sm"
+                                  disabled={syncingLogId === row.id}
+                                  onClick={async () => {
+                                    setSyncingLogId(row.id)
+                                    try {
+                                      const result = await AdminAPI.resyncEmailHistory(row.id)
+                                      toast.success(`Re-sync สำเร็จ (${result.recipients} recipients)`)
+                                      await load(page)
+                                    } catch {
+                                      toast.error('Re-sync ไม่สำเร็จ')
+                                    } finally {
+                                      setSyncingLogId(null)
+                                    }
+                                  }}
+                                >
+                                  {syncingLogId === row.id ? 'กำลัง Re-sync...' : 'Re-sync Email History'}
+                                </button>
+                              </div>
+                            )}
                             <div>
                               <span className="font-medium">Attachments:</span>
                               <ul className="list-disc ml-5 mt-1">
