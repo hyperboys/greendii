@@ -10,6 +10,7 @@ const { assertDocAccessible, canManageAllDocs } = require('../lib/roles');
 
 const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 const GENERATED_PREFIX = 'generated:';
+const HISTORY_RETRY = 2;
 
 const upload = multer({
   storage: multer.memoryStorage(),
@@ -80,6 +81,23 @@ function getRequesterIp(req) {
 
 function parseSelectedAttachmentIds(raw) {
   return parseArrayField(raw).map(v => String(v || '').trim()).filter(Boolean);
+}
+
+function isPrismaUniqueError(err) {
+  return err && typeof err === 'object' && err.code === 'P2002';
+}
+
+async function retry(fn, attempts = 2) {
+  let lastError;
+  for (let i = 0; i <= attempts; i += 1) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (i === attempts) throw err;
+    }
+  }
+  throw lastError;
 }
 
 function buildGeneratedAttachments(workOrder) {
@@ -192,14 +210,26 @@ async function updateEmailHistory(recipients, customerId) {
       });
 
       if (updated.count === 0) {
-        await prisma.emailHistory.create({
-          data: {
-            email,
-            customerId: null,
-            lastUsedAt: now,
-            useCount: 1,
-          },
-        });
+        try {
+          await prisma.emailHistory.create({
+            data: {
+              email,
+              customerId: null,
+              lastUsedAt: now,
+              useCount: 1,
+            },
+          });
+        } catch (err) {
+          // Concurrent create may win first. In that case just increment.
+          if (!isPrismaUniqueError(err)) throw err;
+          await prisma.emailHistory.updateMany({
+            where: { email, customerId: null },
+            data: {
+              lastUsedAt: now,
+              useCount: { increment: 1 },
+            },
+          });
+        }
       }
     })
   );
@@ -515,37 +545,26 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
     };
 
     const allRecipients = [...new Set([...to, ...cc, ...bcc])];
+    const attachmentAudit = [
+      ...selectedAttachments.map(att => ({
+        id: att.id,
+        filename: att.originalName,
+        sourceType: att.sourceType,
+        sourceLabel: att.sourceLabel,
+        sourceDocNo: att.sourceDocNo,
+        generated: att.id.startsWith(GENERATED_PREFIX),
+      })),
+      ...uploadedAttachments.map(f => ({
+        filename: f.filename,
+        sourceType: 'extra',
+        sourceLabel: 'Extra Upload',
+        sourceDocNo: '-',
+        generated: false,
+      })),
+    ];
+
     try {
       await mailer.sendMail(payload);
-      await updateEmailHistory(allRecipients, customerId);
-      await createEmailLog({
-        req,
-        workOrder,
-        to,
-        cc,
-        bcc,
-        subject,
-        bodyHtml,
-        bodyText: toPlainText(bodyHtml),
-        selectedAttachments: [
-          ...selectedAttachments.map(att => ({
-            id: att.id,
-            filename: att.originalName,
-            sourceType: att.sourceType,
-            sourceLabel: att.sourceLabel,
-            sourceDocNo: att.sourceDocNo,
-            generated: att.id.startsWith(GENERATED_PREFIX),
-          })),
-          ...uploadedAttachments.map(f => ({
-            filename: f.filename,
-            sourceType: 'extra',
-            sourceLabel: 'Extra Upload',
-            sourceDocNo: '-',
-            generated: false,
-          })),
-        ],
-        status: 'sent',
-      });
     } catch (sendError) {
       await createEmailLog({
         req,
@@ -556,25 +575,43 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
         subject,
         bodyHtml,
         bodyText: toPlainText(bodyHtml),
-        selectedAttachments: selectedAttachments.map(att => ({
-          id: att.id,
-          filename: att.originalName,
-          sourceType: att.sourceType,
-          sourceLabel: att.sourceLabel,
-          sourceDocNo: att.sourceDocNo,
-          generated: att.id.startsWith(GENERATED_PREFIX),
-        })),
+        selectedAttachments: attachmentAudit,
         status: 'failed',
         errorMessage: sendError?.message || 'send email failed',
       }).catch(() => {});
       throw sendError;
     }
 
+    let historySynced = true;
+    try {
+      await retry(() => updateEmailHistory(allRecipients, customerId), HISTORY_RETRY);
+    } catch (historyError) {
+      historySynced = false;
+      console.warn('[workorder-email] history update failed:', historyError?.message || historyError);
+    }
+
+    createEmailLog({
+      req,
+      workOrder,
+      to,
+      cc,
+      bcc,
+      subject,
+      bodyHtml,
+      bodyText: toPlainText(bodyHtml),
+      selectedAttachments: attachmentAudit,
+      status: 'sent',
+      errorMessage: historySynced ? null : 'email sent, but email_history sync failed',
+    }).catch((logErr) => {
+      console.warn('[workorder-email] sent log write failed:', logErr?.message || logErr);
+    });
+
     res.json({
       ok: true,
       message: 'ส่งอีเมลสำเร็จ',
       workOrderId,
       recipientCount: allRecipients.length,
+      historySynced,
     });
   } catch (e) { next(e); }
 });
