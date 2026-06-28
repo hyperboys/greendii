@@ -50,12 +50,12 @@ export default function WorkOrdersPage() {
         <div className="flex items-center gap-2">
           {canEmailWorkOrder && (
             <button className="btn-outline" onClick={() => router.push('/workorders/email')}>
-              ส่งอีเมล WO
+              Send email work orders
             </button>
           )}
           {canCreate && (
             <button className="btn-primary" onClick={() => router.push('/workorders/new')}>
-              <Plus size={16} /> สร้างใหม่
+              <Plus size={16} /> Create New
             </button>
           )}
         </div>
