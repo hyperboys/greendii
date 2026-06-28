@@ -158,6 +158,7 @@ export default function WorkOrderEmailPage() {
   if (!canViewMenu) return null
 
   return (
+    <>
     <div className="space-y-5">
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
@@ -356,5 +357,6 @@ export default function WorkOrderEmailPage() {
         </div>
       </div>
     )}
+    </>
   )
 }
