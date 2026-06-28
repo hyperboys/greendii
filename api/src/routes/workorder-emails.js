@@ -162,19 +162,45 @@ function getMailer() {
 async function updateEmailHistory(recipients, customerId) {
   await Promise.all(
     recipients.map(async (email) => {
-      await prisma.emailHistory.upsert({
-        where: { email_customerId: { email, customerId: customerId || null } },
-        create: {
-          email,
-          customerId: customerId || null,
-          lastUsedAt: new Date(),
-          useCount: 1,
-        },
-        update: {
-          lastUsedAt: new Date(),
+      const now = new Date();
+      const normalizedCustomerId = customerId || null;
+
+      if (normalizedCustomerId) {
+        await prisma.emailHistory.upsert({
+          where: { email_customerId: { email, customerId: normalizedCustomerId } },
+          create: {
+            email,
+            customerId: normalizedCustomerId,
+            lastUsedAt: now,
+            useCount: 1,
+          },
+          update: {
+            lastUsedAt: now,
+            useCount: { increment: 1 },
+          },
+        });
+        return;
+      }
+
+      // Prisma composite upsert cannot use null in unique input.
+      const updated = await prisma.emailHistory.updateMany({
+        where: { email, customerId: null },
+        data: {
+          lastUsedAt: now,
           useCount: { increment: 1 },
         },
       });
+
+      if (updated.count === 0) {
+        await prisma.emailHistory.create({
+          data: {
+            email,
+            customerId: null,
+            lastUsedAt: now,
+            useCount: 1,
+          },
+        });
+      }
     })
   );
 }
