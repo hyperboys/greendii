@@ -2,12 +2,13 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
 import toast from 'react-hot-toast'
-import { ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Loader2, RefreshCw, Search } from 'lucide-react'
 import { AdminAPI } from '@/lib/api'
 import type { EmailLogEntry } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import { useRouter } from 'next/navigation'
+import DateInput from '@/components/DateInput'
 
 const LIMIT = 40
 
@@ -115,8 +116,8 @@ export default function EmailLogPage() {
           <option value="failed">ส่งไม่สำเร็จ</option>
         </select>
 
-        <input className="form-input w-40" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <input className="form-input w-40" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <DateInput className="w-40" value={dateFrom} onChange={setDateFrom} />
+        <DateInput className="w-40" value={dateTo} onChange={setDateTo} />
 
         <form
           className="flex gap-1 ml-auto"
@@ -251,6 +252,19 @@ export default function EmailLogPage() {
           </div>
         )}
       </div>
+      {(syncingAll || !!syncingLogId) && (
+        <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex items-center justify-center px-4">
+          <div className="card p-5 w-full max-w-sm text-center space-y-3">
+            <div className="flex items-center justify-center text-green-dark">
+              <Loader2 size={24} className="animate-spin" />
+            </div>
+            <h4 className="font-semibold text-gray-800">
+              {syncingAll ? 'กำลัง Re-sync รายการที่ค้าง...' : 'กำลัง Re-sync Email History...'}
+            </h4>
+            <p className="text-sm text-gray-500">กรุณารอสักครู่ ระบบกำลังอัปเดตประวัติอีเมล</p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

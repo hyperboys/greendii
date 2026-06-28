@@ -3,11 +3,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Mail, Paperclip, Search, Send, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Loader2, Mail, Paperclip, Search, Send, Trash2, Upload } from 'lucide-react'
 import { WorkOrderEmailsAPI } from '@/lib/api'
 import type { WorkOrderEmailAttachment, WorkOrderEmailCandidate, WorkOrderEmailContext } from '@/types'
 import EmailChipInput from '@/components/EmailChipInput'
 import SimpleRichTextEditor from '@/components/SimpleRichTextEditor'
+import DateInput from '@/components/DateInput'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 
@@ -164,7 +165,7 @@ export default function WorkOrderEmailPage() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h2 className="page-title">ส่งอีเมล Work Order</h2>
+            <h2 className="page-title">Send email work orders</h2>
             <p className="page-sub">เลือก Work Order ที่อนุมัติแล้ว แล้วส่งอีเมลพร้อมไฟล์แนบให้ทีมงานภายใน</p>
           </div>
         </div>
@@ -176,8 +177,8 @@ export default function WorkOrderEmailPage() {
       <div className="card p-4 grid grid-cols-1 md:grid-cols-5 gap-3">
         <input className="form-input" placeholder="เลขที่ WO" value={woNo} onChange={e => setWoNo(e.target.value)} />
         <input className="form-input" placeholder="ชื่อลูกค้า" value={customerName} onChange={e => setCustomerName(e.target.value)} />
-        <input className="form-input" type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)} />
-        <input className="form-input" type="date" value={dateTo} onChange={e => setDateTo(e.target.value)} />
+        <DateInput value={dateFrom} onChange={setDateFrom} />
+        <DateInput value={dateTo} onChange={setDateTo} />
         <button className="btn-primary" onClick={loadWorkOrders}>
           <Search size={14} /> ค้นหา
         </button>
@@ -344,5 +345,16 @@ export default function WorkOrderEmailPage() {
         </div>
       </div>
     </div>
+    {sending && (
+      <div className="fixed inset-0 z-50 bg-black/30 backdrop-blur-[1px] flex items-center justify-center px-4">
+        <div className="card p-5 w-full max-w-sm text-center space-y-3">
+          <div className="flex items-center justify-center text-green-dark">
+            <Loader2 size={24} className="animate-spin" />
+          </div>
+          <h4 className="font-semibold text-gray-800">กำลังส่งอีเมล...</h4>
+          <p className="text-sm text-gray-500">กรุณารอสักครู่ ระบบกำลังแนบไฟล์และส่งอีเมล</p>
+        </div>
+      </div>
+    )}
   )
 }

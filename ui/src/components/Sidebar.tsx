@@ -24,7 +24,7 @@ const NAV: NavItem[] = [
   { href: '/dashboard', label: '📊 Dashboard', menuKey: 'dashboard' },
   { href: '/quotations', label: ' 📋 Quotation', menuKey: 'quotations' },
   { href: '/workorders', label: ' 🔧 Work Order', menuKey: 'workorders' },
-  { href: '/workorders/email', label: ' ✉️ ส่งอีเมล WO', menuKey: 'workorder-email', roles: ['admin', 'sales', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/workorders/email', label: ' ✉️ Send email work orders', menuKey: 'workorder-email', roles: ['admin', 'sales', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
   { href: '/handovers', label: ' 🤝 Handover', menuKey: 'handovers' },
   { href: '/pr', label: ' 🛒 Purchase Request', menuKey: 'pr' },
   { href: '/approvals', label: ' ✅ Pending Approvals', menuKey: 'approvals' },
