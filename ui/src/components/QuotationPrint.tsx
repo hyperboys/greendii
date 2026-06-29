@@ -43,6 +43,14 @@ interface Props {
 }
 
 type Item = Quotation['items'][number]
+type DetailRow = {
+  desc?: string
+  qty?: number
+  unit?: string
+  materialPrice?: number
+  labourPrice?: number
+  amount?: number
+}
 
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
@@ -89,6 +97,19 @@ function splitAddressLines(address?: string, maxLines: number = 3): string[] {
   return result
 }
 
+function normalizeDetailRows(raw: unknown): DetailRow[] {
+  if (Array.isArray(raw)) return raw as DetailRow[]
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? (parsed as DetailRow[]) : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
 function itemWeight(it: Item): number {
   // 1 base row for the item line itself.
   // Non-empty note lines cost ~1 row; intentionally blank note lines cost less,
@@ -97,11 +118,22 @@ function itemWeight(it: Item): number {
   const noteLines = splitDescriptionLines(it.note)
   const nonEmptyNoteLines = noteLines.filter(Boolean).length
   const blankNoteLines = noteLines.length - nonEmptyNoteLines
+  const detailRows = normalizeDetailRows(it.detailRows)
+  const detailRowsWeight = detailRows.reduce((sum, row) => {
+    const hasDesc = Boolean(String(row?.desc ?? '').trim())
+    const hasCalc =
+      Number(row?.qty ?? 0) !== 0 ||
+      Boolean(String(row?.unit ?? '').trim()) ||
+      Number(row?.materialPrice ?? 0) !== 0 ||
+      Number(row?.labourPrice ?? 0) !== 0
+    return sum + (hasDesc ? 0.5 : 0) + (hasCalc ? 0.4 : 0)
+  }, 0)
 
   return (
     1 +
     nonEmptyNoteLines * 0.6 +
     blankNoteLines * 0.3 +
+    detailRowsWeight +
     (Array.isArray(it.images) ? it.images.length * 3 : 0)
   )
 }
@@ -260,7 +292,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   const headerMeasRef = useRef<HTMLDivElement>(null)
   const theadMeasRef = useRef<HTMLTableSectionElement>(null)
   const tailMeasRef = useRef<HTMLDivElement>(null)
-  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
   const readyRef = useRef(false)
   const fallbackRef = useRef<PageChunk[] | null>(null)
 
@@ -317,7 +348,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         const hHeader = headerMeasRef.current?.getBoundingClientRect().height ?? 0
         const hThead = theadMeasRef.current?.getBoundingClientRect().height ?? 0
         const hTail = tailMeasRef.current?.getBoundingClientRect().height ?? 0
-        const heights = doc.items.map((_, i) => rowRefs.current[i]?.getBoundingClientRect().height ?? 0)
+        const heights = doc.items.map((_, i) => {
+          if (!container) return 0
+          const rows = Array.from(container.querySelectorAll(`tr[data-measure-item=\"${i}\"]`))
+          return rows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0)
+        })
         // Conservative gaps account for inter-block margins so content never clips.
         const HEADER_GAP = 12
         const SAFETY = 10
@@ -502,34 +537,22 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     )
   }
 
-  function renderItemRow(item: Item | null, displaySeq: number, key: number, _isLastItem: boolean = false, rowRef?: (el: HTMLTableRowElement | null) => void) {
+  function renderItemRows(item: Item | null, displaySeq: number, key: number, measureIndex?: number) {
     const baseTd: React.CSSProperties = { ...tdS }
+    const detailRows = normalizeDetailRows(item?.detailRows)
     return (
-      <tr key={key} ref={rowRef}>
+      <>
+      <tr key={key} data-measure-item={measureIndex}>
         <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item ? displaySeq : ''}
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
-            {item && splitDescriptionLines(item.note).map((line, idx) => (
-              <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
-                {line || '\u00A0'}
-              </span>
-            ))}
-            {item?.detailRows?.map((row, idx) => {
-              const rowTotal = Number(row.amount ?? 0)
-              return (
-                <span key={idx} style={{ color: '#555', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
-                  {row.desc || `รายละเอียด ${idx + 1}`}
-                  {row.qty || row.unit || row.materialPrice || row.labourPrice ? (
-                    <>
-                      {' '}
-                      ({fmtQty(Number(row.qty || 0))}{row.unit ? ` ${row.unit}` : ''} × {fmtAmt(Number(row.materialPrice || 0) + Number(row.labourPrice || 0))} = {fmtAmt(rowTotal)})
-                    </>
-                  ) : null}
-                </span>
-              )
-            })}
+          {item && splitDescriptionLines(item.note).map((line, idx) => (
+            <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
+              {line || '\u00A0'}
+            </span>
+          ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
             <div
               style={{
@@ -583,6 +606,35 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           {item ? fmtAmtBlankZero(item.amount) : ''}
         </td>
       </tr>
+      {detailRows.map((row, idx) => {
+        const detailQty = Number(row.qty || 0)
+        const detailUnit = String(row.unit || '').trim()
+        const material = Number(row.materialPrice || 0)
+        const labour = Number(row.labourPrice || 0)
+        const rowTotal = Number(row.amount ?? (detailQty * (material + labour)))
+        const detailTd: React.CSSProperties = {
+          ...tdS,
+          fontFamily: 'var(--font-thai)',
+          fontSize: fpt(10),
+          color: '#666',
+          paddingTop: '2px',
+          paddingBottom: '2px',
+          lineHeight: 1.08,
+          backgroundColor: '#fafafa',
+        }
+        return (
+          <tr key={`${key}-detail-${idx}`} data-measure-item={measureIndex}>
+            <td style={{ ...detailTd, textAlign: 'center' }} />
+            <td style={{ ...detailTd }}>{row.desc || `รายละเอียด ${idx + 1}`}</td>
+            <td style={{ ...detailTd, textAlign: 'center' }}>{detailQty ? fmtQty(detailQty) : ''}</td>
+            <td style={{ ...detailTd, textAlign: 'center' }}>{detailUnit || ''}</td>
+            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(material)}</td>
+            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(labour)}</td>
+            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(rowTotal)}</td>
+          </tr>
+        )
+      })}
+      </>
     )
   }
 
@@ -647,8 +699,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           {chunk.items.map((item, i) => {
             const globalIndex = itemOffset + i
             const displaySeq = (item.seq !== undefined ? item.seq + 1 : globalIndex + 1)
-            const isLastActual = i === chunk.items.length - 1
-            return renderItemRow(item, displaySeq, i, isLastActual)
+            return renderItemRows(item, displaySeq, globalIndex)
           })}
           {renderFlexibleFillerRow(chunk.items.length)}
         </tbody>
@@ -830,12 +881,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           <thead ref={theadMeasRef}>{itemsHeadRows()}</thead>
           <tbody>
             {doc.items.map((item, i) =>
-              renderItemRow(
+              renderItemRows(
                 item,
                 item.seq !== undefined ? item.seq + 1 : i + 1,
                 i,
-                false,
-                (el) => { rowRefs.current[i] = el },
+                i,
               ),
             )}
           </tbody>

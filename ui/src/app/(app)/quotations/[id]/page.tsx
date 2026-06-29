@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
@@ -21,6 +21,26 @@ function splitDescriptionLines(note?: string): string[] {
     .split('\n')
     .map(v => v.trim())
     .filter(Boolean)
+}
+
+function normalizeDetailRows(raw: unknown): Array<{
+  desc?: string
+  qty?: number
+  unit?: string
+  materialPrice?: number
+  labourPrice?: number
+  amount?: number
+}> {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
 }
 
 function fmtLeadTime(v?: string): string {
@@ -215,31 +235,57 @@ export default function QuotationDetailPage() {
                 </tr>
               </thead>
               <tbody>
-                {doc.items.map((item, i) => (
-                  <tr key={item.id ?? i} className="border-t border-gray-100 align-top">
-                    <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
-                    <td className="py-2 px-3 break-words">
-                      <div className="font-medium text-gray-800">{item.desc}</div>
-                      {splitDescriptionLines(item.note).map((line, idx) => (
-                        <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
-                      ))}
-                      {item.detailRows?.map((row, idx) => (
-                        <p key={idx} className="text-xs text-gray-500 mt-0.5">
-                          {row.desc || `รายละเอียด ${idx + 1}`}
-                          {' '}
-                          {row.qty || row.unit || row.materialPrice || row.labourPrice ?
-                            `(${new Intl.NumberFormat('th-TH', { maximumFractionDigits: 3 }).format(Number(row.qty || 0))}${row.unit ? ` ${row.unit}` : ''} × ${fmtMoney(Number(row.materialPrice || 0) + Number(row.labourPrice || 0))} = ${fmtMoney(Number(row.amount || 0))})`
-                            : ''}
-                        </p>
-                      ))}
-                    </td>
-                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>
-                    <td className="py-2.5 px-3 pt-3.5">{item.unit}</td>
-                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.materialPrice ?? item.price)}</td>
-                    <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.labourPrice ?? 0)}</td>
-                    <td className="py-2.5 px-3 text-right font-medium pt-3.5">{fmtMoney(item.amount)}</td>
-                  </tr>
-                ))}
+                {doc.items.map((item, i) => {
+                  const detailRows = normalizeDetailRows(item.detailRows)
+                  return (
+                    <Fragment key={item.id ?? i}>
+                      <tr className="border-t border-gray-100 align-top">
+                        <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
+                        <td className="py-2 px-3 break-words">
+                          <div className="font-medium text-gray-800">{item.desc}</div>
+                          {splitDescriptionLines(item.note).map((line, idx) => (
+                            <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
+                          ))}
+                        </td>
+                        <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>
+                        <td className="py-2.5 px-3 pt-3.5">{item.unit}</td>
+                        <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.materialPrice ?? item.price)}</td>
+                        <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.labourPrice ?? 0)}</td>
+                        <td className="py-2.5 px-3 text-right font-medium pt-3.5">{fmtMoney(item.amount)}</td>
+                      </tr>
+                      {detailRows.map((row, idx) => {
+                        const detailQty = Number(row.qty || 0)
+                        const detailUnit = String(row.unit || '').trim()
+                        const material = Number(row.materialPrice || 0)
+                        const labour = Number(row.labourPrice || 0)
+                        const amount = Number(row.amount ?? (detailQty * (material + labour)))
+                        return (
+                          <tr key={`${item.id ?? i}-detail-${idx}`} className="align-top border-t border-gray-50 bg-gray-50/60">
+                            <td className="px-3 py-1" />
+                            <td className="px-3 py-1 text-[11px] text-gray-600 break-words">
+                              {row.desc || `รายละเอียด ${idx + 1}`}
+                            </td>
+                            <td className="px-3 py-1 text-right text-[11px] text-gray-600">
+                              {detailQty ? new Intl.NumberFormat('th-TH', { maximumFractionDigits: 3 }).format(detailQty) : ''}
+                            </td>
+                            <td className="px-3 py-1 text-[11px] text-gray-600">
+                              {detailUnit || ''}
+                            </td>
+                            <td className="px-3 py-1 text-right text-[11px] text-gray-600">
+                              {material ? fmtMoney(material) : ''}
+                            </td>
+                            <td className="px-3 py-1 text-right text-[11px] text-gray-600">
+                              {labour ? fmtMoney(labour) : ''}
+                            </td>
+                            <td className="px-3 py-1 text-right text-[11px] text-gray-600">
+                              {amount ? fmtMoney(amount) : ''}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </Fragment>
+                  )
+                })}
               </tbody>
               <tfoot className="bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr className="bg-gray-50">

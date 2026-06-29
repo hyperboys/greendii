@@ -92,7 +92,7 @@ async function nextQuotationBaseNoForUser(user) {
     prisma.quotation.findMany({
       where: {
         salesId: user.id,
-        quoNo: { contains: `-${initials}` },
+        quoNo: { contains: `-${yy}-${initials}` },
       },
       select: { quoNo: true },
     }),
