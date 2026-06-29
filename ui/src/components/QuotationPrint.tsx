@@ -615,12 +615,12 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         const detailTd: React.CSSProperties = {
           ...tdS,
           fontFamily: 'var(--font-thai)',
-          fontSize: fpt(10),
-          color: '#666',
+          fontSize: fpt(11.5),
+          color: '#444',
           paddingTop: '2px',
           paddingBottom: '2px',
-          lineHeight: 1.08,
-          backgroundColor: '#fafafa',
+          lineHeight: 1.18,
+          backgroundColor: '#fff',
         }
         return (
           <tr key={`${key}-detail-${idx}`} data-measure-item={measureIndex}>
