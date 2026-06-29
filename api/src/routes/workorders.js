@@ -24,8 +24,8 @@ const workOrderValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
   body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
   body('handOverJobId').optional({ nullable: true }).isString().withMessage('รูปแบบ handOverJobId ไม่ถูกต้อง'),
-  body('qcDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
-  body('installDate').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('qcDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('installDate').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
   body('items').optional().isArray().withMessage('items ต้องเป็น array'),
 ];
 
