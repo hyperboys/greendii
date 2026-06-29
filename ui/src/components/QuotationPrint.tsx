@@ -615,11 +615,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         const detailTd: React.CSSProperties = {
           ...tdS,
           fontFamily: 'var(--font-thai)',
-          fontSize: fpt(11.5),
-          color: '#444',
+          fontSize: fpt(12),
+          color: '#000',
           paddingTop: '2px',
           paddingBottom: '2px',
-          lineHeight: 1.18,
+          lineHeight: 1.1,
           backgroundColor: '#fff',
         }
         return (
