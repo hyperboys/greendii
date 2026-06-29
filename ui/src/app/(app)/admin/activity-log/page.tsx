@@ -14,6 +14,22 @@ const METHOD_COLORS: Record<string, string> = {
   DELETE: 'bg-red-100 text-red-700',
 }
 
+function parsePathMeta(value: string) {
+  const src = String(value || '')
+  const ridMatch = src.match(/\[rid:([^\]]+)\]/)
+  const errMatch = src.match(/\[err:([^\]]+)\]/)
+  let cleanPath = src
+    .replace(/\s*\[rid:[^\]]+\]/g, '')
+    .replace(/\s*\[err:[^\]]+\]/g, '')
+    .trim()
+  if (!cleanPath) cleanPath = '-'
+  return {
+    cleanPath,
+    requestId: ridMatch?.[1] || null,
+    errorSummary: errMatch?.[1] || null,
+  }
+}
+
 function statusBadge(code: number) {
   if (code < 300) return 'bg-green-100 text-green-700'
   if (code < 400) return 'bg-blue-100 text-blue-700'
@@ -146,6 +162,8 @@ export default function ActivityLogPage() {
                 <th>Method</th>
                 <th>Path</th>
                 <th>Status</th>
+                <th>Request ID</th>
+                <th>สาเหตุ</th>
                 <th className="text-right">ใช้เวลา (ms)</th>
                 <th>IP Address</th>
               </tr>
@@ -153,13 +171,15 @@ export default function ActivityLogPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-gray-400">กำลังโหลด…</td>
+                  <td colSpan={10} className="text-center py-10 text-gray-400">กำลังโหลด…</td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td>
+                  <td colSpan={10} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td>
                 </tr>
-              ) : rows.map(row => (
+              ) : rows.map(row => {
+                const meta = parsePathMeta(row.path)
+                return (
                 <tr key={row.id} className={row.statusCode >= 400 ? 'bg-red-50/40' : ''}>
                   <td className="whitespace-nowrap text-xs text-gray-500">
                     {new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium' })}
@@ -181,12 +201,18 @@ export default function ActivityLogPage() {
                     </span>
                   </td>
                   <td className="font-mono text-xs text-gray-700 max-w-xs truncate" title={row.path}>
-                    {row.path}
+                    {meta.cleanPath}
                   </td>
                   <td>
                     <span className={`badge text-xs font-mono ${statusBadge(row.statusCode)}`}>
                       {row.statusCode}
                     </span>
+                  </td>
+                  <td className="font-mono text-[11px] text-gray-500 max-w-[180px] truncate" title={meta.requestId || ''}>
+                    {meta.requestId ?? '—'}
+                  </td>
+                  <td className="text-xs text-red-700 max-w-xs truncate" title={meta.errorSummary || ''}>
+                    {meta.errorSummary ?? '—'}
                   </td>
                   <td className="text-right text-xs font-mono text-gray-500">
                     <span className={row.durationMs > 2000 ? 'text-red-600 font-semibold' : ''}>
@@ -195,7 +221,8 @@ export default function ActivityLogPage() {
                   </td>
                   <td className="text-xs text-gray-400 font-mono">{row.ipAddress ?? '—'}</td>
                 </tr>
-              ))}
+                )
+              })}
             </tbody>
           </table>
         </div>

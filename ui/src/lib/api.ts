@@ -110,7 +110,28 @@ http.interceptors.response.use(
       }
     }
 
-    return Promise.reject(err.response?.data?.message || err.message || 'Request failed')
+    const data = err.response?.data
+    const requestId = data?.requestId
+    const fieldErrors = Array.isArray(data?.errors)
+      ? data.errors
+          .map((e: { field?: string; message?: string }) => `${e.field || 'field'}: ${e.message || 'invalid'}`)
+          .join(', ')
+      : ''
+
+    const baseMessage = (typeof data?.message === 'string' && data.message.trim())
+      ? data.message.trim()
+      : (err.message || 'Request failed')
+
+    const hasFieldErrorsAlready = fieldErrors && baseMessage.includes(fieldErrors)
+    const withFieldErrors = fieldErrors && !hasFieldErrorsAlready
+      ? `${baseMessage} (${fieldErrors})`
+      : baseMessage
+
+    const finalMessage = requestId
+      ? `${withFieldErrors} [Request ID: ${requestId}]`
+      : withFieldErrors
+
+    return Promise.reject(finalMessage)
   }
 )
 

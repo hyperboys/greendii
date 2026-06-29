@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const { randomUUID } = require('crypto');
 const path = require('path');
 const fs = require('fs');
 const YAML = require('yamljs');
@@ -66,6 +67,13 @@ app.use(express.json({
   verify: (req, _res, buf) => { req.rawBody = buf; },
 }));
 app.use(express.urlencoded({ extended: true }));
+
+// Correlation id for tracing one request across UI/API/logs.
+app.use((req, res, next) => {
+  req.requestId = randomUUID();
+  res.setHeader('X-Request-Id', req.requestId);
+  next();
+});
 
 // ─── HTTP ACCESS LOGGING (Morgan) ───────────────────────────────────────────
 const logsDir = path.join(__dirname, '..', 'logs');

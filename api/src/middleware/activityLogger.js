@@ -13,13 +13,23 @@ function activityLogger(req, res, next) {
   const start = Date.now();
 
   res.on('finish', () => {
-    const path = req.path;
+    const requestPath = req.originalUrl || req.path;
 
     // Skip non-API and noisy paths
-    if (SKIP_PATHS.includes(path)) return;
-    if (SKIP_PREFIXES.some(p => path.startsWith(p))) return;
+    if (SKIP_PATHS.includes(requestPath)) return;
+    if (SKIP_PREFIXES.some(p => requestPath.startsWith(p))) return;
 
     const durationMs = Date.now() - start;
+    const requestId = req.requestId;
+    const errorSummary =
+      res.statusCode >= 400 && res.locals.activityErrorMessage
+        ? String(res.locals.activityErrorMessage).replace(/\s+/g, ' ').slice(0, 200)
+        : '';
+    const pathWithMeta = [
+      requestPath,
+      requestId ? `[rid:${requestId}]` : '',
+      errorSummary ? `[err:${errorSummary}]` : '',
+    ].filter(Boolean).join(' ');
 
     // Fire-and-forget — do NOT await
     prisma.activityLog.create({
@@ -27,7 +37,7 @@ function activityLogger(req, res, next) {
         userId:     req.user?.id     ?? null,
         username:   req.user?.username ?? null,
         method:     req.method,
-        path,
+        path: pathWithMeta,
         statusCode: res.statusCode,
         ipAddress:  req.ip ?? null,
         userAgent:  (req.get('User-Agent') ?? '').slice(0, 512) || null,

@@ -9,8 +9,9 @@ function validate(req, res, next) {
   const result = validationResult(req);
   if (result.isEmpty()) return next();
   const errors = result.array().map((e) => ({ field: e.path, message: e.msg }));
+  const detail = errors.map((e) => `${e.field}: ${e.message}`).join(', ');
   return res.status(400).json({
-    message: 'ข้อมูลไม่ถูกต้อง',
+    message: detail ? `ข้อมูลไม่ถูกต้อง: ${detail}` : 'ข้อมูลไม่ถูกต้อง',
     errors,
   });
 }

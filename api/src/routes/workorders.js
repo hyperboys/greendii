@@ -602,7 +602,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       }
 
       if (!projectValue || !customerNameValue) {
-        const error = new Error('project and customerName required')
+        const error = new Error('กรุณาระบุข้อมูลลูกค้าและโครงการให้ครบถ้วน')
         error.status = 400
         throw error
       }
