@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { toPlainColoredLine } from '@/lib/coloredText'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { HandOverJob, Settings } from '@/types'
 import HandoverPrint from '@/components/HandoverPrint'
@@ -149,7 +150,7 @@ export default function HandoverDetailPage() {
           <div className="space-y-4">
             {quotationItems.map((item, idx) => (
               <div key={`${item.seq ?? idx}-${idx}`} className="border border-gray-200 rounded-lg p-3">
-                <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {item.desc}</div>
+                <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {toPlainColoredLine(item.desc)}</div>
                 <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
                 {item.images && item.images.length > 0 && (
                   <div className="flex flex-wrap gap-2">

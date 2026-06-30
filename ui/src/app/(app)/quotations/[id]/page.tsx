@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
+import { parseColoredLine, parseColoredMultiline } from '@/lib/coloredText'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { Quotation, Settings } from '@/types'
 import { useAuthStore } from '@/store/auth'
@@ -16,11 +17,10 @@ function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
-function splitDescriptionLines(note?: string): string[] {
-  return (note ?? '')
-    .split('\n')
-    .map(v => v.trim())
-    .filter(Boolean)
+function splitDescriptionLines(note?: string) {
+  return parseColoredMultiline(note)
+    .map(line => ({ ...line, text: line.text.trim() }))
+    .filter(line => line.text)
 }
 
 function normalizeDetailRows(raw: unknown): Array<{
@@ -237,15 +237,16 @@ export default function QuotationDetailPage() {
               </thead>
               <tbody>
                 {doc.items.map((item, i) => {
+                  const descLine = parseColoredLine(item.desc)
                   const detailRows = normalizeDetailRows(item.detailRows)
                   return (
                     <Fragment key={item.id ?? i}>
                       <tr className="border-t border-gray-100 align-top">
                         <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
                         <td className="py-2 px-3 break-words">
-                          <div className="font-medium text-gray-800">{item.desc}</div>
+                          <div className="font-medium" style={{ color: descLine.color || '#1f2937' }}>{descLine.text}</div>
                           {splitDescriptionLines(item.note).map((line, idx) => (
-                            <p key={idx} className="text-xs text-gray-400 mt-0.5">{line}</p>
+                            <p key={idx} className="text-xs mt-0.5" style={{ color: line.color || '#9ca3af' }}>{line.text}</p>
                           ))}
                         </td>
                         <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>
@@ -255,6 +256,7 @@ export default function QuotationDetailPage() {
                         <td className="py-2.5 px-3 text-right font-medium pt-3.5">{fmtMoney(item.amount)}</td>
                       </tr>
                       {detailRows.map((row, idx) => {
+                        const detailDesc = parseColoredLine(row.desc)
                         const detailQty = Number(row.qty || 0)
                         const detailUnit = String(row.unit || '').trim()
                         const material = Number(row.materialPrice || 0)
@@ -264,7 +266,7 @@ export default function QuotationDetailPage() {
                           <tr key={`${item.id ?? i}-detail-${idx}`} className="align-top border-t border-gray-50 bg-gray-50/60">
                             <td className="px-3 py-1" />
                             <td className="px-3 py-1 text-[11px] text-gray-600 break-words">
-                              {row.desc || `รายละเอียด ${idx + 1}`}
+                              <span style={{ color: detailDesc.color || '#4b5563' }}>{detailDesc.text || `รายละเอียด ${idx + 1}`}</span>
                             </td>
                             <td className="px-3 py-1 text-right text-[11px] text-gray-600">
                               {detailQty ? new Intl.NumberFormat('th-TH', { maximumFractionDigits: 3 }).format(detailQty) : ''}

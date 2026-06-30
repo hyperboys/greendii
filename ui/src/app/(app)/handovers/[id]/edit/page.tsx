@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, QuotationsAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 import type { HandOverItem, Quotation, Unit } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -69,8 +70,8 @@ export default function EditHandoverPage() {
           : (doc.quotation?.items?.length
               ? doc.quotation.items.map((item, index) => ({
                   seq: item.seq ?? index,
-                  desc: item.desc ?? '',
-                  note: item.note ?? '',
+                  desc: toPlainColoredLine(item.desc),
+                  note: toPlainColoredMultiline(item.note),
                   qty: Number(item.qty ?? 0),
                   unit: item.unit ?? '',
                   images: Array.isArray(item.images) ? item.images : [],
@@ -78,8 +79,8 @@ export default function EditHandoverPage() {
               : (doc.workOrder?.quotation?.items?.length
                   ? doc.workOrder.quotation.items.map((item, index) => ({
                       seq: item.seq ?? index,
-                      desc: item.desc ?? '',
-                      note: item.note ?? '',
+                      desc: toPlainColoredLine(item.desc),
+                      note: toPlainColoredMultiline(item.note),
                       qty: Number(item.qty ?? 0),
                       unit: item.unit ?? '',
                       images: Array.isArray(item.images) ? item.images : [],
@@ -222,12 +223,12 @@ export default function EditHandoverPage() {
               project: q?.project ?? f.project,
               contactName: q?.attn ?? f.contactName,
               contactTel: q?.tel ?? f.contactTel,
-              product: q?.items?.map(item => item.desc).join('\n') ?? f.product,
+              product: q?.items?.map(item => toPlainColoredLine(item.desc)).join('\n') ?? f.product,
               items: q?.items?.length
                 ? q.items.map((item, index) => ({
                     seq: item.seq ?? index,
-                    desc: item.desc ?? '',
-                    note: item.note ?? '',
+                    desc: toPlainColoredLine(item.desc),
+                    note: toPlainColoredMultiline(item.note),
                     qty: Number(item.qty ?? 0),
                     unit: item.unit ?? '',
                     images: Array.isArray(item.images) ? item.images : [],

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { parseColoredLine, parseColoredMultiline } from '@/lib/coloredText'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -22,7 +23,6 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
-const MIN_ROWS = 3
 // Row-weight pack capacities. 1 weight ≈ 1 main row at ~7mm.
 // A4 portrait content area: 297mm − 6mm top − 10mm bottom = 281mm.
 // Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 85mm.
@@ -52,11 +52,9 @@ type DetailRow = {
   amount?: number
 }
 
-function splitDescriptionLines(note?: string): string[] {
-  if (note == null) return []
-  const lines = note.split('\n').map(v => v.trim())
-  // Keep intentionally added blank rows, but avoid rendering the default single empty row.
-  if (lines.length === 1 && lines[0] === '') return []
+function splitDescriptionLines(note?: string) {
+  const lines = parseColoredMultiline(note)
+  if (lines.length === 1 && lines[0].text.trim() === '') return []
   return lines
 }
 
@@ -116,7 +114,7 @@ function itemWeight(it: Item): number {
   // so users can add visual spacing without forcing an early page break.
   // +3 per image (30mm-wide image renders ~20–25mm tall ≈ 3 rows of ~7mm).
   const noteLines = splitDescriptionLines(it.note)
-  const nonEmptyNoteLines = noteLines.filter(Boolean).length
+  const nonEmptyNoteLines = noteLines.filter(line => line.text.trim().length > 0).length
   const blankNoteLines = noteLines.length - nonEmptyNoteLines
   const detailRows = normalizeDetailRows(it.detailRows)
   const detailRowsWeight = detailRows.reduce((sum, row) => {
@@ -265,7 +263,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
   const taxId = settings?.taxId || '0135549009942'
   const tel = settings?.tel || '+662 150 7694-5'
-  const website = settings?.website || 'www.greendiicompany.com'
   const email = doc.sales?.email || settings?.email || 'admin2gd@greendii.com'
   const salesHp = doc.sales?.phone?.trim()
   const addressTh = '98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120 โทร. +662 150 7694-5'
@@ -540,6 +537,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   function renderItemRows(item: Item | null, displaySeq: number, key: number, measureIndex?: number) {
     const baseTd: React.CSSProperties = { ...tdS }
     const detailRows = normalizeDetailRows(item?.detailRows)
+    const descLine = parseColoredLine(item?.desc)
     return (
       <>
       <tr key={key} data-measure-item={measureIndex}>
@@ -547,10 +545,10 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           {item ? displaySeq : ''}
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
-          <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
+          <span style={{ fontWeight: 'bold', color: descLine.color || '#000' }}>{item ? descLine.text : ''}</span>
           {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#000', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
-              {line || '\u00A0'}
+            <span key={idx} style={{ color: line.color || '#000', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
+              {line.text || '\u00A0'}
             </span>
           ))}
           {item && Array.isArray(item.images) && item.images.length > 0 && (
@@ -607,6 +605,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </td>
       </tr>
       {detailRows.map((row, idx) => {
+        const detailDesc = parseColoredLine(row.desc)
         const detailQty = Number(row.qty || 0)
         const detailUnit = String(row.unit || '').trim()
         const material = Number(row.materialPrice || 0)
@@ -625,7 +624,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         return (
           <tr key={`${key}-detail-${idx}`} data-measure-item={measureIndex}>
             <td style={{ ...detailTd, textAlign: 'center' }} />
-            <td style={{ ...detailTd }}>{row.desc || `รายละเอียด ${idx + 1}`}</td>
+            <td style={{ ...detailTd, color: detailDesc.color || '#000' }}>{detailDesc.text || `รายละเอียด ${idx + 1}`}</td>
             <td style={{ ...detailTd, textAlign: 'center' }}>{detailQty ? fmtQty(detailQty) : ''}</td>
             <td style={{ ...detailTd, textAlign: 'center' }}>{detailUnit || ''}</td>
             <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(material)}</td>

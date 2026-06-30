@@ -1,4 +1,5 @@
 import type { QuotationItem, WorkOrder, WorkOrderItem } from '@/types'
+import { toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 
 export const createEmptyWorkOrderItem = (seq: number): WorkOrderItem => ({
   seq,
@@ -22,8 +23,8 @@ export function mapQuotationItemsToWorkOrderItems(items?: QuotationItem[] | null
   if (!Array.isArray(items) || items.length === 0) return []
   return items.map((item, index) => ({
     seq: item.seq ?? index,
-    desc: item.desc ?? '',
-    note: item.note ?? '',
+    desc: toPlainColoredLine(item.desc),
+    note: toPlainColoredMultiline(item.note),
     qty: Number(item.qty ?? 0),
     unit: item.unit ?? '',
     images: Array.isArray(item.images) ? item.images : [],

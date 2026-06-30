@@ -1,9 +1,11 @@
 'use client'
 
-import { Fragment, useEffect, useState, useCallback } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
+import { parseColoredLine, parseColoredMultiline, stringifyColoredLine, stringifyColoredMultiline, toPlainColoredMultiline } from '@/lib/coloredText'
+import QuickColorPicker from '@/components/QuickColorPicker'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
@@ -44,6 +46,7 @@ const PAYMENT_TERM_OPTIONS = ['เงินสด', 'เครดิต'] as con
 const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'] as const
 const CUSTOM_PAYMENT_TERM = '__custom_payment_term__'
 const CUSTOM_LEAD_TIME = '__custom_lead_time__'
+const DEFAULT_LINE_COLOR = '#000000'
 
 const getSelectValue = (value: string, options: readonly string[], customValue: string) => {
   if (!value) return ''
@@ -56,14 +59,6 @@ const getLeadTimeDays = (value: string): string => {
   const match = trimmed.match(/^(\d+)(?:\s*(?:วัน|days?))?$/i)
   return match ? match[1] : ''
 }
-
-const parseDescLines = (note?: string): string[] => {
-  if (!note) return []
-  return String(note).split('\n')
-}
-
-const stringifyDescLines = (lines: string[]): string =>
-  lines.map(line => String(line ?? '').trimEnd()).join('\n').trim()
 
 const calcLinePrice = (row: Pick<QuotationItem | QuotationItemDetail, 'materialPrice' | 'labourPrice'>) =>
   Number(row.materialPrice) + Number(row.labourPrice)
@@ -87,12 +82,19 @@ const normalizeItem = (item: QuotationItem): QuotationItem => {
     ? item.detailRows.map(normalizeDetailRow)
     : [emptyDetailRow()]
   const normalized = { ...item, detailRows }
+  normalized.desc = String(normalized.desc || '')
+  normalized.note = String(normalized.note || '')
   normalized.qty = Number(normalized.qty) || 0
   normalized.materialPrice = Number(normalized.materialPrice) || 0
   normalized.labourPrice = Number(normalized.labourPrice) || 0
   normalized.price = calcLinePrice(normalized)
   normalized.amount = (Number(normalized.qty) * normalized.price) + detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
   return normalized
+}
+
+const getNoteLines = (note?: string) => {
+  const lines = parseColoredMultiline(note)
+  return lines.length > 0 ? lines : [{ text: '', color: undefined }]
 }
 
 export default function QuotationFormPage() {
@@ -187,6 +189,52 @@ export default function QuotationFormPage() {
     })
   }
 
+  const setItemDescriptionText = (idx: number, text: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const descLine = parseColoredLine(items[idx].desc)
+      items[idx] = normalizeItem({
+        ...items[idx],
+        desc: stringifyColoredLine({ text, color: descLine.color }),
+      })
+      return { ...f, items }
+    })
+  }
+
+  const setItemDescriptionColor = (idx: number, color: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const descLine = parseColoredLine(items[idx].desc)
+      items[idx] = normalizeItem({
+        ...items[idx],
+        desc: stringifyColoredLine({ text: descLine.text, color }),
+      })
+      return { ...f, items }
+    })
+  }
+
+  const setItemNoteFreeText = (itemIdx: number, text: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const currentLines = getNoteLines(items[itemIdx].note)
+      const nextLines = String(text)
+        .split('\n')
+        .map((line, idx) => ({ text: line, color: currentLines[idx]?.color }))
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyColoredMultiline(nextLines) })
+      return { ...f, items }
+    })
+  }
+
+  const setItemNoteColor = (itemIdx: number, color: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const lines = getNoteLines(items[itemIdx].note)
+      const nextLines = lines.map(line => ({ ...line, color }))
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyColoredMultiline(nextLines) })
+      return { ...f, items }
+    })
+  }
+
   const setDetailRow = (itemIdx: number, rowIdx: number, key: keyof QuotationItemDetail, val: string | number) => {
     setForm(f => {
       const items = [...f.items]
@@ -253,41 +301,6 @@ export default function QuotationFormPage() {
     })
   }
 
-  const setDescriptionLine = (itemIdx: number, lineIdx: number, value: string) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      while (lines.length <= lineIdx) lines.push('')
-      lines[lineIdx] = value
-      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      return { ...f, items }
-    })
-  }
-
-  const addDescriptionLine = (itemIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      lines.push('')
-      items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      return { ...f, items }
-    })
-  }
-
-  const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const lines = parseDescLines(items[itemIdx].note)
-      if (lines.length <= 1) {
-        items[itemIdx] = { ...items[itemIdx], note: '' }
-      } else {
-        lines.splice(lineIdx, 1)
-        items[itemIdx] = { ...items[itemIdx], note: stringifyDescLines(lines) }
-      }
-      return { ...f, items }
-    })
-  }
-
   const handleCustomer = (id: string) => {
     const c = customers.find(x => x.id === id)
     setForm(f => ({
@@ -307,7 +320,7 @@ export default function QuotationFormPage() {
       toast.error('กรุณากรอกลูกค้าและโครงการ')
       return
     }
-    if (form.items.some(i => !i.desc)) {
+    if (form.items.some(i => !parseColoredLine(i.desc).text.trim())) {
       toast.error('กรุณากรอกรายการสินค้า')
       return
     }
@@ -549,20 +562,34 @@ export default function QuotationFormPage() {
                     <tr className="border-t border-gray-100 align-top">
                       <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
                       <td className="py-2 px-2">
-                        <input
-                          className="form-input py-1 w-full"
-                          value={item.desc}
-                          onChange={e => setItem(i, 'desc', e.target.value)}
-                          placeholder="ชื่อสินค้า/บริการ *"
-                          required
-                        />
-                        <textarea
-                          className="form-input mt-2 py-1 text-xs"
-                          rows={2}
-                          value={item.note || ''}
-                          onChange={e => setItem(i, 'note', e.target.value)}
-                          placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
-                        />
+                        <div className="flex items-start gap-2">
+                          <input
+                            className="form-input py-1 w-full"
+                            value={parseColoredLine(item.desc).text}
+                            onChange={e => setItemDescriptionText(i, e.target.value)}
+                            placeholder="ชื่อสินค้า/บริการ *"
+                            required
+                          />
+                          <QuickColorPicker
+                            value={parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR}
+                            onChange={color => setItemDescriptionColor(i, color)}
+                            title="สีข้อความรายการ"
+                          />
+                        </div>
+                        <div className="mt-2 flex items-start gap-2">
+                          <textarea
+                            className="form-input py-1 text-xs w-full"
+                            rows={3}
+                            value={toPlainColoredMultiline(item.note)}
+                            onChange={e => setItemNoteFreeText(i, e.target.value)}
+                            placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                          />
+                          <QuickColorPicker
+                            value={getNoteLines(item.note)[0]?.color || DEFAULT_LINE_COLOR}
+                            onChange={color => setItemNoteColor(i, color)}
+                            title="สีข้อความหมายเหตุ"
+                          />
+                        </div>
                         {/* Item images */}
                         <div className="mt-2">
                           {item.images && item.images.length > 0 && (
@@ -650,12 +677,25 @@ export default function QuotationFormPage() {
                       <tr key={`${i}-${detailIdx}`} className="border-t border-gray-100 bg-white/60 align-top">
                         <td className="py-1.5 px-2" />
                         <td className="py-1.5 px-2">
-                          <input
-                            className="form-input py-1 text-xs w-full text-gray-700"
-                            value={detail.desc}
-                            onChange={e => setDetailRow(i, detailIdx, 'desc', e.target.value)}
-                            placeholder={`รายละเอียดบรรทัดที่ ${detailIdx + 1} (ไม่บังคับ)`}
-                          />
+                          <div className="flex items-start gap-2">
+                            <input
+                              className="form-input py-1 text-xs w-full text-gray-700"
+                              value={parseColoredLine(detail.desc).text}
+                              onChange={e => {
+                                const prev = parseColoredLine(detail.desc)
+                                setDetailRow(i, detailIdx, 'desc', stringifyColoredLine({ text: e.target.value, color: prev.color }))
+                              }}
+                              placeholder={`รายละเอียดบรรทัดที่ ${detailIdx + 1} (ไม่บังคับ)`}
+                            />
+                            <QuickColorPicker
+                              value={parseColoredLine(detail.desc).color || DEFAULT_LINE_COLOR}
+                              onChange={color => {
+                                const prev = parseColoredLine(detail.desc)
+                                setDetailRow(i, detailIdx, 'desc', stringifyColoredLine({ text: prev.text, color }))
+                              }}
+                              title="สีข้อความรายละเอียด"
+                            />
+                          </div>
                         </td>
                         <td className="py-1.5 px-2">
                           <input
