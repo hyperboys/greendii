@@ -146,7 +146,15 @@ const loginLimiter = rateLimit({
   legacyHeaders: false,
   message: { message: 'พยายามเข้าสู่ระบบบ่อยเกินไป กรุณาลองใหม่ภายหลัง' },
 });
+const forgotPasswordLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'ขอรหัสผ่านชั่วคราวบ่อยเกินไป กรุณาลองใหม่ภายหลัง' },
+});
 app.use('/api/auth/login', loginLimiter);
+app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/customers', customersRoutes);

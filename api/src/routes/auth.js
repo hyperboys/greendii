@@ -1,12 +1,24 @@
 const router = require('express').Router();
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { normalizeRole } = require('../lib/roleAliases');
+const { sendEmail } = require('../lib/notify');
 const {
   signAccessToken, issueRefreshToken, findValidRefreshToken,
   revokeRefreshToken, rotateRefreshToken,
 } = require('../lib/tokens');
+
+function generateTemporaryPassword(length = 10) {
+  const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  const bytes = crypto.randomBytes(length);
+  let password = '';
+  for (let i = 0; i < length; i += 1) {
+    password += alphabet[bytes[i] % alphabet.length];
+  }
+  return password;
+}
 
 // POST /api/auth/login
 router.post('/login', async (req, res, next) => {
@@ -52,6 +64,54 @@ router.post('/login', async (req, res, next) => {
         signatureUrl: user.signatureUrl,
       },
     });
+  } catch (e) { next(e); }
+});
+
+// POST /api/auth/forgot-password
+router.post('/forgot-password', async (req, res, next) => {
+  try {
+    const identifier = String(req.body?.identifier ?? '').trim();
+    if (!identifier) {
+      return res.status(400).json({ message: 'username or email required' });
+    }
+
+    const user = await prisma.user.findFirst({
+      where: {
+        OR: [
+          { username: { equals: identifier, mode: 'insensitive' } },
+          { email: { equals: identifier, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (!user || !user.email) {
+      return res.status(404).json({ message: 'ไม่พบผู้ใช้หรือยังไม่มีอีเมลในระบบ' });
+    }
+
+    const tempPassword = generateTemporaryPassword(10);
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash, mustChangePassword: true },
+      select: { fullName: true, email: true },
+    });
+
+    const emailSent = await sendEmail(
+      updatedUser.email,
+      'GreenDii รหัสผ่านชั่วคราว',
+      `สวัสดี ${updatedUser.fullName}\n\nรหัสผ่านชั่วคราวของคุณคือ: ${tempPassword}\n\nกรุณาเข้าสู่ระบบด้วยรหัสผ่านนี้ แล้วเปลี่ยนรหัสผ่านใหม่ทันทีหลังเข้าระบบ\nหากคุณไม่ได้ร้องขอรีเซ็ตรหัสผ่าน กรุณาติดต่อผู้ดูแลระบบ`
+    );
+
+    if (!emailSent) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: user.passwordHash, mustChangePassword: user.mustChangePassword },
+      });
+      return res.status(503).json({ message: 'ไม่สามารถส่งอีเมลรหัสผ่านชั่วคราวได้' });
+    }
+
+    res.json({ message: 'ส่งรหัสผ่านชั่วคราวไปที่อีเมลของคุณแล้ว' });
   } catch (e) { next(e); }
 });
 

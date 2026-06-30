@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
+import Link from 'next/link'
 import { Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '@/store/auth'
 import toast from 'react-hot-toast'
@@ -100,6 +101,11 @@ export default function LoginPage() {
           <p className="text-center text-xs text-gray-400 mt-6">
             GreenDii Co., Ltd. © {new Date().getFullYear()}
           </p>
+          <div className="mt-4 text-center">
+            <Link href="/forgot-password" className="text-sm font-medium text-green-700 hover:text-green-900">
+              ลืมรหัสผ่าน?
+            </Link>
+          </div>
           </div>
         </div>
       </div>

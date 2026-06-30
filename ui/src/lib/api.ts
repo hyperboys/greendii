@@ -140,6 +140,8 @@ http.interceptors.response.use(
 export const AuthAPI = {
   login: (username: string, password: string) =>
     http.post<{ token: string; refreshToken: string; user: User; mustChangePassword: boolean }>('/auth/login', { username, password }).then(r => r.data),
+  forgotPassword: (identifier: string) =>
+    http.post('/auth/forgot-password', { identifier }).then(r => r.data),
   refresh: (refreshToken: string) =>
     http.post<{ token: string; refreshToken: string }>('/auth/refresh', { refreshToken }).then(r => r.data),
   logout: (refreshToken: string) =>

@@ -56,7 +56,7 @@ function getTransporter() {
 
 async function sendEmail(to, subject, text) {
   const t = getTransporter();
-  if (!t || !to) return;
+  if (!t || !to) return false;
   try {
     await t.sendMail({
       from: `"GreenDii" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
@@ -78,8 +78,10 @@ async function sendEmail(to, subject, text) {
         </div>
       `,
     });
+    return true;
   } catch (err) {
     console.warn(`[EMAIL] Send failed to ${to}:`, err.message);
+    return false;
   }
 }
 
