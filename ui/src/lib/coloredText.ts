@@ -3,7 +3,7 @@ export interface ColoredTextLine {
   color?: string
 }
 
-const COLOR_TAG = /^\[color=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\](.*)$/s
+const COLOR_TAG = /^\[color=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\]([\s\S]*)$/
 
 export function normalizeColorHex(input?: string | null): string | undefined {
   const value = String(input || '').trim()
