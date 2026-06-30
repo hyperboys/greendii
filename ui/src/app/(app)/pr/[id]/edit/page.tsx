@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI } from '@/lib/api'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 
@@ -20,7 +20,7 @@ interface FormData {
   items: PRItem[]
 }
 
-const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0 })
+const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0, images: [] })
 const VAT_RATE = 0.07
 const roundMoney = (value: number) => Math.round(value * 100) / 100
 
@@ -91,6 +91,35 @@ export default function EditPRPage() {
       const items = [...f.items]
       items[idx] = { ...items[idx], [key]: val }
       items[idx].amount = items[idx].qty * items[idx].price
+      return { ...f, items }
+    })
+  }
+
+  const uploadItemImages = async (itemIdx: number, files: FileList | null) => {
+    if (!files || files.length === 0) return
+    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
+    if (imageFiles.length === 0) return toast.error('รองรับเฉพาะไฟล์รูปภาพ')
+    const tId = toast.loading('กำลังอัปโหลดรูป...')
+    try {
+      const saved = await UploadAPI.upload(imageFiles, { category: 'pr-item', purchaseRequestId: id })
+      const urls = saved.map((a: any) => a.fileUrl).filter(Boolean)
+      setForm(f => {
+        const items = [...f.items]
+        items[itemIdx] = { ...items[itemIdx], images: [...(items[itemIdx].images || []), ...urls] }
+        return { ...f, items }
+      })
+      toast.success('อัปโหลดรูปสำเร็จ', { id: tId })
+    } catch {
+      toast.error('อัปโหลดไม่สำเร็จ', { id: tId })
+    }
+  }
+
+  const removeItemImage = (itemIdx: number, urlIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const imgs = [...(items[itemIdx].images || [])]
+      imgs.splice(urlIdx, 1)
+      items[itemIdx] = { ...items[itemIdx], images: imgs }
       return { ...f, items }
     })
   }
@@ -222,6 +251,42 @@ export default function EditPRPage() {
                         value={item.note ?? ''}
                         onChange={e => setItem(i, 'note', e.target.value)}
                         placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
+                      <div className="mt-2">
+                        {item.images && item.images.length > 0 && (
+                          <div className="mb-1.5 flex flex-wrap gap-1.5">
+                            {item.images.map((url, imgIdx) => (
+                              <div key={imgIdx} className="group relative">
+                                <img
+                                  src={resolveFileUrl(url)}
+                                  alt=""
+                                  className="h-14 w-14 rounded border border-gray-200 object-cover"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeItemImage(i, imgIdx)}
+                                  className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                                  title="ลบรูป"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
+                          <ImagePlus size={12} /> เพิ่มรูปภาพ
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={e => {
+                              void uploadItemImages(i, e.target.files)
+                              e.currentTarget.value = ''
+                            }}
+                          />
+                        </label>
+                      </div>
                     </td>
                     <td className="py-2 px-2">
                       <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"

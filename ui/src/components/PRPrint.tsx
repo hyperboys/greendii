@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
+import { resolveFileUrl } from '@/lib/api'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -209,6 +210,19 @@ export default function PRPrint({ doc, settings }: Props) {
                     {line || '\u00a0'}
                   </div>
                 ))}
+                {item && Array.isArray(item.images) && item.images.length > 0 && (
+                  <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                    {item.images.map((url, imgIdx) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        key={`pr-item-img-${i}-${imgIdx}`}
+                        src={resolveFileUrl(url)}
+                        alt=""
+                        style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                      />
+                    ))}
+                  </div>
+                )}
               </td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>

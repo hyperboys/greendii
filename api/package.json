@@ -13,6 +13,8 @@
     "db:reset": "npx prisma migrate reset --force && node prisma/seed.js",
     "db:reset:testdata": "node scripts/reset-transactions-and-customers.js --with-customers",
     "db:reset:transactions": "node scripts/reset-transactions-and-customers.js",
+    "db:merge-customers": "node scripts/merge-duplicate-customers.js",
+    "db:merge-customers:dry": "node scripts/merge-duplicate-customers.js --dry-run",
     "db:seed:quotation-running": "node scripts/set-quotation-running-floor.js",
     "db:seed:doc-running": "node scripts/set-doc-running-floor.js"
   },

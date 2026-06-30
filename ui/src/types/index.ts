@@ -448,6 +448,7 @@ export interface PRItem {
   unit: string
   price: number
   amount: number
+  images?: string[]
 }
 
 export interface PurchaseRequest {

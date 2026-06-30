@@ -13,6 +13,10 @@ const customerValidators = [
   body('type').optional({ nullable: true, checkFalsy: true }).isIn(['company', 'individual', 'government']).withMessage('ประเภทลูกค้าไม่ถูกต้อง'),
 ];
 
+function normalizeCustomerName(name) {
+  return String(name || '').trim().replace(/\s+/g, ' ')
+}
+
 function canSeeAllCustomers(role) {
   return MANAGER_ROLES.includes(role);
 }
@@ -67,9 +71,33 @@ router.get('/:id', authenticate, async (req, res, next) => {
 router.post('/', authenticate, customerValidators, validate, async (req, res, next) => {
   try {
     const { name, contactPerson, tel, email, address, taxId, type } = req.body;
-    if (!name) return res.status(400).json({ message: 'name required' });
+    const normalizedName = normalizeCustomerName(name);
+    if (!normalizedName) return res.status(400).json({ message: 'name required' });
+
+    const existing = await prisma.customer.findFirst({
+      where: {
+        salesId: req.user.id,
+        name: { equals: normalizedName, mode: 'insensitive' },
+      },
+    });
+
+    if (existing) {
+      const nextData = {
+        active: true,
+        name: normalizedName,
+        contactPerson: contactPerson || existing.contactPerson,
+        tel: tel || existing.tel,
+        email: email || existing.email,
+        address: address || existing.address,
+        taxId: taxId || existing.taxId,
+        type: type || existing.type || 'company',
+      };
+      const item = await prisma.customer.update({ where: { id: existing.id }, data: nextData });
+      return res.status(200).json(item);
+    }
+
     const item = await prisma.customer.create({
-      data: { name, contactPerson, tel, email, address, taxId, type: type || 'company', salesId: req.user.id },
+      data: { name: normalizedName, contactPerson, tel, email, address, taxId, type: type || 'company', salesId: req.user.id },
     });
     res.status(201).json(item);
   } catch (e) { next(e); }

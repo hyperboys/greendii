@@ -19,6 +19,7 @@ const prValidators = [
   body('items.*.desc').optional({ nullable: true }).isString(),
   body('items.*.qty').optional().isFloat({ min: 0 }).withMessage('จำนวนต้องไม่ติดลบ'),
   body('items.*.price').optional().isFloat({ min: 0 }).withMessage('ราคาต้องไม่ติดลบ'),
+  body('items.*.images').optional().isArray().withMessage('images ต้องเป็น array'),
   body('subTotal').optional().isFloat({ min: 0 }),
   body('vat').optional().isFloat({ min: 0 }),
   body('netTotal').optional().isFloat({ min: 0 }),
@@ -35,6 +36,22 @@ const INCLUDE_FULL = {
   },
   attachments: true,
 };
+
+function normalizePrItem(item, seq) {
+  const qty = Number(item?.qty ?? 0) || 0;
+  const price = Number(item?.price ?? 0) || 0;
+  return {
+    seq,
+    partNo: item?.partNo || null,
+    desc: String(item?.desc || ''),
+    note: item?.note || null,
+    qty,
+    unit: String(item?.unit || ''),
+    price,
+    amount: Number(item?.amount ?? (qty * price)) || 0,
+    images: Array.isArray(item?.images) ? item.images.filter(Boolean) : [],
+  };
+}
 
 async function getDocNumberFloor(prefix) {
   const settings = await prisma.settings.findUnique({
@@ -134,10 +151,7 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
         remarks, salesId: req.user.id, status: 'draft',
         items: {
-          create: items.map((it, i) => ({
-            seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-            price: it.price, amount: it.amount,
-          })),
+          create: items.map((it, i) => normalizePrItem(it, i)),
         },
       },
       include: INCLUDE_FULL,
@@ -172,10 +186,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
           subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
           remarks,
           items: {
-            create: items.map((it, i) => ({
-              seq: i, partNo: it.partNo || null, desc: it.desc, note: it.note || null, qty: it.qty, unit: it.unit,
-              price: it.price, amount: it.amount,
-            })),
+            create: items.map((it, i) => normalizePrItem(it, i)),
           },
         },
         include: INCLUDE_FULL,

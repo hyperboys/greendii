@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, SettingsAPI, downloadBlob } from '@/lib/api'
+import { PRAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
@@ -160,6 +160,18 @@ export default function PRDetailPage() {
                 <td>
                   {item.desc}
                   {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                  {Array.isArray(item.images) && item.images.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.images.map((url, imgIdx) => (
+                        <img
+                          key={`${item.id || i}-img-${imgIdx}`}
+                          src={resolveFileUrl(url)}
+                          alt=""
+                          className="h-14 w-14 rounded border border-gray-200 object-cover"
+                        />
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td className="text-right">{fmtMoney(item.qty)}</td>
                 <td>{item.unit}</td>

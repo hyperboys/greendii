@@ -386,6 +386,7 @@ model PurchaseRequestItem {
   unit              String
   price             Decimal         @default(0) @db.Decimal(12, 2)
   amount            Decimal         @default(0) @db.Decimal(12, 2)
+  images            String[]        @default([])
 
   @@map("purchase_request_items")
 }
