@@ -4,6 +4,7 @@ api/node_modules/
 
 .next/
 ui/.next/
+ui/.next-dev/
 dist/
 build/
 
