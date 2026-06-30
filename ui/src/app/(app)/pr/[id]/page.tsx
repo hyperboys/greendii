@@ -68,6 +68,7 @@ export default function PRDetailPage() {
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
   const prFlowSteps = doc.prType?.approvalSteps?.length ? doc.prType.approvalSteps : DEFAULT_APPROVAL_FLOW.pr
+  const vatIncluded = Number(doc.vat ?? 0) > 0
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -173,7 +174,7 @@ export default function PRDetailPage() {
             {Number(doc.specialDiscount) > 0 && (
               <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td><td className="text-right text-gray-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td></tr>
             )}
-            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT 7%</td><td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(doc.vat)}</td></tr>
+            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td><td className="text-right text-gray-500 px-4 py-2">{vatIncluded ? `฿${fmtMoney(doc.vat)}` : 'ไม่รวม VAT'}</td></tr>
             <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.netTotal)}</td></tr>
           </tfoot>
         </table>

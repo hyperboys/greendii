@@ -61,6 +61,7 @@ export default function PRPrint({ doc, settings }: Props) {
 
   const border = '1px solid #000'
   const hasSpecialDiscount = Number(doc.specialDiscount) > 0
+  const vatIncluded = Number(doc.vat) > 0
 
   const thS: React.CSSProperties = {
     border,
@@ -253,7 +254,7 @@ export default function PRPrint({ doc, settings }: Props) {
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
               <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>{Number(doc.vat) > 0 ? fmtAmt(doc.vat) : ''}</td>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>{vatIncluded ? fmtAmt(doc.vat) : 'ไม่รวม VAT'}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
