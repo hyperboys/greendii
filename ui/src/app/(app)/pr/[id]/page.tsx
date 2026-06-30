@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
@@ -67,7 +66,7 @@ export default function PRDetailPage() {
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
-  const prFlowSteps = doc.prType?.approvalSteps?.length ? doc.prType.approvalSteps : DEFAULT_APPROVAL_FLOW.pr
+  const prFlowSteps = Array.isArray(doc.prType?.approvalSteps) ? doc.prType.approvalSteps : []
   const vatIncluded = Number(doc.vat ?? 0) > 0
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''

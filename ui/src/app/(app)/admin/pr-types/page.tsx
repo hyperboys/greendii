@@ -162,7 +162,7 @@ export default function PrTypesPage() {
 
       <div className="card p-4 bg-blue-50 border-blue-100 text-sm text-blue-700">
         ผู้สร้างเอกสารจะไม่อนุมัติเอกสารของตัวเอง — หากผู้สร้างมีบทบาทตรงกับขั้นใดในสายอนุมัติ ระบบจะข้ามขั้นนั้นโดยอัตโนมัติ
-        {' · '}หากไม่ตั้งค่าขั้นตอน จะใช้สายอนุมัติ PR เริ่มต้นจากหน้า “สายการอนุมัติ”
+        {' · '}หากไม่ตั้งค่าขั้นตอน เอกสารประเภทนี้จะไม่มีผู้อนุมัติ และอนุมัติอัตโนมัติเมื่อส่งเอกสาร
       </div>
 
       {/* ── create form ── */}
@@ -236,7 +236,7 @@ export default function PrTypesPage() {
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="px-3 py-1.5 rounded-lg bg-green-main text-white text-xs font-semibold">ผู้สร้าง</div>
                   {(t.approvalSteps ?? []).length === 0 ? (
-                    <span className="text-xs text-gray-400">— ใช้สายอนุมัติ PR เริ่มต้น —</span>
+                    <span className="text-xs text-gray-400">— ไม่มีผู้อนุมัติ (อนุมัติอัตโนมัติ) —</span>
                   ) : (
                     stepsToRoles(t.approvalSteps ?? []).map(roleKey => (
                       <div key={`${t.id}-${roleKey}`} className="flex items-center gap-1.5">
@@ -315,7 +315,7 @@ function FlowEditor({
           </div>
         ))}
         {roles.length === 0 && (
-          <span className="text-xs text-gray-400">ไม่มีขั้นตอน (ใช้สายอนุมัติ PR เริ่มต้น)</span>
+          <span className="text-xs text-gray-400">ไม่มีขั้นตอน (ไม่มีผู้อนุมัติ และอนุมัติอัตโนมัติ)</span>
         )}
       </div>
 

@@ -135,12 +135,17 @@ function filterCreatorSteps(steps, creatorRole, stepRole) {
  *  - prTypeSteps: array stored on the PR's PrType (may be empty/undefined)
  *  - creatorRole: role of the user who created the PR
  *
- * Falls back to the default 'pr' flow when the type has no custom steps,
- * then removes every step that belongs to the creator's own role.
+ * Behavior:
+ *  - prTypeSteps is an array (including []): use it directly.
+ *    [] means this PR type has no approval steps (auto-approve on submit).
+ *  - prTypeSteps is undefined/null: fallback to default 'pr' flow from settings.
+ *
+ * Then removes every step that belongs to the creator's own role.
  */
 async function resolvePrFlow(prTypeSteps, creatorRole) {
   const { stepRole } = await getStepRoleMapping();
-  const baseSteps = Array.isArray(prTypeSteps) && prTypeSteps.length > 0
+  const hasTypeSpecificFlow = Array.isArray(prTypeSteps);
+  const baseSteps = hasTypeSpecificFlow
     ? prTypeSteps.map(Number).filter(n => Number.isInteger(n) && n > 0)
     : await getFlowSteps('pr');
   return filterCreatorSteps(baseSteps, creatorRole, stepRole);
