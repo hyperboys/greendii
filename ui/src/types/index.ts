@@ -315,6 +315,7 @@ export interface Quotation {
   project: string
   address?: string
   tel?: string
+  customerHp?: string
   conditionTerm?: string
   validityDays: number
   leadTime?: string

@@ -156,7 +156,7 @@ export default function AttachmentsSection({
                 >
                   <Icon size={28} className="text-gray-300" />
                   <span className="text-sm text-blue-500">
-                    {isUploading ? 'กำลังอัพโหลด…' : 'คลิกหรือลากไฟล์'}
+                    {isUploading ? 'กำลังอัพโหลด…' : 'คลิกไฟล์'}
                   </span>
                   <span className="text-xs text-gray-400">{hint}</span>
                 </div>

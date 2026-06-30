@@ -127,6 +127,27 @@ async function ensureCustomerBelongsToSales(req, customerId) {
   }
 }
 
+async function createQuotationWithRetry(req, data, include, maxAttempts = 3) {
+  let lastError = null
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return await prisma.quotation.create({
+        data: {
+          ...data,
+          quoNo: await nextQuotationBaseNoForUser(req.user),
+        },
+        include,
+      })
+    } catch (error) {
+      lastError = error
+      if (error.code !== 'P2002' || attempt === maxAttempts) throw error
+    }
+  }
+
+  throw lastError || new Error('Failed to create quotation')
+}
+
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -198,18 +219,17 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 router.post('/', authenticate, quotationValidators, validate, async (req, res, next) => {
   try {
     const {
-      customerName, customerId, attn, project, address, tel,
+      customerName, customerId, attn, project, address, tel, customerHp,
       conditionTerm, validityDays, leadTime, paymentTerm,
       items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
     if (!project || !customerName) {
       return res.status(400).json({ message: 'project, customerName required' });
     }
-    const quoNo = await nextQuotationBaseNoForUser(req.user)
     await ensureCustomerBelongsToSales(req, customerId)
-    const quo = await prisma.quotation.create({
+    const quo = await createQuotationWithRetry(req, {
       data: {
-        quoNo, customerName, customerId: customerId || null, attn, project, address, tel,
+        customerName, customerId: customerId || null, attn, project, address, tel, customerHp,
         conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
         remark, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
@@ -220,8 +240,7 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
           })),
         },
       },
-      include: INCLUDE_FULL,
-    });
+    }, INCLUDE_FULL);
     res.status(201).json(quo);
   } catch (e) { next(e); }
 });
@@ -262,6 +281,7 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           project: source.project,
           address: source.address,
           tel: source.tel,
+          customerHp: source.customerHp,
           conditionTerm: source.conditionTerm,
           validityDays: source.validityDays,
           leadTime: source.leadTime,
@@ -299,7 +319,7 @@ router.put('/:id', authenticate, quotationValidators, validate, async (req, res,
       return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
-      customerName, customerId, attn, project, address, tel,
+      customerName, customerId, attn, project, address, tel, customerHp,
       conditionTerm, validityDays, leadTime, paymentTerm,
       items = [], subTotal, specialDiscount, vat, grandTotal, remark,
     } = req.body;
@@ -310,7 +330,7 @@ router.put('/:id', authenticate, quotationValidators, validate, async (req, res,
       return tx.quotation.update({
         where: { id: req.params.id },
         data: {
-          customerName, customerId: customerId || null, attn, project, address, tel,
+          customerName, customerId: customerId || null, attn, project, address, tel, customerHp,
           conditionTerm, validityDays, leadTime, paymentTerm,
           subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
           remark,

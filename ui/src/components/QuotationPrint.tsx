@@ -438,7 +438,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       { leftLabel: 'Attn', leftValue: doc.attn || '', rightLabel: 'Page', rightValue: pageText },
       { leftLabel: 'Address', leftValue: addressLines[0], rightLabel: 'Tel', rightValue: doc.tel || '' },
       { leftLabel: '', leftValue: addressLines[1], rightLabel: 'Quo.No', rightValue: doc.quoNo },
-      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: '' },
+      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: doc.customerHp || '' },
       { leftLabel: 'Project', leftValue: doc.project || '', rightLabel: '', rightValue: '' },
     ]
 
@@ -549,7 +549,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           <span style={{ fontWeight: 'bold' }}>{item?.desc ?? ''}</span>
           {item && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: '#777', fontSize: fpt(10), lineHeight: 1.05, display: 'block', fontFamily: 'var(--font-thai)' }}>
+            <span key={idx} style={{ color: '#000', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
               {line || '\u00A0'}
             </span>
           ))}

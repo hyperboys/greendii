@@ -10,7 +10,10 @@ function summarizeValidationErrors(errors) {
 
 function mapPrismaError(err) {
   if (err.code === 'P2002') {
-    return { status: 409, message: 'ข้อมูลซ้ำกับรายการที่มีอยู่แล้ว' };
+    const target = Array.isArray(err.meta?.target)
+      ? err.meta.target.join(', ')
+      : (err.meta?.target ? String(err.meta.target) : 'unknown');
+    return { status: 409, message: `ข้อมูลซ้ำกับรายการที่มีอยู่แล้ว (field: ${target})` };
   }
   if (err.code === 'P2025') {
     return { status: 404, message: 'ไม่พบข้อมูลที่ต้องการ' };

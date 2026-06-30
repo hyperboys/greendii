@@ -16,6 +16,7 @@ interface FormData {
   project: string
   address: string
   tel: string
+  customerHp: string
   conditionTerm: string
   validityDays: number
   leadTime: string
@@ -106,11 +107,12 @@ export default function QuotationFormPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
+  const [isCustomPaymentTerm, setIsCustomPaymentTerm] = useState(false)
   const [editable, setEditable] = useState(true)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
-    address: '', tel: '', conditionTerm: '', validityDays: 30,
+    address: '', tel: '', customerHp: '', conditionTerm: '', validityDays: 30,
     leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
@@ -132,6 +134,7 @@ export default function QuotationFormPage() {
             return
           }
           const leadTime = doc.leadTime ?? ''
+          const paymentTerm = doc.paymentTerm ?? ''
           setForm({
             customerId: doc.customerId ?? '',
             customerName: doc.customerName,
@@ -139,10 +142,11 @@ export default function QuotationFormPage() {
             project: doc.project,
             address: doc.address ?? '',
             tel: doc.tel ?? '',
+            customerHp: doc.customerHp ?? '',
             conditionTerm: doc.conditionTerm ?? '',
             validityDays: doc.validityDays,
             leadTime,
-            paymentTerm: doc.paymentTerm ?? '',
+            paymentTerm,
             remark: doc.remark ?? '',
             items: doc.items.length > 0 ? doc.items.map(it => ({
               ...it,
@@ -157,6 +161,7 @@ export default function QuotationFormPage() {
             specialDiscount: Number(doc.specialDiscount ?? 0),
             includeVat: Number(doc.vat ?? 0) !== 0,
           })
+          setIsCustomPaymentTerm(Boolean(paymentTerm) && !PAYMENT_TERM_OPTIONS.includes(paymentTerm as typeof PAYMENT_TERM_OPTIONS[number]))
           setIsCustomLeadTime(Boolean(leadTime) && !LEAD_TIME_OPTIONS.includes(leadTime as typeof LEAD_TIME_OPTIONS[number]))
         })
         .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
@@ -168,7 +173,9 @@ export default function QuotationFormPage() {
   const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = form.includeVat ? Math.round(afterDiscount * VAT_RATE) : 0
   const grandTotal = afterDiscount + vat
-  const paymentTermSelectValue = getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, CUSTOM_PAYMENT_TERM)
+  const paymentTermSelectValue = isCustomPaymentTerm
+    ? CUSTOM_PAYMENT_TERM
+    : getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, '')
   const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
   const customLeadTimeDays = getLeadTimeDays(form.leadTime)
 
@@ -409,6 +416,11 @@ export default function QuotationFormPage() {
           <input className="form-input" value={form.tel}
             onChange={e => setForm(f => ({ ...f, tel: e.target.value }))} />
         </div>
+        <div>
+          <label className="form-label">HP ลูกค้า</label>
+          <input className="form-input" value={form.customerHp}
+            onChange={e => setForm(f => ({ ...f, customerHp: e.target.value }))} />
+        </div>
         <div className="md:col-span-2">
           <label className="form-label">ชื่อโครงการ *</label>
           <input className="form-input" value={form.project}
@@ -424,10 +436,16 @@ export default function QuotationFormPage() {
           <select
             className="form-input"
             value={paymentTermSelectValue}
-            onChange={e => setForm(f => ({
-              ...f,
-              paymentTerm: e.target.value === CUSTOM_PAYMENT_TERM ? (PAYMENT_TERM_OPTIONS.includes(f.paymentTerm as typeof PAYMENT_TERM_OPTIONS[number]) ? '' : f.paymentTerm) : e.target.value,
-            }))}
+            onChange={e => {
+              const selected = e.target.value
+              setIsCustomPaymentTerm(selected === CUSTOM_PAYMENT_TERM)
+              setForm(f => ({
+                ...f,
+                paymentTerm: selected === CUSTOM_PAYMENT_TERM
+                  ? ''
+                  : selected,
+              }))
+            }}
           >
             <option value="">— เลือกการชำระเงิน —</option>
             {PAYMENT_TERM_OPTIONS.map(option => (
@@ -435,7 +453,7 @@ export default function QuotationFormPage() {
             ))}
             <option value={CUSTOM_PAYMENT_TERM}>อื่นๆ</option>
           </select>
-          {paymentTermSelectValue === CUSTOM_PAYMENT_TERM && (
+          {isCustomPaymentTerm && (
             <input
               className="form-input mt-2"
               value={form.paymentTerm}

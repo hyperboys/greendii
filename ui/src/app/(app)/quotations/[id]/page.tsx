@@ -204,6 +204,7 @@ export default function QuotationDetailPage() {
         <div><span className="form-label">ลูกค้า</span><p>{doc.customerName}</p></div>
         <div><span className="form-label">ผู้ติดต่อ</span><p>{doc.attn || '-'}</p></div>
         <div><span className="form-label">โทร</span><p>{doc.tel || '-'}</p></div>
+        <div><span className="form-label">HP ลูกค้า</span><p>{doc.customerHp || '-'}</p></div>
         <div><span className="form-label">โครงการ</span><p>{doc.project}</p></div>
         <div><span className="form-label">ที่อยู่</span><p>{doc.address || '-'}</p></div>
         <div><span className="form-label">เซลล์</span><p>{doc.sales?.fullName ?? doc.salesId}</p></div>

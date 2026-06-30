@@ -15,6 +15,7 @@ interface FormData {
   project: string
   address: string
   tel: string
+  customerHp: string
   conditionTerm: string
   validityDays: number
   leadTime: string
@@ -91,10 +92,11 @@ export default function NewQuotationPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
+  const [isCustomPaymentTerm, setIsCustomPaymentTerm] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
-    address: '', tel: '', conditionTerm: '', validityDays: 30,
+    address: '', tel: '', customerHp: '', conditionTerm: '', validityDays: 30,
     leadTime: '', paymentTerm: '', remark: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
@@ -108,7 +110,9 @@ export default function NewQuotationPage() {
   const afterDiscount = subTotal - Number(form.specialDiscount)
   const vat = form.includeVat ? Math.round(afterDiscount * VAT_RATE) : 0
   const grandTotal = afterDiscount + vat
-  const paymentTermSelectValue = getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, CUSTOM_PAYMENT_TERM)
+  const paymentTermSelectValue = isCustomPaymentTerm
+    ? CUSTOM_PAYMENT_TERM
+    : getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, '')
   const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
   const customLeadTimeDays = getLeadTimeDays(form.leadTime)
 
@@ -282,6 +286,11 @@ export default function NewQuotationPage() {
           <input className="form-input" value={form.tel}
             onChange={e => setForm(f => ({ ...f, tel: e.target.value }))} />
         </div>
+        <div>
+          <label className="form-label">HP ลูกค้า</label>
+          <input className="form-input" value={form.customerHp}
+            onChange={e => setForm(f => ({ ...f, customerHp: e.target.value }))} />
+        </div>
         <div className="md:col-span-2">
           <label className="form-label">ชื่อโครงการ *</label>
           <input className="form-input" value={form.project} required
@@ -297,16 +306,22 @@ export default function NewQuotationPage() {
           <select
             className="form-input"
             value={paymentTermSelectValue}
-            onChange={e => setForm(f => ({
-              ...f,
-              paymentTerm: e.target.value === CUSTOM_PAYMENT_TERM ? (PAYMENT_TERM_OPTIONS.includes(f.paymentTerm as typeof PAYMENT_TERM_OPTIONS[number]) ? '' : f.paymentTerm) : e.target.value,
-            }))}
+            onChange={e => {
+              const selected = e.target.value
+              setIsCustomPaymentTerm(selected === CUSTOM_PAYMENT_TERM)
+              setForm(f => ({
+                ...f,
+                paymentTerm: selected === CUSTOM_PAYMENT_TERM
+                  ? ''
+                  : selected,
+              }))
+            }}
           >
             <option value="">— เลือกการชำระเงิน —</option>
             {PAYMENT_TERM_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
             <option value={CUSTOM_PAYMENT_TERM}>อื่นๆ</option>
           </select>
-          {paymentTermSelectValue === CUSTOM_PAYMENT_TERM && (
+          {isCustomPaymentTerm && (
             <input
               className="form-input mt-2"
               value={form.paymentTerm}

@@ -213,6 +213,7 @@ model Quotation {
   project       String
   address       String?
   tel           String?
+  customerHp    String?
   conditionTerm String?
   validityDays  Int       @default(30)
   leadTime      String?
