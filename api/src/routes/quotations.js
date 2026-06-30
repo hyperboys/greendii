@@ -228,17 +228,15 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
     }
     await ensureCustomerBelongsToSales(req, customerId)
     const quo = await createQuotationWithRetry(req, {
-      data: {
-        customerName, customerId: customerId || null, attn, project, address, tel, customerHp,
-        conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
-        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
-        remark, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
-        items: {
-          create: items.map((it, i) => ({
-            seq: i,
-            ...normalizeQuotationItem(it),
-          })),
-        },
+      customerName, customerId: customerId || null, attn, project, address, tel, customerHp,
+      conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
+      subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
+      remark, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
+      items: {
+        create: items.map((it, i) => ({
+          seq: i,
+          ...normalizeQuotationItem(it),
+        })),
       },
     }, INCLUDE_FULL);
     res.status(201).json(quo);
