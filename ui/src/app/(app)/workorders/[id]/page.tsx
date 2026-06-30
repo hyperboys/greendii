@@ -334,20 +334,33 @@ export default function WorkOrderDetailPage() {
       <div className="card p-5">
         <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
         <div className="flex flex-wrap gap-2">
+          <div className="flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[88px] bg-green-pale border-green-main text-green-dark">
+            <span className="font-semibold">ผู้สร้าง</span>
+            <span className="mt-1 min-h-[14px]">✓</span>
+            <span className="mt-0.5 text-[11px] text-gray-600">{doc.sales?.fullName ?? doc.salesId}</span>
+          </div>
           {workOrderFlowSteps.map(step => {
             const role = stepRoleConfig[String(step)]
             const label = role ? getRoleLabel(role) : `Step ${step}`
             const log = doc.approvalLogs?.find(l => l.step === step)
             const isNext = step === currentStep && doc.status === 'pending'
+            const isApproved = log?.action === 'approve'
+            const isRejected = log?.action === 'reject'
+            const isSubmitted = log?.action === 'submit'
             return (
               <div key={step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
-                log?.action === 'approve' ? 'bg-green-pale border-green-main text-green-dark' :
-                log?.action === 'reject' ? 'bg-red-50 border-red-300 text-red-700' :
+                isApproved ? 'bg-green-pale border-green-main text-green-dark' :
+                isRejected ? 'bg-red-50 border-red-300 text-red-700' :
+                isSubmitted ? 'bg-blue-50 border-blue-300 text-blue-700' :
                 isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
                 'bg-gray-50 border-gray-200 text-gray-500'
               }`}>
                 <span className="font-semibold">{label}</span>
-                {log ? <span>{log.action === 'approve' ? '✓' : '✕'}</span> : isNext ? <span>รออนุมัติ</span> : null}
+                {log ? (
+                  <span>
+                    {isApproved ? '✓' : isRejected ? '✕' : isSubmitted ? 'ส่งอนุมัติ' : ''}
+                  </span>
+                ) : isNext ? <span>รออนุมัติ</span> : null}
               </div>
             )
           })}
@@ -356,8 +369,14 @@ export default function WorkOrderDetailPage() {
           <div className="mt-3 space-y-1">
             {doc.approvalLogs.map(log => (
               <div key={log.id} className="text-xs text-gray-500 flex gap-2">
-                <span className={log.action === 'approve' ? 'text-green-dark' : 'text-red-500'}>
-                  {log.action === 'approve' ? '✓' : '✕'}
+                <span className={
+                  log.action === 'approve'
+                    ? 'text-green-dark'
+                    : log.action === 'reject'
+                      ? 'text-red-500'
+                      : 'text-blue-600'
+                }>
+                  {log.action === 'approve' ? '✓' : log.action === 'reject' ? '✕' : '↗'}
                 </span>
                 <span>{log.approver?.fullName ?? log.approverId}</span>
                 {log.comment && <span className="text-gray-400">— {log.comment}</span>}

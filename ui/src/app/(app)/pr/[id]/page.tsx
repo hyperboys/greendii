@@ -187,6 +187,8 @@ export default function PRDetailPage() {
         approvalLogs={doc.approvalLogs}
         stepRoleConfig={stepRoleConfig}
         getRoleLabel={getRoleLabel}
+        creatorName={doc.sales?.fullName ?? doc.salesId}
+        showSubmitState
       />
 
       {(canSubmit || canResubmit || canApprove) && (

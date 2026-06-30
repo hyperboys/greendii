@@ -10,6 +10,8 @@ type Props = {
   approvalLogs?: ApprovalLog[]
   stepRoleConfig: Record<string, string>
   getRoleLabel: (roleKey: string) => string
+  creatorName?: string
+  showSubmitState?: boolean
 }
 
 function getLatestCycleLogs(approvalLogs?: ApprovalLog[]) {
@@ -28,6 +30,8 @@ export default function ApprovalFlowSteps({
   approvalLogs,
   stepRoleConfig,
   getRoleLabel,
+  creatorName,
+  showSubmitState = false,
 }: Props) {
   const cycleLogs = getLatestCycleLogs(approvalLogs)
   const stepLogs = new Map<number, ApprovalLog>()
@@ -43,21 +47,33 @@ export default function ApprovalFlowSteps({
     <div className="card p-5 no-print">
       <h3 className="font-semibold text-gray-800 mb-3">{title}</h3>
       <div className="flex flex-wrap gap-2">
+        {creatorName && (
+          <div className="flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[88px] bg-green-pale border-green-main text-green-dark">
+            <span className="font-semibold">ผู้สร้าง</span>
+            <span className="mt-1 min-h-[14px]">✓</span>
+            <span className="mt-0.5 text-[11px] text-gray-600">{creatorName}</span>
+          </div>
+        )}
         {steps.map(step => {
           const roleKey = stepRoleConfig[String(step)]
           const label = roleKey ? getRoleLabel(roleKey) : `Step ${step}`
           const log = stepLogs.get(step)
           const isCurrent = status === 'pending' && currentStep === step
+          const isApproved = log?.action === 'approve'
+          const isRejected = log?.action === 'reject'
+          const isSubmitted = log?.action === 'submit'
           const displayName = log?.approver?.fullName ?? ''
 
           return (
             <div
               key={step}
               className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[88px] ${
-                log?.action === 'approve'
+                isApproved
                   ? 'bg-green-pale border-green-main text-green-dark'
-                  : log?.action === 'reject'
+                  : isRejected
                     ? 'bg-red-50 border-red-300 text-red-700'
+                    : showSubmitState && isSubmitted
+                      ? 'bg-blue-50 border-blue-300 text-blue-700'
                     : isCurrent
                       ? 'bg-orange-50 border-orange-300 text-orange-700'
                       : 'bg-gray-50 border-gray-200 text-gray-500'
@@ -65,7 +81,7 @@ export default function ApprovalFlowSteps({
             >
               <span className="font-semibold">{label}</span>
               <span className="mt-1 min-h-[14px]">
-                {log?.action === 'approve' ? '✓' : log?.action === 'reject' ? '✕' : isCurrent ? 'รออนุมัติ' : ''}
+                {isApproved ? '✓' : isRejected ? '✕' : showSubmitState && isSubmitted ? 'ส่งอนุมัติ' : isCurrent ? 'รออนุมัติ' : ''}
               </span>
               {displayName && <span className="mt-0.5 text-[11px] text-gray-600">{displayName}</span>}
             </div>
