@@ -22,6 +22,7 @@ interface FormData {
 
 const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0 })
 const VAT_RATE = 0.07
+const roundMoney = (value: number) => Math.round(value * 100) / 100
 
 export default function EditPRPage() {
   const router = useRouter()
@@ -80,10 +81,10 @@ export default function EditPRPage() {
     }))
   }
 
-  const subTotal = form.items.reduce((s, i) => s + i.qty * i.price, 0)
-  const afterDiscount = subTotal - Number(form.specialDiscount)
-  const vat = form.includeVat ? Math.round(afterDiscount * VAT_RATE) : 0
-  const netTotal = afterDiscount + vat
+  const subTotal = roundMoney(form.items.reduce((s, i) => s + i.qty * i.price, 0))
+  const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
+  const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
+  const netTotal = roundMoney(afterDiscount + vat)
 
   const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
     setForm(f => {
