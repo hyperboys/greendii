@@ -21,7 +21,7 @@ export default function HandoversPage() {
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.search = search
+    if (search) params.q = search
     HandoversAPI.list(params)
       .then(setRows)
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))

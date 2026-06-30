@@ -34,7 +34,7 @@ export default function QuotationsPage() {
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.search = search
+    if (search) params.q = search
     if (statusFilter) params.status = statusFilter
     QuotationsAPI.list(params)
       .then(setRows)

@@ -60,6 +60,7 @@ export default function NewPRPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!form.prTypeId) { toast.error('กรุณาเลือกประเภทใบขอซื้อ'); return }
     if (!form.customer) { toast.error('กรุณากรอกชื่อลูกค้า'); return }
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการ'); return }
     setSaving(true)
@@ -107,35 +108,35 @@ export default function NewPRPage() {
           </select>
         </div>
         <div className="md:col-span-2">
-          <label className="form-label">ประเภทใบขอซื้อ</label>
-          <select className="form-input" value={form.prTypeId}
+          <label className="form-label">ประเภทใบขอซื้อ *</label>
+          <select className="form-input" required value={form.prTypeId}
             onChange={e => setForm(f => ({ ...f, prTypeId: e.target.value }))}>
-            <option value="">— ใช้สายอนุมัติเริ่มต้น —</option>
+            <option value="">— กรุณาเลือกประเภทใบขอซื้อ —</option>
             {prTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
           </select>
         </div>
         <div>
-          <label className="form-label">ลูกค้า *</label>
+          <label className="form-label">Supplier *</label>
           <input className="form-input" required value={form.customer}
             onChange={e => setForm(f => ({ ...f, customer: e.target.value }))} />
         </div>
         <div>
-          <label className="form-label">โครงการอ้างอิง</label>
+          <label className="form-label">Project Ref</label>
           <input className="form-input" value={form.projectRef}
             onChange={e => setForm(f => ({ ...f, projectRef: e.target.value }))} />
         </div>
         <div>
-          <label className="form-label">วันที่ออก</label>
+          <label className="form-label">Date of Issue</label>
           <DateInput value={form.dateIssue}
             onChange={iso => setForm(f => ({ ...f, dateIssue: iso }))} />
         </div>
         <div>
-          <label className="form-label">ต้องการภายใน</label>
+          <label className="form-label">Date of Required</label>
           <DateInput value={form.dateRequired}
             onChange={iso => setForm(f => ({ ...f, dateRequired: iso }))} />
         </div>
         <div className="md:col-span-2">
-          <label className="form-label">หมายเหตุ</label>
+          <label className="form-label">Remarks</label>
           <textarea className="form-input" rows={2} value={form.remarks}
             onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} />
         </div>

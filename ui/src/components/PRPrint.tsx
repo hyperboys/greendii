@@ -205,7 +205,7 @@ export default function PRPrint({ doc, settings }: Props) {
               <td style={{ ...tdS }}>
                 {item?.desc ?? ''}
                 {item && splitDescriptionLines(item.note).map((line, idx) => (
-                  <div key={idx} style={{ fontSize: '10.5pt', marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                  <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
                     {line || '\u00a0'}
                   </div>
                 ))}
@@ -254,7 +254,7 @@ export default function PRPrint({ doc, settings }: Props) {
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
               <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>{vatIncluded ? fmtAmt(doc.vat) : 'ไม่รวม VAT'}</td>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(vatIncluded ? doc.vat : 0)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>

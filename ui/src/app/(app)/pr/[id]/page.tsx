@@ -138,13 +138,13 @@ export default function PRDetailPage() {
       </div>
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm no-print">
-        <div><span className="form-label">ลูกค้า</span><p>{doc.customer}</p></div>
+        <div><span className="form-label">Supplier</span><p>{doc.customer}</p></div>
         <div><span className="form-label">ประเภท PR</span><p>{doc.prType?.name || '-'}</p></div>
-        <div><span className="form-label">โครงการอ้างอิง</span><p>{doc.projectRef || '-'}</p></div>
+        <div><span className="form-label">Project Ref</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
-        <div><span className="form-label">วันที่ออก</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
-        <div><span className="form-label">ต้องการภายใน</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
-        {doc.remarks && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remarks}</p></div>}
+        <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
+        {doc.remarks && <div className="col-span-full"><span className="form-label">Remarks</span><p>{doc.remarks}</p></div>}
       </div>
 
       <div className="card overflow-x-auto no-print">
@@ -173,7 +173,7 @@ export default function PRDetailPage() {
             {Number(doc.specialDiscount) > 0 && (
               <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td><td className="text-right text-gray-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td></tr>
             )}
-            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td><td className="text-right text-gray-500 px-4 py-2">{vatIncluded ? `฿${fmtMoney(doc.vat)}` : 'ไม่รวม VAT'}</td></tr>
+            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td><td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(vatIncluded ? doc.vat : 0)}</td></tr>
             <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.netTotal)}</td></tr>
           </tfoot>
         </table>

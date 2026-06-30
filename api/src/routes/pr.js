@@ -10,6 +10,7 @@ const { getPrFirstStep, getPrNextStep, resolvePrFlow } = require('../lib/approva
 const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 
 const prValidators = [
+  body('prTypeId').trim().notEmpty().withMessage('กรุณาเลือกประเภทใบขอซื้อ'),
   body('customer').trim().notEmpty().withMessage('กรุณาระบุลูกค้า'),
   body('projectRef').optional({ nullable: true }).isString(),
   body('dateIssue').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),

@@ -31,7 +31,7 @@ export default function PRPage() {
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.search = search
+    if (search) params.q = search
     if (statusFilter) params.status = statusFilter
     PRAPI.list(params)
       .then(setRows)
