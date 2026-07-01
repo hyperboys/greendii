@@ -26,6 +26,10 @@ function calcAgeDays(isoDate) {
   return Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000));
 }
 
+function poAttachmentFilter() {
+  return { category: { equals: 'po', mode: 'insensitive' } };
+}
+
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
   try {
@@ -415,7 +419,7 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
     const where = {
       active: true,
       status: { not: 'cancelled' },
-      hasPo: false,
+      attachments: { none: poAttachmentFilter() },
       ...(createdAt ? { createdAt } : {}),
     };
 
@@ -471,8 +475,8 @@ router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
       status: { not: 'cancelled' },
       ...(createdAt ? { createdAt } : {}),
       ...(customer ? { customerName: { contains: customer, mode: 'insensitive' } } : {}),
-      ...(poStatus === 'has_po' ? { hasPo: true } : {}),
-      ...(poStatus === 'no_po' ? { hasPo: false } : {}),
+      ...(poStatus === 'has_po' ? { attachments: { some: poAttachmentFilter() } } : {}),
+      ...(poStatus === 'no_po' ? { attachments: { none: poAttachmentFilter() } } : {}),
     };
 
     if (!canManageAllDocs(req.user.role)) {
@@ -486,24 +490,34 @@ router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
       include: {
         sales: { select: { id: true, fullName: true } },
         quotation: { select: { grandTotal: true } },
+        attachments: {
+          where: poAttachmentFilter(),
+          select: { uploadedAt: true },
+          orderBy: { uploadedAt: 'desc' },
+          take: 1,
+        },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    const rows = workOrders.map(wo => ({
-      id: wo.id,
-      woNo: wo.woNo,
-      date: wo.createdAt,
-      salesId: wo.salesId,
-      salesName: wo.sales?.fullName || wo.salesId,
-      customerName: wo.customerName,
-      amount: Number(wo.quotation?.grandTotal || 0),
-      hasPo: Boolean(wo.hasPo),
-      poStatus: wo.hasPo ? 'มี PO แล้ว' : 'ยังไม่มี PO',
-      poAttachedDate: wo.poAttachedDate,
-      ageDays: calcAgeDays(wo.createdAt),
-      status: wo.status,
-    }));
+    const rows = workOrders.map(wo => {
+      const hasPo = wo.attachments.length > 0;
+      const latestPoUploadDate = wo.attachments[0]?.uploadedAt || null;
+      return {
+        id: wo.id,
+        woNo: wo.woNo,
+        date: wo.createdAt,
+        salesId: wo.salesId,
+        salesName: wo.sales?.fullName || wo.salesId,
+        customerName: wo.customerName,
+        amount: Number(wo.quotation?.grandTotal || 0),
+        hasPo,
+        poStatus: hasPo ? 'มี PO แล้ว' : 'ยังไม่มี PO',
+        poAttachedDate: wo.poAttachedDate || latestPoUploadDate,
+        ageDays: calcAgeDays(wo.createdAt),
+        status: wo.status,
+      };
+    });
 
     res.json({ rows });
   } catch (e) { next(e); }
