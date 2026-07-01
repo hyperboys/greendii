@@ -1,13 +1,14 @@
 'use client'
 
+import { Fragment } from 'react'
 import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { Unit, WorkOrderItem } from '@/types'
 import {
   createEmptyWorkOrderItem,
-  parseWorkOrderDescLines,
-  stringifyWorkOrderDescLines,
+  parseWorkOrderDetailRows,
+  stringifyWorkOrderDetailRows,
 } from '@/lib/workOrderItems'
 
 interface Props {
@@ -27,31 +28,31 @@ export default function WorkOrderItemsEditor({
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)))
   }
 
-  const setDescriptionLine = (itemIdx: number, lineIdx: number, value: string) => {
+  const setDescriptionLine = (itemIdx: number, lineIdx: number, key: 'desc' | 'qty' | 'unit', value: string | number | null) => {
     const nextItems = [...items]
-    const lines = parseWorkOrderDescLines(nextItems[itemIdx]?.note)
-    while (lines.length <= lineIdx) lines.push('')
-    lines[lineIdx] = value
-    nextItems[itemIdx] = { ...nextItems[itemIdx], note: stringifyWorkOrderDescLines(lines) }
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
+    rows[lineIdx] = { ...rows[lineIdx], [key]: value }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
     onChange(nextItems)
   }
 
   const addDescriptionLine = (itemIdx: number) => {
     const nextItems = [...items]
-    const lines = parseWorkOrderDescLines(nextItems[itemIdx]?.note)
-    lines.push('')
-    nextItems[itemIdx] = { ...nextItems[itemIdx], note: stringifyWorkOrderDescLines(lines) }
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    rows.push({ desc: '', qty: null, unit: '' })
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
     onChange(nextItems)
   }
 
   const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
     const nextItems = [...items]
-    const lines = parseWorkOrderDescLines(nextItems[itemIdx]?.note)
-    if (lines.length <= 1) {
-      nextItems[itemIdx] = { ...nextItems[itemIdx], note: '' }
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    if (rows.length <= 1) {
+      nextItems[itemIdx] = { ...nextItems[itemIdx], detailRows: [], note: '' }
     } else {
-      lines.splice(lineIdx, 1)
-      nextItems[itemIdx] = { ...nextItems[itemIdx], note: stringifyWorkOrderDescLines(lines) }
+      rows.splice(lineIdx, 1)
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
     }
     onChange(nextItems)
   }
@@ -118,35 +119,102 @@ export default function WorkOrderItemsEditor({
             </thead>
             <tbody>
               {items.map((item, index) => (
-                <tr key={`${item.seq ?? index}-${index}`} className="border-t border-gray-100 align-top">
-                  <td className="px-2 py-2.5 pt-3.5 text-xs text-gray-400">{index + 1}</td>
-                  <td className="px-2 py-2">
-                    <input
-                      className="form-input w-full py-1"
-                      value={item.desc}
-                      required
-                      onChange={event => setItemField(index, 'desc', event.target.value)}
-                      placeholder="ชื่อสินค้า/บริการ *"
-                    />
-                    <div className="mt-1.5 space-y-1.5">
-                      {parseWorkOrderDescLines(item.note).map((line, lineIdx) => (
-                        <div key={lineIdx} className="flex items-center gap-1.5">
-                          <input
-                            className="form-input w-full py-1 text-xs text-gray-700"
-                            value={line}
-                            onChange={event => setDescriptionLine(index, lineIdx, event.target.value)}
-                            placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
-                          />
-                          <button
-                            type="button"
-                            className="p-1 text-red-400 transition-colors hover:text-red-600"
-                            onClick={() => removeDescriptionLine(index, lineIdx)}
-                            title="ลบบรรทัด"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        </div>
-                      ))}
+                <Fragment key={`${item.seq ?? index}-${index}`}>
+                  <tr className="border-t border-gray-100 align-top">
+                    <td className="px-2 py-2.5 pt-3.5 text-xs text-gray-400">{index + 1}</td>
+                    <td className="px-2 py-2">
+                      <input
+                        className="form-input w-full py-1"
+                        value={item.desc}
+                        required
+                        onChange={event => setItemField(index, 'desc', event.target.value)}
+                        placeholder="ชื่อสินค้า/บริการ *"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        type="number"
+                        min={0}
+                        max={99999}
+                        step="any"
+                        className="form-input py-1 text-right"
+                        value={item.qty}
+                        onChange={event => setItemField(index, 'qty', Number(event.target.value || 0))}
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <input
+                        list="workorder-units-datalist"
+                        className="form-input py-1"
+                        value={item.unit}
+                        onChange={event => setItemField(index, 'unit', event.target.value)}
+                        placeholder="-"
+                      />
+                    </td>
+                    <td className="px-2 py-2.5 pt-3">
+                      {items.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => removeItem(index)}
+                          className="p-1 text-red-400 transition-colors hover:text-red-600"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+
+                  {parseWorkOrderDetailRows(item).map((row, lineIdx) => (
+                    <tr key={`detail-${lineIdx}`} className="align-top">
+                      <td className="px-2 py-0.5"></td>
+                      <td className="px-2 py-0.5">
+                        <input
+                          className="form-input w-full py-1 text-xs text-gray-700"
+                          value={row.desc}
+                          onChange={event => setDescriptionLine(index, lineIdx, 'desc', event.target.value)}
+                          placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                        />
+                      </td>
+                      <td className="px-2 py-0.5">
+                        <input
+                          type="number"
+                          min={0}
+                          max={99999}
+                          step="any"
+                          className="form-input w-full py-1 text-right text-xs"
+                          value={row.qty ?? ''}
+                          onChange={event => {
+                            const raw = event.target.value.trim()
+                            setDescriptionLine(index, lineIdx, 'qty', raw === '' ? null : Number(raw))
+                          }}
+                          placeholder="Q'ty"
+                        />
+                      </td>
+                      <td className="px-2 py-0.5">
+                        <input
+                          list="workorder-units-datalist"
+                          className="form-input w-full py-1 text-xs"
+                          value={row.unit ?? ''}
+                          onChange={event => setDescriptionLine(index, lineIdx, 'unit', event.target.value)}
+                          placeholder="Unit"
+                        />
+                      </td>
+                      <td className="px-2 py-0.5 text-right">
+                        <button
+                          type="button"
+                          className="p-1 text-red-400 transition-colors hover:text-red-600"
+                          onClick={() => removeDescriptionLine(index, lineIdx)}
+                          title="ลบบรรทัด"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+
+                  <tr>
+                    <td className="px-2 py-0.5"></td>
+                    <td className="px-2 py-1">
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800"
@@ -154,72 +222,44 @@ export default function WorkOrderItemsEditor({
                       >
                         <Plus size={12} /> เพิ่มบรรทัด Description
                       </button>
-                    </div>
-                    <div className="mt-2">
-                      {item.images && item.images.length > 0 && (
-                        <div className="mb-1.5 flex flex-wrap gap-1.5">
-                          {item.images.map((url, imageIdx) => (
-                            <div key={imageIdx} className="group relative">
-                              <img src={resolveFileUrl(url)} alt="" className="h-14 w-14 rounded border border-gray-200 object-cover" />
-                              <button
-                                type="button"
-                                onClick={() => removeItemImage(index, imageIdx)}
-                                className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                                title="ลบรูป"
-                              >
-                                <X size={10} />
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
-                        <ImagePlus size={12} /> เพิ่มรูปภาพ
-                        <input
-                          type="file"
-                          accept="image/*"
-                          multiple
-                          className="hidden"
-                          onChange={event => {
-                            uploadItemImages(index, event.target.files)
-                            event.target.value = ''
-                          }}
-                        />
-                      </label>
-                    </div>
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      type="number"
-                      min={0}
-                      max={99999}
-                      step="any"
-                      className="form-input py-1 text-right"
-                      value={item.qty}
-                      onChange={event => setItemField(index, 'qty', Number(event.target.value || 0))}
-                    />
-                  </td>
-                  <td className="px-2 py-2">
-                    <input
-                      list="workorder-units-datalist"
-                      className="form-input py-1"
-                      value={item.unit}
-                      onChange={event => setItemField(index, 'unit', event.target.value)}
-                      placeholder="-"
-                    />
-                  </td>
-                  <td className="px-2 py-2.5 pt-3">
-                    {items.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={() => removeItem(index)}
-                        className="p-1 text-red-400 transition-colors hover:text-red-600"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
-                  </td>
-                </tr>
+                      <div className="mt-2">
+                        {item.images && item.images.length > 0 && (
+                          <div className="mb-1.5 flex flex-wrap gap-1.5">
+                            {item.images.map((url, imageIdx) => (
+                              <div key={imageIdx} className="group relative">
+                                <img src={resolveFileUrl(url)} alt="" className="h-14 w-14 rounded border border-gray-200 object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => removeItemImage(index, imageIdx)}
+                                  className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                                  title="ลบรูป"
+                                >
+                                  <X size={10} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
+                          <ImagePlus size={12} /> เพิ่มรูปภาพ
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            className="hidden"
+                            onChange={event => {
+                              uploadItemImages(index, event.target.files)
+                              event.target.value = ''
+                            }}
+                          />
+                        </label>
+                      </div>
+                    </td>
+                    <td className="px-2 py-0.5"></td>
+                    <td className="px-2 py-0.5"></td>
+                    <td className="px-2 py-0.5"></td>
+                  </tr>
+                </Fragment>
               ))}
             </tbody>
           </table>

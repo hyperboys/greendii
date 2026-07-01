@@ -123,6 +123,30 @@ function normalizeDocChecklist(input, fallback = {}, canEditTeamChecklist = fals
 
 function normalizeWorkOrderItems(items) {
   if (!Array.isArray(items)) return [];
+
+  const normalizeDetailRows = (rows) => {
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .map((row) => {
+        const desc = String(row?.desc ?? '').trim();
+        const qtyRaw = row?.qty;
+        const qty = qtyRaw === '' || qtyRaw == null ? null : Number(qtyRaw);
+        const unit = String(row?.unit ?? '').trim();
+        return {
+          desc,
+          qty: Number.isFinite(qty) ? qty : null,
+          unit,
+        };
+      })
+      .filter((row) => row.desc || row.qty != null || row.unit);
+  };
+
+  const fallbackDetailRowsFromNote = (note) => String(note ?? '')
+    .split('\n')
+    .map((line) => String(line).trim())
+    .filter(Boolean)
+    .map((desc) => ({ desc, qty: null, unit: '' }));
+
   return items
     .map((item, index) => {
       const desc = String(item?.desc ?? '').trim();
@@ -134,10 +158,13 @@ function normalizeWorkOrderItems(items) {
       const images = Array.isArray(item?.images)
         ? item.images.map(v => String(v || '')).filter(Boolean)
         : [];
+      const detailRows = normalizeDetailRows(item?.detailRows);
+      const normalizedDetailRows = detailRows.length > 0 ? detailRows : fallbackDetailRowsFromNote(note);
       return {
         seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
         desc,
-        note,
+        note: normalizedDetailRows.map((row) => row.desc).join('\n'),
+        detailRows: normalizedDetailRows,
         qty,
         unit,
         images,

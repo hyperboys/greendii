@@ -421,9 +421,16 @@ export interface WorkOrderItem {
   seq?: number
   desc: string
   note?: string
+  detailRows?: WorkOrderDetailRow[]
   qty: number
   unit: string
   images?: string[]
+}
+
+export interface WorkOrderDetailRow {
+  desc: string
+  qty?: number | null
+  unit?: string
 }
 
 // ─── HAND OVER JOB ────────────────────────────────────────────────────────────

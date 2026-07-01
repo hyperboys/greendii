@@ -201,7 +201,7 @@ export default function EditWorkOrderPage() {
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
   return (
-    <form onSubmit={handleSubmit} className="max-w-3xl mx-auto space-y-5">
+    <form onSubmit={handleSubmit} className="max-w-4xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
         <button type="button" onClick={() => router.back()} className="p-1.5 rounded-lg hover:bg-gray-200 transition-colors">
           <ArrowLeft size={18} />
