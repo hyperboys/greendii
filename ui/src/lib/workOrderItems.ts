@@ -16,7 +16,8 @@ function normalizeDetailRows(rows?: WorkOrderDetailRow[] | null): WorkOrderDetai
   return rows
     .map((row) => {
       const desc = String(row?.desc ?? '').trim()
-      const qty = row?.qty == null || row?.qty === '' ? null : Number(row.qty)
+      const rawQty = row?.qty as unknown
+      const qty = rawQty == null || rawQty === '' ? null : Number(rawQty)
       return {
         desc,
         qty: Number.isFinite(qty) ? qty : null,
