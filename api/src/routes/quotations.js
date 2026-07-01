@@ -88,19 +88,20 @@ async function nextQuotationBaseNoForUser(user) {
   const yy = String(now.getFullYear()).slice(2);
   const initials = (user.initials || 'XX').toUpperCase();
   const prefix = `QGD-${mm}${yy}-${initials}`;
-  const [userQuotations, freshUser] = await Promise.all([
+  const yearMarker = `-${yy}-${initials}`
+  const [yearQuotations, freshUser] = await Promise.all([
     prisma.quotation.findMany({
       where: {
-        salesId: user.id,
-        quoNo: { contains: `-${yy}-${initials}` },
+        quoNo: { contains: yearMarker },
       },
       select: { quoNo: true },
     }),
     prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
   ]);
 
+  // Run continuously within the same year (YY), regardless of MM in quoNo.
   const basePattern = new RegExp(`^QGD-\\d{2}${yy}-${escapeRegExp(initials)}(\\d+)$`, 'i')
-  const dbSeq = userQuotations.reduce((maxSeq, row) => {
+  const dbSeq = yearQuotations.reduce((maxSeq, row) => {
     const baseNo = stripRevisionSuffix(row.quoNo)
     const matched = baseNo.match(basePattern)
     if (!matched) return maxSeq
@@ -112,7 +113,16 @@ async function nextQuotationBaseNoForUser(user) {
   const counters = (freshUser && freshUser.docCounters && typeof freshUser.docCounters === 'object')
     ? freshUser.docCounters
     : {};
-  const floor = Number(counters[`${mm}${yy}`]) || 1;
+
+  // Legacy counter keys are MMYY; use the highest floor in the same YY.
+  const yearlyFloor = Object.entries(counters).reduce((maxFloor, [key, value]) => {
+    if (!/^\d{4}$/.test(key) || !key.endsWith(yy)) return maxFloor
+    const n = Number(value)
+    if (!Number.isFinite(n) || n < 1) return maxFloor
+    return Math.max(maxFloor, n)
+  }, 1)
+
+  const floor = yearlyFloor;
   const seq = Math.max(dbSeq + 1, floor);
   return `${prefix}${String(seq).padStart(3, '0')}`;
 }
