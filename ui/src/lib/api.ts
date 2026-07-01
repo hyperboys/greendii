@@ -256,8 +256,8 @@ export const WorkOrdersAPI = {
     http.put<WorkOrder>(`/workorders/${id}`, data).then(r => r.data),
   submit: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/submit`, { comment }).then(r => r.data),
-  approve: (id: string, comment?: string) =>
-    http.post<WorkOrder>(`/workorders/${id}/approve`, { comment }).then(r => r.data),
+  approve: (id: string, comment?: string, docChecklist?: Record<string, boolean>) =>
+    http.post<WorkOrder>(`/workorders/${id}/approve`, { comment, docChecklist }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/reject`, { comment }).then(r => r.data),
   cancel: (id: string) => http.delete(`/workorders/${id}`).then(r => r.data),

@@ -747,6 +747,14 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    const { comment, docChecklist } = req.body || {};
+    const { stepRole } = await getStepRoleMapping();
+    const requiredRole = normalizeRole(stepRole[wo.approvalStep]);
+    const actorRole = normalizeRole(req.user.role);
+    const canEditTeamChecklistOnApprove = requiredRole === 'project_mgr' && actorRole === 'project_mgr';
+    const nextDocChecklist = canEditTeamChecklistOnApprove
+      ? normalizeDocChecklist(docChecklist, wo.docChecklist || {}, true)
+      : undefined;
     const nextStep = await getNextStep('workOrder', wo.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
     const isClosed = nextStep === null;
@@ -755,13 +763,14 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
       data: {
         approvalStep: nextStep ?? wo.approvalStep, status: newStatus,
         isClosed, closedAt: isClosed ? new Date() : null,
+        ...(nextDocChecklist ? { docChecklist: nextDocChecklist } : {}),
       },
     });
     await prisma.approvalLog.create({
       data: {
         docType: 'workorder', workOrderId: wo.id,
         approverId: req.user.id, step: wo.approvalStep,
-        action: 'approve', comment: req.body.comment || '',
+        action: 'approve', comment: comment || '',
       },
     });
     if (newStatus === 'approved') {

@@ -51,6 +51,7 @@ export default function WorkOrderDetailPage() {
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
+  const [approvalChecklist, setApprovalChecklist] = useState<Record<string, boolean>>({ ...DEFAULT_DOC_CHECKLIST })
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewBlobUrl, setPreviewBlobUrl] = useState('')
@@ -66,6 +67,9 @@ export default function WorkOrderDetailPage() {
 
   useEffect(() => { load() }, [id])
   useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
+  useEffect(() => {
+    setApprovalChecklist({ ...DEFAULT_DOC_CHECKLIST, ...(doc?.docChecklist ?? {}) })
+  }, [doc])
 
   useEffect(() => {
     if (!previewOpen) return
@@ -130,7 +134,10 @@ export default function WorkOrderDetailPage() {
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
-  const checklist = { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) }
+  const canEditTeamChecklistOnApprove = canApprove
+    && normalizeUserRole(user?.role) === 'project_mgr'
+    && normalizeUserRole(currentStepRole) === 'project_mgr'
+  const checklist = approvalChecklist
   const workOrderItems = getWorkOrderItemsSource(doc)
   const checklistItemClass = (checked: boolean) =>
     `inline-flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm ${checked
@@ -153,7 +160,7 @@ export default function WorkOrderDetailPage() {
     setActing(true)
     try {
       if (action === 'submit') await WorkOrdersAPI.submit(id, comment)
-      else if (action === 'approve') await WorkOrdersAPI.approve(id, comment)
+      else if (action === 'approve') await WorkOrdersAPI.approve(id, comment, canEditTeamChecklistOnApprove ? checklist : undefined)
       else if (action === 'reject') await WorkOrdersAPI.reject(id, comment)
       else if (action === 'delete') { await WorkOrdersAPI.cancel(id); router.push('/workorders'); return }
       toast.success('ดำเนินการสำเร็จ')
@@ -164,6 +171,12 @@ export default function WorkOrderDetailPage() {
     } finally {
       setActing(false)
     }
+  }
+
+  const toggleTeamChecklistOnApprove = (key: string) => {
+    if (!canEditTeamChecklistOnApprove) return
+    if (!CHECKLIST_GROUPS.team.some(item => item.key === key)) return
+    setApprovalChecklist(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
   return (
@@ -241,14 +254,17 @@ export default function WorkOrderDetailPage() {
       <div className="card p-5 space-y-4">
         <div>
           <h3 className="font-semibold text-gray-800 mb-2">ทีมงาน (ใบ Work Order)</h3>
+          {canEditTeamChecklistOnApprove && (
+            <p className="mb-2 text-xs text-emerald-700">Project Manager สามารถเลือกทีมงานก่อนกดอนุมัติได้</p>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {CHECKLIST_GROUPS.team.map(item => (
               <label key={item.key} className={checklistItemClass(!!checklist[item.key])}>
                 <input
                   type="checkbox"
                   checked={!!checklist[item.key]}
-                  readOnly
-                  disabled
+                  onChange={() => toggleTeamChecklistOnApprove(item.key)}
+                  disabled={!canEditTeamChecklistOnApprove}
                   className="h-4 w-4 rounded border-gray-300 accent-emerald-600"
                 />
                 <span>{item.label}</span>
@@ -389,6 +405,9 @@ export default function WorkOrderDetailPage() {
       {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ดำเนินการ</h3>
+          {canEditTeamChecklistOnApprove && (
+            <p className="text-xs text-emerald-700">ค่าทีมงานจะถูกบันทึกพร้อมการอนุมัติ</p>
+          )}
           <textarea className="form-input" rows={2} placeholder="ความคิดเห็น (ไม่บังคับ)"
             value={comment} onChange={e => setComment(e.target.value)} />
           <div className="flex gap-2">
