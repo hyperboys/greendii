@@ -3,11 +3,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import * as XLSX from 'xlsx'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 import { ReportsAPI, UsersAPI } from '@/lib/api'
 import type { User, WorkOrderNoPoReport, WorkOrderNoPoRow } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
-import { FileSpreadsheet } from 'lucide-react'
+import { ChevronRight, FileSpreadsheet } from 'lucide-react'
 
 type SortKey = 'woNo' | 'openedAt' | 'customerName' | 'amount' | 'ageDays' | 'status' | 'salesName'
 
@@ -28,7 +29,7 @@ export default function WorkOrdersNoPoBySalesPage() {
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
 
   useEffect(() => {
-    UsersAPI.list({ active: 'true' })
+    UsersAPI.list({ active: 'true', forReport: 'true' })
       .then(list => setSales(list.filter(u => hasRole(u.role, ['sales', 'sale_mgr']))))
       .catch(() => {})
   }, [])
@@ -88,14 +89,34 @@ export default function WorkOrdersNoPoBySalesPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="page-title">Report: Work Order ที่ยังไม่มี PO</h2>
-          <p className="page-sub">แยกตาม Sales พร้อมสรุปและรายละเอียด</p>
+      <div className="rounded-2xl overflow-hidden shadow-md"
+           style={{ background: 'linear-gradient(135deg, #1B5E20 0%, #2d6a2e 60%, #388E3C 100%)' }}>
+        <div className="px-6 pt-4 flex items-center gap-1.5 text-green-200/70 text-[11px] font-medium">
+          <Link href="/dashboard" className="hover:text-white transition-colors">หน้าหลัก</Link>
+          <ChevronRight size={11} />
+          <Link href="/reports" className="hover:text-white transition-colors">รายงาน</Link>
+          <ChevronRight size={11} />
+          <span className="text-white/90">WO ที่ยังไม่มี PO</span>
         </div>
-        <button className="btn-outline flex items-center gap-1.5" onClick={exportExcel}>
-          <FileSpreadsheet className="w-4 h-4" /> Export Excel
-        </button>
+        <div className="px-6 pt-3 pb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+              Report: Work Order ที่ยังไม่มี PO
+            </h1>
+            <p className="text-green-200/75 text-sm mt-1.5">แยกตาม Sales พร้อมสรุปและรายละเอียด</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button className="btn-outline flex items-center gap-1.5 bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={exportExcel}>
+              <FileSpreadsheet className="w-4 h-4" /> Export Excel
+            </button>
+            <Link
+              href="/reports"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-medium transition-all duration-150 whitespace-nowrap"
+            >
+              Back to Reports
+            </Link>
+          </div>
+        </div>
       </div>
 
       <div className="card p-4">

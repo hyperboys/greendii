@@ -423,11 +423,11 @@ export default function WorkflowTrackingReportPage() {
   const load = useCallback(() => {
     setLoading(true)
     Promise.all([
-      QuotationsAPI.list(),
+      QuotationsAPI.list({ forReport: 'true' }),
       WorkOrdersAPI.list(),
       HandoversAPI.list(),
       PRAPI.list(),
-      isManager ? UsersAPI.list({ active: 'true' }) : Promise.resolve([] as User[]),
+      isManager ? UsersAPI.list({ active: 'true', forReport: 'true' }) : Promise.resolve([] as User[]),
     ])
       .then(([qs, wos, hos, prList, users]) => {
         setQuotations(qs)

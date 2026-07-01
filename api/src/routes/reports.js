@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
-const { canManageAllQuotations, canManageAllDocs } = require('../lib/roles');
+const { canViewAllReports } = require('../lib/roles');
 
 function parseSalesIds(raw) {
   if (!raw) return [];
@@ -34,14 +34,16 @@ function poAttachmentFilter() {
 router.get('/overview', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const canSeeAllReports = await canViewAllReports(req.user.role);
+    const quotationWhere = canSeeAllReports ? {} : { salesId: userId };
     const [
       quoTotal, quoApproved, quoGrandTotal,
       woTotal, woApproved, woPending,
       hoTotal, prTotal, recentLogs,
     ] = await Promise.all([
-      prisma.quotation.count({ where: { salesId: userId } }),
-      prisma.quotation.count({ where: { salesId: userId, status: 'approved' } }),
-      prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { salesId: userId, status: 'approved' } }),
+      prisma.quotation.count({ where: quotationWhere }),
+      prisma.quotation.count({ where: { ...quotationWhere, status: 'approved' } }),
+      prisma.quotation.aggregate({ _sum: { grandTotal: true }, where: { ...quotationWhere, status: 'approved' } }),
       prisma.workOrder.count(),
       prisma.workOrder.count({ where: { status: 'approved' } }),
       prisma.workOrder.count({ where: { status: 'pending' } }),
@@ -106,6 +108,7 @@ router.get('/quotation-summary', authenticate, async (req, res, next) => {
   try {
     const { salesId } = req.query;
     const now = new Date();
+    const canSeeAllReports = await canViewAllReports(req.user.role);
 
     // Default to current month if no date range specified
     const rawFrom = req.query.from;
@@ -118,7 +121,7 @@ router.get('/quotation-summary', authenticate, async (req, res, next) => {
       createdAt: { gte: dateFrom, lte: dateTo },
     };
 
-    if (!canManageAllQuotations(req.user.role)) {
+    if (!canSeeAllReports) {
       // Non-managers only see their own
       where.salesId = req.user.id;
     } else if (salesId) {
@@ -414,6 +417,7 @@ router.get('/quotation-summary', authenticate, async (req, res, next) => {
 // Query: salesIds=comma-separated, from=YYYY-MM-DD, to=YYYY-MM-DD
 router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) => {
   try {
+    const canSeeAllReports = await canViewAllReports(req.user.role);
     const salesIds = parseSalesIds(req.query.salesIds);
     const createdAt = normalizeDateRange(req.query.from, req.query.to);
     const where = {
@@ -423,7 +427,7 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
       ...(createdAt ? { createdAt } : {}),
     };
 
-    if (!canManageAllDocs(req.user.role)) {
+    if (!canSeeAllReports) {
       where.salesId = req.user.id;
     } else if (salesIds.length > 0) {
       where.salesId = { in: salesIds };
@@ -465,6 +469,7 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
 // Query: salesIds=comma-separated, from, to, customer, poStatus=all|has_po|no_po
 router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
   try {
+    const canSeeAllReports = await canViewAllReports(req.user.role);
     const salesIds = parseSalesIds(req.query.salesIds);
     const createdAt = normalizeDateRange(req.query.from, req.query.to);
     const customer = String(req.query.customer || '').trim();
@@ -479,7 +484,7 @@ router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
       ...(poStatus === 'no_po' ? { attachments: { none: poAttachmentFilter() } } : {}),
     };
 
-    if (!canManageAllDocs(req.user.role)) {
+    if (!canSeeAllReports) {
       where.salesId = req.user.id;
     } else if (salesIds.length > 0) {
       where.salesId = { in: salesIds };

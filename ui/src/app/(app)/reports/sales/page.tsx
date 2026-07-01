@@ -362,8 +362,8 @@ export default function SalesPerformanceReportPage() {
   const load = useCallback(() => {
     setLoading(true)
     Promise.all([
-      QuotationsAPI.list(),
-      UsersAPI.list({ active: 'true' }),
+      QuotationsAPI.list({ forReport: 'true' }),
+      UsersAPI.list({ active: 'true', forReport: 'true' }),
     ])
       .then(([qs, us]) => {
         setQuotations(qs)

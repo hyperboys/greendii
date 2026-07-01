@@ -5,12 +5,13 @@ import * as XLSX from 'xlsx'
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import toast from 'react-hot-toast'
+import Link from 'next/link'
 import { ReportsAPI, UsersAPI } from '@/lib/api'
 import type { User, WorkOrderPoOverviewRow } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 import DateInput from '@/components/DateInput'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
-import { FileSpreadsheet, FileText, RotateCcw } from 'lucide-react'
+import { ChevronRight, FileSpreadsheet, FileText, RotateCcw } from 'lucide-react'
 
 function fmtDate(iso?: string | null) {
   if (!iso) return '-'
@@ -32,7 +33,7 @@ export default function WorkOrdersPoOverviewPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    UsersAPI.list({ active: 'true' })
+    UsersAPI.list({ active: 'true', forReport: 'true' })
       .then(list => setSales(list.filter(u => hasRole(u.role, ['sales', 'sale_mgr']))))
       .catch(() => {})
   }, [])
@@ -112,18 +113,36 @@ export default function WorkOrdersPoOverviewPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="page-title">Report: Work Order ภาพรวม PO</h2>
-          <p className="page-sub">ตรวจสอบสถานะ PO ของ Work Order ทั้งหมด (กรองตามวันที่ / Sales / ลูกค้า / สถานะ PO)</p>
+      <div className="rounded-2xl overflow-hidden shadow-md"
+           style={{ background: 'linear-gradient(135deg, #1B5E20 0%, #2d6a2e 60%, #388E3C 100%)' }}>
+        <div className="px-6 pt-4 flex items-center gap-1.5 text-green-200/70 text-[11px] font-medium">
+          <Link href="/dashboard" className="hover:text-white transition-colors">หน้าหลัก</Link>
+          <ChevronRight size={11} />
+          <Link href="/reports" className="hover:text-white transition-colors">รายงาน</Link>
+          <ChevronRight size={11} />
+          <span className="text-white/90">WO ภาพรวม PO</span>
         </div>
-        <div className="flex gap-2">
-          <button className="btn-outline flex items-center gap-1.5" onClick={exportExcel}>
-            <FileSpreadsheet className="w-4 h-4" /> Export Excel
-          </button>
-          <button className="btn-outline flex items-center gap-1.5" onClick={exportPdf}>
-            <FileText className="w-4 h-4" /> Export PDF
-          </button>
+        <div className="px-6 pt-3 pb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-white leading-tight">
+              Report: Work Order ภาพรวม PO
+            </h1>
+            <p className="text-green-200/75 text-sm mt-1.5">ตรวจสอบสถานะ PO ของ Work Order ทั้งหมด (กรองตามวันที่ / Sales / ลูกค้า / สถานะ PO)</p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-outline flex items-center gap-1.5 bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={exportExcel}>
+              <FileSpreadsheet className="w-4 h-4" /> Export Excel
+            </button>
+            <button className="btn-outline flex items-center gap-1.5 bg-white/10 border-white/20 text-white hover:bg-white/20" onClick={exportPdf}>
+              <FileText className="w-4 h-4" /> Export PDF
+            </button>
+            <Link
+              href="/reports"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20 text-white text-sm font-medium transition-all duration-150 whitespace-nowrap"
+            >
+              Back to Reports
+            </Link>
+          </div>
         </div>
       </div>
 

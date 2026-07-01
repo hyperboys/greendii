@@ -261,7 +261,7 @@ export default function QuotationSummaryReportPage() {
 
   const load = useCallback(() => {
     setLoading(true)
-    const params: Record<string, string> = { active: 'true' }
+    const params: Record<string, string> = { active: 'true', forReport: 'true' }
     if (search.trim())            params.q       = search.trim()
     if (statusFilter)             params.status  = statusFilter
     if (isManager && salesFilter) params.salesId = salesFilter
@@ -455,7 +455,7 @@ export default function QuotationSummaryReportPage() {
                 className="self-start sm:self-auto shrink-0 inline-flex items-center gap-1.5
                            px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 border border-white/20
                            text-white text-sm font-medium transition-all duration-150 whitespace-nowrap">
-            กลับหน้ารายงาน
+            ← Back to Reports
           </Link>
         </div>
       </div>

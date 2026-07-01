@@ -5,6 +5,7 @@ const path = require('path');
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
+const { canViewAllReports } = require('../lib/roles');
 
 const USER_SELECT = {
   id: true, username: true, fullName: true, initials: true,
@@ -12,6 +13,14 @@ const USER_SELECT = {
   firstName: true, lastName: true, firstNameEn: true, lastNameEn: true,
   lineUserId: true, signatureText: true, signatureUrl: true, active: true, createdAt: true,
   docCounters: true,
+};
+
+const USER_REPORT_SELECT = {
+  id: true,
+  fullName: true,
+  role: true,
+  department: true,
+  active: true,
 };
 
 const sigUpload = multer({
@@ -27,9 +36,18 @@ const sigUpload = multer({
 });
 
 // GET /api/users
-router.get('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
+router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { q, role, active } = req.query;
+    const { q, role, active, forReport } = req.query;
+    const isReportQuery = ['1', 'true', 'yes'].includes(String(forReport || '').toLowerCase());
+    const canViewReports = await canViewAllReports(req.user.role);
+    const canUseReportMode = canViewReports && (isReportQuery || !['admin', 'director', 'admin_mgr'].includes(req.user.role));
+    const isUserAdmin = ['admin', 'director', 'admin_mgr'].includes(req.user.role);
+
+    if (!isUserAdmin && !canUseReportMode) {
+      return res.status(403).json({ message: 'Forbidden: insufficient role' });
+    }
+
     const where = {};
     if (q) where.OR = [
       { username: { contains: q, mode: 'insensitive' } },
@@ -37,9 +55,11 @@ router.get('/', authenticate, requireRole('admin', 'director', 'admin_mgr'), asy
     ];
     if (role) where.role = role;
     if (active !== undefined) where.active = active === 'true';
+
+    const select = canUseReportMode ? USER_REPORT_SELECT : USER_SELECT;
     const users = await prisma.user.findMany({
       where,
-      select: USER_SELECT,
+      select,
       orderBy: { createdAt: 'asc' },
     });
     res.json(users);

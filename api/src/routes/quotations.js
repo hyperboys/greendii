@@ -7,7 +7,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep, getFlowSteps } = require('../lib/approvalFlow');
-const { canManageAllQuotations, assertQuotationAccessible } = require('../lib/roles');
+const { canManageAllQuotations, canViewAllReports, assertQuotationAccessible } = require('../lib/roles');
 
 const quotationValidators = [
   body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
@@ -162,7 +162,7 @@ async function createQuotationWithRetry(req, data, include, maxAttempts = 3) {
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, salesId, q, active } = req.query;
+    const { status, salesId, q, active, forReport } = req.query;
     const where = {};
     if (status) where.status = status;
     if (salesId) where.salesId = salesId;
@@ -173,8 +173,11 @@ router.get('/', authenticate, async (req, res, next) => {
       { project: { contains: q, mode: 'insensitive' } },
       { customerName: { contains: q, mode: 'insensitive' } },
     ];
-    // Sales only sees their own quotations (unless manager+)
-    if (!canManageAllQuotations(req.user.role)) {
+    const isReportQuery = ['1', 'true', 'yes'].includes(String(forReport || '').toLowerCase());
+    const canSeeAllForReports = isReportQuery ? await canViewAllReports(req.user.role) : false;
+
+    // Sales only sees their own quotations (unless manager+ or report viewers in report scope)
+    if (!canManageAllQuotations(req.user.role) && !canSeeAllForReports) {
       where.salesId = req.user.id;
     }
     const listInclude = {
