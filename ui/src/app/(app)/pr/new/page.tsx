@@ -22,6 +22,25 @@ interface FormData {
 const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0, images: [] })
 const VAT_RATE = 0.07
 const roundMoney = (value: number) => Math.round(value * 100) / 100
+const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
+
+function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
+  const raw = note ?? ''
+  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
+  if (markerIdx === -1) return { noteText: raw, detailLines: [''] }
+  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
+  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
+  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : ['']
+  return { noteText, detailLines: detailLines.length > 0 ? detailLines : [''] }
+}
+
+function composeNoteParts(noteText: string, detailLines: string[]): string {
+  const cleanNote = noteText
+  const normalizedLines = detailLines.length > 0 ? detailLines : ['']
+  const hasDetail = normalizedLines.some(line => line.trim() !== '')
+  if (!hasDetail) return cleanNote
+  return `${cleanNote}${cleanNote ? '\n' : ''}${DETAIL_ROWS_MARKER}\n${normalizedLines.join('\n')}`
+}
 
 export default function NewPRPage() {
   const router = useRouter()
@@ -55,6 +74,56 @@ export default function NewPRPage() {
       const items = [...f.items]
       items[idx] = { ...items[idx], [key]: val }
       items[idx].amount = items[idx].qty * items[idx].price
+      return { ...f, items }
+    })
+  }
+
+  const setDetailLine = (itemIdx: number, lineIdx: number, value: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const target = items[itemIdx]
+      const parts = parseNoteParts(target.note)
+      const lines = [...parts.detailLines]
+      lines[lineIdx] = value
+      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
+      return { ...f, items }
+    })
+  }
+
+  const setMainNote = (itemIdx: number, value: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const target = items[itemIdx]
+      const parts = parseNoteParts(target.note)
+      items[itemIdx] = { ...target, note: composeNoteParts(value, parts.detailLines) }
+      return { ...f, items }
+    })
+  }
+
+  const addDetailLine = (itemIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const target = items[itemIdx]
+      const parts = parseNoteParts(target.note)
+      const lines = [...parts.detailLines]
+      lines.push('')
+      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
+      return { ...f, items }
+    })
+  }
+
+  const removeDetailLine = (itemIdx: number, lineIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const target = items[itemIdx]
+      const parts = parseNoteParts(target.note)
+      const lines = [...parts.detailLines]
+      if (lines.length <= 1) {
+        items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, ['']) }
+        return { ...f, items }
+      }
+      lines.splice(lineIdx, 1)
+      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
       return { ...f, items }
     })
   }
@@ -209,8 +278,8 @@ export default function NewPRPage() {
                       <textarea
                         className="form-input py-1 mt-1.5 text-xs resize-none w-full text-gray-600"
                         rows={2}
-                        value={item.note ?? ''}
-                        onChange={e => setItem(i, 'note', e.target.value)}
+                        value={parseNoteParts(item.note).noteText}
+                        onChange={e => setMainNote(i, e.target.value)}
                         placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
                       <div className="mt-2">
                         {item.images && item.images.length > 0 && (
@@ -247,6 +316,35 @@ export default function NewPRPage() {
                             }}
                           />
                         </label>
+                      </div>
+                      <div className="mt-1.5 space-y-1.5">
+                        {parseNoteParts(item.note).detailLines.map((line, lineIdx, lines) => (
+                          <div key={`${i}-detail-${lineIdx}`} className="flex items-center gap-1.5">
+                            <input
+                              className="form-input py-1 text-xs w-full text-gray-600"
+                              value={line}
+                              onChange={e => setDetailLine(i, lineIdx, e.target.value)}
+                              placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                            />
+                            {lines.length > 1 && (
+                              <button
+                                type="button"
+                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
+                                onClick={() => removeDetailLine(i, lineIdx)}
+                                title="ลบรายละเอียด"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
+                          onClick={() => addDetailLine(i)}
+                        >
+                          <Plus size={12} /> เพิ่มรายละเอียด
+                        </button>
                       </div>
                     </td>
                     <td className="py-2 px-2">

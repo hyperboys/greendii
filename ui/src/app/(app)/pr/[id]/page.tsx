@@ -18,6 +18,18 @@ function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
+
+function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
+  const raw = note ?? ''
+  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
+  if (markerIdx === -1) return { noteText: raw, detailLines: [] }
+  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
+  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
+  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : []
+  return { noteText, detailLines }
+}
+
 export default function PRDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -160,7 +172,16 @@ export default function PRDetailPage() {
                 <td className="text-gray-500 text-xs">{item.partNo || '-'}</td>
                 <td>
                   {item.desc}
-                  {item.note && <p className="text-xs text-gray-400 mt-0.5">{item.note}</p>}
+                  {parseNoteParts(item.note).noteText && (
+                    <p className="text-xs text-gray-400 mt-0.5">{parseNoteParts(item.note).noteText}</p>
+                  )}
+                  {parseNoteParts(item.note).detailLines.length > 0 && (
+                    <div className="mt-0.5 space-y-0.5 text-xs text-gray-400">
+                      {parseNoteParts(item.note).detailLines.map((line, lineIdx) => (
+                        <p key={`${item.id ?? i}-note-${lineIdx}`}>{line || '\u00a0'}</p>
+                      ))}
+                    </div>
+                  )}
                   {Array.isArray(item.images) && item.images.length > 0 && (
                     <div className="mt-2 flex flex-wrap gap-2">
                       {item.images.map((url, imgIdx) => (

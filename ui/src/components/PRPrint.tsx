@@ -29,6 +29,18 @@ function splitDescriptionLines(note?: string): string[] {
   return lines
 }
 
+const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
+
+function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
+  const raw = note ?? ''
+  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
+  if (markerIdx === -1) return { noteText: raw, detailLines: [] }
+  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
+  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
+  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : []
+  return { noteText, detailLines }
+}
+
 const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
 
 interface Props {
@@ -205,8 +217,13 @@ export default function PRPrint({ doc, settings }: Props) {
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
               <td style={{ ...tdS }}>
                 {item?.desc ?? ''}
-                {item && splitDescriptionLines(item.note).map((line, idx) => (
+                {item && splitDescriptionLines(parseNoteParts(item.note).noteText).map((line, idx) => (
                   <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                    {line || '\u00a0'}
+                  </div>
+                ))}
+                {item && parseNoteParts(item.note).detailLines.map((line, idx) => (
+                  <div key={`detail-${idx}`} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
                     {line || '\u00a0'}
                   </div>
                 ))}
