@@ -1,14 +1,22 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ReportsAPI } from '@/lib/api'
 import type { ReportOverview, ReportSales, ReportApprovalPerf } from '@/types'
 import { ROLE_LABELS } from '@/types'
 import toast from 'react-hot-toast'
 import Link from 'next/link'
+import { normalizeUserRole } from '@/lib/roleAliases'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
+}
+
+function cleanCustomerName(name: string) {
+  return String(name || '')
+    .replace(/^[:\-\s]+/, '')
+    .replace(/\s+/g, ' ')
+    .trim()
 }
 
 export default function ReportsPage() {
@@ -29,6 +37,26 @@ export default function ReportsPage() {
     }).catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }, [])
+
+  const salesRows = useMemo(() => {
+    return sales.map((s) => ({ ...s, customer: cleanCustomerName(s.customer) }))
+  }, [sales])
+
+  const topSalesTotal = salesRows[0]?.total || 0
+  const salesGrandTotal = salesRows.reduce((sum, row) => sum + Number(row.total || 0), 0)
+
+  const perfRows = useMemo(() => {
+    return perf.map((p) => {
+      const normalizedRole = normalizeUserRole(p.role)
+      return {
+        ...p,
+        roleLabel: ROLE_LABELS[normalizedRole as keyof typeof ROLE_LABELS] || p.role,
+      }
+    })
+  }, [perf])
+
+  const totalApproved = perfRows.reduce((sum, row) => sum + Number(row.approve || 0), 0)
+  const totalRejected = perfRows.reduce((sum, row) => sum + Number(row.reject || 0), 0)
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
 
@@ -136,48 +164,91 @@ export default function ReportsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales by customer */}
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Sales by Customer</h3>
-          {sales.length === 0 ? (
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800">Sales by Customer</h3>
+            <span className="text-xs text-gray-500">{salesRows.length} ลูกค้า</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="rounded-lg bg-emerald-50 border border-emerald-100 p-2.5">
+              <p className="text-[11px] text-emerald-700/80">ยอดรวมทั้งหมด</p>
+              <p className="text-sm font-semibold text-emerald-700">฿{fmtMoney(salesGrandTotal)}</p>
+            </div>
+            <div className="rounded-lg bg-blue-50 border border-blue-100 p-2.5">
+              <p className="text-[11px] text-blue-700/80">ลูกค้าสูงสุด (Top 1)</p>
+              <p className="text-sm font-semibold text-blue-700">฿{fmtMoney(topSalesTotal)}</p>
+            </div>
+          </div>
+          {salesRows.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-6">No data available</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr><th>Customer</th><th className="text-right">Count</th><th className="text-right">Total</th></tr>
-              </thead>
-              <tbody>
-                {sales.map((s, i) => (
-                  <tr key={i}>
-                    <td className="max-w-[180px] truncate">{s.customer}</td>
-                    <td className="text-right">{s.count}</td>
-                    <td className="text-right font-medium">฿{fmtMoney(s.total)}</td>
+            <div className="max-h-[460px] overflow-auto rounded-xl border border-gray-100">
+              <table className="data-table">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr>
+                    <th className="w-12 text-center">#</th>
+                    <th>Customer</th>
+                    <th className="text-right">Count</th>
+                    <th className="text-right">Total</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {salesRows.map((s, i) => (
+                    <tr key={`${s.customer}-${i}`} className="odd:bg-white even:bg-gray-50/50 hover:bg-green-50/40">
+                      <td className="text-center text-xs text-gray-500">{i + 1}</td>
+                      <td className="max-w-[260px] truncate" title={s.customer}>{s.customer}</td>
+                      <td className="text-right tabular-nums">{s.count}</td>
+                      <td className="text-right font-medium tabular-nums">฿{fmtMoney(s.total)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
 
         {/* Approval performance */}
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">Approval Performance</h3>
-          {perf.length === 0 ? (
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-semibold text-gray-800">Approval Performance</h3>
+            <span className="text-xs text-gray-500">{perfRows.length} คน</span>
+          </div>
+          <div className="grid grid-cols-2 gap-2 mb-4">
+            <div className="rounded-lg bg-green-50 border border-green-100 p-2.5">
+              <p className="text-[11px] text-green-700/80">Approved รวม</p>
+              <p className="text-sm font-semibold text-green-700">{totalApproved}</p>
+            </div>
+            <div className="rounded-lg bg-red-50 border border-red-100 p-2.5">
+              <p className="text-[11px] text-red-700/80">Rejected รวม</p>
+              <p className="text-sm font-semibold text-red-700">{totalRejected}</p>
+            </div>
+          </div>
+          {perfRows.length === 0 ? (
             <p className="text-gray-400 text-sm text-center py-6">No data available</p>
           ) : (
-            <table className="data-table">
-              <thead>
-                <tr><th>Name</th><th>Role</th><th className="text-right text-green-dark">Approved</th><th className="text-right text-red-500">Rejected</th></tr>
-              </thead>
-              <tbody>
-                {perf.map(p => (
-                  <tr key={p.id}>
-                    <td>{p.name}</td>
-                    <td className="text-xs text-gray-500">{ROLE_LABELS[p.role as keyof typeof ROLE_LABELS] ?? p.role}</td>
-                    <td className="text-right font-medium text-green-dark">{p.approve}</td>
-                    <td className="text-right font-medium text-red-500">{p.reject}</td>
+            <div className="max-h-[460px] overflow-auto rounded-xl border border-gray-100">
+              <table className="data-table">
+                <thead className="sticky top-0 z-10 bg-white">
+                  <tr>
+                    <th className="w-12 text-center">#</th>
+                    <th>Name</th>
+                    <th>Role</th>
+                    <th className="text-right text-green-dark">Approved</th>
+                    <th className="text-right text-red-500">Rejected</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {perfRows.map((p, i) => (
+                    <tr key={p.id} className="odd:bg-white even:bg-gray-50/50 hover:bg-blue-50/40">
+                      <td className="text-center text-xs text-gray-500">{i + 1}</td>
+                      <td>{p.name}</td>
+                      <td className="text-xs text-gray-500">{p.roleLabel}</td>
+                      <td className="text-right font-medium text-green-dark tabular-nums">{p.approve}</td>
+                      <td className="text-right font-medium text-red-500 tabular-nums">{p.reject}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
