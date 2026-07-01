@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 
 const createEmptyItem = (seq: number): HandOverItem => ({ seq, desc: '', note: '', qty: 1, unit: '', images: [] })
+const DEFAULT_RESPONSIBILITY = 'K.Sarayut'
 const parseDescLines = (note?: string): string[] => {
   const lines = (note ?? '').split('\n')
   return lines.length > 0 ? lines : ['']
@@ -37,7 +38,7 @@ export default function NewHandoverPage() {
 
   const [form, setForm] = useState<FormData>({
     quotationId: '', project: '', contractor: '', location: '',
-    contactName: '', contactTel: '', product: '', responsibility: '',
+    contactName: '', contactTel: '', product: '', responsibility: DEFAULT_RESPONSIBILITY,
     serviceDate: '', items: [createEmptyItem(0)],
   })
 

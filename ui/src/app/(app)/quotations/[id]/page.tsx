@@ -53,6 +53,14 @@ function fmtLeadTime(v?: string): string {
   return value.replace(/\bวัน\b/g, 'Days')
 }
 
+function sanitizeFilename(value: string) {
+  return value
+    .trim()
+    .replace(/[\\/:*?"<>|]+/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/[.\s]+$/g, '')
+}
+
 export default function QuotationDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
@@ -131,11 +139,15 @@ export default function QuotationDetailPage() {
 
   const downloadPdf = async () => {
     if (pdfLoading) return
+    const defaultStem = sanitizeFilename(doc.quoNo || 'quotation') || 'quotation'
+    const filenameInput = window.prompt('ระบุชื่อไฟล์ก่อนดาวน์โหลด', defaultStem)
+    if (filenameInput === null) return
+    const filename = sanitizeFilename(filenameInput) || defaultStem
     setPdfLoading(true)
     toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
     try {
       const blob = await QuotationsAPI.pdf(id)
-      downloadBlob(blob, `${doc.quoNo || 'quotation'}.pdf`)
+      downloadBlob(blob, `${filename}.pdf`)
       toast.success('สำเร็จ', { id: 'pdf' })
     } catch {
       toast.error('สร้าง PDF ไม่สำเร็จ', { id: 'pdf' })

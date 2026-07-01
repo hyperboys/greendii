@@ -42,6 +42,7 @@ const CHECKLIST_GROUPS = {
 const DEFAULT_DOC_CHECKLIST: Record<string, boolean> = Object.fromEntries(
   [...CHECKLIST_GROUPS.team, ...CHECKLIST_GROUPS.docs].map(item => [item.key, false]),
 )
+const DEFAULT_RESPONSIBILITY = 'K.Sarayut'
 
 interface FormData {
   handOverJobId: string
@@ -77,7 +78,7 @@ export default function NewWorkOrderPage() {
   const [form, setForm] = useState<FormData>({
     handOverJobId: '',
     quotationId: '', customerName: '', contactName: '', contactTel: '',
-    project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: '',
+    project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: DEFAULT_RESPONSIBILITY,
     teamAssignment: '', installDate: '', qcDate: '', remark: '',
     docChecklist: { ...DEFAULT_DOC_CHECKLIST },
   })

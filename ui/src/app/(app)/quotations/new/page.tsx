@@ -41,9 +41,7 @@ const emptyItem = (): QuotationItem => ({
 })
 const VAT_RATE = 0.07
 const roundMoney = (value: number) => Math.round(value * 100) / 100
-const PAYMENT_TERM_OPTIONS = ['เงินสด', 'เครดิต'] as const
 const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'] as const
-const CUSTOM_PAYMENT_TERM = '__custom_payment_term__'
 const CUSTOM_LEAD_TIME = '__custom_lead_time__'
 const DEFAULT_LINE_COLOR = '#000000'
 
@@ -103,7 +101,6 @@ export default function NewQuotationPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
-  const [isCustomPaymentTerm, setIsCustomPaymentTerm] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
@@ -121,9 +118,6 @@ export default function NewQuotationPage() {
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const grandTotal = roundMoney(afterDiscount + vat)
-  const paymentTermSelectValue = isCustomPaymentTerm
-    ? CUSTOM_PAYMENT_TERM
-    : getSelectValue(form.paymentTerm, PAYMENT_TERM_OPTIONS, '')
   const leadTimeSelectValue = isCustomLeadTime ? CUSTOM_LEAD_TIME : getSelectValue(form.leadTime, LEAD_TIME_OPTIONS, CUSTOM_LEAD_TIME)
   const customLeadTimeDays = getLeadTimeDays(form.leadTime)
 
@@ -360,32 +354,12 @@ export default function NewQuotationPage() {
         </div>
         <div>
           <label className="form-label">การชำระเงิน</label>
-          <select
+          <input
             className="form-input"
-            value={paymentTermSelectValue}
-            onChange={e => {
-              const selected = e.target.value
-              setIsCustomPaymentTerm(selected === CUSTOM_PAYMENT_TERM)
-              setForm(f => ({
-                ...f,
-                paymentTerm: selected === CUSTOM_PAYMENT_TERM
-                  ? ''
-                  : selected,
-              }))
-            }}
-          >
-            <option value="">— เลือกการชำระเงิน —</option>
-            {PAYMENT_TERM_OPTIONS.map(option => <option key={option} value={option}>{option}</option>)}
-            <option value={CUSTOM_PAYMENT_TERM}>อื่นๆ</option>
-          </select>
-          {isCustomPaymentTerm && (
-            <input
-              className="form-input mt-2"
-              value={form.paymentTerm}
-              placeholder="ระบุการชำระเงิน"
-              onChange={e => setForm(f => ({ ...f, paymentTerm: e.target.value }))}
-            />
-          )}
+            value={form.paymentTerm}
+            placeholder="ระบุการชำระเงิน"
+            onChange={e => setForm(f => ({ ...f, paymentTerm: e.target.value }))}
+          />
         </div>
         <div>
           <label className="form-label">Lead Time</label>
