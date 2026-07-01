@@ -608,7 +608,7 @@ export default function PurchaseRequestReportPage() {
 
           {/* Actions */}
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={load} title="รีเฟรช"
+            <button onClick={load} title="ค้นหา"
               className="w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
                          flex items-center justify-center text-gray-500 hover:text-gray-800
                          transition-all duration-150 shadow-sm">

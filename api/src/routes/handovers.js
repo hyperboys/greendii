@@ -119,9 +119,10 @@ async function getDocNumberFloor(prefix) {
 // GET /api/handovers
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, q } = req.query;
+    const { status, salesId, q } = req.query;
     const where = {};
     if (status) where.status = status;
+    if (salesId) where.salesId = salesId;
     if (q) where.OR = [
       { hoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },

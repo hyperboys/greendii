@@ -97,7 +97,7 @@ export default function ActivityLogPage() {
           <p className="page-sub">บันทึกทุก HTTP Request ที่ User ทำกับระบบ</p>
         </div>
         <button className="btn-outline btn-sm" onClick={() => load(page)}>
-          <RefreshCw size={14} /> รีเฟรช
+          <RefreshCw size={14} /> ค้นหา
         </button>
       </div>
 

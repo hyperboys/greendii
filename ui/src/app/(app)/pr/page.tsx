@@ -67,7 +67,7 @@ export default function PRPage() {
           <option value="">ทุกสถานะ</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> รีเฟรช</button>
+        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> ค้นหา</button>
       </div>
 
       <div className="card overflow-x-auto">

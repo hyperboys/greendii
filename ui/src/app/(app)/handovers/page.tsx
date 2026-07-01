@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { HandoversAPI } from '@/lib/api'
-import type { HandOverJob } from '@/types'
+import { HandoversAPI, UsersAPI } from '@/lib/api'
+import { normalizeUserRole } from '@/lib/roleAliases'
+import type { HandOverJob, User } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
@@ -17,18 +18,63 @@ export default function HandoversPage() {
   const [rows, setRows] = useState<HandOverJob[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [salesFilter, setSalesFilter] = useState('')
+  const [salesOptions, setSalesOptions] = useState<Array<{ id: string; name: string }>>([])
+
+  const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
+
+  const mergeSalesOptionsFromRows = (list: HandOverJob[]) => {
+    const nextFromRows = list
+      .map((row) => ({ id: row.salesId, name: row.sales?.fullName || row.salesId }))
+      .filter((item) => item.id)
+
+    setSalesOptions((prev) => {
+      const map = new Map<string, string>()
+      for (const item of prev) map.set(item.id, item.name)
+      for (const item of nextFromRows) {
+        if (!map.has(item.id) || map.get(item.id) === item.id) map.set(item.id, item.name)
+      }
+      return Array.from(map.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+    })
+  }
+
+  const loadSalesUsers = async () => {
+    if (!canLoadSalesUsers) return
+    try {
+      const users = await UsersAPI.list({ active: 'true' })
+      const saleUsers = users
+        .filter((u: User) => normalizeUserRole(u.role) === 'sales')
+        .map((u: User) => ({ id: u.id, name: u.fullName || u.username }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+      if (saleUsers.length > 0) setSalesOptions(saleUsers)
+    } catch {
+      // Fallback to deriving options from currently loaded rows for non-admin roles.
+    }
+  }
 
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
+    if (statusFilter) params.status = statusFilter
+    if (salesFilter) params.salesId = salesFilter
     HandoversAPI.list(params)
-      .then(setRows)
+      .then((data) => {
+        setRows(data)
+        mergeSalesOptionsFromRows(data)
+      })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    loadSalesUsers()
+  }, [canLoadSalesUsers])
+
+  useEffect(() => { load() }, [statusFilter, salesFilter])
 
   const canCreate = hasPerm('ho_create', user?.role ?? '')
 
@@ -52,7 +98,15 @@ export default function HandoversPage() {
           <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ / ลูกค้า / โครงการ"
             value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
         </div>
-        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> รีเฟรช</button>
+        <select className="form-input w-auto py-1.5" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
+          <option value="">ทุกสถานะ</option>
+          {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+        </select>
+        <select className="form-input w-auto py-1.5" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
+          <option value="">ทุก Sale</option>
+          {salesOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> ค้นหา</button>
       </div>
 
       <div className="card overflow-x-auto">

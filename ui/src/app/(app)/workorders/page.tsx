@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { WorkOrdersAPI } from '@/lib/api'
-import type { WorkOrder, DocStatus } from '@/types'
+import { UsersAPI, WorkOrdersAPI } from '@/lib/api'
+import { normalizeUserRole } from '@/lib/roleAliases'
+import type { WorkOrder, DocStatus, User } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
@@ -23,19 +24,62 @@ export default function WorkOrdersPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [salesFilter, setSalesFilter] = useState('')
+  const [salesOptions, setSalesOptions] = useState<Array<{ id: string; name: string }>>([])
+
+  const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
+
+  const mergeSalesOptionsFromRows = (list: WorkOrder[]) => {
+    const nextFromRows = list
+      .map((row) => ({ id: row.salesId, name: row.sales?.fullName || row.salesId }))
+      .filter((item) => item.id)
+
+    setSalesOptions((prev) => {
+      const map = new Map<string, string>()
+      for (const item of prev) map.set(item.id, item.name)
+      for (const item of nextFromRows) {
+        if (!map.has(item.id) || map.get(item.id) === item.id) map.set(item.id, item.name)
+      }
+      return Array.from(map.entries())
+        .map(([id, name]) => ({ id, name }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+    })
+  }
+
+  const loadSalesUsers = async () => {
+    if (!canLoadSalesUsers) return
+    try {
+      const users = await UsersAPI.list({ active: 'true' })
+      const saleUsers = users
+        .filter((u: User) => normalizeUserRole(u.role) === 'sales')
+        .map((u: User) => ({ id: u.id, name: u.fullName || u.username }))
+        .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+      if (saleUsers.length > 0) setSalesOptions(saleUsers)
+    } catch {
+      // Fallback to deriving options from currently loaded rows for non-admin roles.
+    }
+  }
 
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
     if (statusFilter) params.status = statusFilter
+    if (salesFilter) params.salesId = salesFilter
     WorkOrdersAPI.list(params)
-      .then(setRows)
+      .then((data) => {
+        setRows(data)
+        mergeSalesOptionsFromRows(data)
+      })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => {
+    loadSalesUsers()
+  }, [canLoadSalesUsers])
+
+  useEffect(() => { load() }, [statusFilter, salesFilter])
 
   const canCreate = hasPerm('wo_create', user?.role ?? '')
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
@@ -71,7 +115,11 @@ export default function WorkOrdersPage() {
           <option value="">ทุกสถานะ</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> รีเฟรช</button>
+        <select className="form-input w-auto py-1.5" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
+          <option value="">ทุก Sale</option>
+          {salesOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+        </select>
+        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> ค้นหา</button>
       </div>
 
       <div className="card overflow-x-auto">

@@ -61,7 +61,7 @@ export default function AuditLogPage() {
           <p className="page-sub">ประวัติการ Submit / Approve / Reject เอกสารทุกประเภท</p>
         </div>
         <button className="btn-outline btn-sm" onClick={() => load(page)}>
-          <RefreshCw size={14} /> รีเฟรช
+          <RefreshCw size={14} /> ค้นหา
         </button>
       </div>
 
