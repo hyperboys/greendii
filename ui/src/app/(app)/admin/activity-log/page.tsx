@@ -43,6 +43,7 @@ export default function ActivityLogPage() {
   const [page, setPage]           = useState(1)
   const [loading, setLoading]     = useState(true)
   const [users, setUsers]         = useState<User[]>([])
+  const [expandedRows, setExpandedRows] = useState<Record<string, boolean>>({})
 
   const [filterUserId, setFilterUserId]   = useState('')
   const [filterMethod, setFilterMethod]   = useState('')
@@ -78,6 +79,10 @@ export default function ActivityLogPage() {
   }, [])
 
   const totalPages = Math.ceil(total / LIMIT)
+
+  const toggleExpanded = (id: string) => {
+    setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault()
@@ -179,48 +184,80 @@ export default function ActivityLogPage() {
                 </tr>
               ) : rows.map(row => {
                 const meta = parsePathMeta(row.path)
+                const expanded = !!expandedRows[row.id]
                 return (
-                <tr key={row.id} className={row.statusCode >= 400 ? 'bg-red-50/40' : ''}>
-                  <td className="whitespace-nowrap text-xs text-gray-500">
-                    {new Date(row.createdAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'medium' })}
-                  </td>
-                  <td>
-                    <div className="font-medium text-sm">{row.user?.fullName ?? row.username ?? '—'}</div>
-                    {row.username && <div className="text-xs text-gray-400">{row.username}</div>}
-                  </td>
-                  <td>
-                    {row.user?.role ? (
-                      <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded text-gray-600">
-                        {ROLE_LABELS[row.user.role as UserRole] ?? row.user.role}
+                [
+                  <tr
+                    key={`${row.id}-main`}
+                    className={`${row.statusCode >= 400 ? 'bg-red-50/40' : ''} cursor-pointer hover:bg-gray-50`}
+                    onClick={() => toggleExpanded(row.id)}
+                  >
+                    <td className="whitespace-nowrap text-xs text-gray-500">
+                      <div>{new Date(row.createdAt).toLocaleDateString('th-TH')}</div>
+                      <div className="font-mono text-[11px]">{new Date(row.createdAt).toLocaleTimeString('th-TH')}</div>
+                    </td>
+                    <td>
+                      <div className="font-medium text-sm">{row.user?.fullName ?? row.username ?? '—'}</div>
+                      {row.username && <div className="text-xs text-gray-400">{row.username}</div>}
+                    </td>
+                    <td>
+                      {row.user?.role ? (
+                        <span className="text-xs px-1.5 py-0.5 bg-gray-100 rounded text-gray-600">
+                          {ROLE_LABELS[row.user.role as UserRole] ?? row.user.role}
+                        </span>
+                      ) : <span className="text-gray-300">—</span>}
+                    </td>
+                    <td>
+                      <span className={`badge text-xs font-mono ${METHOD_COLORS[row.method] ?? 'bg-gray-100 text-gray-600'}`}>
+                        {row.method}
                       </span>
-                    ) : <span className="text-gray-300">—</span>}
-                  </td>
-                  <td>
-                    <span className={`badge text-xs font-mono ${METHOD_COLORS[row.method] ?? 'bg-gray-100 text-gray-600'}`}>
-                      {row.method}
-                    </span>
-                  </td>
-                  <td className="font-mono text-xs text-gray-700 max-w-xs truncate" title={row.path}>
-                    {meta.cleanPath}
-                  </td>
-                  <td>
-                    <span className={`badge text-xs font-mono ${statusBadge(row.statusCode)}`}>
-                      {row.statusCode}
-                    </span>
-                  </td>
-                  <td className="font-mono text-[11px] text-gray-500 max-w-[180px] truncate" title={meta.requestId || ''}>
-                    {meta.requestId ?? '—'}
-                  </td>
-                  <td className="text-xs text-red-700 max-w-xs truncate" title={meta.errorSummary || ''}>
-                    {meta.errorSummary ?? '—'}
-                  </td>
-                  <td className="text-right text-xs font-mono text-gray-500">
-                    <span className={row.durationMs > 2000 ? 'text-red-600 font-semibold' : ''}>
-                      {row.durationMs.toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="text-xs text-gray-400 font-mono">{row.ipAddress ?? '—'}</td>
-                </tr>
+                    </td>
+                    <td className="font-mono text-xs text-gray-700 max-w-xs truncate" title={row.path}>
+                      {meta.cleanPath}
+                    </td>
+                    <td>
+                      <span className={`badge text-xs font-mono ${statusBadge(row.statusCode)}`}>
+                        {row.statusCode}
+                      </span>
+                    </td>
+                    <td className="font-mono text-[11px] text-gray-500 max-w-[180px] truncate" title={meta.requestId || ''}>
+                      {meta.requestId ?? '—'}
+                    </td>
+                    <td className="text-xs text-red-700 max-w-xs truncate" title={meta.errorSummary || ''}>
+                      {meta.errorSummary ?? '—'}
+                    </td>
+                    <td className="text-right text-xs font-mono text-gray-500">
+                      <span className={row.durationMs > 2000 ? 'text-red-600 font-semibold' : ''}>
+                        {row.durationMs.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="text-xs text-gray-400 font-mono">{row.ipAddress ?? '—'}</td>
+                  </tr>,
+                  expanded ? (
+                    <tr key={`${row.id}-detail`} className="bg-gray-50/60">
+                      <td colSpan={10} className="px-3 py-3">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div className="text-gray-500 mb-1">Path เต็ม</div>
+                            <div className="font-mono break-all text-gray-700">{meta.cleanPath}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 mb-1">Request ID</div>
+                            <div className="font-mono break-all text-gray-700">{meta.requestId ?? '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 mb-1">Error Summary</div>
+                            <div className="break-all text-red-700">{meta.errorSummary ?? '—'}</div>
+                          </div>
+                          <div>
+                            <div className="text-gray-500 mb-1">User Agent</div>
+                            <div className="break-all text-gray-700">{row.userAgent ?? '—'}</div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : null,
+                ]
                 )
               })}
             </tbody>

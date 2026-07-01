@@ -114,9 +114,10 @@ async function nextQuotationBaseNoForUser(user) {
     ? freshUser.docCounters
     : {};
 
-  // Legacy counter keys are MMYY; use the highest floor in the same YY.
+  // Counter keys may be MMYY (monthly) or YY (yearly). Use the highest floor for the same YY.
   const yearlyFloor = Object.entries(counters).reduce((maxFloor, [key, value]) => {
-    if (!/^\d{4}$/.test(key) || !key.endsWith(yy)) return maxFloor
+    const matchedYear = (/^\d{4}$/.test(key) && key.endsWith(yy)) || (/^\d{2}$/.test(key) && key === yy)
+    if (!matchedYear) return maxFloor
     const n = Number(value)
     if (!Number.isFinite(n) || n < 1) return maxFloor
     return Math.max(maxFloor, n)

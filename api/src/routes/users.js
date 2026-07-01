@@ -173,13 +173,29 @@ router.delete('/:id/signature', authenticate, requireRole('admin', 'director', '
 });
 
 // PUT /api/users/:id/doc-counter  (admin only — ตั้ง floor ลำดับใบเสนอราคาของ sale คนนั้น)
-// body: { mmyy: "0626", nextSeq: 3 }
+// body: { mmyy: "0626", nextSeq: 3 } หรือ { yy: "26", nextSeq: 3 }
 router.put('/:id/doc-counter', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
-    const { mmyy, nextSeq } = req.body;
-    if (!mmyy || !/^\d{4}$/.test(mmyy)) {
+    const { mmyy, yy, nextSeq } = req.body;
+
+    const normalizedMmyy = String(mmyy || '').trim();
+    const normalizedYy = String(yy || '').trim();
+    const hasMmyy = normalizedMmyy.length > 0;
+    const hasYy = normalizedYy.length > 0;
+
+    if (hasMmyy && hasYy) {
+      return res.status(400).json({ message: 'กรุณาระบุอย่างใดอย่างหนึ่ง: mmyy (รายเดือน) หรือ yy (รายปี)' });
+    }
+    if (!hasMmyy && !hasYy) {
+      return res.status(400).json({ message: 'ต้องระบุ mmyy (รายเดือน) หรือ yy (รายปี)' });
+    }
+    if (hasMmyy && !/^\d{4}$/.test(normalizedMmyy)) {
       return res.status(400).json({ message: 'mmyy ต้องเป็นตัวเลข 4 หลัก เช่น 0626' });
     }
+    if (hasYy && !/^\d{2}$/.test(normalizedYy)) {
+      return res.status(400).json({ message: 'yy ต้องเป็นตัวเลข 2 หลัก เช่น 26' });
+    }
+
     const seq = parseInt(nextSeq, 10);
     if (!Number.isInteger(seq) || seq < 1) {
       return res.status(400).json({ message: 'nextSeq ต้องเป็นจำนวนเต็มบวก' });
@@ -191,7 +207,10 @@ router.put('/:id/doc-counter', authenticate, requireRole('admin', 'director', 'a
     const counters = (current.docCounters && typeof current.docCounters === 'object')
       ? { ...current.docCounters }
       : {};
-    counters[mmyy] = seq;
+
+    if (hasMmyy) counters[normalizedMmyy] = seq;
+    if (hasYy) counters[normalizedYy] = seq;
+
     const updated = await prisma.user.update({
       where: { id: req.params.id },
       data: { docCounters: counters },

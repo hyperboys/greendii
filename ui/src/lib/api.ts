@@ -174,8 +174,8 @@ export const UsersAPI = {
   },
   deleteSignature: (id: string) =>
     http.delete<User>(`/users/${id}/signature`).then(r => r.data),
-  setDocCounter: (id: string, mmyy: string, nextSeq: number) =>
-    http.put<User>(`/users/${id}/doc-counter`, { mmyy, nextSeq }).then(r => r.data),
+  setDocCounter: (id: string, payload: { mmyy?: string; yy?: string; nextSeq: number }) =>
+    http.put<User>(`/users/${id}/doc-counter`, payload).then(r => r.data),
 }
 
 // ─── CUSTOMERS ────────────────────────────────────────────────────────────────

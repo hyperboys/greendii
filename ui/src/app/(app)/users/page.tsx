@@ -26,7 +26,14 @@ export default function UsersPage() {
   const [filterActive, setFilterActive] = useState('')
   const [editing, setEditing] = useState<typeof EMPTY_USER & { id?: string } | null>(null)
   const [pwdModal, setPwdModal] = useState<{ id: string; pw: string } | null>(null)
-  const [counterModal, setCounterModal] = useState<{ id: string; fullName: string; initials: string; mmyy: string; nextSeq: string } | null>(null)
+  const [counterModal, setCounterModal] = useState<{
+    id: string
+    fullName: string
+    initials: string
+    mode: 'monthly' | 'yearly'
+    period: string
+    nextSeq: string
+  } | null>(null)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => { fetchSettings() }, [])
@@ -103,14 +110,25 @@ export default function UsersPage() {
   const saveCounter = async () => {
     if (!counterModal) return
     const seq = parseInt(counterModal.nextSeq, 10)
-    if (!counterModal.mmyy || !/^\d{4}$/.test(counterModal.mmyy)) {
-      return toast.error('เดือน-ปี ต้องเป็นตัวเลข 4 หลัก เช่น 0626')
+    if (counterModal.mode === 'monthly') {
+      if (!counterModal.period || !/^\d{4}$/.test(counterModal.period)) {
+        return toast.error('เดือน-ปี ต้องเป็นตัวเลข 4 หลัก เช่น 0626')
+      }
+    } else if (!counterModal.period || !/^\d{2}$/.test(counterModal.period)) {
+      return toast.error('ปี (yy) ต้องเป็นตัวเลข 2 หลัก เช่น 26')
     }
     if (!Number.isInteger(seq) || seq < 1) return toast.error('เลขที่เริ่มต้องเป็นจำนวนเต็มบวก')
     setSaving(true)
     try {
-      await UsersAPI.setDocCounter(counterModal.id, counterModal.mmyy, seq)
-      toast.success(`ตั้งค่า QGD-${counterModal.mmyy}-${counterModal.initials} เริ่มที่ ${String(seq).padStart(3, '0')} สำเร็จ`)
+      if (counterModal.mode === 'monthly') {
+        await UsersAPI.setDocCounter(counterModal.id, { mmyy: counterModal.period, nextSeq: seq })
+      } else {
+        await UsersAPI.setDocCounter(counterModal.id, { yy: counterModal.period, nextSeq: seq })
+      }
+      const scopeLabel = counterModal.mode === 'monthly'
+        ? `เดือน ${counterModal.period}`
+        : `ปี ${counterModal.period}`
+      toast.success(`ตั้งค่าเลขรันใบเสนอราคา (${scopeLabel}) เริ่มที่ ${String(seq).padStart(3, '0')} สำเร็จ`)
       setCounterModal(null)
       load()
     } catch (err) { toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด') }
@@ -262,15 +280,38 @@ export default function UsersPage() {
             <p className="text-xs text-gray-500 mb-4">
               {counterModal.fullName} ({counterModal.initials}) — ใบเสนอราคาถัดไปจะได้เลขอย่างน้อยที่กำหนด
             </p>
+            <div className="mb-3">
+              <label className="form-label">โหมดการตั้งค่า</label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  className={`btn-outline btn-sm ${counterModal.mode === 'yearly' ? 'border-green-600 text-green-700 bg-green-50' : ''}`}
+                  onClick={() => setCounterModal(v => v ? { ...v, mode: 'yearly', period: String(new Date().getFullYear()).slice(2) } : v)}
+                >
+                  รายปี (YY)
+                </button>
+                <button
+                  type="button"
+                  className={`btn-outline btn-sm ${counterModal.mode === 'monthly' ? 'border-green-600 text-green-700 bg-green-50' : ''}`}
+                  onClick={() => {
+                    const now = new Date()
+                    const mmyy = String(now.getMonth() + 1).padStart(2, '0') + String(now.getFullYear()).slice(2)
+                    setCounterModal(v => v ? { ...v, mode: 'monthly', period: mmyy } : v)
+                  }}
+                >
+                  รายเดือน (MMYY)
+                </button>
+              </div>
+            </div>
             <div className="flex gap-3 mb-4">
               <div className="flex-1">
-                <label className="form-label">เดือน-ปี (mmyy)</label>
+                <label className="form-label">{counterModal.mode === 'monthly' ? 'เดือน-ปี (mmyy)' : 'ปี (yy)'}</label>
                 <input
                   className="form-input font-mono"
-                  placeholder="0626"
-                  maxLength={4}
-                  value={counterModal.mmyy}
-                  onChange={e => setCounterModal(v => v ? { ...v, mmyy: e.target.value.replace(/\D/g, '') } : v)}
+                  placeholder={counterModal.mode === 'monthly' ? '0626' : '26'}
+                  maxLength={counterModal.mode === 'monthly' ? 4 : 2}
+                  value={counterModal.period}
+                  onChange={e => setCounterModal(v => v ? { ...v, period: e.target.value.replace(/\D/g, '') } : v)}
                 />
               </div>
               <div className="w-28">
@@ -285,9 +326,11 @@ export default function UsersPage() {
                 />
               </div>
             </div>
-            {counterModal.mmyy.length === 4 && counterModal.initials && (
+            {counterModal.period && counterModal.initials && (
               <p className="text-xs text-green-700 font-mono mb-3">
-                → QGD-{counterModal.mmyy}-{counterModal.initials}{String(parseInt(counterModal.nextSeq) || 1).padStart(3, '0')}
+                {counterModal.mode === 'monthly'
+                  ? `→ QGD-${counterModal.period}-${counterModal.initials}${String(parseInt(counterModal.nextSeq) || 1).padStart(3, '0')}`
+                  : `→ ตั้งค่าเลขรันทั้งปี ${counterModal.period} ให้เริ่มที่ ${String(parseInt(counterModal.nextSeq) || 1).padStart(3, '0')}`}
               </p>
             )}
             <div className="flex gap-2">
@@ -374,8 +417,8 @@ export default function UsersPage() {
                         <button className="btn-outline btn-sm" title="ข้ามลำดับเลขใบเสนอราคา"
                           onClick={() => {
                             const now = new Date()
-                            const mmyy = String(now.getMonth() + 1).padStart(2, '0') + String(now.getFullYear()).slice(2)
-                            setCounterModal({ id: u.id, fullName: u.fullName, initials: u.initials.toUpperCase(), mmyy, nextSeq: '' })
+                            const yy = String(now.getFullYear()).slice(2)
+                            setCounterModal({ id: u.id, fullName: u.fullName, initials: u.initials.toUpperCase(), mode: 'yearly', period: yy, nextSeq: '' })
                           }}>
                           <Hash size={12} />
                         </button>
