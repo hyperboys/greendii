@@ -34,6 +34,25 @@ const upload = multer({
   },
 });
 
+const PO_ALLOWED_EXT = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
+const PO_ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+
+function isPoFileAllowed(file) {
+  const ext = path.extname(file?.originalname || '').toLowerCase();
+  const mime = String(file?.mimetype || '').toLowerCase();
+  return PO_ALLOWED_EXT.has(ext) && PO_ALLOWED_MIME.has(mime);
+}
+
+function removeTempUploadedFiles(files = []) {
+  if (isR2Enabled) return;
+  for (const file of files) {
+    const filename = file?.filename;
+    if (!filename) continue;
+    const filePath = path.join(UPLOAD_DIR, filename);
+    if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+  }
+}
+
 function normalizeAttachmentCategory(category) {
   return String(category || '').trim().toLowerCase();
 }
@@ -64,6 +83,52 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
     error.status = 400;
     throw error;
   }
+}
+
+async function touchWorkOrderPoState(workOrderId) {
+  if (!workOrderId) return;
+  const workOrder = await prisma.workOrder.findUnique({
+    where: { id: workOrderId },
+    select: { docChecklist: true },
+  });
+  const baseChecklist = (workOrder && typeof workOrder.docChecklist === 'object' && workOrder.docChecklist)
+    ? workOrder.docChecklist
+    : {};
+  const poCount = await prisma.attachment.count({ where: { workOrderId, category: 'po' } });
+  if (poCount > 0) {
+    await prisma.workOrder.update({
+      where: { id: workOrderId },
+      data: {
+        hasPo: true,
+        poAttachedDate: new Date(),
+        poStatus: 'มี PO แล้ว',
+        docChecklist: { ...baseChecklist, doc_po: true },
+      },
+    });
+    return;
+  }
+
+  await prisma.workOrder.update({
+    where: { id: workOrderId },
+    data: {
+      hasPo: false,
+      poAttachedDate: null,
+      poStatus: 'ยังไม่มี PO',
+      docChecklist: { ...baseChecklist, doc_po: false },
+    },
+  });
+}
+
+async function writePoAuditLog({ workOrderId, userId, action, filename }) {
+  if (!workOrderId || !userId || !filename) return;
+  await prisma.workOrderPoAudit.create({
+    data: {
+      workOrderId,
+      userId,
+      action,
+      filename,
+    },
+  });
 }
 
 async function assertHandoverAttachmentEditable(req, handOverJobId) {
@@ -127,11 +192,16 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
   try {
     const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId } = req.body;
+    const normalizedCategory = normalizeAttachmentCategory(category);
     if (handOverJobId) {
       return res.status(400).json({ message: 'ปิดการใช้งานเอกสารแนบสำหรับ HandOver แล้ว' });
     }
+    if (normalizedCategory === 'po' && (req.files || []).some(file => !isPoFileAllowed(file))) {
+      removeTempUploadedFiles(req.files || []);
+      return res.status(400).json({ message: 'ไฟล์ PO อนุญาตเฉพาะ PDF, JPG, PNG' });
+    }
     await assertQuotationAttachmentEditable(req, quotationId);
-    await assertWorkOrderAttachmentEditable(req, workOrderId, category);
+    await assertWorkOrderAttachmentEditable(req, workOrderId, normalizedCategory);
     await assertHandoverAttachmentEditable(req, handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, purchaseRequestId);
     const saved = [];
@@ -157,15 +227,29 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           mimeType: file.mimetype,
           size: file.size,
           fileUrl,
-          category: category || null,
+          category: normalizedCategory || null,
           quotationId: quotationId || null,
           workOrderId: workOrderId || null,
           handOverJobId: handOverJobId || null,
           purchaseRequestId: purchaseRequestId || null,
         },
       });
+
+      if (normalizedCategory === 'po' && workOrderId) {
+        await writePoAuditLog({
+          workOrderId,
+          userId: req.user.id,
+          action: 'upload',
+          filename: attachment.originalName,
+        });
+      }
       saved.push(attachment);
     }
+
+    if (normalizedCategory === 'po' && workOrderId && saved.length > 0) {
+      await touchWorkOrderPoState(workOrderId);
+    }
+
     res.status(201).json(saved);
   } catch (e) { next(e); }
 });
@@ -174,8 +258,9 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    const normalizedCategory = normalizeAttachmentCategory(att.category);
     await assertQuotationAttachmentEditable(req, att.quotationId);
-    await assertWorkOrderAttachmentEditable(req, att.workOrderId, att.category);
+    await assertWorkOrderAttachmentEditable(req, att.workOrderId, normalizedCategory);
     await assertHandoverAttachmentEditable(req, att.handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, att.purchaseRequestId);
     if (isR2Enabled) {
@@ -185,6 +270,17 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
     }
     await prisma.attachment.delete({ where: { id: req.params.id } });
+
+    if (normalizedCategory === 'po' && att.workOrderId) {
+      await writePoAuditLog({
+        workOrderId: att.workOrderId,
+        userId: req.user.id,
+        action: 'delete',
+        filename: att.originalName,
+      });
+      await touchWorkOrderPoState(att.workOrderId);
+    }
+
     res.json({ message: 'File deleted' });
   } catch (e) { next(e); }
 });

@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, UploadAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
@@ -52,10 +52,12 @@ export default function WorkOrderDetailPage() {
   const [comment, setComment] = useState('')
   const [acting, setActing] = useState(false)
   const [approvalChecklist, setApprovalChecklist] = useState<Record<string, boolean>>({ ...DEFAULT_DOC_CHECKLIST })
+  const [poUploading, setPoUploading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewBlobUrl, setPreviewBlobUrl] = useState('')
   const [previewLoading, setPreviewLoading] = useState(false)
+  const poInputRef = useRef<HTMLInputElement | null>(null)
 
   const load = () => {
     setLoading(true)
@@ -131,6 +133,7 @@ export default function WorkOrderDetailPage() {
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canUploadPoAfterApproved = isMine && doc.status === 'approved'
   const canManageAttachmentsInCurrentState = canManageAttachments || canUploadPoAfterApproved
+  const canUploadPoNow = canManageAttachmentsInCurrentState
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
 
   const currentStep = doc.approvalStep
@@ -181,6 +184,36 @@ export default function WorkOrderDetailPage() {
     setApprovalChecklist(prev => ({ ...prev, [key]: !prev[key] }))
   }
 
+  const handlePoUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !canUploadPoNow) return
+    const picked = Array.from(files)
+    const allowedMime = new Set(['application/pdf', 'image/jpeg', 'image/png'])
+    const allowedExt = /\.(pdf|jpg|jpeg|png)$/i
+    const invalid = picked.find(f => !allowedMime.has((f.type || '').toLowerCase()) || !allowedExt.test(f.name))
+    if (invalid) {
+      toast.error('ไฟล์ PO อนุญาตเฉพาะ PDF, JPG, PNG')
+      return
+    }
+    const tooLarge = picked.find(f => f.size > 10 * 1024 * 1024)
+    if (tooLarge) {
+      toast.error('ขนาดไฟล์ต้องไม่เกิน 10 MB')
+      return
+    }
+
+    setPoUploading(true)
+    const tId = toast.loading('กำลังแนบเอกสาร PO...')
+    try {
+      await UploadAPI.upload(picked, { workOrderId: id, category: 'po' })
+      toast.success('แนบเอกสาร PO สำเร็จ', { id: tId })
+      load()
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'แนบเอกสาร PO ไม่สำเร็จ', { id: tId })
+    } finally {
+      setPoUploading(false)
+      if (poInputRef.current) poInputRef.current.value = ''
+    }
+  }
+
   return (
     <>
     <WorkOrderPrint doc={doc} settings={settings} />
@@ -198,6 +231,28 @@ export default function WorkOrderDetailPage() {
           <p className="page-sub">{doc.project}</p>
         </div>
         <div className="flex gap-2">
+        {canUploadPoNow && (
+          <>
+            <button
+              className="btn-outline btn-sm"
+              onClick={() => poInputRef.current?.click()}
+              disabled={poUploading}
+            >
+              {poUploading ? <Loader2 size={14} className="animate-spin" /> : null}
+              {poUploading ? 'กำลังแนบ PO…' : 'แนบเอกสาร PO'}
+            </button>
+            <input
+              ref={poInputRef}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png"
+              multiple
+              className="hidden"
+              onChange={e => {
+                void handlePoUpload(e.target.files)
+              }}
+            />
+          </>
+        )}
         {canEmailWorkOrder && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/email?woId=${id}`)}>
             ส่งอีเมล

@@ -68,6 +68,7 @@ model User {
   activityLogs     ActivityLog[]
   sentEmailLogs    EmailLog[]
   customers        Customer[]
+  workOrderPoAudits WorkOrderPoAudit[]
   refreshTokens    RefreshToken[]
 
   @@map("users")
@@ -286,6 +287,9 @@ model WorkOrder {
   installDate    DateTime?
   remark         String?
   docChecklist   Json      @default("{}")
+  hasPo          Boolean   @default(false) @map("has_po")
+  poAttachedDate DateTime? @map("po_attached_date")
+  poStatus       String    @default("ยังไม่มี PO") @map("po_status")
   status         DocStatus @default(draft)
   approvalStep   Int       @default(0)
   isClosed       Boolean   @default(false)
@@ -297,9 +301,25 @@ model WorkOrder {
   purchaseRequests PurchaseRequest[]
   approvalLogs     ApprovalLog[]
   attachments      Attachment[]
+  poAuditLogs      WorkOrderPoAudit[]
   emailLogs        EmailLog[]
 
   @@map("work_orders")
+}
+
+model WorkOrderPoAudit {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String
+  filename    String
+  createdAt   DateTime  @default(now())
+
+  @@index([workOrderId, createdAt])
+  @@index([userId, createdAt])
+  @@map("workorder_po_audits")
 }
 
 // ─────────────────────────────────────────────

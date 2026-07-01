@@ -3,6 +3,7 @@ import type {
   User, Customer, Product, Unit, PrType, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
+  WorkOrderNoPoReport, WorkOrderPoOverviewReport,
   Attachment, AuditPage, UserRole, ActivityLogPage, EmailLogPage,
   WorkOrderEmailCandidate, WorkOrderEmailContext, EmailHistoryEntry,
 } from '@/types'
@@ -332,6 +333,10 @@ export const ReportsAPI = {
     http.get<ReportApprovalPerf[]>('/reports/approval-performance').then(r => r.data),
   quotationSummary: (params?: { from?: string; to?: string; salesId?: string }) =>
     http.get<import('@/types').QuoSummaryReport>('/reports/quotation-summary', { params }).then(r => r.data),
+  workOrdersNoPoBySales: (params?: { salesIds?: string; from?: string; to?: string }) =>
+    http.get<WorkOrderNoPoReport>('/reports/workorders/no-po-by-sales', { params }).then(r => r.data),
+  workOrdersPoOverview: (params?: { salesIds?: string; from?: string; to?: string; customer?: string; poStatus?: 'all' | 'has_po' | 'no_po' }) =>
+    http.get<WorkOrderPoOverviewReport>('/reports/workorders/po-overview', { params }).then(r => r.data),
 }
 
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────

@@ -29,7 +29,7 @@ interface Props {
 }
 
 const CATEGORIES = [
-  { key: 'po',      label: 'PO (Purchase Order)',  accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: FileSpreadsheet },
+  { key: 'po',      label: 'PO (Purchase Order)',  accept: '.pdf,.jpg,.jpeg,.png',      hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
   { key: 'drawing', label: 'Drawing / แบบ',         accept: '.pdf,.dwg,.dxf,image/*',  hint: 'PDF, รูปภาพ, CAD',      Icon: PenTool         },
   { key: 'mom',     label: 'Minutes of Meeting',    accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: ClipboardList   },
 ] as const

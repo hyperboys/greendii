@@ -362,6 +362,9 @@ export interface WorkOrder {
   installDate?: string
   remark?: string
   docChecklist: Record<string, boolean>
+  hasPo?: boolean
+  poAttachedDate?: string | null
+  poStatus?: string
   status: DocStatus
   approvalStep: number
   isClosed: boolean
@@ -370,6 +373,48 @@ export interface WorkOrder {
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
+}
+
+export interface WorkOrderNoPoSummary {
+  salesId: string
+  salesName: string
+  total: number
+}
+
+export interface WorkOrderNoPoRow {
+  id: string
+  woNo: string
+  openedAt: string
+  customerName: string
+  amount: number
+  ageDays: number
+  status: DocStatus
+  salesId: string
+  salesName: string
+}
+
+export interface WorkOrderNoPoReport {
+  summary: WorkOrderNoPoSummary[]
+  rows: WorkOrderNoPoRow[]
+}
+
+export interface WorkOrderPoOverviewRow {
+  id: string
+  woNo: string
+  date: string
+  salesId: string
+  salesName: string
+  customerName: string
+  amount: number
+  hasPo: boolean
+  poStatus: string
+  poAttachedDate?: string | null
+  ageDays: number
+  status: DocStatus
+}
+
+export interface WorkOrderPoOverviewReport {
+  rows: WorkOrderPoOverviewRow[]
 }
 
 export interface WorkOrderItem {

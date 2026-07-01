@@ -1,7 +1,30 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
-const { canManageAllQuotations } = require('../lib/roles');
+const { canManageAllQuotations, canManageAllDocs } = require('../lib/roles');
+
+function parseSalesIds(raw) {
+  if (!raw) return [];
+  return String(raw)
+    .split(',')
+    .map(v => v.trim())
+    .filter(Boolean);
+}
+
+function normalizeDateRange(rawFrom, rawTo) {
+  const where = {};
+  if (rawFrom) where.gte = new Date(rawFrom);
+  if (rawTo) where.lte = new Date(`${rawTo}T23:59:59.999Z`);
+  return Object.keys(where).length > 0 ? where : undefined;
+}
+
+function calcAgeDays(isoDate) {
+  const start = new Date(isoDate);
+  const now = new Date();
+  start.setHours(0, 0, 0, 0);
+  now.setHours(0, 0, 0, 0);
+  return Math.max(0, Math.floor((now.getTime() - start.getTime()) / 86400000));
+}
 
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
@@ -380,6 +403,109 @@ router.get('/quotation-summary', authenticate, async (req, res, next) => {
         overdue: overdueQuotations.slice(0, 10),
       },
     });
+  } catch (e) { next(e); }
+});
+
+// GET /api/reports/workorders/no-po-by-sales
+// Query: salesIds=comma-separated, from=YYYY-MM-DD, to=YYYY-MM-DD
+router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) => {
+  try {
+    const salesIds = parseSalesIds(req.query.salesIds);
+    const createdAt = normalizeDateRange(req.query.from, req.query.to);
+    const where = {
+      active: true,
+      status: { not: 'cancelled' },
+      hasPo: false,
+      ...(createdAt ? { createdAt } : {}),
+    };
+
+    if (!canManageAllDocs(req.user.role)) {
+      where.salesId = req.user.id;
+    } else if (salesIds.length > 0) {
+      where.salesId = { in: salesIds };
+    }
+
+    const workOrders = await prisma.workOrder.findMany({
+      where,
+      include: {
+        sales: { select: { id: true, fullName: true } },
+        quotation: { select: { grandTotal: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const summaryMap = {};
+    const rows = workOrders.map(wo => {
+      const salesId = wo.salesId;
+      const salesName = wo.sales?.fullName || salesId;
+      if (!summaryMap[salesId]) summaryMap[salesId] = { salesId, salesName, total: 0 };
+      summaryMap[salesId].total += 1;
+      return {
+        id: wo.id,
+        woNo: wo.woNo,
+        openedAt: wo.createdAt,
+        customerName: wo.customerName,
+        amount: Number(wo.quotation?.grandTotal || 0),
+        ageDays: calcAgeDays(wo.createdAt),
+        status: wo.status,
+        salesId,
+        salesName,
+      };
+    });
+
+    res.json({ summary: Object.values(summaryMap), rows });
+  } catch (e) { next(e); }
+});
+
+// GET /api/reports/workorders/po-overview
+// Query: salesIds=comma-separated, from, to, customer, poStatus=all|has_po|no_po
+router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
+  try {
+    const salesIds = parseSalesIds(req.query.salesIds);
+    const createdAt = normalizeDateRange(req.query.from, req.query.to);
+    const customer = String(req.query.customer || '').trim();
+    const poStatus = String(req.query.poStatus || 'all');
+
+    const where = {
+      active: true,
+      status: { not: 'cancelled' },
+      ...(createdAt ? { createdAt } : {}),
+      ...(customer ? { customerName: { contains: customer, mode: 'insensitive' } } : {}),
+      ...(poStatus === 'has_po' ? { hasPo: true } : {}),
+      ...(poStatus === 'no_po' ? { hasPo: false } : {}),
+    };
+
+    if (!canManageAllDocs(req.user.role)) {
+      where.salesId = req.user.id;
+    } else if (salesIds.length > 0) {
+      where.salesId = { in: salesIds };
+    }
+
+    const workOrders = await prisma.workOrder.findMany({
+      where,
+      include: {
+        sales: { select: { id: true, fullName: true } },
+        quotation: { select: { grandTotal: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const rows = workOrders.map(wo => ({
+      id: wo.id,
+      woNo: wo.woNo,
+      date: wo.createdAt,
+      salesId: wo.salesId,
+      salesName: wo.sales?.fullName || wo.salesId,
+      customerName: wo.customerName,
+      amount: Number(wo.quotation?.grandTotal || 0),
+      hasPo: Boolean(wo.hasPo),
+      poStatus: wo.hasPo ? 'มี PO แล้ว' : 'ยังไม่มี PO',
+      poAttachedDate: wo.poAttachedDate,
+      ageDays: calcAgeDays(wo.createdAt),
+      status: wo.status,
+    }));
+
+    res.json({ rows });
   } catch (e) { next(e); }
 });
 

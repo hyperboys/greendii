@@ -61,6 +61,24 @@ export default function ReportsPage() {
             </div>
           </div>
         </Link>
+        <Link href="/reports/workorders/no-po" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-red-300 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📎</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-red-700">WO ที่ยังไม่มี PO</p>
+              <p className="text-xs text-gray-500">แยกตาม Sales พร้อม Export Excel</p>
+            </div>
+          </div>
+        </Link>
+        <Link href="/reports/workorders/po-overview" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-rose-300 group">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">📊</span>
+            <div>
+              <p className="font-semibold text-gray-800 group-hover:text-rose-700">WO ภาพรวม PO</p>
+              <p className="text-xs text-gray-500">Filter + Highlight + Export Excel/PDF</p>
+            </div>
+          </div>
+        </Link>
         <Link href="/reports/pr" className="card p-5 hover:shadow-md transition-shadow border border-transparent hover:border-purple-300 group">
           <div className="flex items-center gap-3">
             <span className="text-3xl">🛒</span>
