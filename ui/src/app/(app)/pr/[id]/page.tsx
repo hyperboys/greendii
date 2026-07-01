@@ -139,6 +139,7 @@ export default function PRDetailPage() {
 
       <div className="card p-5 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm no-print">
         <div><span className="form-label">Supplier</span><p>{doc.customer}</p></div>
+        <div><span className="form-label">คนสร้าง</span><p>{doc.sales?.fullName || doc.salesId || '-'}</p></div>
         <div><span className="form-label">ประเภท PR</span><p>{doc.prType?.name || '-'}</p></div>
         <div><span className="form-label">Project Ref</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>

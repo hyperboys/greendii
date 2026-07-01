@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
-import { ArrowLeft, Loader2, Mail, Paperclip, Search, Send, Trash2, Upload } from 'lucide-react'
-import { WorkOrderEmailsAPI } from '@/lib/api'
+import { ArrowLeft, Eye, Loader2, Mail, Paperclip, Search, Send, Trash2, Upload, X } from 'lucide-react'
+import { WorkOrderEmailsAPI, resolveFileUrl } from '@/lib/api'
 import type { WorkOrderEmailAttachment, WorkOrderEmailCandidate, WorkOrderEmailContext } from '@/types'
 import EmailChipInput from '@/components/EmailChipInput'
 import SimpleRichTextEditor from '@/components/SimpleRichTextEditor'
@@ -20,6 +20,15 @@ function formatSize(bytes: number) {
 
 function normalizeEmail(value?: string | null) {
   return String(value || '').trim().toLowerCase()
+}
+
+function parseGeneratedAttachmentId(attachmentId: string) {
+  const match = String(attachmentId || '').match(/^generated:(workorder|quotation|handover):(.+)$/)
+  if (!match) return null
+  return {
+    type: match[1] as 'workorder' | 'quotation' | 'handover',
+    docId: match[2],
+  }
 }
 
 export default function WorkOrderEmailPage() {
@@ -47,6 +56,7 @@ export default function WorkOrderEmailPage() {
 
   const [selectedAttachmentIds, setSelectedAttachmentIds] = useState<string[]>([])
   const [extraFiles, setExtraFiles] = useState<File[]>([])
+  const [previewAttachment, setPreviewAttachment] = useState<WorkOrderEmailAttachment | null>(null)
 
   const canViewMenu = hasPerm('workorder_email_view', user?.role ?? '')
 
@@ -115,6 +125,34 @@ export default function WorkOrderEmailPage() {
     if (!context) return []
     return context.attachments.filter(att => selectedAttachmentIds.includes(att.id))
   }, [context, selectedAttachmentIds])
+
+  const previewToken = useMemo(() => {
+    if (typeof window === 'undefined') return ''
+    return localStorage.getItem('gd_token') || ''
+  }, [])
+
+  const previewUrl = useMemo(() => {
+    if (!previewAttachment) return ''
+
+    if (previewAttachment.virtualType) {
+      const parsed = parseGeneratedAttachmentId(previewAttachment.id)
+      if (!parsed || !previewToken) return ''
+      if (parsed.type === 'workorder') return `/print/workorder-email/${parsed.docId}?token=${encodeURIComponent(previewToken)}`
+      if (parsed.type === 'quotation') return `/print/quotation/${parsed.docId}?token=${encodeURIComponent(previewToken)}`
+      if (parsed.type === 'handover') return `/print/handover/${parsed.docId}?token=${encodeURIComponent(previewToken)}`
+      return ''
+    }
+
+    return resolveFileUrl(previewAttachment.fileUrl)
+  }, [previewAttachment, previewToken])
+
+  const previewIsImage = Boolean(previewAttachment?.mimeType?.startsWith('image/'))
+
+  const canPreviewAttachment = useCallback((att: WorkOrderEmailAttachment) => {
+    if (att.virtualType) return true
+    if (!att.fileUrl) return false
+    return att.mimeType === 'application/pdf' || att.mimeType.startsWith('image/')
+  }, [])
 
   const totalAttachmentSize = useMemo(() => {
     const selectedSize = selectedAttachments.reduce((sum, att) => sum + (att.size || 0), 0)
@@ -293,6 +331,15 @@ export default function WorkOrderEmailPage() {
                           {att.virtualType ? ' • generated PDF' : ` • ${formatSize(att.size)}`}
                         </p>
                       </div>
+                      <button
+                        type="button"
+                        className="btn-outline px-2 py-1 text-xs"
+                        disabled={!canPreviewAttachment(att)}
+                        onClick={() => setPreviewAttachment(att)}
+                        title={canPreviewAttachment(att) ? 'พรีวิวเอกสาร' : 'ไฟล์นี้ยังไม่รองรับการพรีวิว'}
+                      >
+                        <Eye size={13} /> พรีวิว
+                      </button>
                     </li>
                   )
                 })}
@@ -354,6 +401,47 @@ export default function WorkOrderEmailPage() {
           </div>
           <h4 className="font-semibold text-gray-800">กำลังส่งอีเมล...</h4>
           <p className="text-sm text-gray-500">กรุณารอสักครู่ ระบบกำลังแนบไฟล์และส่งอีเมล</p>
+        </div>
+      </div>
+    )}
+    {previewAttachment && (
+      <div className="fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
+        <div className="flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">
+          <div className="min-w-0 flex-1">
+            <div className="text-sm font-semibold text-gray-800">พรีวิวไฟล์แนบก่อนส่ง</div>
+            <div className="truncate text-xs text-gray-500">{previewAttachment.originalName}</div>
+          </div>
+          <button
+            type="button"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+            onClick={() => setPreviewAttachment(null)}
+            aria-label="ปิดพรีวิว"
+          >
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto w-fit">
+            {previewUrl ? (
+              previewIsImage ? (
+                <img
+                  src={previewUrl}
+                  alt={previewAttachment.originalName}
+                  className="block max-h-[calc(100vh-10rem)] max-w-full bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+                />
+              ) : (
+                <iframe
+                  title={`Attachment preview ${previewAttachment.originalName}`}
+                  src={previewUrl}
+                  className="block h-[calc(100vh-10rem)] min-h-[70vh] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+                />
+              )
+            ) : (
+              <div className="flex min-h-[70vh] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                ไม่สามารถพรีวิวไฟล์นี้ได้ในขณะนี้
+              </div>
+            )}
+          </div>
         </div>
       </div>
     )}

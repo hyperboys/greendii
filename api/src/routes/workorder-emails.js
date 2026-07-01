@@ -161,7 +161,7 @@ async function buildGeneratedPdfBytes(attachment, req, workOrder) {
   const query = `?token=${encodeURIComponent(token)}&mode=pdf`;
 
   if (attachment.virtualType === 'workorder-pdf') {
-    return renderUrlToPdf(`${uiBase}/print/workorder/${workOrder.id}${query}`);
+    return renderUrlToPdf(`${uiBase}/print/workorder-email/${workOrder.id}${query}`);
   }
   if (attachment.virtualType === 'quotation-pdf' && workOrder.quotationId) {
     return renderUrlToPdf(`${uiBase}/print/quotation/${workOrder.quotationId}${query}`);
