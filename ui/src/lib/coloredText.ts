@@ -43,7 +43,7 @@ export function parseColoredMultiline(value?: string | null): ColoredTextLine[] 
 
 export function stringifyColoredMultiline(lines: ColoredTextLine[]): string {
   return lines
-    .map(line => stringifyColoredLine({ text: String(line.text ?? '').trimEnd(), color: line.color }))
+    .map(line => stringifyColoredLine({ text: String(line.text ?? ''), color: line.color }))
     .join('\n')
 }
 
