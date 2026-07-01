@@ -73,6 +73,8 @@ export default function QuotationDetailPage() {
   const [pdfLoading, setPdfLoading] = useState(false)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [downloadDialogOpen, setDownloadDialogOpen] = useState(false)
+  const [downloadFilenameInput, setDownloadFilenameInput] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -137,12 +139,18 @@ export default function QuotationDetailPage() {
     }
   }
 
-  const downloadPdf = async () => {
+  const openDownloadDialog = () => {
     if (pdfLoading) return
     const defaultStem = sanitizeFilename(doc.quoNo || 'quotation') || 'quotation'
-    const filenameInput = window.prompt('ระบุชื่อไฟล์ก่อนดาวน์โหลด', defaultStem)
-    if (filenameInput === null) return
-    const filename = sanitizeFilename(filenameInput) || defaultStem
+    setDownloadFilenameInput(defaultStem)
+    setDownloadDialogOpen(true)
+  }
+
+  const confirmDownloadPdf = async () => {
+    if (pdfLoading) return
+    const defaultStem = sanitizeFilename(doc.quoNo || 'quotation') || 'quotation'
+    const filename = sanitizeFilename(downloadFilenameInput) || defaultStem
+    setDownloadDialogOpen(false)
     setPdfLoading(true)
     toast.loading('กำลังสร้าง PDF…', { id: 'pdf' })
     try {
@@ -199,7 +207,7 @@ export default function QuotationDetailPage() {
           <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>
             <Eye size={14} /> พรีวิว
           </button>
-          <button className="btn-outline btn-sm no-print" onClick={downloadPdf} disabled={pdfLoading}>
+          <button className="btn-outline btn-sm no-print" onClick={openDownloadDialog} disabled={pdfLoading}>
             {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
             {pdfLoading ? 'กำลังสร้าง PDF…' : 'ดาวน์โหลด PDF'}
           </button>
@@ -384,6 +392,57 @@ export default function QuotationDetailPage() {
             )}
           </div>
         </div>
+      </div>
+    )}
+    {downloadDialogOpen && (
+      <div
+        className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950/60 px-4"
+        onClick={() => setDownloadDialogOpen(false)}
+      >
+        <form
+          className="w-full max-w-md rounded-2xl border border-gray-200 bg-white p-5 shadow-[0_20px_60px_rgba(15,23,42,0.28)] sm:p-6"
+          onSubmit={(event) => {
+            event.preventDefault()
+            confirmDownloadPdf()
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="text-base font-semibold text-gray-900">ตั้งชื่อไฟล์ก่อนดาวน์โหลด</h3>
+              <p className="mt-1 text-sm text-gray-500">ระบบจะบันทึกไฟล์เป็น PDF โดยเติม .pdf ให้อัตโนมัติ</p>
+            </div>
+            <button
+              type="button"
+              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+              onClick={() => setDownloadDialogOpen(false)}
+              aria-label="ปิดหน้าต่างตั้งชื่อไฟล์"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          <div className="mt-4">
+            <label className="mb-1 block text-xs font-medium text-gray-600">ชื่อไฟล์</label>
+            <input
+              autoFocus
+              value={downloadFilenameInput}
+              onChange={(event) => setDownloadFilenameInput(event.target.value)}
+              placeholder="เช่น QGD-0726-KC164-R1"
+              className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none transition-all focus:border-green-600 focus:ring-2 focus:ring-green-100"
+            />
+          </div>
+
+          <div className="mt-5 flex justify-end gap-2">
+            <button type="button" className="btn-outline btn-sm" onClick={() => setDownloadDialogOpen(false)}>
+              ยกเลิก
+            </button>
+            <button type="submit" className="btn-primary btn-sm" disabled={pdfLoading}>
+              {pdfLoading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+              ดาวน์โหลด
+            </button>
+          </div>
+        </form>
       </div>
     )}
     </>
