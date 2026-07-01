@@ -75,6 +75,7 @@ export default function PRDetailPage() {
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canRevise = isMine && doc.status === 'approved' && (doc.active ?? true)
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
@@ -83,6 +84,21 @@ export default function PRDetailPage() {
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
+
+  const createRevision = async () => {
+    if (!canRevise || acting) return
+    setActing(true)
+    try {
+      const revised = await PRAPI.revise(id)
+      toast.success('สร้างฉบับ Revision สำเร็จ')
+      router.push(`/pr/${revised.id}/edit`)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'สร้าง Revision ไม่สำเร็จ')
+    } finally {
+      setActing(false)
+    }
+  }
+
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     setActing(true)
@@ -119,6 +135,11 @@ export default function PRDetailPage() {
           {canEdit && (
             <button className="btn-outline btn-sm" onClick={() => router.push(`/pr/${id}/edit`)}>
               <Pencil size={14} /> แก้ไข
+            </button>
+          )}
+          {canRevise && (
+            <button className="btn-outline btn-sm" onClick={createRevision} disabled={acting}>
+              <Pencil size={14} /> สร้าง Revision
             </button>
           )}
           <button className="btn-outline btn-sm no-print" onClick={() => setPreviewOpen(true)}>

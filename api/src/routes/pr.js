@@ -37,6 +37,14 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+function stripRevisionSuffix(docNo = '') {
+  return String(docNo).replace(/-R\d+$/i, '');
+}
+
+function buildRevisionDocNo(baseNo, revisionNo) {
+  return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`;
+}
+
 function normalizePrItem(item, seq) {
   const qty = Number(item?.qty ?? 0) || 0;
   const price = Number(item?.price ?? 0) || 0;
@@ -69,9 +77,11 @@ async function getDocNumberFloor(prefix) {
 // GET /api/pr
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, q } = req.query;
+    const { status, q, active } = req.query;
     const where = {};
     if (status) where.status = status;
+    if (active !== undefined) where.active = active === 'true';
+    else where.active = true;
     if (q) where.OR = [
       { prNo: { contains: q, mode: 'insensitive' } },
       { customer: { contains: q, mode: 'insensitive' } },
@@ -149,7 +159,7 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
         dateIssue: dateIssue ? new Date(dateIssue) : null,
         dateRequired: dateRequired ? new Date(dateRequired) : null,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
-        remarks, salesId: req.user.id, status: 'draft',
+        remarks, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
         items: {
           create: items.map((it, i) => normalizePrItem(it, i)),
         },
@@ -157,6 +167,63 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
       include: INCLUDE_FULL,
     });
     res.status(201).json(item);
+  } catch (e) { next(e); }
+});
+
+// POST /api/pr/:id/revise
+router.post('/:id/revise', authenticate, async (req, res, next) => {
+  try {
+    const source = await prisma.purchaseRequest.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { items: { orderBy: { seq: 'asc' } } },
+    });
+
+    if (source.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ทำ Revision เอกสารของผู้อื่น' });
+    }
+    if (source.status !== 'approved') {
+      return res.status(400).json({ message: 'ทำ Revision ได้เฉพาะใบขอซื้อที่อนุมัติแล้วเท่านั้น' });
+    }
+    if (!source.active) {
+      return res.status(400).json({ message: 'ใบขอซื้อนี้ไม่ใช่ฉบับที่ active ล่าสุด' });
+    }
+
+    const rootId = source.rootPurchaseRequestId || source.id;
+    const revisionNo = (source.revisionNo || 0) + 1;
+    const revisedNo = buildRevisionDocNo(source.prNo, revisionNo);
+
+    const revised = await prisma.$transaction(async (tx) => {
+      await tx.purchaseRequest.update({ where: { id: source.id }, data: { active: false } });
+
+      return tx.purchaseRequest.create({
+        data: {
+          prNo: revisedNo,
+          active: true,
+          revisionNo,
+          rootPurchaseRequestId: rootId,
+          workOrderId: source.workOrderId,
+          prTypeId: source.prTypeId,
+          salesId: source.salesId,
+          customer: source.customer,
+          projectRef: source.projectRef,
+          dateIssue: source.dateIssue,
+          dateRequired: source.dateRequired,
+          subTotal: source.subTotal,
+          specialDiscount: source.specialDiscount,
+          vat: source.vat,
+          netTotal: source.netTotal,
+          remarks: source.remarks,
+          status: 'draft',
+          approvalStep: 0,
+          items: {
+            create: source.items.map((it, i) => normalizePrItem(it, it.seq ?? i)),
+          },
+        },
+        include: INCLUDE_FULL,
+      });
+    });
+
+    res.status(201).json(revised);
   } catch (e) { next(e); }
 });
 

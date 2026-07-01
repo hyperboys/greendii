@@ -314,6 +314,7 @@ export const PRAPI = {
     http.post<PurchaseRequest>(`/pr/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<PurchaseRequest>(`/pr/${id}/reject`, { comment }).then(r => r.data),
+  revise: (id: string) => http.post<PurchaseRequest>(`/pr/${id}/revise`, {}).then(r => r.data),
   cancel: (id: string) => http.delete(`/pr/${id}`).then(r => r.data),
   pdf: (id: string) => http.get(`/pr/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }

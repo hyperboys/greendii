@@ -506,6 +506,9 @@ export interface PRItem {
 export interface PurchaseRequest {
   id: string
   prNo: string
+  active?: boolean
+  revisionNo?: number
+  rootPurchaseRequestId?: string | null
   workOrderId?: string
   workOrder?: { id: string; woNo: string }
   prTypeId?: string

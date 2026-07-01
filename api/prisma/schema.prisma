@@ -367,6 +367,11 @@ model HandOverJob {
 model PurchaseRequest {
   id           String     @id @default(cuid())
   prNo         String     @unique
+  active       Boolean    @default(true)
+  revisionNo   Int        @default(0)
+  rootPurchaseRequestId String?
+  rootPurchaseRequest PurchaseRequest? @relation("PurchaseRequestRevisions", fields: [rootPurchaseRequestId], references: [id])
+  revisions    PurchaseRequest[] @relation("PurchaseRequestRevisions")
   workOrderId  String?
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
   prTypeId     String?
