@@ -66,7 +66,7 @@ async function renderUrlToPdf(url, opts = {}) {
   const page = await browser.newPage();
   try {
     await page.emulateMediaType('print');
-    await page.goto(url, { waitUntil: 'networkidle0', timeout: timeoutMs });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
     // Wait for the print page to signal it has finished rendering & loading fonts.
     await page.waitForFunction('window.__printReady === true', { timeout: timeoutMs })
       .catch(() => { /* fall through with whatever is rendered */ });

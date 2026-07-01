@@ -36,7 +36,13 @@ export async function signalPrintReady() {
     // Wait for web fonts to load
     if (document.fonts && document.fonts.ready) await document.fonts.ready
   } catch { /* noop */ }
-  // small extra tick to let layout settle
-  await new Promise(r => setTimeout(r, 150))
+  // Let layout settle without fixed sleep so preview becomes responsive faster.
+  await new Promise<void>((resolve) => {
+    if (typeof requestAnimationFrame !== 'function') {
+      setTimeout(resolve, 0)
+      return
+    }
+    requestAnimationFrame(() => requestAnimationFrame(() => resolve()))
+  })
   ;(window as any).__printReady = true
 }
