@@ -25,6 +25,7 @@ interface Props {
   onPendingChange?: (files: PendingAttachment[]) => void
   readOnly?: boolean
   readOnlyMessage?: string
+  allowedCategories?: CategoryKey[]
 }
 
 const CATEGORIES = [
@@ -58,16 +59,19 @@ export default function AttachmentsSection({
   onPendingChange,
   readOnly = false,
   readOnlyMessage,
+  allowedCategories,
 }: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
   const [uploading, setUploading] = useState<CategoryKey | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const deferred = !docId
+  const isCategoryAllowed = (key: CategoryKey) => !allowedCategories || allowedCategories.includes(key)
 
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return
     if (readOnly) return
+    if (!isCategoryAllowed(catKey)) return
 
     // Deferred mode — buffer files locally until the document is created.
     if (deferred) {
@@ -94,6 +98,8 @@ export default function AttachmentsSection({
 
   const handleDelete = async (id: string) => {
     if (readOnly) return
+    const target = attachments.find(a => a.id === id)
+    if (target && !isCategoryAllowed(target.category as CategoryKey)) return
     if (deferred) {
       onPendingChange?.(pending.filter(p => p.id !== id))
       return
@@ -137,17 +143,18 @@ export default function AttachmentsSection({
           const savedFiles = attachments.filter(a => a.category === key)
           const pendingFiles = pending.filter(p => p.category === key)
           const isUploading = uploading === key
+          const categoryLocked = !isCategoryAllowed(key)
 
           return (
             <div key={key} className="space-y-2">
               <p className="text-sm font-medium text-gray-700">{label}</p>
 
               {/* Drop zone */}
-              {readOnly ? (
+              {readOnly || categoryLocked ? (
                 <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
                   <Icon size={28} className="text-gray-300" />
                   <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
-                  <span className="text-xs text-gray-400">ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้</span>
+                  <span className="text-xs text-gray-400">{categoryLocked ? 'หมวดนี้ยังไม่อนุญาตในสถานะปัจจุบัน' : 'ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้'}</span>
                 </div>
               ) : (
                 <div
@@ -192,7 +199,7 @@ export default function AttachmentsSection({
                         )}
                         <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
                       </div>
-                      {!readOnly && (
+                      {!readOnly && !categoryLocked && (
                         <button
                           type="button"
                           className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"

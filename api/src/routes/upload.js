@@ -34,7 +34,18 @@ const upload = multer({
   },
 });
 
-async function assertWorkOrderAttachmentEditable(req, workOrderId) {
+function normalizeAttachmentCategory(category) {
+  return String(category || '').trim().toLowerCase();
+}
+
+function canOwnerAttachApprovedWorkOrderPo(req, workOrder, category) {
+  if (!workOrder) return false;
+  return workOrder.status === 'approved'
+    && workOrder.salesId === req.user.id
+    && normalizeAttachmentCategory(category) === 'po';
+}
+
+async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
   if (!workOrderId) return;
   const workOrder = await prisma.workOrder.findUnique({
     where: { id: workOrderId },
@@ -46,6 +57,8 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId) {
     throw error;
   }
   assertDocAccessible(req, workOrder);
+  if (isEditableApprovalDocStatus(workOrder.status)) return;
+  if (canOwnerAttachApprovedWorkOrderPo(req, workOrder, category)) return;
   if (!isEditableApprovalDocStatus(workOrder.status)) {
     const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
@@ -118,7 +131,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
       return res.status(400).json({ message: 'ปิดการใช้งานเอกสารแนบสำหรับ HandOver แล้ว' });
     }
     await assertQuotationAttachmentEditable(req, quotationId);
-    await assertWorkOrderAttachmentEditable(req, workOrderId);
+    await assertWorkOrderAttachmentEditable(req, workOrderId, category);
     await assertHandoverAttachmentEditable(req, handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, purchaseRequestId);
     const saved = [];
@@ -162,7 +175,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertQuotationAttachmentEditable(req, att.quotationId);
-    await assertWorkOrderAttachmentEditable(req, att.workOrderId);
+    await assertWorkOrderAttachmentEditable(req, att.workOrderId, att.category);
     await assertHandoverAttachmentEditable(req, att.handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, att.purchaseRequestId);
     if (isR2Enabled) {

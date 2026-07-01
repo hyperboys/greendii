@@ -129,6 +129,8 @@ export default function WorkOrderDetailPage() {
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canUploadPoAfterApproved = isMine && doc.status === 'approved'
+  const canManageAttachmentsInCurrentState = canManageAttachments || canUploadPoAfterApproved
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
 
   const currentStep = doc.approvalStep
@@ -296,7 +298,9 @@ export default function WorkOrderDetailPage() {
         docField="workOrderId"
         docId={id}
         onRefresh={load}
-        readOnly={!canManageAttachments}
+        readOnly={!canManageAttachmentsInCurrentState}
+        readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO โดย sale เจ้าของเอกสาร' : undefined}
+        allowedCategories={canUploadPoAfterApproved && !canManageAttachments ? ['po'] : undefined}
       />
 
       {/* Quotation items / Details of Work */}
