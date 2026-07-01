@@ -511,7 +511,7 @@ export interface PurchaseRequest {
   prTypeId?: string
   prType?: { id: string; name: string; approvalSteps?: number[] }
   salesId: string
-  sales?: { id: string; fullName: string }
+  sales?: { id: string; fullName: string; signatureText?: string }
   customer: string
   projectRef?: string
   dateIssue?: string

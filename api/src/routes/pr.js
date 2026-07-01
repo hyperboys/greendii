@@ -26,7 +26,7 @@ const prValidators = [
 ];
 
 const INCLUDE_FULL = {
-  sales: { select: { id: true, fullName: true, role: true } },
+  sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
   prType: { select: { id: true, name: true, approvalSteps: true } },
   workOrder: { select: { id: true, woNo: true } },
   items: { orderBy: { seq: 'asc' } },
@@ -78,7 +78,7 @@ router.get('/', authenticate, async (req, res, next) => {
       { projectRef: { contains: q, mode: 'insensitive' } },
     ];
     const listInclude = {
-      sales: { select: { id: true, fullName: true } },
+      sales: { select: { id: true, fullName: true, signatureText: true } },
       items: true,
     };
     const pg = getPagination(req.query);

@@ -22,6 +22,14 @@ function fmtDateTH(dateStr?: string): string {
   return `${day}/${month}/${year}`
 }
 
+function formatSignatureText(signatureText?: string | null, fullName?: string | null): string {
+  if (signatureText?.trim()) return signatureText.trim()
+  const name = fullName?.trim()
+  if (!name) return ''
+  const parts = name.split(/\s+/)
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
+}
+
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
   const lines = note.split('\n').map(v => v.trim())
@@ -75,6 +83,8 @@ export default function PRPrint({ doc, settings }: Props) {
   const border = '1px solid #000'
   const hasSpecialDiscount = Number(doc.specialDiscount) > 0
   const vatIncluded = Number(doc.vat) > 0
+  const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
+  const requesterDate = fmtDateTH(doc.dateIssue || doc.createdAt)
 
   const thS: React.CSSProperties = {
     border,
@@ -309,11 +319,40 @@ export default function PRPrint({ doc, settings }: Props) {
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</span>
-                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      borderBottom: '1px dotted #666',
+                      minHeight: '1.15em',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-signature)',
+                      fontStyle: 'italic',
+                      fontSize: '14pt',
+                      lineHeight: 1,
+                      paddingBottom: '1px',
+                    }}
+                  >
+                    {requesterSignature || '\u00A0'}
+                  </span>
                 </div>
                 <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
-                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      borderBottom: '1px dotted #666',
+                      minHeight: '0.9em',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                      paddingBottom: '1px',
+                    }}
+                  >
+                    {requesterDate || '\u00A0'}
+                  </span>
                 </div>
               </td>
               <td style={{ width: '12%' }}></td>
