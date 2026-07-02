@@ -14,6 +14,7 @@ const SCALE_STEP = 0.04
 const HEADER_GAP = 1
 const SAFETY = 10
 const TAIL_GAP = 0
+const LAST_PAGE_FIT_TOLERANCE_PX = 80
 
 interface Props {
   doc: HandOverJob
@@ -183,7 +184,8 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
   }))
 
   const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
-  if (lastPageHeight <= availLast) {
+  // Allow a small measurement tolerance to avoid unnecessary tail-only pages.
+  if (lastPageHeight <= availLast + LAST_PAGE_FIT_TOLERANCE_PX) {
     const lastPage = pages[pages.length - 1]
     lastPage.isLast = true
     lastPage.tail = true
@@ -343,7 +345,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     borderLeft: border,
     borderRight: border,
     padding: `${fpx(4)} ${fpx(6)}`,
-    fontSize: fpt(10),
+    fontSize: fpt(11),
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -432,12 +434,11 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                 <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>
                   {addressTh}{salesHp ? <>&nbsp;&nbsp;HP : {salesHp}</> : null}
                 </div>
-                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}</div>
-                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>E-Mail : {email}</div>
+                <div style={{ fontSize: '10.8pt', lineHeight: '1.0' }}>TAX ID : {taxId}&nbsp;&nbsp;&nbsp;&nbsp;E-Mail : {email}</div>
               </div>
 
               <div style={{ textAlign: 'center', marginTop: '0px' }}>
-                <div style={{ fontSize: '15pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.05 }}>
+                <div style={{ fontSize: '14pt', fontWeight: 'bold', textDecoration: 'underline', fontFamily: 'var(--font-thai)', lineHeight: 1.05 }}>
                   HAND OVER JOB
                 </div>
               </div>
@@ -513,12 +514,12 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc}
           {item.noteLines.map((line, index) => (
-            <span key={index} style={{ color: '#555', fontSize: fpt(10), display: 'block' }}>
+            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
           {item.images.length > 0 && (
-            <div style={{ marginTop: fmm(2), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
+            <div style={{ marginTop: fmm(1), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
               {item.images.map((url, index) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={index} src={resolveFileUrl(url)} alt="" style={{ width: fmm(30), height: 'auto', objectFit: 'contain', display: 'block' }} />
@@ -575,8 +576,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
         <div style={{ borderLeft: border, borderRight: border, padding: `${fpx(2)} ${fpx(8)} ${fpx(5)}`, marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: fpt(8.8), marginBottom: 0 }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: fpx(16), fontSize: fpt(16) }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: fpx(16), height: fpx(16) }} />
+          <div style={{ borderBottom: '1px dotted #555', minHeight: fpx(16), fontSize: fpt(14) }}>&nbsp;</div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: fpx(16), height: fpx(14) }} />
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: 0 }}>

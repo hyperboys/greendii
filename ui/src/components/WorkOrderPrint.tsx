@@ -321,8 +321,8 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     borderLeft: border,
     borderRight: border,
     padding: '4px 6px',
-    fontSize: '9.5pt',
-    lineHeight: 1.35,
+    fontSize: '12pt',
+    lineHeight: 1.1,
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -481,7 +481,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc && <div style={{ whiteSpace: 'pre-wrap' }}>{item.desc}</div>}
           {item.noteLines.map((line, idx) => (
-            <span key={idx} style={{ color: '#444', fontSize: '8.5pt', lineHeight: 1.35, whiteSpace: 'pre-wrap', display: 'block' }}>
+            <span key={idx} style={{ color: '#444', fontSize: '12pt', lineHeight: 1.1, whiteSpace: 'pre-wrap', display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
