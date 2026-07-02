@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
+import type { Attachment, WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 interface FormData {
   workOrderId: string
@@ -49,6 +50,7 @@ export default function EditPRPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [prTypes, setPrTypes] = useState<PrType[]>([])
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
@@ -85,6 +87,7 @@ export default function EditPRPage() {
           includeVat: Number(doc.vat ?? 0) > 0,
           items: doc.items && doc.items.length > 0 ? doc.items : [emptyItem()],
         })
+        setAttachments(doc.attachments ?? [])
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
@@ -279,6 +282,13 @@ export default function EditPRPage() {
             onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} />
         </div>
       </div>
+
+      <AttachmentsSection
+        attachments={attachments}
+        docField="purchaseRequestId"
+        docId={id}
+        onRefresh={() => PRAPI.get(id).then(doc => setAttachments(doc.attachments ?? []))}
+      />
 
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">

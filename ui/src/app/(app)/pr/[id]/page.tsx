@@ -13,6 +13,7 @@ import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
+import AttachmentsSection from '@/components/AttachmentsSection'
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -180,6 +181,14 @@ export default function PRDetailPage() {
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.remarks && <div className="col-span-full"><span className="form-label">Remarks</span><p>{doc.remarks}</p></div>}
       </div>
+
+      <AttachmentsSection
+        attachments={doc.attachments ?? []}
+        docField="purchaseRequestId"
+        docId={id}
+        onRefresh={load}
+        readOnly={!canEdit}
+      />
 
       <div className="card overflow-x-auto no-print">
         <table className="data-table">

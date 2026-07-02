@@ -5,7 +5,7 @@ import { resolveFileUrl } from '@/lib/api'
 import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
-const PACK_CAP_LAST = 10
+const PACK_CAP_LAST = 25
 const FRAGMENT_CAP = PACK_CAP_LAST
 
 const MIN_SCALE = 0.82

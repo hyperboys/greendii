@@ -7,6 +7,7 @@ import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
+import AttachmentsSection, { type PendingAttachment } from '@/components/AttachmentsSection'
 
 interface FormData {
   workOrderId: string
@@ -48,6 +49,7 @@ export default function NewPRPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [prTypes, setPrTypes] = useState<PrType[]>([])
   const [saving, setSaving] = useState(false)
+  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     workOrderId: '', prTypeId: '', customer: '', projectRef: '',
@@ -68,11 +70,6 @@ export default function NewPRPage() {
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const netTotal = roundMoney(afterDiscount + vat)
-
-  const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
-    setForm(f => {
-      const items = [...f.items]
-      items[idx] = { ...items[idx], [key]: val }
       items[idx].amount = items[idx].qty * items[idx].price
       return { ...f, items }
     })
@@ -179,6 +176,12 @@ export default function NewPRPage() {
         ...form, subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
         items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
       })
+      for (const category of Array.from(new Set(pendingAttachments.map(p => p.category)))) {
+        const files = pendingAttachments.filter(p => p.category === category).map(p => p.file)
+        if (files.length > 0) {
+          await UploadAPI.upload(files, { purchaseRequestId: created.id, category })
+        }
+      }
       toast.success('สร้างใบขอซื้อสำเร็จ')
       router.replace(`/pr/${created.id}`)
     } catch (err) {
@@ -240,6 +243,12 @@ export default function NewPRPage() {
             onChange={e => setForm(f => ({ ...f, remarks: e.target.value }))} />
         </div>
       </div>
+
+      <AttachmentsSection
+        docField="purchaseRequestId"
+        pending={pendingAttachments}
+        onPendingChange={setPendingAttachments}
+      />
 
       <div className="card p-5">
         <div className="flex items-center justify-between mb-3">
