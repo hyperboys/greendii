@@ -9,11 +9,18 @@ import { GripVertical, Plus, Save, RefreshCw, X, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify'
+const APPROVAL_BYPASS_KEY = 'approvalBypassConfig'
 const DEFAULT_WO_APPROVED_NOTIFY = {
   enabled: false,
   roles: [] as string[],
   userIds: [] as string[],
   messageTemplate: 'ใบสั่งงาน {woNo} อนุมัติครบแล้ว',
+}
+const DEFAULT_APPROVAL_BYPASS_CONFIG: Record<string, string[]> = {
+  quotation: ['admin'],
+  workOrder: ['admin'],
+  pr: ['admin'],
+  handover: ['admin'],
 }
 
 export default function ApprovalFlowPage() {
@@ -25,6 +32,7 @@ export default function ApprovalFlowPage() {
   // stepRoleConfig: { "1": "sales", "2": "sale_mgr", ... }
   const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
   const [woApprovedNotify, setWoApprovedNotify] = useState(DEFAULT_WO_APPROVED_NOTIFY)
+  const [approvalBypassConfig, setApprovalBypassConfig] = useState<Record<string, string[]>>(DEFAULT_APPROVAL_BYPASS_CONFIG)
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [rawApprovalFlowConfig, setRawApprovalFlowConfig] = useState<Record<string, unknown>>({})
 
@@ -75,6 +83,13 @@ export default function ApprovalFlowPage() {
       }))
       if (s.stepRoleConfig) setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
       setWoApprovedNotify(parseWoApprovedNotify(approvalFlowConfig[WO_APPROVED_NOTIFY_KEY]))
+      const bypassRaw = approvalFlowConfig[APPROVAL_BYPASS_KEY] as Record<string, unknown> | undefined
+      setApprovalBypassConfig({
+        quotation: Array.isArray(bypassRaw?.quotation) ? bypassRaw.quotation.map(String).filter(Boolean) : ['admin'],
+        workOrder: Array.isArray(bypassRaw?.workOrder) ? bypassRaw.workOrder.map(String).filter(Boolean) : ['admin'],
+        pr: Array.isArray(bypassRaw?.pr) ? bypassRaw.pr.map(String).filter(Boolean) : ['admin'],
+        handover: Array.isArray(bypassRaw?.handover) ? bypassRaw.handover.map(String).filter(Boolean) : ['admin'],
+      })
       setAllUsers(users)
     }).finally(() => setLoading(false))
   }, [])
@@ -150,6 +165,12 @@ export default function ApprovalFlowPage() {
           userIds: Array.from(new Set(woApprovedNotify.userIds)),
           messageTemplate: woApprovedNotify.messageTemplate?.trim() || DEFAULT_WO_APPROVED_NOTIFY.messageTemplate,
         },
+        [APPROVAL_BYPASS_KEY]: {
+          quotation: Array.from(new Set(approvalBypassConfig.quotation || [])),
+          workOrder: Array.from(new Set(approvalBypassConfig.workOrder || [])),
+          pr: Array.from(new Set(approvalBypassConfig.pr || [])),
+          handover: Array.from(new Set(approvalBypassConfig.handover || [])),
+        },
       }
       await Promise.all([
         AdminAPI.updateApprovalFlow(nextApprovalFlowConfig),
@@ -173,7 +194,18 @@ export default function ApprovalFlowPage() {
       return next
     })
     setStepRoleConfig(DEFAULT_STEP_ROLE)
+    setApprovalBypassConfig(DEFAULT_APPROVAL_BYPASS_CONFIG)
     toast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
+  }
+
+  const toggleBypassRole = (docKey: string, roleKey: string, enabled: boolean) => {
+    setApprovalBypassConfig(prev => {
+      const current = prev[docKey] || []
+      const next = enabled
+        ? Array.from(new Set([...current, roleKey]))
+        : current.filter(role => role !== roleKey)
+      return { ...prev, [docKey]: next }
+    })
   }
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
@@ -284,6 +316,36 @@ export default function ApprovalFlowPage() {
       </div>
 
       <div className="space-y-6">
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-1">Bypass การอนุมัติ (ต่อประเภทเอกสาร)</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            Role ที่ถูกเลือกจะข้ามเงื่อนไข "ต้องเป็น approver ตามขั้นปัจจุบัน" ของเอกสารประเภทนั้น
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {DOC_TYPES.map(doc => (
+              <div key={doc.key} className="rounded-lg border border-gray-200 p-3">
+                <p className="text-sm font-semibold text-gray-700 mb-2">{doc.label}</p>
+                <div className="max-h-56 overflow-y-auto space-y-1">
+                  {allRoles.map(role => {
+                    const checked = (approvalBypassConfig[doc.key] || []).includes(role.key)
+                    return (
+                      <label key={`${doc.key}-${role.key}`} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => toggleBypassRole(doc.key, role.key, e.target.checked)}
+                        />
+                        <span>{role.label} ({role.key})</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
         <div className="card p-5">
           <h3 className="font-semibold text-gray-800 mb-1">แจ้งเตือนหลังอนุมัติ Work Order ครบ</h3>
           <p className="text-xs text-gray-500 mb-4">เมื่อ Work Order อนุมัติครบ ให้แจ้งเตือนทีม (ตามบทบาท) หรือผู้ใช้รายบุคคลที่กำหนด</p>

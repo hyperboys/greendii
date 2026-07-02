@@ -6,8 +6,10 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep, getFlowSteps } = require('../lib/approvalFlow');
+const { getFirstStep, getNextStep, getFlowSteps, getStepRoleMapping } = require('../lib/approvalFlow');
 const { canManageAllQuotations, canViewAllReports, assertQuotationAccessible } = require('../lib/roles');
+const { normalizeRole } = require('../lib/roleAliases');
+const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const quotationValidators = [
   body('customerName').trim().notEmpty().withMessage('กรุณาระบุชื่อลูกค้า'),
@@ -176,6 +178,31 @@ async function createQuotationWithRetry(req, data, include, maxAttempts = 3) {
   throw lastError || new Error('Failed to create quotation')
 }
 
+async function assertQuotationAccessibleWithBypass(req, quotation) {
+  if (await canBypassDocApproval('quotation', req.user.role)) return;
+  assertQuotationAccessible(req, quotation);
+}
+
+async function assertQuotationCurrentApprover(req, quotation) {
+  if (await canBypassDocApproval('quotation', req.user.role)) return;
+
+  const { stepRole } = await getStepRoleMapping();
+  const requiredRole = normalizeRole(stepRole[quotation.approvalStep]);
+  const actorRole = normalizeRole(req.user.role);
+
+  if (!requiredRole || requiredRole !== actorRole) {
+    const error = new Error('ไม่มีสิทธิ์อนุมัติรายการนี้');
+    error.status = 403;
+    throw error;
+  }
+
+  if (Number(quotation.approvalStep) === 1 && quotation.salesId === req.user.id) {
+    const error = new Error('ผู้สร้างเอกสารไม่สามารถอนุมัติขั้น Sales ได้');
+    error.status = 403;
+    throw error;
+  }
+}
+
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -192,10 +219,11 @@ router.get('/', authenticate, async (req, res, next) => {
     ];
     const isReportQuery = ['1', 'true', 'yes'].includes(String(forReport || '').toLowerCase());
     const canSeeAllForReports = isReportQuery ? await canViewAllReports(req.user.role) : false;
+    const canBypass = await canBypassDocApproval('quotation', req.user.role);
     const sort = resolveQuotationOrderBy(orderBy, orderDir)
 
     // Sales only sees their own quotations (unless manager+ or report viewers in report scope)
-    if (!canManageAllQuotations(req.user.role) && !canSeeAllForReports) {
+    if (!canManageAllQuotations(req.user.role) && !canSeeAllForReports && !canBypass) {
       where.salesId = req.user.id;
     }
     const listInclude = {
@@ -226,7 +254,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
-    assertQuotationAccessible(req, item);
+    await assertQuotationAccessibleWithBypass(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -239,7 +267,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/quotation/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true, salesId: true } });
-    assertQuotationAccessible(req, item);
+    await assertQuotationAccessibleWithBypass(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.quoNo || 'quotation'}.pdf"`);
@@ -382,7 +410,7 @@ router.put('/:id', authenticate, quotationValidators, validate, async (req, res,
 router.post('/:id/submit', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
-    assertQuotationAccessible(req, quo);
+    await assertQuotationAccessibleWithBypass(req, quo);
     if (!['draft', 'rejected'].includes(quo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('quotation');
     let resumeStep = firstStep;
@@ -420,6 +448,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (quo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertQuotationCurrentApprover(req, quo);
     const nextStep = await getNextStep('quotation', quo.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
     const updated = await prisma.quotation.update({
@@ -447,6 +476,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
     if (quo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertQuotationCurrentApprover(req, quo);
     const updated = await prisma.$transaction(async (tx) => {
       await tx.approvalLog.deleteMany({
         where: {
@@ -480,7 +510,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const quo = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id } });
-    assertQuotationAccessible(req, quo);
+    await assertQuotationAccessibleWithBypass(req, quo);
     if (quo.status === 'approved') return res.status(400).json({ message: 'Cannot delete approved quotation' });
     await prisma.quotation.update({ where: { id: req.params.id }, data: { status: 'cancelled' } });
     res.json({ message: 'Quotation cancelled' });

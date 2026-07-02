@@ -6,8 +6,10 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep, getFlowSteps } = require('../lib/approvalFlow');
+const { getFirstStep, getNextStep, getFlowSteps, getStepRoleMapping } = require('../lib/approvalFlow');
 const { DOC_MANAGER_ROLES, canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
+const { normalizeRole } = require('../lib/roleAliases');
+const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const MANAGER_ROLES = DOC_MANAGER_ROLES;
 
@@ -114,6 +116,26 @@ async function getDocNumberFloor(prefix) {
     : {};
   const floor = Number(floors[prefix]);
   return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+}
+
+async function assertHandOverCurrentApprover(req, handover) {
+  if (await canBypassDocApproval('handover', req.user.role)) return;
+
+  const { stepRole } = await getStepRoleMapping();
+  const requiredRole = normalizeRole(stepRole[handover.approvalStep]);
+  const actorRole = normalizeRole(req.user.role);
+
+  if (!requiredRole || requiredRole !== actorRole) {
+    const error = new Error('ไม่มีสิทธิ์อนุมัติรายการนี้');
+    error.status = 403;
+    throw error;
+  }
+
+  if (Number(handover.approvalStep) === 1 && handover.salesId === req.user.id) {
+    const error = new Error('ผู้สร้างเอกสารไม่สามารถอนุมัติขั้น Sales ได้');
+    error.status = 403;
+    throw error;
+  }
 }
 
 // GET /api/handovers
@@ -343,6 +365,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertHandOverCurrentApprover(req, ho);
     const nextStep = await getNextStep('handover', ho.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
     const updated = await prisma.handOverJob.update({
@@ -370,6 +393,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
     const ho = await prisma.handOverJob.findUniqueOrThrow({ where: { id: req.params.id } });
     if (ho.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertHandOverCurrentApprover(req, ho);
     const updated = await prisma.$transaction(async (tx) => {
       await tx.approvalLog.deleteMany({
         where: {

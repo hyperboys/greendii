@@ -228,6 +228,12 @@ export interface Settings {
     workOrder?: number[]
     pr?: number[]
     handover?: number[]
+    approvalBypassConfig?: {
+      quotation?: string[]
+      workOrder?: string[]
+      pr?: string[]
+      handover?: string[]
+    }
     workOrderApprovedNotify?: {
       enabled?: boolean
       roles?: string[]

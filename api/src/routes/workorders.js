@@ -9,6 +9,7 @@ const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep, getStepRoleMapping, getFlowSteps } = require('../lib/approvalFlow');
 const { normalizeRole, expandRoleAliases } = require('../lib/roleAliases');
 const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
+const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify';
 const TEAM_CHECKLIST_KEYS = [
@@ -319,6 +320,7 @@ async function syncSelectedHandOverJob(workOrderId, handOverJobId, tx = prisma) 
 
 async function assertWorkOrderAccessible(req, workOrder) {
   if (!workOrder) return;
+  if (await canBypassDocApproval('workOrder', req.user.role)) return;
   if (canManageAllDocs(req.user.role) || workOrder.salesId === req.user.id) return;
 
   if (workOrder.status === 'pending') {
@@ -330,6 +332,26 @@ async function assertWorkOrderAccessible(req, workOrder) {
   const error = new Error('ไม่มีสิทธิ์เข้าถึงเอกสารของผู้อื่น');
   error.status = 403;
   throw error;
+}
+
+async function assertWorkOrderCurrentApprover(req, workOrder) {
+  if (await canBypassDocApproval('workOrder', req.user.role)) return;
+
+  const { stepRole } = await getStepRoleMapping();
+  const requiredRole = normalizeRole(stepRole[workOrder.approvalStep]);
+  const actorRole = normalizeRole(req.user.role);
+
+  if (!requiredRole || requiredRole !== actorRole) {
+    const error = new Error('ไม่มีสิทธิ์อนุมัติรายการนี้');
+    error.status = 403;
+    throw error;
+  }
+
+  if (Number(workOrder.approvalStep) === 1 && workOrder.salesId === req.user.id) {
+    const error = new Error('ผู้สร้างเอกสารไม่สามารถอนุมัติขั้น Sales ได้');
+    error.status = 403;
+    throw error;
+  }
 }
 
 function buildWorkOrderNotifyMessage(template, wo) {
@@ -774,6 +796,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertWorkOrderCurrentApprover(req, wo);
     const { comment, docChecklist } = req.body || {};
     const { stepRole } = await getStepRoleMapping();
     const requiredRole = normalizeRole(stepRole[wo.approvalStep]);
@@ -816,6 +839,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertWorkOrderAccessible(req, wo);
     if (wo.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertWorkOrderCurrentApprover(req, wo);
     const updated = await prisma.$transaction(async (tx) => {
       // Clear completed approval sequence/signatures from the rejected cycle.
       await tx.approvalLog.deleteMany({

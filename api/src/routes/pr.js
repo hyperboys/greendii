@@ -6,8 +6,10 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getPrFirstStep, getPrNextStep, resolvePrFlow } = require('../lib/approvalFlow');
+const { getPrFirstStep, getPrNextStep, resolvePrFlow, getStepRoleMapping } = require('../lib/approvalFlow');
 const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
+const { normalizeRole } = require('../lib/roleAliases');
+const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const prValidators = [
   body('prTypeId').trim().notEmpty().withMessage('กรุณาเลือกประเภทใบขอซื้อ'),
@@ -36,6 +38,71 @@ const INCLUDE_FULL = {
   },
   attachments: true,
 };
+
+async function buildPrAccessWhere(user) {
+  if (await canBypassDocApproval('pr', user.role)) return {};
+
+  const baseConditions = [{ salesId: user.id }];
+  const { roleStep } = await getStepRoleMapping();
+  const myStep = roleStep[normalizeRole(user.role)];
+
+  if (myStep) {
+    baseConditions.push({
+      status: 'pending',
+      approvalStep: myStep,
+      ...(myStep === 1 ? { NOT: { salesId: user.id } } : {}),
+    });
+  }
+
+  return { OR: baseConditions };
+}
+
+async function assertPrAccessible(req, pr) {
+  if (!pr) return;
+
+  if (await canBypassDocApproval('pr', req.user.role)) return;
+
+  if (pr.salesId === req.user.id) return;
+
+  if (pr.status === 'pending') {
+    const { roleStep } = await getStepRoleMapping();
+    const myStep = roleStep[normalizeRole(req.user.role)];
+    if (myStep && Number(pr.approvalStep) === Number(myStep)) {
+      if (Number(myStep) !== 1 || pr.salesId !== req.user.id) return;
+    }
+  }
+
+  const error = new Error('ไม่มีสิทธิ์เข้าถึงเอกสารนี้');
+  error.status = 403;
+  throw error;
+}
+
+async function assertPrCurrentApprover(req, pr) {
+  if (await canBypassDocApproval('pr', req.user.role)) return;
+
+  const { stepRole } = await getStepRoleMapping();
+  const requiredRole = normalizeRole(stepRole[pr.approvalStep]);
+  const actorRole = normalizeRole(req.user.role);
+
+  if (!requiredRole || requiredRole !== actorRole) {
+    const error = new Error('ไม่มีสิทธิ์อนุมัติรายการนี้');
+    error.status = 403;
+    throw error;
+  }
+
+  if (Number(pr.approvalStep) === 1 && pr.salesId === req.user.id) {
+    const error = new Error('ผู้สร้างเอกสารไม่สามารถอนุมัติขั้น Sales ได้');
+    error.status = 403;
+    throw error;
+  }
+
+  const effectiveSteps = await resolvePrFlow(pr.prType?.approvalSteps, pr.sales?.role);
+  if (!effectiveSteps.includes(Number(pr.approvalStep))) {
+    const error = new Error('ขั้นอนุมัติของเอกสารไม่ถูกต้อง');
+    error.status = 400;
+    throw error;
+  }
+}
 
 function stripRevisionSuffix(docNo = '') {
   return String(docNo).replace(/-R\d+$/i, '');
@@ -78,15 +145,20 @@ async function getDocNumberFloor(prefix) {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, q, active } = req.query;
-    const where = {};
-    if (status) where.status = status;
-    if (active !== undefined) where.active = active === 'true';
-    else where.active = true;
-    if (q) where.OR = [
-      { prNo: { contains: q, mode: 'insensitive' } },
-      { customer: { contains: q, mode: 'insensitive' } },
-      { projectRef: { contains: q, mode: 'insensitive' } },
-    ];
+    const andWhere = [await buildPrAccessWhere(req.user)];
+    if (status) andWhere.push({ status });
+    if (active !== undefined) andWhere.push({ active: active === 'true' });
+    else andWhere.push({ active: true });
+    if (q) {
+      andWhere.push({
+        OR: [
+          { prNo: { contains: q, mode: 'insensitive' } },
+          { customer: { contains: q, mode: 'insensitive' } },
+          { projectRef: { contains: q, mode: 'insensitive' } },
+        ],
+      });
+    }
+    const where = { AND: andWhere };
     const listInclude = {
       sales: { select: { id: true, fullName: true, signatureText: true } },
       items: true,
@@ -115,6 +187,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
+    await assertPrAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -126,7 +199,11 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}`;
-    const item = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id }, select: { prNo: true, salesId: true } });
+    const item = await prisma.purchaseRequest.findUniqueOrThrow({
+      where: { id: req.params.id },
+      select: { id: true, prNo: true, salesId: true, status: true, approvalStep: true },
+    });
+    await assertPrAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
@@ -331,6 +408,7 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
       include: { prType: { select: { approvalSteps: true } }, sales: { select: { role: true } } },
     });
     if (pr.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertPrCurrentApprover(req, pr);
 
     const nextStep = await getPrNextStep(pr.prType?.approvalSteps, pr.sales.role, pr.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
@@ -357,8 +435,12 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
 // POST /api/pr/:id/reject
 router.post('/:id/reject', authenticate, async (req, res, next) => {
   try {
-    const pr = await prisma.purchaseRequest.findUniqueOrThrow({ where: { id: req.params.id } });
+    const pr = await prisma.purchaseRequest.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { prType: { select: { approvalSteps: true } }, sales: { select: { role: true } } },
+    });
     if (pr.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
+    await assertPrCurrentApprover(req, pr);
     const updated = await prisma.$transaction(async (tx) => {
       await tx.approvalLog.deleteMany({
         where: {
