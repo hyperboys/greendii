@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI, UploadAPI, QuotationsAPI, HandoversAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, UploadAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
@@ -61,10 +61,6 @@ export default function WorkOrderDetailPage() {
   const [poAmount, setPoAmount] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [quotationPreviewPdfUrl, setQuotationPreviewPdfUrl] = useState('')
-  const [handoverPreviewPdfUrl, setHandoverPreviewPdfUrl] = useState('')
-  const [quotationPreviewLoading, setQuotationPreviewLoading] = useState(false)
-  const [handoverPreviewLoading, setHandoverPreviewLoading] = useState(false)
   const poInputRef = useRef<HTMLInputElement | null>(null)
 
   const load = () => {
@@ -95,72 +91,13 @@ export default function WorkOrderDetailPage() {
 
   const previewQuotationId = doc?.quotationId
   const previewHandoverId = doc?.handOverJobs?.[0]?.id
-
-  useEffect(() => {
-    if (!previewOpen) {
-      setQuotationPreviewPdfUrl(prev => {
-        if (prev) URL.revokeObjectURL(prev)
-        return ''
-      })
-      setHandoverPreviewPdfUrl(prev => {
-        if (prev) URL.revokeObjectURL(prev)
-        return ''
-      })
-      setQuotationPreviewLoading(false)
-      setHandoverPreviewLoading(false)
-      return
-    }
-
-    let disposed = false
-    const localUrls: string[] = []
-
-    const loadLinkedPreviewPdfs = async () => {
-      if (previewQuotationId) {
-        setQuotationPreviewLoading(true)
-        try {
-          const blob = await QuotationsAPI.pdf(previewQuotationId)
-          if (disposed) return
-          setQuotationPreviewPdfUrl(prev => {
-            if (prev) URL.revokeObjectURL(prev)
-            return ''
-          })
-          const objectUrl = URL.createObjectURL(blob)
-          localUrls.push(objectUrl)
-          if (!disposed) setQuotationPreviewPdfUrl(objectUrl)
-        } catch {
-          if (!disposed) setQuotationPreviewPdfUrl('')
-        } finally {
-          if (!disposed) setQuotationPreviewLoading(false)
-        }
-      }
-
-      if (previewHandoverId) {
-        setHandoverPreviewLoading(true)
-        try {
-          const blob = await HandoversAPI.pdf(previewHandoverId)
-          if (disposed) return
-          setHandoverPreviewPdfUrl(prev => {
-            if (prev) URL.revokeObjectURL(prev)
-            return ''
-          })
-          const objectUrl = URL.createObjectURL(blob)
-          localUrls.push(objectUrl)
-          if (!disposed) setHandoverPreviewPdfUrl(objectUrl)
-        } catch {
-          if (!disposed) setHandoverPreviewPdfUrl('')
-        } finally {
-          if (!disposed) setHandoverPreviewLoading(false)
-        }
-      }
-    }
-
-    void loadLinkedPreviewPdfs()
-
-    return () => {
-      disposed = true
-      for (const url of localUrls) URL.revokeObjectURL(url)
-    }
-  }, [previewOpen, previewQuotationId, previewHandoverId])
+  const previewToken = typeof window !== 'undefined' ? localStorage.getItem('gd_token') || '' : ''
+  const quotationPreviewUrl = previewQuotationId
+    ? `/print/quotation/${previewQuotationId}${previewToken ? `?token=${encodeURIComponent(previewToken)}` : ''}`
+    : ''
+  const handoverPreviewUrl = previewHandoverId
+    ? `/print/handover/${previewHandoverId}${previewToken ? `?token=${encodeURIComponent(previewToken)}` : ''}`
+    : ''
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -558,16 +495,15 @@ export default function WorkOrderDetailPage() {
                 <div className="mb-2 text-xs font-medium text-gray-700">ใบเสนอราคา {doc.quotation?.quoNo ? `(${doc.quotation.quoNo})` : ''}</div>
                 {!doc.quotationId ? (
                   <div className="text-xs text-gray-500">ไม่ได้ผูกใบเสนอราคา</div>
-                ) : quotationPreviewLoading ? (
-                  <div className="text-xs text-gray-500">กำลังโหลดพรีวิวใบเสนอราคา...</div>
-                ) : quotationPreviewPdfUrl ? (
-                  <iframe
-                    src={quotationPreviewPdfUrl}
-                    title="Quotation Preview"
-                    className="h-[520px] w-full rounded border border-gray-100"
-                  />
                 ) : (
-                  <div className="text-xs text-red-500">โหลดพรีวิวใบเสนอราคาไม่สำเร็จ</div>
+                  <a
+                    href={quotationPreviewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    เปิดไฟล์ <ExternalLink size={12} />
+                  </a>
                 )}
               </div>
 
@@ -575,16 +511,15 @@ export default function WorkOrderDetailPage() {
                 <div className="mb-2 text-xs font-medium text-gray-700">HandOver {selectedHandover?.hoNo ? `(${selectedHandover.hoNo})` : ''}</div>
                 {!selectedHandover?.id ? (
                   <div className="text-xs text-gray-500">ไม่ได้ผูก HandOver</div>
-                ) : handoverPreviewLoading ? (
-                  <div className="text-xs text-gray-500">กำลังโหลดพรีวิว HandOver...</div>
-                ) : handoverPreviewPdfUrl ? (
-                  <iframe
-                    src={handoverPreviewPdfUrl}
-                    title="HandOver Preview"
-                    className="h-[520px] w-full rounded border border-gray-100"
-                  />
                 ) : (
-                  <div className="text-xs text-red-500">โหลดพรีวิว HandOver ไม่สำเร็จ</div>
+                  <a
+                    href={handoverPreviewUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                  >
+                    เปิดไฟล์ <ExternalLink size={12} />
+                  </a>
                 )}
               </div>
             </div>
