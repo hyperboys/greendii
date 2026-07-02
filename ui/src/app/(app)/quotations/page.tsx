@@ -10,6 +10,9 @@ import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
+type SortKey = 'quoNo' | 'customerName' | 'project' | 'salesId' | 'grandTotal' | 'status' | 'createdAt'
+type SortDir = 'asc' | 'desc'
+
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft: 'badge-draft',
   pending: 'badge-pending',
@@ -30,19 +33,39 @@ export default function QuotationsPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [sortBy, setSortBy] = useState<SortKey>('quoNo')
+  const [sortDir, setSortDir] = useState<SortDir>('desc')
+
+  const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'createdAt' || key === 'quoNo' ? 'desc' : 'asc')
 
   const load = () => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
     if (statusFilter) params.status = statusFilter
+    params.orderBy = sortBy
+    params.orderDir = sortDir
     QuotationsAPI.list(params)
       .then(setRows)
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load() }, [statusFilter, sortBy, sortDir])
+
+  const toggleSort = (key: SortKey) => {
+    if (sortBy === key) {
+      setSortDir(prev => (prev === 'asc' ? 'desc' : 'asc'))
+      return
+    }
+    setSortBy(key)
+    setSortDir(defaultDirFor(key))
+  }
+
+  const sortIcon = (key: SortKey) => {
+    if (sortBy !== key) return <span className="ml-1 text-[10px] text-gray-400">↕</span>
+    return <span className="ml-1 text-[10px] text-green-dark">{sortDir === 'asc' ? '▲' : '▼'}</span>
+  }
 
   const canCreate = hasPerm('quo_create', user?.role ?? '')
 
@@ -92,13 +115,41 @@ export default function QuotationsPage() {
         <table className="data-table">
           <thead>
             <tr>
-              <th>เลขที่</th>
-              <th>ลูกค้า</th>
-              <th>โครงการ</th>
-              <th>เซลล์</th>
-              <th className="text-right">ยอดรวม</th>
-              <th>สถานะ</th>
-              <th>วันที่</th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('quoNo')}>
+                  เลขที่{sortIcon('quoNo')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('customerName')}>
+                  ลูกค้า{sortIcon('customerName')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('project')}>
+                  โครงการ{sortIcon('project')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('salesId')}>
+                  เซลล์{sortIcon('salesId')}
+                </button>
+              </th>
+              <th className="text-right">
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('grandTotal')}>
+                  ยอดรวม{sortIcon('grandTotal')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('status')}>
+                  สถานะ{sortIcon('status')}
+                </button>
+              </th>
+              <th>
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('createdAt')}>
+                  วันที่{sortIcon('createdAt')}
+                </button>
+              </th>
             </tr>
           </thead>
           <tbody>

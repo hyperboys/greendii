@@ -23,6 +23,13 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
+function fmtQtyBlankZero(n: number | null | undefined): string {
+  if (n == null) return ''
+  const numeric = Number(n)
+  if (!Number.isFinite(numeric) || Math.abs(numeric) < 0.0000001) return ''
+  return fmtQty(numeric)
+}
+
 // Row-weight pack capacities. 1 weight ≈ 1 main row at ~7mm.
 // A4 portrait content area: 297mm − 6mm top − 10mm bottom = 281mm.
 // Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 85mm.
@@ -589,7 +596,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           )}
         </td>
         <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? fmtQty(item.qty) : ''}
+          {item ? fmtQtyBlankZero(item.qty) : ''}
         </td>
         <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
           {item?.unit ?? ''}
@@ -606,7 +613,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       </tr>
       {detailRows.map((row, idx) => {
         const detailDesc = parseColoredLine(row.desc)
-        const detailQty = Number(row.qty || 0)
+        const detailQty = Number(row.qty || "0")
         const detailUnit = String(row.unit || '').trim()
         const material = Number(row.materialPrice || 0)
         const labour = Number(row.labourPrice || 0)

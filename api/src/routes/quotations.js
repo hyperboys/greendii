@@ -35,6 +35,23 @@ const INCLUDE_FULL = {
 
 const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
 
+const SORT_FIELD_MAP = {
+  quoNo: 'quoNo',
+  customerName: 'customerName',
+  project: 'project',
+  salesId: 'salesId',
+  grandTotal: 'grandTotal',
+  status: 'status',
+  createdAt: 'createdAt',
+}
+
+function resolveQuotationOrderBy(orderByRaw, orderDirRaw) {
+  const key = String(orderByRaw || 'quoNo')
+  const dir = String(orderDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc'
+  const field = SORT_FIELD_MAP[key] || 'quoNo'
+  return { [field]: dir }
+}
+
 function normalizeQuotationDetailRow(row) {
   const desc = String(row?.desc ?? '').trim()
   const qty = Number(row?.qty ?? 0) || 0
@@ -162,7 +179,7 @@ async function createQuotationWithRetry(req, data, include, maxAttempts = 3) {
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, salesId, q, active, forReport } = req.query;
+    const { status, salesId, q, active, forReport, orderBy, orderDir } = req.query;
     const where = {};
     if (status) where.status = status;
     if (salesId) where.salesId = salesId;
@@ -175,6 +192,7 @@ router.get('/', authenticate, async (req, res, next) => {
     ];
     const isReportQuery = ['1', 'true', 'yes'].includes(String(forReport || '').toLowerCase());
     const canSeeAllForReports = isReportQuery ? await canViewAllReports(req.user.role) : false;
+    const sort = resolveQuotationOrderBy(orderBy, orderDir)
 
     // Sales only sees their own quotations (unless manager+ or report viewers in report scope)
     if (!canManageAllQuotations(req.user.role) && !canSeeAllForReports) {
@@ -187,7 +205,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const pg = getPagination(req.query);
     if (pg) {
       const [data, total] = await prisma.$transaction([
-        prisma.quotation.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
+        prisma.quotation.findMany({ where, include: listInclude, orderBy: sort, skip: pg.skip, take: pg.take }),
         prisma.quotation.count({ where }),
       ]);
       return res.json(paginated(data, total, pg));
@@ -195,7 +213,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const list = await prisma.quotation.findMany({
       where,
       include: listInclude,
-      orderBy: { createdAt: 'desc' },
+      orderBy: sort,
     });
     res.json(list);
   } catch (e) { next(e); }
