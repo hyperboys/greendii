@@ -30,7 +30,7 @@ const emptyDetailRow = (): QuotationItemDetail => ({ desc: '', qty: 0, unit: '',
 const emptyItem = (): QuotationItem => ({
   desc: '',
   note: '',
-  qty: 1,
+  qty: 0,
   unit: '',
   materialPrice: 0,
   labourPrice: 0,
@@ -85,8 +85,15 @@ const normalizeItem = (item: QuotationItem): QuotationItem => {
   normalized.materialPrice = Number(normalized.materialPrice) || 0
   normalized.labourPrice = Number(normalized.labourPrice) || 0
   normalized.price = calcLinePrice(normalized)
-  normalized.amount = (Number(normalized.qty) * normalized.price) + detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  normalized.amount = Number(normalized.qty) * normalized.price
   return normalized
+}
+
+const calcItemTotal = (item: QuotationItem) => {
+  const normalized = normalizeItem(item)
+  const detailRows = normalized.detailRows || []
+  const detailTotal = detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  return normalized.amount + detailTotal
 }
 
 const getNoteLines = (note?: string) => {
@@ -114,7 +121,7 @@ export default function NewQuotationPage() {
       .then(([c, u]) => { setCustomers(c); setUnits(u) })
   }, [user?.id])
 
-  const subTotal = roundMoney(form.items.reduce((s, i) => s + normalizeItem(i).amount, 0))
+  const subTotal = roundMoney(form.items.reduce((s, i) => s + calcItemTotal(i), 0))
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const grandTotal = roundMoney(afterDiscount + vat)
@@ -510,7 +517,11 @@ export default function NewQuotationPage() {
                       </td>
                       <td className="py-2 px-2">
                         <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
-                          value={item.qty} onChange={e => setItem(i, 'qty', +e.target.value)} />
+                          value={emptyWhenZero(item.qty)}
+                          onChange={e => {
+                            const raw = e.target.value.trim()
+                            setItem(i, 'qty', raw === '' ? 0 : Number(raw))
+                          }} />
                       </td>
                       <td className="py-2 px-2">
                         <input list="units-datalist" className="form-input py-1"

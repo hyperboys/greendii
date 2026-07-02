@@ -269,7 +269,7 @@ export default function QuotationDetailPage() {
                             <p key={idx} className="text-xs mt-0.5" style={{ color: line.color || '#9ca3af' }}>{line.text}</p>
                           ))}
                         </td>
-                        <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.qty)}</td>
+                        <td className="py-2.5 px-3 text-right pt-3.5">{Number(item.qty || 0) === 0 ? '' : fmtMoney(item.qty)}</td>
                         <td className="py-2.5 px-3 pt-3.5">{item.unit}</td>
                         <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.materialPrice ?? item.price)}</td>
                         <td className="py-2.5 px-3 text-right pt-3.5">{fmtMoney(item.labourPrice ?? 0)}</td>

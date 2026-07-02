@@ -55,7 +55,7 @@ function normalizeQuotationItem(item) {
   const detailRows = Array.isArray(item?.detailRows)
     ? item.detailRows.map(normalizeQuotationDetailRow).filter(Boolean)
     : []
-  const amount = (qty * price) + detailRows.reduce((sum, row) => sum + Number(row.amount || 0), 0)
+  const amount = qty * price
   return {
     desc: String(item?.desc ?? '').trim(),
     note: item?.note == null ? null : String(item.note),
