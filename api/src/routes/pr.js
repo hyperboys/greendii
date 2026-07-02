@@ -54,6 +54,16 @@ async function buildPrAccessWhere(user) {
     });
   }
 
+  baseConditions.push({
+    status: 'approved',
+    approvalLogs: {
+      some: {
+        approverId: user.id,
+        action: 'approve',
+      },
+    },
+  });
+
   return { OR: baseConditions };
 }
 
@@ -63,6 +73,12 @@ async function assertPrAccessible(req, pr) {
   if (await canBypassDocApproval('pr', req.user.role)) return;
 
   if (pr.salesId === req.user.id) return;
+
+  if (pr.status === 'approved') {
+    const approvedByMe = Array.isArray(pr.approvalLogs)
+      && pr.approvalLogs.some(log => log?.approverId === req.user.id && log?.action === 'approve');
+    if (approvedByMe) return;
+  }
 
   if (pr.status === 'pending') {
     const { roleStep } = await getStepRoleMapping();
@@ -203,7 +219,16 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.purchaseRequest.findUniqueOrThrow({
       where: { id: req.params.id },
-      select: { id: true, prNo: true, salesId: true, status: true, approvalStep: true },
+      select: {
+        id: true,
+        prNo: true,
+        salesId: true,
+        status: true,
+        approvalStep: true,
+        approvalLogs: {
+          select: { approverId: true, action: true },
+        },
+      },
     });
     await assertPrAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
