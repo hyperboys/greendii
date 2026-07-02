@@ -334,6 +334,35 @@
     border-top: 0;
     padding: 6mm 6mm 10mm;
   }
+
+  .quotation-preview-modal .print-sheet.workorder-print {
+    display: block !important;
+    width: 210mm;
+    max-width: 210mm;
+    margin: 0 auto;
+    background: transparent;
+  }
+
+  .quotation-preview-modal .print-sheet.workorder-print .workorder-page {
+    box-sizing: border-box;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 6mm 6mm 10mm;
+    overflow: hidden;
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+  }
+
+  .quotation-preview-modal .print-sheet.workorder-print .workorder-page:last-child {
+    min-height: 297mm;
+    overflow: visible;
+  }
+
+  .quotation-preview-modal .print-sheet.workorder-print .workorder-page + .workorder-page {
+    margin-top: 10mm;
+    border-top: 0;
+    padding: 6mm 6mm 10mm;
+  }
 }
 
 @media print {

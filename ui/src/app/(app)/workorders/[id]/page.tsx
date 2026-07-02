@@ -12,7 +12,7 @@ import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
 import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
@@ -56,8 +56,6 @@ export default function WorkOrderDetailPage() {
   const [poUploading, setPoUploading] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const [previewBlobUrl, setPreviewBlobUrl] = useState('')
-  const [previewLoading, setPreviewLoading] = useState(false)
   const poInputRef = useRef<HTMLInputElement | null>(null)
 
   const load = () => {
@@ -85,42 +83,6 @@ export default function WorkOrderDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
-
-  useEffect(() => {
-    if (!previewOpen) {
-      if (previewBlobUrl) {
-        URL.revokeObjectURL(previewBlobUrl)
-        setPreviewBlobUrl('')
-      }
-      setPreviewLoading(false)
-      return
-    }
-
-    let cancelled = false
-    setPreviewLoading(true)
-    WorkOrdersAPI.pdf(id)
-      .then(blob => {
-        if (cancelled) return
-        const url = URL.createObjectURL(blob)
-        setPreviewBlobUrl(prev => {
-          if (prev) URL.revokeObjectURL(prev)
-          return url
-        })
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setPreviewBlobUrl('')
-          toast.error('โหลดพรีวิวไม่สำเร็จ')
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setPreviewLoading(false)
-      })
-
-    return () => {
-      cancelled = true
-    }
-  }, [id, previewOpen])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -160,6 +122,7 @@ export default function WorkOrderDetailPage() {
     selectedHandover?.hoNo ? `3. HandOver: ${selectedHandover.hoNo}` : '3. HandOver: -',
     `4. เอกสารแนบ PDF: ${(doc.attachments ?? []).filter(a => a.mimeType === 'application/pdf').length} ไฟล์`,
   ]
+  const previewAttachments = doc.attachments ?? []
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
@@ -493,20 +456,60 @@ export default function WorkOrderDetailPage() {
               ))}
             </ul>
           </div>
-          <div className="mx-auto w-fit">
-            {previewLoading ? (
-              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
-                กำลังโหลดพรีวิวเอกสาร…
-              </div>
-            ) : previewBlobUrl ? (
-              <iframe
-                title={`Work Order preview ${doc.woNo}`}
-                src={previewBlobUrl}
-                className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
-              />
+          <div className="mx-auto w-full max-w-[210mm] bg-white">
+            <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} fastPreview />
+          </div>
+          <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
+              <Paperclip size={14} /> ไฟล์แนบทั้งหมด
+            </div>
+            {previewAttachments.length === 0 ? (
+              <div className="text-xs text-gray-500">ไม่มีไฟล์แนบ</div>
             ) : (
-              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
-                ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+              <div className="grid grid-cols-1 gap-2">
+                {previewAttachments.map(att => {
+                  const url = resolveFileUrl(att.fileUrl || '')
+                  const isImage = !!att.mimeType?.startsWith('image/')
+                  const isPdf = att.mimeType === 'application/pdf'
+                  const name = att.originalName || att.fileUrl || 'attachment'
+                  return (
+                    <div key={att.id} className="rounded-md border border-gray-200 p-2">
+                      {isImage ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-2 text-xs text-gray-600">
+                            <ImageIcon size={14} />
+                            <span className="truncate">{name}</span>
+                          </div>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img
+                            src={url}
+                            alt={name}
+                            loading="lazy"
+                            className="max-h-64 w-full rounded border border-gray-100 bg-white object-contain"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <FileText size={14} />
+                              <span className="truncate">{name}</span>
+                            </div>
+                            <div className="mt-1 text-[11px] text-gray-400">{isPdf ? 'PDF' : (att.mimeType || 'ไฟล์แนบ')}</div>
+                          </div>
+                          <a
+                            href={url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 rounded border border-gray-200 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                          >
+                            เปิดไฟล์ <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             )}
           </div>

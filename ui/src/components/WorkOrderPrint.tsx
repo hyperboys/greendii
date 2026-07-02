@@ -182,9 +182,10 @@ interface Props {
   settings: Settings | null
   onReady?: () => void
   embedPdfAttachments?: boolean
+  fastPreview?: boolean
 }
 
-export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachments = true }: Props) {
+export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachments = true, fastPreview = false }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
@@ -226,6 +227,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   const totalPages = pages?.length ?? 1
 
   const attachmentSheets = (doc.attachments ?? []).filter(att => {
+    if (fastPreview) return false
     if (!att.fileUrl) return false
     if (att.mimeType?.startsWith('image/')) return true
     if (att.mimeType === 'application/pdf') return embedPdfAttachments
@@ -240,6 +242,10 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   useEffect(() => {
     if (pages !== null) return
+    if (fastPreview) {
+      setPages(paginateItems(renderItems))
+      return
+    }
     let cancelled = false
 
     const run = async () => {
@@ -283,7 +289,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
     void run()
     return () => { cancelled = true }
-  }, [pages, doc, renderItems])
+  }, [pages, doc, renderItems, fastPreview])
 
   useEffect(() => {
     if (pages === null || readyRef.current) return
@@ -490,7 +496,13 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={idx} src={resolveFileUrl(url)} alt="" style={{ width: '34mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                <img
+                  key={idx}
+                  src={resolveFileUrl(url)}
+                  alt=""
+                  loading={fastPreview ? 'lazy' : 'eager'}
+                  style={{ width: '34mm', height: 'auto', objectFit: 'contain', display: 'block' }}
+                />
               ))}
             </div>
           )}
@@ -745,6 +757,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
               <img
                 src={url}
                 alt={att.originalName ?? ''}
+                loading={fastPreview ? 'lazy' : 'eager'}
                 style={{ maxWidth: '100%', maxHeight: '281mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
               />
             ) : (
