@@ -6,7 +6,7 @@ import { resolveFileUrl } from '@/lib/api'
 import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 
 const PACK_CAP_NON_LAST = 26
-const PACK_CAP_LAST = 11
+const PACK_CAP_LAST = 23
 const FRAGMENT_CAP = PACK_CAP_LAST
 
 const HEADER_GAP = 12
@@ -328,7 +328,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     borderRight: border,
     padding: '4px 6px',
     fontSize: '12pt',
-    lineHeight: 1.1,
+    lineHeight: 1.0,
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -337,7 +337,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     padding: '5px 6px',
     backgroundColor: '#dfdde8',
     textAlign: 'center',
-    fontSize: '12pt',
+    fontSize: '10pt',
     fontWeight: 'bold',
     verticalAlign: 'middle',
   }
@@ -346,14 +346,14 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     whiteSpace: 'nowrap',
     fontSize: '9.8pt',
     color: '#222',
-    lineHeight: 1.25,
+    lineHeight: 1.0,
   }
   const valueS: React.CSSProperties = {
     fontSize: '9.8pt',
     borderBottom: '1px dotted #555',
     minWidth: '100px',
-    paddingBottom: '3px',
-    lineHeight: 1.25,
+    paddingBottom: '2px',
+    lineHeight: 1.0,
   }
 
   const Checkbox = ({ label, checked }: { label: string; checked: boolean }) => (
@@ -487,13 +487,13 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc && <div style={{ whiteSpace: 'pre-wrap' }}>{item.desc}</div>}
           {item.noteLines.map((line, idx) => (
-            <span key={idx} style={{ color: '#444', fontSize: '12pt', lineHeight: 1.1, whiteSpace: 'pre-wrap', display: 'block' }}>
+            <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
           {!item.desc && item.noteLines.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
-            <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+            <div style={{ marginTop: '1mm', display: 'flex', flexDirection: 'column', gap: '1mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -665,7 +665,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             <tr>
               {sigCols.map(({ role, name, signature }) => (
                 <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: `${100 / sigCols.length}%`, verticalAlign: 'top' }}>
-                  <div style={{ fontSize: '8.9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '30px' }}>{role}</div>
+                  <div style={{ fontSize: '9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '10px' }}>{role}</div>
                   <div style={{
                     fontFamily: 'var(--font-signature)',
                     fontStyle: 'italic',
