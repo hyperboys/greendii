@@ -351,8 +351,6 @@ export default function EditWorkOrderPage() {
         docField="workOrderId"
         docId={id}
         onRefresh={reloadAttachments}
-        poAmount={poAmount}
-        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">

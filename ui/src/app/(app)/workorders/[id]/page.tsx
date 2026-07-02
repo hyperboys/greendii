@@ -346,9 +346,6 @@ export default function WorkOrderDetailPage() {
         onRefresh={load}
         readOnly={!canManageAttachmentsInCurrentState}
         readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO ตามสิทธิ์ role ที่ตั้งค่าไว้' : undefined}
-        allowedCategories={canUploadPoAfterApproved && !canManageAttachments ? ['po'] : undefined}
-        poAmount={poAmount}
-        onPoAmountChange={setPoAmount}
       />
 
       {/* Quotation items / Details of Work */}

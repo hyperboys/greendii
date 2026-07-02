@@ -367,8 +367,6 @@ export default function NewWorkOrderPage() {
         docField="workOrderId"
         pending={pendingAttachments}
         onPendingChange={setPendingAttachments}
-        poAmount={poAmount}
-        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">
