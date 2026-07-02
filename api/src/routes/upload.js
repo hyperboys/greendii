@@ -60,6 +60,13 @@ function normalizeAttachmentCategory(category) {
   return String(category || '').trim().toLowerCase();
 }
 
+function parsePoAmount(value) {
+  if (value === undefined || value === null) return null;
+  const parsed = Number(String(value).replace(/,/g, '').trim());
+  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  return parsed;
+}
+
 async function getApprovedWorkOrderPoAttachRoles() {
   try {
     const settings = await prisma.settings.findUnique({
@@ -214,14 +221,19 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
   try {
-    const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId } = req.body;
+    const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId, poAmount } = req.body;
     const normalizedCategory = normalizeAttachmentCategory(category);
+    const parsedPoAmount = parsePoAmount(poAmount);
     if (handOverJobId) {
       return res.status(400).json({ message: 'ปิดการใช้งานเอกสารแนบสำหรับ HandOver แล้ว' });
     }
     if (normalizedCategory === 'po' && (req.files || []).some(file => !isPoFileAllowed(file))) {
       removeTempUploadedFiles(req.files || []);
       return res.status(400).json({ message: 'ไฟล์ PO อนุญาตเฉพาะ PDF, JPG, PNG' });
+    }
+    if (normalizedCategory === 'po' && !parsedPoAmount) {
+      removeTempUploadedFiles(req.files || []);
+      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์' });
     }
     await assertQuotationAttachmentEditable(req, quotationId);
     await assertWorkOrderAttachmentEditable(req, workOrderId, normalizedCategory);
@@ -251,6 +263,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           size: file.size,
           fileUrl,
           category: normalizedCategory || null,
+          poAmount: normalizedCategory === 'po' ? parsedPoAmount : null,
           quotationId: quotationId || null,
           workOrderId: workOrderId || null,
           handOverJobId: handOverJobId || null,

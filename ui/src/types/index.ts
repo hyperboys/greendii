@@ -569,6 +569,7 @@ export interface Attachment {
   mimeType: string
   size: number
   category?: string
+  poAmount?: number
   fileUrl?: string
   uploadedAt: string
 }

@@ -343,10 +343,15 @@ export const ReportsAPI = {
 // ─── FILE UPLOAD ──────────────────────────────────────────────────────────────
 
 export const UploadAPI = {
-  upload: (files: File[], meta?: Record<string, string>) => {
+  upload: (files: File[], meta?: Record<string, string | number>) => {
     const form = new FormData()
     files.forEach(f => form.append('files', f))
-    if (meta) Object.entries(meta).forEach(([k, v]) => v && form.append(k, v))
+    if (meta) {
+      Object.entries(meta).forEach(([k, v]) => {
+        if (v === undefined || v === null || v === '') return
+        form.append(k, String(v))
+      })
+    }
     return http.post<Attachment[]>('/upload', form, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data)

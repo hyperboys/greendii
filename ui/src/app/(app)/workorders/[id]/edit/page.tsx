@@ -29,11 +29,12 @@ const CHECKLIST_GROUPS = {
     { label: 'ผู้รับเหมา', key: 'team_contractor' },
   ],
   docs: [
-    { label: 'PO', key: 'doc_po' },
     { label: 'PR', key: 'doc_pr' },
     { label: 'Quotation', key: 'doc_quotation' },
     { label: 'Min', key: 'doc_min' },
     { label: 'Drawing Confirm', key: 'doc_drawing_confirm' },
+    { label: 'Other', key: 'doc_other' },
+    { label: 'PO', key: 'doc_po' },
     { label: 'Waiting Confirm', key: 'doc_waiting_confirm' },
     { label: 'Hand Over Job', key: 'doc_handover' },
     { label: 'Check List', key: 'doc_checklist' },
@@ -73,6 +74,7 @@ export default function EditWorkOrderPage() {
   const [handovers, setHandovers] = useState<HandOverJob[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [poAmount, setPoAmount] = useState('')
   const [linkNotice, setLinkNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -349,6 +351,8 @@ export default function EditWorkOrderPage() {
         docField="workOrderId"
         docId={id}
         onRefresh={reloadAttachments}
+        poAmount={poAmount}
+        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">

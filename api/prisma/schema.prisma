@@ -522,6 +522,7 @@ model Attachment {
   mimeType        String
   size            Int
   category        String?
+  poAmount        Decimal?         @db.Decimal(12, 2) @map("po_amount")
   fileUrl         String?
   quotationId     String?
   quotation       Quotation?       @relation(fields: [quotationId], references: [id])

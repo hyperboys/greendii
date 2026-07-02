@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI, UploadAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, UploadAPI, QuotationsAPI, HandoversAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
@@ -30,11 +30,12 @@ const CHECKLIST_GROUPS = {
     { label: 'ผู้รับเหมา', key: 'team_contractor' },
   ],
   docs: [
-    { label: 'PO', key: 'doc_po' },
     { label: 'PR', key: 'doc_pr' },
     { label: 'Quotation', key: 'doc_quotation' },
     { label: 'Min', key: 'doc_min' },
     { label: 'Drawing Confirm', key: 'doc_drawing_confirm' },
+    { label: 'Other', key: 'doc_other' },
+    { label: 'PO', key: 'doc_po' },
     { label: 'Waiting Confirm', key: 'doc_waiting_confirm' },
     { label: 'Hand Over Job', key: 'doc_handover' },
     { label: 'Check List', key: 'doc_checklist' },
@@ -57,8 +58,13 @@ export default function WorkOrderDetailPage() {
   const [acting, setActing] = useState(false)
   const [approvalChecklist, setApprovalChecklist] = useState<Record<string, boolean>>({ ...DEFAULT_DOC_CHECKLIST })
   const [poUploading, setPoUploading] = useState(false)
+  const [poAmount, setPoAmount] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [quotationPreviewPdfUrl, setQuotationPreviewPdfUrl] = useState('')
+  const [handoverPreviewPdfUrl, setHandoverPreviewPdfUrl] = useState('')
+  const [quotationPreviewLoading, setQuotationPreviewLoading] = useState(false)
+  const [handoverPreviewLoading, setHandoverPreviewLoading] = useState(false)
   const poInputRef = useRef<HTMLInputElement | null>(null)
 
   const load = () => {
@@ -86,6 +92,75 @@ export default function WorkOrderDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
+
+  const previewQuotationId = doc?.quotationId
+  const previewHandoverId = doc?.handOverJobs?.[0]?.id
+
+  useEffect(() => {
+    if (!previewOpen) {
+      setQuotationPreviewPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev)
+        return ''
+      })
+      setHandoverPreviewPdfUrl(prev => {
+        if (prev) URL.revokeObjectURL(prev)
+        return ''
+      })
+      setQuotationPreviewLoading(false)
+      setHandoverPreviewLoading(false)
+      return
+    }
+
+    let disposed = false
+    const localUrls: string[] = []
+
+    const loadLinkedPreviewPdfs = async () => {
+      if (previewQuotationId) {
+        setQuotationPreviewLoading(true)
+        try {
+          const blob = await QuotationsAPI.pdf(previewQuotationId)
+          if (disposed) return
+          setQuotationPreviewPdfUrl(prev => {
+            if (prev) URL.revokeObjectURL(prev)
+            return ''
+          })
+          const objectUrl = URL.createObjectURL(blob)
+          localUrls.push(objectUrl)
+          if (!disposed) setQuotationPreviewPdfUrl(objectUrl)
+        } catch {
+          if (!disposed) setQuotationPreviewPdfUrl('')
+        } finally {
+          if (!disposed) setQuotationPreviewLoading(false)
+        }
+      }
+
+      if (previewHandoverId) {
+        setHandoverPreviewLoading(true)
+        try {
+          const blob = await HandoversAPI.pdf(previewHandoverId)
+          if (disposed) return
+          setHandoverPreviewPdfUrl(prev => {
+            if (prev) URL.revokeObjectURL(prev)
+            return ''
+          })
+          const objectUrl = URL.createObjectURL(blob)
+          localUrls.push(objectUrl)
+          if (!disposed) setHandoverPreviewPdfUrl(objectUrl)
+        } catch {
+          if (!disposed) setHandoverPreviewPdfUrl('')
+        } finally {
+          if (!disposed) setHandoverPreviewLoading(false)
+        }
+      }
+    }
+
+    void loadLinkedPreviewPdfs()
+
+    return () => {
+      disposed = true
+      for (const url of localUrls) URL.revokeObjectURL(url)
+    }
+  }, [previewOpen, previewQuotationId, previewHandoverId])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -160,6 +235,11 @@ export default function WorkOrderDetailPage() {
 
   const handlePoUpload = async (files: FileList | null) => {
     if (!files || files.length === 0 || !canUploadPoNow) return
+    const parsedPoAmount = Number(poAmount.replace(/,/g, '').trim())
+    if (!Number.isFinite(parsedPoAmount) || parsedPoAmount <= 0) {
+      toast.error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+      return
+    }
     const picked = Array.from(files)
     const allowedMime = new Set(['application/pdf', 'image/jpeg', 'image/png'])
     const allowedExt = /\.(pdf|jpg|jpeg|png)$/i
@@ -177,7 +257,7 @@ export default function WorkOrderDetailPage() {
     setPoUploading(true)
     const tId = toast.loading('กำลังแนบเอกสาร PO...')
     try {
-      await UploadAPI.upload(picked, { workOrderId: id, category: 'po' })
+      await UploadAPI.upload(picked, { workOrderId: id, category: 'po', poAmount: parsedPoAmount })
       toast.success('แนบเอกสาร PO สำเร็จ', { id: tId })
       load()
     } catch (err) {
@@ -330,6 +410,8 @@ export default function WorkOrderDetailPage() {
         readOnly={!canManageAttachmentsInCurrentState}
         readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO ตามสิทธิ์ role ที่ตั้งค่าไว้' : undefined}
         allowedCategories={canUploadPoAfterApproved && !canManageAttachments ? ['po'] : undefined}
+        poAmount={poAmount}
+        onPoAmountChange={setPoAmount}
       />
 
       {/* Quotation items / Details of Work */}
@@ -469,6 +551,45 @@ export default function WorkOrderDetailPage() {
           <div className="mx-auto w-full max-w-[210mm] bg-white">
             <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} fastPreview />
           </div>
+          <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="mb-3 text-sm font-semibold text-gray-800">เอกสารอ้างอิงที่ผูกไว้</div>
+            <div className="space-y-3">
+              <div className="rounded-md border border-gray-200 p-3">
+                <div className="mb-2 text-xs font-medium text-gray-700">ใบเสนอราคา {doc.quotation?.quoNo ? `(${doc.quotation.quoNo})` : ''}</div>
+                {!doc.quotationId ? (
+                  <div className="text-xs text-gray-500">ไม่ได้ผูกใบเสนอราคา</div>
+                ) : quotationPreviewLoading ? (
+                  <div className="text-xs text-gray-500">กำลังโหลดพรีวิวใบเสนอราคา...</div>
+                ) : quotationPreviewPdfUrl ? (
+                  <iframe
+                    src={quotationPreviewPdfUrl}
+                    title="Quotation Preview"
+                    className="h-[520px] w-full rounded border border-gray-100"
+                  />
+                ) : (
+                  <div className="text-xs text-red-500">โหลดพรีวิวใบเสนอราคาไม่สำเร็จ</div>
+                )}
+              </div>
+
+              <div className="rounded-md border border-gray-200 p-3">
+                <div className="mb-2 text-xs font-medium text-gray-700">HandOver {selectedHandover?.hoNo ? `(${selectedHandover.hoNo})` : ''}</div>
+                {!selectedHandover?.id ? (
+                  <div className="text-xs text-gray-500">ไม่ได้ผูก HandOver</div>
+                ) : handoverPreviewLoading ? (
+                  <div className="text-xs text-gray-500">กำลังโหลดพรีวิว HandOver...</div>
+                ) : handoverPreviewPdfUrl ? (
+                  <iframe
+                    src={handoverPreviewPdfUrl}
+                    title="HandOver Preview"
+                    className="h-[520px] w-full rounded border border-gray-100"
+                  />
+                ) : (
+                  <div className="text-xs text-red-500">โหลดพรีวิว HandOver ไม่สำเร็จ</div>
+                )}
+              </div>
+            </div>
+          </div>
+
           <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-800">
               <Paperclip size={14} /> ไฟล์แนบทั้งหมด

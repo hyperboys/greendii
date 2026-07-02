@@ -26,12 +26,15 @@ interface Props {
   readOnly?: boolean
   readOnlyMessage?: string
   allowedCategories?: CategoryKey[]
+  poAmount?: string
+  onPoAmountChange?: (value: string) => void
 }
 
 const CATEGORIES = [
-  { key: 'po',      label: 'PO (Purchase Order)',  accept: '.pdf,.jpg,.jpeg,.png',      hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
+  { key: 'other',   label: 'อื่นๆ (Other)',         accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*', hint: 'PDF, รูปภาพ, Office, ZIP', Icon: File },
   { key: 'drawing', label: 'Drawing / แบบ',         accept: '.pdf,.dwg,.dxf,image/*',  hint: 'PDF, รูปภาพ, CAD',      Icon: PenTool         },
   { key: 'mom',     label: 'Minutes of Meeting',    accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: ClipboardList   },
+  { key: 'po',      label: 'PO (Purchase Order)',  accept: '.pdf,.jpg,.jpeg,.png',      hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
 ] as const
 
 type CategoryKey = typeof CATEGORIES[number]['key']
@@ -60,6 +63,8 @@ export default function AttachmentsSection({
   readOnly = false,
   readOnlyMessage,
   allowedCategories,
+  poAmount = '',
+  onPoAmountChange,
 }: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
   const [uploading, setUploading] = useState<CategoryKey | null>(null)
@@ -67,11 +72,19 @@ export default function AttachmentsSection({
 
   const deferred = !docId
   const isCategoryAllowed = (key: CategoryKey) => !allowedCategories || allowedCategories.includes(key)
+  const parsedPoAmount = Number(String(poAmount || '').replace(/,/g, '').trim())
+  const isPoAmountValid = Number.isFinite(parsedPoAmount) && parsedPoAmount > 0
 
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return
     if (readOnly) return
     if (!isCategoryAllowed(catKey)) return
+    if (catKey === 'po' && !isPoAmountValid) {
+      toast.error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+      const el = inputRefs.current[catKey]
+      if (el) el.value = ''
+      return
+    }
 
     // Deferred mode — buffer files locally until the document is created.
     if (deferred) {
@@ -84,7 +97,11 @@ export default function AttachmentsSection({
 
     setUploading(catKey)
     try {
-      await UploadAPI.upload(files, { [docField]: docId as string, category: catKey })
+      await UploadAPI.upload(files, {
+        [docField]: docId as string,
+        category: catKey,
+        ...(catKey === 'po' ? { poAmount: parsedPoAmount } : {}),
+      })
       toast.success(`แนบ ${files.length} ไฟล์และบันทึกแล้ว`)
       onRefresh?.()
     } catch {
@@ -149,6 +166,22 @@ export default function AttachmentsSection({
             <div key={key} className="space-y-2">
               <p className="text-sm font-medium text-gray-700">{label}</p>
 
+              {key === 'po' && (
+                <div>
+                  <label className="text-xs text-gray-500">ยอดเงิน PO (บาท) *</label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={poAmount}
+                    onChange={e => onPoAmountChange?.(e.target.value)}
+                    placeholder="เช่น 150000.00"
+                    disabled={readOnly || categoryLocked}
+                    className="form-input mt-1"
+                  />
+                </div>
+              )}
+
               {/* Drop zone */}
               {readOnly || categoryLocked ? (
                 <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
@@ -159,7 +192,14 @@ export default function AttachmentsSection({
               ) : (
                 <div
                   className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
-                  onClick={() => !isUploading && inputRefs.current[key]?.click()}
+                  onClick={() => {
+                    if (isUploading) return
+                    if (key === 'po' && !isPoAmountValid) {
+                      toast.error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+                      return
+                    }
+                    inputRefs.current[key]?.click()
+                  }}
                 >
                   <Icon size={28} className="text-gray-300" />
                   <span className="text-sm text-blue-500">
@@ -197,7 +237,10 @@ export default function AttachmentsSection({
                         ) : (
                           <span className="text-sm text-gray-700 truncate block">{att.originalName}</span>
                         )}
-                        <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
+                        <span className="text-xs text-gray-400">
+                          {fmtSize(att.size)}
+                          {key === 'po' && typeof att.poAmount === 'number' ? ` · ยอด PO ${att.poAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท` : ''}
+                        </span>
                       </div>
                       {!readOnly && !categoryLocked && (
                         <button

@@ -28,11 +28,12 @@ const CHECKLIST_GROUPS = {
     { key: 'team_contractor', label: 'ผู้รับเหมา' },
   ],
   docs: [
-    { key: 'doc_po', label: 'PO' },
     { key: 'doc_pr', label: 'PR' },
     { key: 'doc_quotation', label: 'Quotation' },
     { key: 'doc_min', label: 'Min' },
     { key: 'doc_drawing_confirm', label: 'Drawing Confirm' },
+    { key: 'doc_other', label: 'Other' },
+    { key: 'doc_po', label: 'PO' },
     { key: 'doc_waiting_confirm', label: 'Waiting Confirm' },
     { key: 'doc_handover', label: 'Hand Over Job' },
     { key: 'doc_checklist', label: 'Check List' },
@@ -72,6 +73,7 @@ export default function NewWorkOrderPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [poAmount, setPoAmount] = useState('')
   const [linkNotice, setLinkNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
@@ -182,8 +184,16 @@ export default function NewWorkOrderPage() {
           return acc
         }, {})
         try {
+          const parsedPoAmount = Number(poAmount.replace(/,/g, '').trim())
           for (const [category, files] of Object.entries(byCategory)) {
-            await UploadAPI.upload(files, { workOrderId: created.id, category })
+            const uploadMeta: Record<string, string | number> = { workOrderId: created.id, category }
+            if (category === 'po') {
+              if (!Number.isFinite(parsedPoAmount) || parsedPoAmount <= 0) {
+                throw new Error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+              }
+              uploadMeta.poAmount = parsedPoAmount
+            }
+            await UploadAPI.upload(files, uploadMeta)
           }
         } catch {
           toast.error('สร้างใบสั่งงานแล้ว แต่แนบไฟล์บางส่วนไม่สำเร็จ')
@@ -357,6 +367,8 @@ export default function NewWorkOrderPage() {
         docField="workOrderId"
         pending={pendingAttachments}
         onPendingChange={setPendingAttachments}
+        poAmount={poAmount}
+        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">
