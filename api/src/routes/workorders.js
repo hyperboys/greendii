@@ -278,7 +278,7 @@ async function ensureHandOverSelectable(quotationId, handOverJobId, currentWorkO
     throw error;
   }
 
-  if (quotationId && handover.quotationId !== quotationId) {
+  if (quotationId && handover.quotationId && handover.quotationId !== quotationId) {
     const error = new Error('เอกสารส่งมอบงานที่เลือกไม่สอดคล้องกับใบเสนอราคา');
     error.status = 400;
     throw error;
@@ -293,7 +293,13 @@ async function ensureHandOverSelectable(quotationId, handOverJobId, currentWorkO
   return handover;
 }
 
-async function syncSelectedHandOverJob(workOrderId, handOverJobId, tx = prisma) {
+function resolveLinkedQuotationId(quotationId, handover) {
+  if (quotationId !== undefined && quotationId !== null && quotationId !== '') return quotationId;
+  if (handover?.quotationId) return handover.quotationId;
+  return quotationId;
+}
+
+async function syncSelectedHandOverJob(workOrderId, handOverJobId, quotationId, tx = prisma) {
   if (handOverJobId === undefined) return;
 
   if (!handOverJobId) {
@@ -312,9 +318,19 @@ async function syncSelectedHandOverJob(workOrderId, handOverJobId, tx = prisma) 
     data: { workOrderId: null },
   });
 
+  const existing = await tx.handOverJob.findUnique({
+    where: { id: handOverJobId },
+    select: { quotationId: true },
+  });
+
+  const updateData = { workOrderId };
+  if (quotationId && !existing?.quotationId) {
+    updateData.quotationId = quotationId;
+  }
+
   await tx.handOverJob.update({
     where: { id: handOverJobId },
-    data: { workOrderId },
+    data: updateData,
   });
 }
 
@@ -561,17 +577,18 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
-    await ensureQuotationAccessible(req, normalizedQuotationId);
-    await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, null);
+    const selectedHandover = await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, null);
+    const linkedQuotationId = resolveLinkedQuotationId(normalizedQuotationId, selectedHandover);
+    await ensureQuotationAccessible(req, linkedQuotationId);
     const normalizedItems = normalizeWorkOrderItems(items);
-    const quotationItemsSnapshot = normalizedQuotationId
-      ? await getQuotationItemsSnapshot(normalizedQuotationId)
+    const quotationItemsSnapshot = linkedQuotationId
+      ? await getQuotationItemsSnapshot(linkedQuotationId)
       : [];
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
 
-    const linkedQuotation = normalizedQuotationId
+    const linkedQuotation = linkedQuotationId
       ? await prisma.quotation.findUnique({
-          where: { id: normalizedQuotationId },
+          where: { id: linkedQuotationId },
           select: {
             id: true,
             rootQuotationId: true,
@@ -662,7 +679,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           active: true,
           revisionNo,
           rootWorkOrderId,
-          quotationId: normalizedQuotationId,
+          quotationId: linkedQuotationId,
           project: projectValue,
           location: locationValue,
           products: productsValue,
@@ -681,7 +698,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
         },
       })
 
-      await syncSelectedHandOverJob(created.id, normalizedHandOverJobId, tx)
+      await syncSelectedHandOverJob(created.id, normalizedHandOverJobId, linkedQuotationId, tx)
       return created
     })
 
@@ -716,10 +733,11 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
-    await ensureQuotationAccessible(req, normalizedQuotationId);
-    await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, req.params.id);
+    const selectedHandover = await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, req.params.id);
+    const linkedQuotationId = resolveLinkedQuotationId(normalizedQuotationId, selectedHandover);
+    await ensureQuotationAccessible(req, linkedQuotationId);
     const normalizedItems = normalizeWorkOrderItems(items);
-    const quotationRelation = buildOptionalRelationUpdate(normalizedQuotationId);
+    const quotationRelation = buildOptionalRelationUpdate(linkedQuotationId);
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
     const wo = await prisma.$transaction(async (tx) => {
       const updated = await tx.workOrder.update({
@@ -734,7 +752,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
         },
       });
 
-      await syncSelectedHandOverJob(req.params.id, normalizedHandOverJobId, tx)
+      await syncSelectedHandOverJob(req.params.id, normalizedHandOverJobId, linkedQuotationId, tx)
       return updated
     })
     res.json(wo);

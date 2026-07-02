@@ -7,6 +7,7 @@ const { authenticate } = require('../middleware/auth');
 const { APPROVAL_ATTACHMENT_LOCK_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
+const { normalizeRole } = require('../lib/roleAliases');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -36,6 +37,8 @@ const upload = multer({
 
 const PO_ALLOWED_EXT = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const PO_ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles';
+const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator'];
 
 function isPoFileAllowed(file) {
   const ext = path.extname(file?.originalname || '').toLowerCase();
@@ -57,11 +60,31 @@ function normalizeAttachmentCategory(category) {
   return String(category || '').trim().toLowerCase();
 }
 
-function canOwnerAttachApprovedWorkOrderPo(req, workOrder, category) {
+async function getApprovedWorkOrderPoAttachRoles() {
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'main' },
+      select: { approvalFlowConfig: true },
+    });
+    const configuredRoles = settings?.approvalFlowConfig?.[WO_APPROVED_PO_ATTACH_ROLES_KEY];
+    if (Array.isArray(configuredRoles)) {
+      const roles = configuredRoles.map(String).map(r => r.trim()).filter(Boolean);
+      if (roles.length > 0) return roles;
+    }
+  } catch {
+    // fallback to defaults below when settings are unreadable
+  }
+  return DEFAULT_WO_APPROVED_PO_ATTACH_ROLES;
+}
+
+async function canAttachApprovedWorkOrderPo(req, workOrder, category) {
   if (!workOrder) return false;
-  return workOrder.status === 'approved'
-    && workOrder.salesId === req.user.id
-    && normalizeAttachmentCategory(category) === 'po';
+  if (workOrder.status !== 'approved') return false;
+  if (normalizeAttachmentCategory(category) !== 'po') return false;
+
+  const allowedRoles = await getApprovedWorkOrderPoAttachRoles();
+  const actorRole = normalizeRole(req.user.role);
+  return allowedRoles.map(normalizeRole).includes(actorRole);
 }
 
 async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
@@ -77,7 +100,7 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
   }
   assertDocAccessible(req, workOrder);
   if (isEditableApprovalDocStatus(workOrder.status)) return;
-  if (canOwnerAttachApprovedWorkOrderPo(req, workOrder, category)) return;
+  if (await canAttachApprovedWorkOrderPo(req, workOrder, category)) return;
   if (!isEditableApprovalDocStatus(workOrder.status)) {
     const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;

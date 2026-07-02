@@ -17,6 +17,9 @@ import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
+const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles'
+const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator']
+
 const CHECKLIST_GROUPS = {
   team: [
     { label: 'ส่งของอย่างเดียว', key: 'team_delivery_only' },
@@ -94,7 +97,14 @@ export default function WorkOrderDetailPage() {
   const canResubmit = isMine && doc.status === 'rejected'
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
-  const canUploadPoAfterApproved = isMine && doc.status === 'approved'
+  const approvedPoAttachRolesRaw = settings?.approvalFlowConfig?.[WO_APPROVED_PO_ATTACH_ROLES_KEY]
+  const approvedPoAttachRoles = (
+    Array.isArray(approvedPoAttachRolesRaw) && approvedPoAttachRolesRaw.length > 0
+      ? approvedPoAttachRolesRaw
+      : DEFAULT_WO_APPROVED_PO_ATTACH_ROLES
+  ).map(role => normalizeUserRole(String(role)))
+  const canUploadPoAfterApproved = doc.status === 'approved'
+    && approvedPoAttachRoles.includes(normalizeUserRole(user?.role))
   const canManageAttachmentsInCurrentState = canManageAttachments || canUploadPoAfterApproved
   const canUploadPoNow = canManageAttachmentsInCurrentState
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
@@ -318,7 +328,7 @@ export default function WorkOrderDetailPage() {
         docId={id}
         onRefresh={load}
         readOnly={!canManageAttachmentsInCurrentState}
-        readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO โดย sale เจ้าของเอกสาร' : undefined}
+        readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO ตามสิทธิ์ role ที่ตั้งค่าไว้' : undefined}
         allowedCategories={canUploadPoAfterApproved && !canManageAttachments ? ['po'] : undefined}
       />
 

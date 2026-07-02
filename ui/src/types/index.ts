@@ -240,6 +240,7 @@ export interface Settings {
       userIds?: string[]
       messageTemplate?: string
     }
+    workOrderApprovedPoAttachRoles?: string[]
     [key: string]: unknown
   }
   menuAccessConfig?: Record<string, UserRole[]>

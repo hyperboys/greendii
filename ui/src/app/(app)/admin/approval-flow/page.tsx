@@ -10,12 +10,14 @@ import toast from 'react-hot-toast'
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify'
 const APPROVAL_BYPASS_KEY = 'approvalBypassConfig'
+const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles'
 const DEFAULT_WO_APPROVED_NOTIFY = {
   enabled: false,
   roles: [] as string[],
   userIds: [] as string[],
   messageTemplate: 'ใบสั่งงาน {woNo} อนุมัติครบแล้ว',
 }
+const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator']
 const DEFAULT_APPROVAL_BYPASS_CONFIG: Record<string, string[]> = {
   quotation: ['admin'],
   workOrder: ['admin'],
@@ -32,6 +34,7 @@ export default function ApprovalFlowPage() {
   // stepRoleConfig: { "1": "sales", "2": "sale_mgr", ... }
   const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
   const [woApprovedNotify, setWoApprovedNotify] = useState(DEFAULT_WO_APPROVED_NOTIFY)
+  const [woApprovedPoAttachRoles, setWoApprovedPoAttachRoles] = useState<string[]>(DEFAULT_WO_APPROVED_PO_ATTACH_ROLES)
   const [approvalBypassConfig, setApprovalBypassConfig] = useState<Record<string, string[]>>(DEFAULT_APPROVAL_BYPASS_CONFIG)
   const [allUsers, setAllUsers] = useState<User[]>([])
   const [rawApprovalFlowConfig, setRawApprovalFlowConfig] = useState<Record<string, unknown>>({})
@@ -83,6 +86,12 @@ export default function ApprovalFlowPage() {
       }))
       if (s.stepRoleConfig) setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
       setWoApprovedNotify(parseWoApprovedNotify(approvalFlowConfig[WO_APPROVED_NOTIFY_KEY]))
+      const poAttachRolesRaw = approvalFlowConfig[WO_APPROVED_PO_ATTACH_ROLES_KEY]
+      setWoApprovedPoAttachRoles(
+        Array.isArray(poAttachRolesRaw) && poAttachRolesRaw.length > 0
+          ? poAttachRolesRaw.map(String).filter(Boolean)
+          : DEFAULT_WO_APPROVED_PO_ATTACH_ROLES
+      )
       const bypassRaw = approvalFlowConfig[APPROVAL_BYPASS_KEY] as Record<string, unknown> | undefined
       setApprovalBypassConfig({
         quotation: Array.isArray(bypassRaw?.quotation) ? bypassRaw.quotation.map(String).filter(Boolean) : ['admin'],
@@ -165,6 +174,7 @@ export default function ApprovalFlowPage() {
           userIds: Array.from(new Set(woApprovedNotify.userIds)),
           messageTemplate: woApprovedNotify.messageTemplate?.trim() || DEFAULT_WO_APPROVED_NOTIFY.messageTemplate,
         },
+        [WO_APPROVED_PO_ATTACH_ROLES_KEY]: Array.from(new Set(woApprovedPoAttachRoles.map(String).filter(Boolean))),
         [APPROVAL_BYPASS_KEY]: {
           quotation: Array.from(new Set(approvalBypassConfig.quotation || [])),
           workOrder: Array.from(new Set(approvalBypassConfig.workOrder || [])),
@@ -194,6 +204,7 @@ export default function ApprovalFlowPage() {
       return next
     })
     setStepRoleConfig(DEFAULT_STEP_ROLE)
+    setWoApprovedPoAttachRoles(DEFAULT_WO_APPROVED_PO_ATTACH_ROLES)
     setApprovalBypassConfig(DEFAULT_APPROVAL_BYPASS_CONFIG)
     toast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
   }
@@ -417,6 +428,32 @@ export default function ApprovalFlowPage() {
               onChange={e => setWoApprovedNotify(prev => ({ ...prev, messageTemplate: e.target.value }))}
               placeholder="ใบสั่งงาน {woNo} อนุมัติครบแล้ว"
             />
+          </div>
+        </div>
+
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-1">สิทธิ์แนบ PO หลัง Work Order อนุมัติ</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            เลือก Role ที่สามารถแนบเอกสารหมวด PO ได้ แม้เอกสารจะอยู่สถานะ approved แล้ว
+          </p>
+          <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+            {allRoles.map(role => {
+              const checked = woApprovedPoAttachRoles.includes(role.key)
+              return (
+                <label key={`po-role-${role.key}`} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={(e) => setWoApprovedPoAttachRoles(prev => (
+                      e.target.checked
+                        ? Array.from(new Set([...prev, role.key]))
+                        : prev.filter(r => r !== role.key)
+                    ))}
+                  />
+                  <span>{role.label} ({role.key})</span>
+                </label>
+              )
+            })}
           </div>
         </div>
 

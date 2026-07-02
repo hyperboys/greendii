@@ -72,6 +72,7 @@ export default function NewWorkOrderPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [linkNotice, setLinkNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
 
@@ -93,15 +94,16 @@ export default function NewWorkOrderPage() {
   }, [])
 
   const filteredHandovers = form.quotationId
-    ? handovers.filter(h => h.quotationId === form.quotationId)
+    ? handovers.filter(h => !h.quotationId || h.quotationId === form.quotationId || h.id === form.handOverJobId)
     : handovers
   const selectedQuotation = quotations.find(q => q.id === form.quotationId)
 
   const handleQuotation = async (id: string) => {
+    setLinkNotice('')
     const q = quotations.find(x => x.id === id)
     const shouldKeepSelectedHandOver = form.handOverJobId
       ? (id
-          ? handovers.some(h => h.id === form.handOverJobId && h.quotationId === id)
+            ? handovers.some(h => h.id === form.handOverJobId && (!h.quotationId || h.quotationId === id))
           : handovers.some(h => h.id === form.handOverJobId))
       : true
 
@@ -152,6 +154,18 @@ export default function NewWorkOrderPage() {
     } catch {
       // If lookup fails, keep quotation-based defaults.
     }
+  }
+
+  const handleHandover = (handoverId: string) => {
+    const handover = handovers.find(h => h.id === handoverId)
+    setForm(prev => {
+      if (!prev.quotationId && handover?.quotationId) {
+        setLinkNotice('ระบบเติม Quotation ให้อัตโนมัติจากเอกสารที่อ้างอิง')
+        return { ...prev, handOverJobId: handoverId, quotationId: handover.quotationId }
+      }
+      setLinkNotice('')
+      return { ...prev, handOverJobId: handoverId }
+    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -222,11 +236,11 @@ export default function NewWorkOrderPage() {
         </div>
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิง HandOver (ถ้ามี)</label>
-          <select className="form-input" value={form.handOverJobId} onChange={e => setForm(prev => ({ ...prev, handOverJobId: e.target.value }))}>
+          <select className="form-input" value={form.handOverJobId} onChange={e => handleHandover(e.target.value)}>
             <option value="">— ไม่ระบุ —</option>
             {filteredHandovers.map(h => (
               <option key={h.id} value={h.id}>
-                {h.hoNo} — {h.project}
+                {h.hoNo} — {h.project}{h.quotationId ? '' : ' (ยังไม่ผูก Quotation)'}
               </option>
             ))}
           </select>
@@ -235,6 +249,11 @@ export default function NewWorkOrderPage() {
               ? `กำลังกรองตาม Quotation: ${selectedQuotation?.quoNo || '-'} (${filteredHandovers.length} รายการ)`
               : `ยังไม่เลือก Quotation: แสดง HandOver ทั้งหมด (${filteredHandovers.length} รายการ)`}
           </p>
+          {linkNotice && (
+            <p className="mt-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+              {linkNotice}
+            </p>
+          )}
         </div>
         <div>
           <label className="form-label">ลูกค้า *</label>
