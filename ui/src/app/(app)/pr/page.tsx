@@ -75,6 +75,7 @@ export default function PRPage() {
           <thead>
             <tr>
               <th>เลขที่ PR</th>
+              <th>ประเภท PR</th>
               <th>ลูกค้า</th>
               <th>อ้างอิง WO</th>
               <th className="text-right">ยอดสุทธิ</th>
@@ -84,12 +85,13 @@ export default function PRPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={6} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
+              <tr><td colSpan={7} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(p => (
               <tr key={p.id} className="cursor-pointer" onClick={() => router.push(`/pr/${p.id}`)}>
                 <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
+                <td>{p.prType?.name || '-'}</td>
                 <td>{p.customer}</td>
                 <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
                 <td className="text-right font-medium">฿{fmtMoney(p.netTotal)}</td>

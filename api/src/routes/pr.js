@@ -155,12 +155,14 @@ router.get('/', authenticate, async (req, res, next) => {
           { prNo: { contains: q, mode: 'insensitive' } },
           { customer: { contains: q, mode: 'insensitive' } },
           { projectRef: { contains: q, mode: 'insensitive' } },
+          { prType: { name: { contains: q, mode: 'insensitive' } } },
         ],
       });
     }
     const where = { AND: andWhere };
     const listInclude = {
       sales: { select: { id: true, fullName: true, signatureText: true } },
+      prType: { select: { id: true, name: true, approvalSteps: true } },
       items: true,
     };
     const pg = getPagination(req.query);
