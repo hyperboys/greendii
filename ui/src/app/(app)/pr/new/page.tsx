@@ -70,6 +70,11 @@ export default function NewPRPage() {
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const netTotal = roundMoney(afterDiscount + vat)
+
+  const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
+    setForm(f => {
+      const items = [...f.items]
+      items[idx] = { ...items[idx], [key]: val }
       items[idx].amount = items[idx].qty * items[idx].price
       return { ...f, items }
     })
