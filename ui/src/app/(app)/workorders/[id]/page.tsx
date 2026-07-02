@@ -15,6 +15,7 @@ import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import AttachmentsSection from '@/components/AttachmentsSection'
+import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
 const CHECKLIST_GROUPS = {
   team: [
@@ -406,40 +407,18 @@ export default function WorkOrderDetailPage() {
       )}
 
       {/* Approval chain */}
-      <div className="card p-5">
-        <h3 className="font-semibold text-gray-800 mb-3">สายการอนุมัติ</h3>
-        <div className="flex flex-wrap gap-2">
-          <div className="flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[88px] bg-green-pale border-green-main text-green-dark">
-            <span className="font-semibold">ผู้สร้าง</span>
-            <span className="mt-1 min-h-[14px]">✓</span>
-            <span className="mt-0.5 text-[11px] text-gray-600">{doc.sales?.fullName ?? doc.salesId}</span>
-          </div>
-          {workOrderFlowSteps.map(step => {
-            const role = stepRoleConfig[String(step)]
-            const label = role ? getRoleLabel(role) : `Step ${step}`
-            const log = doc.approvalLogs?.find(l => l.step === step)
-            const isNext = step === currentStep && doc.status === 'pending'
-            const isApproved = log?.action === 'approve'
-            const isRejected = log?.action === 'reject'
-            const isSubmitted = log?.action === 'submit'
-            return (
-              <div key={step} className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[80px] ${
-                isApproved ? 'bg-green-pale border-green-main text-green-dark' :
-                isRejected ? 'bg-red-50 border-red-300 text-red-700' :
-                isSubmitted ? 'bg-blue-50 border-blue-300 text-blue-700' :
-                isNext ? 'bg-orange-50 border-orange-300 text-orange-700' :
-                'bg-gray-50 border-gray-200 text-gray-500'
-              }`}>
-                <span className="font-semibold">{label}</span>
-                {log ? (
-                  <span>
-                    {isApproved ? '✓' : isRejected ? '✕' : isSubmitted ? 'ส่งอนุมัติ' : ''}
-                  </span>
-                ) : isNext ? <span>รออนุมัติ</span> : null}
-              </div>
-            )
-          })}
-        </div>
+      <div>
+        <ApprovalFlowSteps
+          title="สายการอนุมัติ"
+          steps={workOrderFlowSteps}
+          currentStep={currentStep}
+          status={doc.status}
+          approvalLogs={doc.approvalLogs}
+          stepRoleConfig={stepRoleConfig}
+          getRoleLabel={getRoleLabel}
+          creatorName={doc.sales?.fullName ?? doc.salesId}
+          showSubmitState
+        />
         {doc.approvalLogs && doc.approvalLogs.length > 0 && (
           <div className="mt-3 space-y-1">
             {doc.approvalLogs.map(log => (

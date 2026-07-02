@@ -22,6 +22,40 @@ function getLatestCycleLogs(approvalLogs?: ApprovalLog[]) {
     : historyLogs
 }
 
+function actionRank(action: ApprovalLog['action']): number {
+  if (action === 'approve') return 3
+  if (action === 'reject') return 2
+  return 1
+}
+
+function buildStepLatestLogMap(cycleLogs: ApprovalLog[]) {
+  const stepLogs = new Map<number, ApprovalLog>()
+
+  for (const log of cycleLogs) {
+    if (log.action === 'submit') continue
+
+    const prev = stepLogs.get(log.step)
+    if (!prev) {
+      stepLogs.set(log.step, log)
+      continue
+    }
+
+    const prevTime = new Date(prev.actedAt).getTime()
+    const nextTime = new Date(log.actedAt).getTime()
+
+    if (nextTime > prevTime) {
+      stepLogs.set(log.step, log)
+      continue
+    }
+
+    if (nextTime === prevTime && actionRank(log.action) >= actionRank(prev.action)) {
+      stepLogs.set(log.step, log)
+    }
+  }
+
+  return stepLogs
+}
+
 export default function ApprovalFlowSteps({
   title,
   steps,
@@ -34,12 +68,7 @@ export default function ApprovalFlowSteps({
   showSubmitState = false,
 }: Props) {
   const cycleLogs = getLatestCycleLogs(approvalLogs)
-  const stepLogs = new Map<number, ApprovalLog>()
-
-  for (const log of cycleLogs) {
-    if (log.action === 'submit') continue
-    stepLogs.set(log.step, log)
-  }
+  const stepLogs = buildStepLatestLogMap(cycleLogs)
 
   if (steps.length === 0) return null
 
