@@ -8,6 +8,9 @@ const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 10
 const FRAGMENT_CAP = PACK_CAP_LAST
 
+const MIN_SCALE = 0.82
+const SCALE_STEP = 0.04
+
 const HEADER_GAP = 1
 const SAFETY = 10
 const TAIL_GAP = 0
@@ -193,6 +196,7 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
 
 export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const [scale, setScale] = useState(1)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
   const headerMeasRef = useRef<HTMLDivElement>(null)
@@ -200,6 +204,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const tailMeasRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
   const readyRef = useRef(false)
+  const fallbackRef = useRef<PageChunk[] | null>(null)
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
@@ -241,7 +246,9 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
   useEffect(() => {
     setPages(null)
+    setScale(1)
     rowRefs.current = []
+    fallbackRef.current = null
     readyRef.current = false
   }, [doc])
 
@@ -282,7 +289,19 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           return
         }
 
-        setPages(packByHeight(renderItems, heights, availNonLast, Math.max(availLast, 20)))
+        const chunks = packByHeight(renderItems, heights, availNonLast, Math.max(availLast, 20))
+        if (scale >= 1 - 1e-9) fallbackRef.current = chunks
+        const last = chunks[chunks.length - 1]
+        const tailOnly = chunks.length > 1 && last.items.length === 0 && last.tail
+
+        if (!tailOnly) {
+          setPages(chunks)
+        } else if (scale > MIN_SCALE + 1e-9) {
+          setScale(s => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(3)))
+        } else {
+          if (scale < 1 - 1e-9) setScale(1)
+          setPages(fallbackRef.current ?? chunks)
+        }
       } catch {
         if (!cancelled) setPages(paginateItems(renderItems))
       }
@@ -290,7 +309,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
     void run()
     return () => { cancelled = true }
-  }, [pages, renderItems])
+  }, [pages, renderItems, scale])
 
   useEffect(() => {
     if (pages === null || readyRef.current) return
@@ -298,29 +317,33 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     requestAnimationFrame(() => { onReady?.() })
   }, [pages, onReady])
 
+  const fpt = (n: number) => `${+(n * scale).toFixed(3)}pt`
+  const fpx = (n: number) => `${+(n * scale).toFixed(3)}px`
+  const fmm = (n: number) => `${+(n * scale).toFixed(3)}mm`
+
   const thS: React.CSSProperties = {
     border: borderTh,
-    padding: '0px 6px',
+    padding: `0 ${fpx(6)}`,
     backgroundColor: '#dde',
     textAlign: 'center',
-    fontSize: '12pt',
+    fontSize: fpt(12),
     fontWeight: 'bold',
     verticalAlign: 'middle',
   }
 
   const tdS: React.CSSProperties = {
     border,
-    padding: '4px 6px',
-    fontSize: '10pt',
+    padding: `${fpx(4)} ${fpx(6)}`,
+    fontSize: fpt(10),
     verticalAlign: 'top',
-    height: '23px',
+    height: fpx(23),
   }
 
   const itemCellS: React.CSSProperties = {
     borderLeft: border,
     borderRight: border,
-    padding: '4px 6px',
-    fontSize: '10pt',
+    padding: `${fpx(4)} ${fpx(6)}`,
+    fontSize: fpt(10),
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -328,13 +351,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const labelS: React.CSSProperties = {
     fontWeight: 'bold',
     whiteSpace: 'nowrap',
-    fontSize: '10pt',
+    fontSize: fpt(10),
     lineHeight: 0.9,
     color: '#333',
   }
 
   const valueS: React.CSSProperties = {
-    fontSize: '10pt',
+    fontSize: fpt(10),
     lineHeight: 0.9,
     minWidth: '100px',
     paddingBottom: 0,
@@ -349,13 +372,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   ]
 
   const RatingTextRow = () => (
-    <div style={{ marginBottom: '2px', fontSize: '10.6pt', lineHeight: 1.1, display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
+    <div style={{ marginBottom: fpx(2), fontSize: fpt(10.6), lineHeight: 1.1, display: 'flex', flexWrap: 'wrap', gap: fpx(10) }}>
       {RATING_OPTS.map((opt) => (
-        <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+        <span key={opt.v} style={{ display: 'inline-flex', alignItems: 'center', gap: fpx(4) }}>
           <span
             style={{
-              width: '12px',
-              height: '12px',
+              width: fpx(12),
+              height: fpx(12),
               border: '1.2px solid #555',
               display: 'inline-flex',
               alignItems: 'center',
@@ -490,15 +513,15 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc}
           {item.noteLines.map((line, index) => (
-            <span key={index} style={{ color: '#555', fontSize: '10pt', display: 'block' }}>
+            <span key={index} style={{ color: '#555', fontSize: fpt(10), display: 'block' }}>
               {line || '\u00A0'}
             </span>
           ))}
           {item.images.length > 0 && (
-            <div style={{ marginTop: '2mm', display: 'flex', flexDirection: 'column', gap: '2mm' }}>
+            <div style={{ marginTop: fmm(2), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
               {item.images.map((url, index) => (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img key={index} src={resolveFileUrl(url)} alt="" style={{ width: '30mm', height: 'auto', objectFit: 'contain', display: 'block' }} />
+                <img key={index} src={resolveFileUrl(url)} alt="" style={{ width: fmm(30), height: 'auto', objectFit: 'contain', display: 'block' }} />
               ))}
             </div>
           )}
@@ -532,42 +555,42 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderTail() {
     return (
       <>
-        <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: '1px 8px', marginTop: 0, marginBottom: 0 }}>
-          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '11.6pt', marginBottom: '0px' }}>
+        <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: `${fpx(1)} ${fpx(8)}`, marginTop: 0, marginBottom: 0 }}>
+          <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: fpt(11.6), marginBottom: 0 }}>
             ประเมินคุณภาพและข้อเสนอแนะ
           </div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
-          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
-          <div style={{ marginLeft: '10px', marginBottom: '2px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: fpt(10.7), fontWeight: 'bold', marginBottom: 0 }}>1. ประเมินความพึงพอใจต่อผลิตภัณฑ์ และงานบริการ</div>
+          <div style={{ fontSize: fpt(10), marginBottom: fpx(1), marginLeft: fpx(10), lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อสินค้า และบริการ ในเรื่องความถูกต้อง สมบูรณ์ และสวยงามในระดับใด</div>
+          <div style={{ marginLeft: fpx(10), marginBottom: fpx(2) }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
-          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
-          <div style={{ marginLeft: '10px', marginBottom: '2px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: fpt(10.7), fontWeight: 'bold', marginBottom: 0 }}>2. ประเมินความพึงพอใจต่อฝ่ายขาย</div>
+          <div style={{ fontSize: fpt(10), marginBottom: fpx(1), marginLeft: fpx(10), lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การให้ข้อมูล ความรวดเร็วและการบริการของฝ่ายขายในระดับใด</div>
+          <div style={{ marginLeft: fpx(10), marginBottom: fpx(2) }}><RatingTextRow /></div>
 
-          <div style={{ fontSize: '10.7pt', fontWeight: 'bold', marginBottom: '0px' }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
-          <div style={{ fontSize: '10pt', marginBottom: '1px', marginLeft: '10px', lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
-          <div style={{ marginLeft: '10px', marginBottom: '0px' }}><RatingTextRow /></div>
+          <div style={{ fontSize: fpt(10.7), fontWeight: 'bold', marginBottom: 0 }}>3. ประเมินความพึงพอใจต่อฝ่ายช่าง และติดตั้ง</div>
+          <div style={{ fontSize: fpt(10), marginBottom: fpx(1), marginLeft: fpx(10), lineHeight: 1.1 }}>ท่านมีความพึงพอใจต่อการทำงาน ติดต่อประสานงาน การทำงานให้สำเร็จลุล่วง ถูกต้องตามสมบูรณ์ ตรงต่อเวลา และการบริการของฝ่ายช่างในระดับใด</div>
+          <div style={{ marginLeft: fpx(10), marginBottom: 0 }}><RatingTextRow /></div>
         </div>
 
-        <div style={{ borderLeft: border, borderRight: border, padding: '2px 8px 5px', marginBottom: 0 }}>
-          <div style={{ fontWeight: 'bold', fontSize: '8.8pt', marginBottom: '0px' }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: '16px', fontSize: '16px' }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: '16px', height: '16px' }} />
+        <div style={{ borderLeft: border, borderRight: border, padding: `${fpx(2)} ${fpx(8)} ${fpx(5)}`, marginBottom: 0 }}>
+          <div style={{ fontWeight: 'bold', fontSize: fpt(8.8), marginBottom: 0 }}>COMMENT</div>
+          <div style={{ borderBottom: '1px dotted #555', minHeight: fpx(16), fontSize: fpt(16) }}>&nbsp;</div>
+          <div style={{ borderBottom: '1px dotted #555', marginTop: fpx(16), height: fpx(16) }} />
         </div>
 
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: '0px' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: 0 }}>
           <tbody>
             <tr>
-              <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '24px' }}>ผู้ตรวจรับงาน</div>
+              <td style={{ border, padding: `${fpx(8)} ${fpx(6)}`, textAlign: 'center', width: '50%' }}>
+                <div style={{ fontSize: fpt(10), fontWeight: 'bold', marginBottom: fpx(24) }}>ผู้ตรวจรับงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '16px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: fpt(8.6), marginTop: fpx(16) }}>วันที่............/............./.............</div>
               </td>
-              <td style={{ border, padding: '8px 6px', textAlign: 'center', width: '50%' }}>
-                <div style={{ fontSize: '10pt', fontWeight: 'bold', marginBottom: '24px' }}>ผู้ส่งมอบงาน</div>
+              <td style={{ border, padding: `${fpx(8)} ${fpx(6)}`, textAlign: 'center', width: '50%' }}>
+                <div style={{ fontSize: fpt(10), fontWeight: 'bold', marginBottom: fpx(24) }}>ผู้ส่งมอบงาน</div>
                 <div style={{ borderTop: '1px dotted #555', width: '70%', margin: '0 auto 2px' }}></div>
-                <div style={{ fontSize: '8.6pt', marginTop: '16px' }}>วันที่............/............./.............</div>
+                <div style={{ fontSize: fpt(8.6), marginTop: fpx(16) }}>วันที่............/............./.............</div>
               </td>
             </tr>
           </tbody>

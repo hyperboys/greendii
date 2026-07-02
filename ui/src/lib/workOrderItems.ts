@@ -11,9 +11,13 @@ export const createEmptyWorkOrderItem = (seq: number): WorkOrderItem => ({
   images: [],
 })
 
-function normalizeDetailRows(rows?: WorkOrderDetailRow[] | null): WorkOrderDetailRow[] {
+function normalizeDetailRows(
+  rows?: WorkOrderDetailRow[] | null,
+  options?: { keepEmpty?: boolean },
+): WorkOrderDetailRow[] {
+  const keepEmpty = options?.keepEmpty === true
   if (!Array.isArray(rows)) return []
-  return rows
+  const normalized = rows
     .map((row) => {
       const desc = String(row?.desc ?? '').trim()
       const rawQty = row?.qty as unknown
@@ -24,7 +28,9 @@ function normalizeDetailRows(rows?: WorkOrderDetailRow[] | null): WorkOrderDetai
         unit: String(row?.unit ?? '').trim(),
       }
     })
-    .filter((row) => row.desc || row.qty != null || row.unit)
+
+  if (keepEmpty) return normalized
+  return normalized.filter((row) => row.desc || row.qty != null || row.unit)
 }
 
 function fallbackRowsFromNote(note?: string): WorkOrderDetailRow[] {
@@ -36,7 +42,7 @@ function fallbackRowsFromNote(note?: string): WorkOrderDetailRow[] {
 }
 
 export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows' | 'note'> | null): WorkOrderDetailRow[] {
-  const fromRows = normalizeDetailRows(item?.detailRows)
+  const fromRows = normalizeDetailRows(item?.detailRows, { keepEmpty: true })
   if (fromRows.length > 0) return fromRows
 
   const fromNote = fallbackRowsFromNote(item?.note)
@@ -46,10 +52,10 @@ export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows'
 }
 
 export function stringifyWorkOrderDetailRows(rows: WorkOrderDetailRow[]): Pick<WorkOrderItem, 'detailRows' | 'note'> {
-  const normalizedRows = normalizeDetailRows(rows)
+  const normalizedRows = normalizeDetailRows(rows, { keepEmpty: true })
   return {
     detailRows: normalizedRows,
-    note: normalizedRows.map((row) => row.desc).join('\n'),
+    note: normalizedRows.map((row) => row.desc).filter(Boolean).join('\n'),
   }
 }
 
@@ -80,7 +86,7 @@ export function mapWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem
 export function normalizeWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem[] {
   return mapWorkOrderItems(items)
     .map((item, index) => ({
-      ...stringifyWorkOrderDetailRows(parseWorkOrderDetailRows(item)),
+      ...stringifyWorkOrderDetailRows(normalizeDetailRows(parseWorkOrderDetailRows(item))),
       seq: index,
       desc: String(item.desc ?? '').trim(),
       qty: Number(item.qty ?? 0),
