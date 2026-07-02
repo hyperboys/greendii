@@ -45,6 +45,7 @@ const SORT_FIELD_MAP = {
   grandTotal: 'grandTotal',
   status: 'status',
   createdAt: 'createdAt',
+  updatedAt: 'updatedAt',
 }
 
 function resolveQuotationOrderBy(orderByRaw, orderDirRaw) {

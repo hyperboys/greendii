@@ -10,7 +10,7 @@ import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 
-type SortKey = 'quoNo' | 'customerName' | 'project' | 'salesId' | 'grandTotal' | 'status' | 'createdAt'
+type SortKey = 'quoNo' | 'customerName' | 'project' | 'salesId' | 'grandTotal' | 'status' | 'updatedAt'
 type SortDir = 'asc' | 'desc'
 
 const STATUS_COLORS: Record<DocStatus, string> = {
@@ -36,7 +36,7 @@ export default function QuotationsPage() {
   const [sortBy, setSortBy] = useState<SortKey>('quoNo')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
-  const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'createdAt' || key === 'quoNo' ? 'desc' : 'asc')
+  const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'updatedAt' || key === 'quoNo' ? 'desc' : 'asc')
 
   const load = () => {
     setLoading(true)
@@ -146,8 +146,8 @@ export default function QuotationsPage() {
                 </button>
               </th>
               <th>
-                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('createdAt')}>
-                  วันที่{sortIcon('createdAt')}
+                <button type="button" className="inline-flex items-center" onClick={() => toggleSort('updatedAt')}>
+                  วันที่{sortIcon('updatedAt')}
                 </button>
               </th>
             </tr>
@@ -170,7 +170,7 @@ export default function QuotationsPage() {
                 <td className="text-right font-medium">฿{fmtMoney(q.grandTotal)}</td>
                 <td><span className={STATUS_COLORS[q.status]}>{STATUS_LABELS[q.status]}</span></td>
                 <td className="text-xs text-gray-500">
-                  {new Date(q.createdAt).toLocaleDateString('en-GB')}
+                  {new Date(q.updatedAt || q.createdAt).toLocaleDateString('en-GB')}
                 </td>
               </tr>
             ))}

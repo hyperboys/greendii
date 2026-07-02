@@ -264,7 +264,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     }
   }, [doc.quoNo])
 
-  const dateStr = new Date(doc.createdAt).toLocaleDateString('en-GB')
+  const dateStr = new Date(doc.updatedAt || doc.createdAt).toLocaleDateString('en-GB')
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
