@@ -127,7 +127,7 @@ router.get('/', authenticate, async (req, res, next) => {
       { hoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
     ];
-    const listInclude = { sales: { select: { id: true, fullName: true } } };
+    const listInclude = { sales: { select: { id: true, fullName: true, email: true, phone: true } } };
     const pg = getPagination(req.query);
     if (pg) {
       const [data, total] = await prisma.$transaction([
@@ -151,7 +151,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
     const item = await prisma.handOverJob.findUniqueOrThrow({
       where: { id: req.params.id },
       include: {
-        sales: { select: { id: true, fullName: true } },
+        sales: { select: { id: true, fullName: true, email: true, phone: true } },
         quotation: {
           select: {
             id: true,
