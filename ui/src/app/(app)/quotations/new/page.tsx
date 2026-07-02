@@ -36,7 +36,7 @@ const emptyItem = (): QuotationItem => ({
   labourPrice: 0,
   price: 0,
   amount: 0,
-  detailRows: [emptyDetailRow()],
+  detailRows: [],
   images: [],
 })
 const VAT_RATE = 0.07
@@ -77,7 +77,7 @@ const normalizeDetailRow = (row: Partial<QuotationItemDetail> | undefined): Quot
 const normalizeItem = (item: QuotationItem): QuotationItem => {
   const detailRows = (Array.isArray(item.detailRows) && item.detailRows.length > 0)
     ? item.detailRows.map(normalizeDetailRow)
-    : [emptyDetailRow()]
+    : []
   const normalized = { ...item, detailRows }
   normalized.desc = String(normalized.desc || '')
   normalized.note = String(normalized.note || '')
@@ -101,6 +101,23 @@ const getNoteLines = (note?: string) => {
   return lines.length > 0 ? lines : [{ text: '', color: undefined }]
 }
 
+function hasNoteContent(note?: string): boolean {
+  return toPlainColoredMultiline(note).trim().length > 0
+}
+
+function hasDetailRowContent(row: Partial<QuotationItemDetail> | undefined): boolean {
+  if (!row) return false
+  return Boolean(String(row.desc || '').trim())
+    || Number(row.qty || 0) !== 0
+    || Boolean(String(row.unit || '').trim())
+    || Number(row.materialPrice || 0) !== 0
+    || Number(row.labourPrice || 0) !== 0
+}
+
+function hasDetailContent(item: QuotationItem): boolean {
+  return Array.isArray(item.detailRows) && item.detailRows.some(row => hasDetailRowContent(row))
+}
+
 export default function NewQuotationPage() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -108,6 +125,7 @@ export default function NewQuotationPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
+  const [itemUi, setItemUi] = useState<Array<{ showNote: boolean; showDetails: boolean }>>([{ showNote: false, showDetails: false }])
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
@@ -206,9 +224,30 @@ export default function NewQuotationPage() {
       const items = [...f.items]
       const detailRows = [...(items[itemIdx].detailRows || [])]
       detailRows.splice(rowIdx, 1)
-      items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows: detailRows.length > 0 ? detailRows : [emptyDetailRow()] })
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows: detailRows.length > 0 ? detailRows : [] })
       return { ...f, items }
     })
+  }
+
+  const addItem = () => {
+    setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
+    setItemUi(prev => [...prev, { showNote: false, showDetails: false }])
+  }
+
+  const removeItem = (idx: number) => {
+    setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))
+    setItemUi(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const revealNote = (idx: number) => {
+    setItemUi(prev => prev.map((ui, i) => (i === idx ? { ...ui, showNote: true } : ui)))
+  }
+
+  const revealDetails = (idx: number) => {
+    setItemUi(prev => prev.map((ui, i) => (i === idx ? { ...ui, showDetails: true } : ui)))
+    if (!(form.items[idx].detailRows && form.items[idx].detailRows.length > 0)) {
+      addDetailRow(idx)
+    }
   }
 
   const handleCustomer = (id: string) => {
@@ -425,7 +464,7 @@ export default function NewQuotationPage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800">รายการสินค้า/บริการ</h3>
           <button type="button" className="btn-outline btn-sm"
-            onClick={() => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))}>
+            onClick={addItem}>
             <Plus size={14} /> เพิ่มรายการ
           </button>
         </div>
@@ -448,7 +487,10 @@ export default function NewQuotationPage() {
                 </tr>
               </thead>
               <tbody>
-                {form.items.map((item, i) => (
+                {form.items.map((item, i) => {
+                  const showNoteSection = Boolean(itemUi[i]?.showNote) || hasNoteContent(item.note)
+                  const showDetailSection = Boolean(itemUi[i]?.showDetails) || hasDetailContent(item)
+                  return (
                   <Fragment key={i}>
                     <tr className="border-t border-gray-100 align-top">
                       <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
@@ -463,20 +505,32 @@ export default function NewQuotationPage() {
                             title="สีข้อความรายการ"
                           />
                         </div>
-                        <div className="mt-2 flex items-start gap-2">
-                          <textarea
-                            className="form-input py-1 text-xs w-full"
-                            rows={3}
-                            value={toPlainColoredMultiline(item.note)}
-                            onChange={e => setItemNoteFreeText(i, e.target.value)}
-                            placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
-                          />
-                          <QuickColorPicker
-                            value={getNoteLines(item.note)[0]?.color || DEFAULT_LINE_COLOR}
-                            onChange={color => setItemNoteColor(i, color)}
-                            title="สีข้อความหมายเหตุ"
-                          />
-                        </div>
+                        {showNoteSection ? (
+                          <div className="mt-2 flex items-start gap-2">
+                            <textarea
+                              className="form-input py-1 text-xs w-full"
+                              rows={3}
+                              value={toPlainColoredMultiline(item.note)}
+                              onChange={e => setItemNoteFreeText(i, e.target.value)}
+                              placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                            />
+                            <QuickColorPicker
+                              value={getNoteLines(item.note)[0]?.color || DEFAULT_LINE_COLOR}
+                              onChange={color => setItemNoteColor(i, color)}
+                              title="สีข้อความหมายเหตุ"
+                            />
+                          </div>
+                        ) : (
+                          <div className="mt-2">
+                            <button
+                              type="button"
+                              className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
+                              onClick={() => revealNote(i)}
+                            >
+                              <Plus size={12} /> เพิ่มหมายเหตุ
+                            </button>
+                          </div>
+                        )}
                         {/* Item images */}
                         <div className="mt-2">
                           {item.images && item.images.length > 0 && (
@@ -540,14 +594,14 @@ export default function NewQuotationPage() {
                       <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(normalizeItem(item).amount)}</td>
                       <td className="py-2.5 px-2 pt-3">
                         {form.items.length > 1 && (
-                          <button type="button" onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))}
+                          <button type="button" onClick={() => removeItem(i)}
                             className="p-1 text-red-400 hover:text-red-600 transition-colors">
                             <Trash2 size={14} />
                           </button>
                         )}
                       </td>
                     </tr>
-                    {(item.detailRows && item.detailRows.length > 0 ? item.detailRows : [emptyDetailRow()]).map((detail, detailIdx) => (
+                    {showDetailSection && (item.detailRows || []).map((detail, detailIdx) => (
                       <tr key={`${i}-${detailIdx}`} className="border-t border-gray-100 bg-white/60 align-top">
                         <td className="py-1.5 px-2" />
                         <td className="py-1.5 px-2">
@@ -636,15 +690,29 @@ export default function NewQuotationPage() {
                         <button
                           type="button"
                           className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
-                          onClick={() => addDetailRow(i)}
+                          onClick={() => (showDetailSection ? addDetailRow(i) : revealDetails(i))}
                         >
-                          <Plus size={12} /> เพิ่มรายละเอียด
+                          <Plus size={12} /> {showDetailSection ? 'เพิ่มรายละเอียด' : 'เพิ่มรายละเอียดบรรทัด'}
                         </button>
                       </td>
                       <td colSpan={6} className="px-2 py-1.5" />
                     </tr>
                   </Fragment>
-                ))}
+                  )
+                })}
+                <tr className="border-t border-gray-100 bg-white/70">
+                  <td className="px-2 py-2" />
+                  <td className="px-2 py-2">
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={addItem}
+                    >
+                      <Plus size={14} /> เพิ่มรายการ
+                    </button>
+                  </td>
+                  <td colSpan={6} className="px-2 py-2" />
+                </tr>
               </tbody>
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr><td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
