@@ -231,10 +231,36 @@ router.put('/:id/doc-counter', authenticate, requireRole('admin', 'director', 'a
     if (hasMmyy) counters[normalizedMmyy] = seq;
     if (hasYy) counters[normalizedYy] = seq;
 
-    const updated = await prisma.user.update({
-      where: { id: req.params.id },
-      data: { docCounters: counters },
-      select: USER_SELECT,
+    const targetYy = hasYy ? normalizedYy : normalizedMmyy.slice(2);
+    const targetLastSeq = Math.max(0, seq - 1);
+
+    const updated = await prisma.$transaction(async (tx) => {
+      const savedUser = await tx.user.update({
+        where: { id: req.params.id },
+        data: { docCounters: counters },
+        select: USER_SELECT,
+      });
+
+      const currentCounter = await tx.quotationCounter.findUnique({
+        where: { salesId_yy: { salesId: req.params.id, yy: targetYy } },
+        select: { lastSeq: true },
+      });
+      const nextLastSeq = Math.max(currentCounter?.lastSeq || 0, targetLastSeq);
+
+      await tx.quotationCounter.upsert({
+        where: { salesId_yy: { salesId: req.params.id, yy: targetYy } },
+        create: {
+          salesId: req.params.id,
+          yy: targetYy,
+          lastSeq: nextLastSeq,
+        },
+        update: {
+          lastSeq: nextLastSeq,
+        },
+        select: { id: true },
+      });
+
+      return savedUser;
     });
     res.json(updated);
   } catch (e) { next(e); }

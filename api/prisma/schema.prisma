@@ -70,8 +70,22 @@ model User {
   customers        Customer[]
   workOrderPoAudits WorkOrderPoAudit[]
   refreshTokens    RefreshToken[]
+  quotationCounters QuotationCounter[]
 
   @@map("users")
+}
+
+model QuotationCounter {
+  id        String   @id @default(cuid())
+  salesId   String
+  sales     User     @relation(fields: [salesId], references: [id], onDelete: Cascade)
+  yy        String
+  lastSeq   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([salesId, yy])
+  @@map("quotation_counters")
 }
 
 model RefreshToken {

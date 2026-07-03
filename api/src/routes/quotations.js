@@ -102,50 +102,100 @@ function escapeRegExp(value = '') {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 
-async function nextQuotationBaseNoForUser(user) {
-  const now = new Date();
-  const mm = String(now.getMonth() + 1).padStart(2, '0');
-  const yy = String(now.getFullYear()).slice(2);
-  const initials = (user.initials || 'XX').toUpperCase();
-  const prefix = `QGD-${mm}${yy}-${initials}`;
-  const yearMarker = `-${yy}-${initials}`
-  const [yearQuotations, freshUser] = await Promise.all([
-    prisma.quotation.findMany({
-      where: {
-        quoNo: { contains: yearMarker },
-      },
-      select: { quoNo: true },
-    }),
-    prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
-  ]);
+function buildQuotationPrefix(now, user) {
+  const mm = String(now.getMonth() + 1).padStart(2, '0')
+  const yy = String(now.getFullYear()).slice(2)
+  const initials = (user.initials || 'XX').toUpperCase()
+  return {
+    yy,
+    prefix: `QGD-${mm}${yy}-${initials}`,
+  }
+}
 
-  // Run continuously within the same year (YY), regardless of MM in quoNo.
-  const basePattern = new RegExp(`^QGD-\\d{2}${yy}-${escapeRegExp(initials)}(\\d+)$`, 'i')
-  const dbSeq = yearQuotations.reduce((maxSeq, row) => {
-    const baseNo = stripRevisionSuffix(row.quoNo)
-    const matched = baseNo.match(basePattern)
-    if (!matched) return maxSeq
-    const seq = parseInt(matched[1], 10)
-    if (!Number.isFinite(seq)) return maxSeq
-    return Math.max(maxSeq, seq)
-  }, 0)
+function parseQuotationSeq(docNo, yy) {
+  const baseNo = stripRevisionSuffix(docNo)
+  const matched = baseNo.match(new RegExp(`^QGD-\\d{2}${escapeRegExp(yy)}-[A-Z0-9]+(\\d+)$`, 'i'))
+  if (!matched) return null
+  const seq = parseInt(matched[1], 10)
+  return Number.isFinite(seq) ? seq : null
+}
 
-  const counters = (freshUser && freshUser.docCounters && typeof freshUser.docCounters === 'object')
-    ? freshUser.docCounters
-    : {};
-
-  // Counter keys may be MMYY (monthly) or YY (yearly). Use the highest floor for the same YY.
-  const yearlyFloor = Object.entries(counters).reduce((maxFloor, [key, value]) => {
+function resolveYearlyFloorFromCounters(counters, yy) {
+  if (!counters || typeof counters !== 'object') return 1
+  return Object.entries(counters).reduce((maxFloor, [key, value]) => {
     const matchedYear = (/^\d{4}$/.test(key) && key.endsWith(yy)) || (/^\d{2}$/.test(key) && key === yy)
     if (!matchedYear) return maxFloor
     const n = Number(value)
     if (!Number.isFinite(n) || n < 1) return maxFloor
     return Math.max(maxFloor, n)
   }, 1)
+}
 
-  const floor = yearlyFloor;
-  const seq = Math.max(dbSeq + 1, floor);
-  return `${prefix}${String(seq).padStart(3, '0')}`;
+async function getSeedLastSeqForSaleYear(user, yy) {
+  const [yearQuotations, freshUser] = await Promise.all([
+    prisma.quotation.findMany({
+      where: {
+        salesId: user.id,
+        quoNo: { contains: `-${yy}-` },
+      },
+      select: { quoNo: true },
+    }),
+    prisma.user.findUnique({ where: { id: user.id }, select: { docCounters: true } }),
+  ])
+
+  const dbSeq = yearQuotations.reduce((maxSeq, row) => {
+    const seq = parseQuotationSeq(row.quoNo, yy)
+    if (!Number.isFinite(seq)) return maxSeq
+    return Math.max(maxSeq, seq)
+  }, 0)
+
+  const yearlyFloor = resolveYearlyFloorFromCounters(freshUser?.docCounters, yy)
+  return Math.max(dbSeq, yearlyFloor - 1)
+}
+
+async function createQuotationWithCounter(req, data, include, maxAttempts = 30) {
+  const now = new Date()
+  const { yy, prefix } = buildQuotationPrefix(now, req.user)
+  const seedLastSeq = await getSeedLastSeqForSaleYear(req.user, yy)
+
+  return prisma.$transaction(async (tx) => {
+    await tx.quotationCounter.upsert({
+      where: { salesId_yy: { salesId: req.user.id, yy } },
+      create: {
+        salesId: req.user.id,
+        yy,
+        lastSeq: seedLastSeq,
+      },
+      update: {},
+      select: { id: true },
+    })
+
+    let lastError = null
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const counter = await tx.quotationCounter.update({
+        where: { salesId_yy: { salesId: req.user.id, yy } },
+        data: { lastSeq: { increment: 1 } },
+        select: { lastSeq: true },
+      })
+      const quoNo = `${prefix}${String(counter.lastSeq).padStart(3, '0')}`
+      try {
+        return await tx.quotation.create({
+          data: {
+            ...data,
+            quoNo,
+          },
+          include,
+        })
+      } catch (error) {
+        lastError = error
+        if (error.code !== 'P2002') throw error
+      }
+    }
+
+    throw lastError || new Error('Failed to allocate quotation number')
+  }, {
+    isolationLevel: 'Serializable',
+  })
 }
 
 async function ensureCustomerBelongsToSales(req, customerId) {
@@ -156,27 +206,6 @@ async function ensureCustomerBelongsToSales(req, customerId) {
     error.status = 403
     throw error
   }
-}
-
-async function createQuotationWithRetry(req, data, include, maxAttempts = 3) {
-  let lastError = null
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
-      return await prisma.quotation.create({
-        data: {
-          ...data,
-          quoNo: await nextQuotationBaseNoForUser(req.user),
-        },
-        include,
-      })
-    } catch (error) {
-      lastError = error
-      if (error.code !== 'P2002' || attempt === maxAttempts) throw error
-    }
-  }
-
-  throw lastError || new Error('Failed to create quotation')
 }
 
 async function assertQuotationAccessibleWithBypass(req, quotation) {
@@ -288,7 +317,7 @@ router.post('/', authenticate, quotationValidators, validate, async (req, res, n
       return res.status(400).json({ message: 'project, customerName required' });
     }
     await ensureCustomerBelongsToSales(req, customerId)
-    const quo = await createQuotationWithRetry(req, {
+    const quo = await createQuotationWithCounter(req, {
       customerName, customerId: customerId || null, attn, project, address, tel, customerHp,
       conditionTerm, validityDays: validityDays || 30, leadTime, paymentTerm,
       subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, grandTotal: grandTotal || 0,
