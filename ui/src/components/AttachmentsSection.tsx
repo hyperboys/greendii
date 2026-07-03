@@ -14,24 +14,17 @@ export interface PendingAttachment {
 }
 
 interface Props {
-  /** Saved attachments (immediate mode — requires docId). */
   attachments?: Attachment[]
   docField: 'quotationId' | 'workOrderId' | 'purchaseRequestId' | 'handOverJobId'
-  /** When provided, files upload immediately. When empty, the component runs in deferred mode. */
   docId?: string
   onRefresh?: () => void
-  /** Deferred mode: files chosen before the document exists (e.g. create page). */
   pending?: PendingAttachment[]
   onPendingChange?: (files: PendingAttachment[]) => void
   readOnly?: boolean
   readOnlyMessage?: string
 }
 
-const CATEGORIES = [
-  { key: 'other', label: 'อื่นๆ (Other)', accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*', hint: 'PDF, รูปภาพ, Office, ZIP', Icon: File },
-] as const
-
-type CategoryKey = typeof CATEGORIES[number]['key']
+const CATEGORY_KEY = 'other'
 
 function fileIcon(mime: string) {
   if (mime.startsWith('image/')) return <Image size={13} className="text-blue-400 shrink-0" />
@@ -57,39 +50,35 @@ export default function AttachmentsSection({
   readOnly = false,
   readOnlyMessage,
 }: Props) {
-  const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
-  const [uploading, setUploading] = useState<CategoryKey | null>(null)
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const [uploading, setUploading] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
 
   const deferred = !docId
 
-  const handleUpload = async (catKey: CategoryKey, files: File[]) => {
-    if (!files.length) return
-    if (readOnly) return
+  const handleUpload = async (files: File[]) => {
+    if (!files.length || readOnly) return
 
-    // Deferred mode — buffer files locally until the document is created.
     if (deferred) {
-      const added = files.map(file => ({ id: `p${++pendingSeq}`, category: catKey, file }))
+      const added = files.map(file => ({ id: `p${++pendingSeq}`, category: CATEGORY_KEY, file }))
       onPendingChange?.([...pending, ...added])
-      const el = inputRefs.current[catKey]
-      if (el) el.value = ''
+      if (inputRef.current) inputRef.current.value = ''
       return
     }
 
-    setUploading(catKey)
+    setUploading(true)
     try {
       await UploadAPI.upload(files, {
         [docField]: docId as string,
-        category: catKey,
+        category: CATEGORY_KEY,
       })
       toast.success(`แนบ ${files.length} ไฟล์และบันทึกแล้ว`)
       onRefresh?.()
     } catch {
       toast.error('อัพโหลดไม่สำเร็จ')
     } finally {
-      setUploading(null)
-      const el = inputRefs.current[catKey]
-      if (el) el.value = ''
+      setUploading(false)
+      if (inputRef.current) inputRef.current.value = ''
     }
   }
 
@@ -110,6 +99,9 @@ export default function AttachmentsSection({
       setDeleting(null)
     }
   }
+
+  const savedFiles = attachments.filter(a => String(a.category || '').toLowerCase() === CATEGORY_KEY)
+  const pendingFiles = pending.filter(p => String(p.category || '').toLowerCase() === CATEGORY_KEY)
 
   return (
     <div className="card p-5 space-y-4">
@@ -133,112 +125,96 @@ export default function AttachmentsSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {CATEGORIES.map(({ key, label, accept, hint, Icon }) => {
-          const savedFiles = attachments.filter(a => a.category === key)
-          const pendingFiles = pending.filter(p => p.category === key)
-          const isUploading = uploading === key
+      <div className="space-y-2">
+        <p className="text-sm font-medium text-gray-700">อื่นๆ (Other)</p>
 
-          return (
-            <div key={key} className="space-y-2">
-              <p className="text-sm font-medium text-gray-700">{label}</p>
+        {readOnly ? (
+          <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
+            <File size={28} className="text-gray-300" />
+            <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
+            <span className="text-xs text-gray-400">{readOnlyMessage || APPROVAL_ATTACHMENT_LOCK_MESSAGE}</span>
+          </div>
+        ) : (
+          <div
+            className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
+            onClick={() => {
+              if (uploading) return
+              inputRef.current?.click()
+            }}
+          >
+            <File size={28} className="text-gray-300" />
+            <span className="text-sm text-blue-500">{uploading ? 'กำลังอัพโหลด…' : 'คลิกไฟล์'}</span>
+            <span className="text-xs text-gray-400">PDF, รูปภาพ, Office, ZIP</span>
+          </div>
+        )}
 
-              {readOnly ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
-                  <Icon size={28} className="text-gray-300" />
-                  <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
-                  <span className="text-xs text-gray-400">{readOnlyMessage || APPROVAL_ATTACHMENT_LOCK_MESSAGE}</span>
+        <input
+          type="file"
+          multiple
+          hidden
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*"
+          ref={inputRef}
+          onChange={e => handleUpload(Array.from(e.target.files || []))}
+        />
+
+        {savedFiles.length > 0 && (
+          <ul className="space-y-1">
+            {savedFiles.map(att => (
+              <li key={att.id} className="flex items-center gap-2">
+                {fileIcon(att.mimeType)}
+                <div className="flex-1 min-w-0">
+                  {att.fileUrl ? (
+                    <a
+                      href={att.fileUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline truncate block"
+                    >
+                      {att.originalName}
+                    </a>
+                  ) : (
+                    <span className="text-sm text-gray-700 truncate block">{att.originalName}</span>
+                  )}
+                  <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
                 </div>
-              ) : (
-                <div
-                  className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
-                  onClick={() => {
-                    if (isUploading) return
-                    inputRefs.current[key]?.click()
-                  }}
-                >
-                  <Icon size={28} className="text-gray-300" />
-                  <span className="text-sm text-blue-500">
-                    {isUploading ? 'กำลังอัพโหลด…' : 'คลิกไฟล์'}
-                  </span>
-                  <span className="text-xs text-gray-400">{hint}</span>
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    onClick={() => handleDelete(att.id)}
+                    disabled={deleting === att.id}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {pendingFiles.length > 0 && (
+          <ul className="space-y-1">
+            {pendingFiles.map(p => (
+              <li key={p.id} className="flex items-center gap-2">
+                {fileIcon(p.file.type)}
+                <div className="flex-1 min-w-0">
+                  <span className="text-sm text-gray-700 truncate block">{p.file.name}</span>
+                  <span className="text-xs text-gray-400">{fmtSize(p.file.size)} · รอบันทึก</span>
                 </div>
-              )}
-
-              <input
-                type="file"
-                multiple
-                hidden
-                accept={accept}
-                ref={el => { inputRefs.current[key] = el }}
-                onChange={e => handleUpload(key, Array.from(e.target.files || []))}
-              />
-
-              {/* Saved file list (immediate mode) */}
-              {savedFiles.length > 0 && (
-                <ul className="space-y-1">
-                  {savedFiles.map(att => (
-                    <li key={att.id} className="flex items-center gap-2">
-                      {fileIcon(att.mimeType)}
-                      <div className="flex-1 min-w-0">
-                        {att.fileUrl ? (
-                          <a
-                            href={att.fileUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-blue-600 hover:underline truncate block"
-                          >
-                            {att.originalName}
-                          </a>
-                        ) : (
-                          <span className="text-sm text-gray-700 truncate block">{att.originalName}</span>
-                        )}
-                        <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
-                      </div>
-                      {!readOnly && (
-                        <button
-                          type="button"
-                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                          onClick={() => handleDelete(att.id)}
-                          disabled={deleting === att.id}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-
-              {/* Pending file list (deferred mode) */}
-              {pendingFiles.length > 0 && (
-                <ul className="space-y-1">
-                  {pendingFiles.map(p => (
-                    <li key={p.id} className="flex items-center gap-2">
-                      {fileIcon(p.file.type)}
-                      <div className="flex-1 min-w-0">
-                        <span className="text-sm text-gray-700 truncate block">{p.file.name}</span>
-                        <span className="text-xs text-gray-400">{fmtSize(p.file.size)} · รอบันทึก</span>
-                      </div>
-                      {!readOnly && (
-                        <button
-                          type="button"
-                          className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                          onClick={() => handleDelete(p.id)}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )
-        })}
+                {!readOnly && (
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
+                    onClick={() => handleDelete(p.id)}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </div>
   )
 }
-
-

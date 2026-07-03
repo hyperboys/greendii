@@ -7,7 +7,7 @@ import type { Quotation, Unit, WorkOrderItem, HandOverJob } from '@/types'
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
-import AttachmentsSection, { type PendingAttachment } from '@/components/AttachmentsSection'
+import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
 import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
@@ -64,6 +64,7 @@ interface FormData {
 }
 
 type TextFormKey = Exclude<keyof FormData, 'docChecklist' | 'items'>
+type PendingWorkOrderAttachment = { id: string; category: string; file: File }
 
 export default function NewWorkOrderPage() {
   const router = useRouter()
@@ -72,7 +73,7 @@ export default function NewWorkOrderPage() {
   const [handovers, setHandovers] = useState<HandOverJob[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
-  const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [pendingAttachments, setPendingAttachments] = useState<PendingWorkOrderAttachment[]>([])
   const [poAmount, setPoAmount] = useState('')
   const [linkNotice, setLinkNotice] = useState('')
   const [saving, setSaving] = useState(false)
@@ -363,10 +364,12 @@ export default function NewWorkOrderPage() {
 
       <WorkOrderItemsEditor items={form.items} units={units} onChange={items => setForm(prev => ({ ...prev, items }))} />
 
-      <AttachmentsSection
+      <WorkOrderAttachmentsSection
         docField="workOrderId"
         pending={pendingAttachments}
         onPendingChange={setPendingAttachments}
+        poAmount={poAmount}
+        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">

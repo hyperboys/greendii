@@ -8,7 +8,7 @@ import type { Quotation, Attachment, Unit, WorkOrderItem, HandOverJob } from '@/
 import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
-import AttachmentsSection from '@/components/AttachmentsSection'
+import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
 import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
@@ -346,11 +346,13 @@ export default function EditWorkOrderPage() {
 
       <WorkOrderItemsEditor items={form.items} units={units} onChange={items => setForm(prev => ({ ...prev, items }))} />
 
-      <AttachmentsSection
+      <WorkOrderAttachmentsSection
         attachments={attachments}
         docField="workOrderId"
         docId={id}
         onRefresh={reloadAttachments}
+        poAmount={poAmount}
+        onPoAmountChange={setPoAmount}
       />
 
       <div className="flex justify-end gap-3">
