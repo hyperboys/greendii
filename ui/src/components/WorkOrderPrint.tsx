@@ -47,10 +47,12 @@ function itemWeight(fragment: WorkOrderItemFragment): number {
 type ItemSource = Pick<QuotationItem, 'id' | 'seq' | 'desc' | 'note' | 'qty' | 'unit' | 'images'> | WorkOrderItem
 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderItemFragment[] {
-  const detailRows = Array.isArray((item as WorkOrderItem).detailRows) && (item as WorkOrderItem).detailRows.length > 0
-    ? (item as WorkOrderItem).detailRows.map((row) => ({
+  const workOrderItem = item as WorkOrderItem
+  const sourceDetailRows = Array.isArray(workOrderItem.detailRows) ? workOrderItem.detailRows : []
+  const detailRows = sourceDetailRows.length > 0
+    ? sourceDetailRows.map((row) => ({
       desc: String(row?.desc ?? '').trim(),
-      qty: row?.qty == null || row?.qty === '' ? null : Number(row.qty),
+      qty: row?.qty == null ? null : (Number.isFinite(row.qty) ? row.qty : null),
       unit: String(row?.unit ?? '').trim(),
     }))
     : splitDescriptionLines(item.note).map((line) => ({ desc: line, qty: null, unit: '' }))
