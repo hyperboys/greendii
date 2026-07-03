@@ -55,11 +55,10 @@ async function buildPrAccessWhere(user) {
   }
 
   baseConditions.push({
-    status: 'approved',
     approvalLogs: {
       some: {
         approverId: user.id,
-        action: 'approve',
+        action: { in: ['approve', 'reject'] },
       },
     },
   });
@@ -74,11 +73,11 @@ async function assertPrAccessible(req, pr) {
 
   if (pr.salesId === req.user.id) return;
 
-  if (pr.status === 'approved') {
-    const approvedByMe = Array.isArray(pr.approvalLogs)
-      && pr.approvalLogs.some(log => log?.approverId === req.user.id && log?.action === 'approve');
-    if (approvedByMe) return;
-  }
+  const actedByMe = Array.isArray(pr.approvalLogs)
+    && pr.approvalLogs.some(
+      log => log?.approverId === req.user.id && ['approve', 'reject'].includes(log?.action),
+    );
+  if (actedByMe) return;
 
   if (pr.status === 'pending') {
     const { roleStep } = await getStepRoleMapping();
