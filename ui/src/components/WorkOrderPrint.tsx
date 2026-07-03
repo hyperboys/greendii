@@ -23,50 +23,60 @@ function splitDescriptionLines(note?: string): string[] {
 interface WorkOrderItemFragment {
   key: string
   desc: string
-  noteLines: string[]
+  detailRows: Array<{ desc: string; qty: number | null; unit: string }>
   images: string[]
   qty?: number
   unit?: string
   displaySeq?: number
 }
 
-function noteLinesWeight(lines: string[]): number {
-  const nonEmptyNoteLines = lines.filter(Boolean).length
-  const blankNoteLines = lines.length - nonEmptyNoteLines
-  return nonEmptyNoteLines + blankNoteLines * 0.35
+function detailRowsWeight(rows: Array<{ desc: string; qty: number | null; unit: string }>): number {
+  let nonEmptyRows = 0
+  let blankRows = 0
+  for (const row of rows) {
+    if (row.desc || row.qty != null || row.unit) nonEmptyRows += 1
+    else blankRows += 1
+  }
+  return nonEmptyRows + blankRows * 0.35
 }
 
 function itemWeight(fragment: WorkOrderItemFragment): number {
-  return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
+  return 1 + detailRowsWeight(fragment.detailRows) + fragment.images.length * 3
 }
 
 type ItemSource = Pick<QuotationItem, 'id' | 'seq' | 'desc' | 'note' | 'qty' | 'unit' | 'images'> | WorkOrderItem
 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderItemFragment[] {
-  const noteLines = splitDescriptionLines(item.note)
-  const remainingLines = [...noteLines]
+  const detailRows = Array.isArray((item as WorkOrderItem).detailRows) && (item as WorkOrderItem).detailRows.length > 0
+    ? (item as WorkOrderItem).detailRows.map((row) => ({
+      desc: String(row?.desc ?? '').trim(),
+      qty: row?.qty == null || row?.qty === '' ? null : Number(row.qty),
+      unit: String(row?.unit ?? '').trim(),
+    }))
+    : splitDescriptionLines(item.note).map((line) => ({ desc: line, qty: null, unit: '' }))
+  const remainingRows = [...detailRows]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: WorkOrderItemFragment[] = []
   const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
   const itemId = 'id' in item ? item.id : undefined
   let fragmentIndex = 0
 
-  while (fragmentIndex === 0 || remainingLines.length > 0 || remainingImages.length > 0) {
-    const noteChunk: string[] = []
+  while (fragmentIndex === 0 || remainingRows.length > 0 || remainingImages.length > 0) {
+    const detailRowChunk: Array<{ desc: string; qty: number | null; unit: string }> = []
     const imageChunk: string[] = []
     let weight = 1
 
-    while (remainingLines.length > 0) {
-      const nextLine = remainingLines[0]
-      const nextWeight = nextLine ? 1 : 0.35
-      if (weight + nextWeight > FRAGMENT_CAP && noteChunk.length > 0) break
-      noteChunk.push(remainingLines.shift() as string)
+    while (remainingRows.length > 0) {
+      const nextRow = remainingRows[0]
+      const nextWeight = nextRow.desc || nextRow.qty != null || nextRow.unit ? 1 : 0.35
+      if (weight + nextWeight > FRAGMENT_CAP && detailRowChunk.length > 0) break
+      detailRowChunk.push(remainingRows.shift() as { desc: string; qty: number | null; unit: string })
       weight += nextWeight
     }
 
     while (remainingImages.length > 0) {
       const nextWeight = 3
-      if (weight + nextWeight > FRAGMENT_CAP && (noteChunk.length > 0 || imageChunk.length > 0)) break
+      if (weight + nextWeight > FRAGMENT_CAP && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
       imageChunk.push(remainingImages.shift() as string)
       weight += nextWeight
     }
@@ -74,7 +84,7 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderI
     fragments.push({
       key: `${itemId ?? item.seq ?? itemIndex}-${fragmentIndex}`,
       desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
-      noteLines: noteChunk,
+      detailRows: detailRowChunk,
       images: imageChunk,
       qty: fragmentIndex === 0 ? item.qty : undefined,
       unit: fragmentIndex === 0 ? item.unit : undefined,
@@ -481,17 +491,24 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   }
 
   function renderItemRow(item: WorkOrderItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
+    const formatQty = (value: number | null | undefined): string => {
+      if (value == null) return ''
+      const numeric = Number(value)
+      if (!Number.isFinite(numeric)) return ''
+      return `${numeric}`
+    }
+
     return (
       <tr key={item.key} ref={rowRef} style={{ height: '24px' }}>
         <td style={itemCellS}>{item.displaySeq ?? ''}</td>
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc && <div style={{ whiteSpace: 'pre-wrap' }}>{item.desc}</div>}
-          {item.noteLines.map((line, idx) => (
+          {item.detailRows.map((row, idx) => (
             <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
-              {line || '\u00A0'}
+              {row.desc || '\u00A0'}
             </span>
           ))}
-          {!item.desc && item.noteLines.length === 0 && <span>\u00A0</span>}
+          {!item.desc && item.detailRows.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
             <div style={{ marginTop: '1mm', display: 'flex', flexDirection: 'column', gap: '1mm' }}>
               {item.images.map((url, idx) => (
@@ -507,8 +524,22 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             </div>
           )}
         </td>
-        <td style={{ ...itemCellS, textAlign: 'center' }}>{item.qty != null ? item.qty : ''}</td>
-        <td style={{ ...itemCellS, textAlign: 'center', borderRight: borderRightStrong }}>{item.unit ?? ''}</td>
+        <td style={{ ...itemCellS, textAlign: 'center' }}>
+          <div>{formatQty(item.qty)}</div>
+          {item.detailRows.map((row, idx) => (
+            <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
+              {formatQty(row.qty) || '\u00A0'}
+            </span>
+          ))}
+        </td>
+        <td style={{ ...itemCellS, textAlign: 'center', borderRight: borderRightStrong }}>
+          <div>{item.unit ?? ''}</div>
+          {item.detailRows.map((row, idx) => (
+            <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
+              {row.unit || '\u00A0'}
+            </span>
+          ))}
+        </td>
       </tr>
     )
   }
