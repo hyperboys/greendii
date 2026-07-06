@@ -68,7 +68,28 @@ http.interceptors.response.use(
     const original = err.config || {}
     const status = err.response?.status
     const url: string = original.url || ''
+    const method: string = String(original.method || 'get').toLowerCase()
     const isAuthEndpoint = url.includes('/auth/login') || url.includes('/auth/refresh')
+
+    // Notification polling/actions are non-critical and should never block core flows (save/submit docs).
+    if (url.includes('/notifications')) {
+      if (method === 'get') {
+        return Promise.resolve({
+          data: { notifications: [], unreadCount: 0 },
+          status: err.response?.status || 200,
+          statusText: err.response?.statusText || 'OK',
+          headers: err.response?.headers || {},
+          config: original,
+        })
+      }
+      return Promise.resolve({
+        data: { message: 'ok' },
+        status: err.response?.status || 200,
+        statusText: err.response?.statusText || 'OK',
+        headers: err.response?.headers || {},
+        config: original,
+      })
+    }
 
     if (status === 401 && !isAuthEndpoint && !original._retry && typeof window !== 'undefined') {
       const refreshToken = localStorage.getItem('gd_refresh')

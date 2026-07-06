@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
@@ -7,7 +7,7 @@ import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/li
 import { parseColoredLine, stringifyColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { useAuthStore } from '@/store/auth'
-import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, ImagePlus, X, ChevronUp, ChevronDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface FormData {
@@ -46,12 +46,14 @@ const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days']
 const CUSTOM_LEAD_TIME = '__custom_lead_time__'
 const DEFAULT_LINE_COLOR = '#000000'
 const NOTE_BLOCK_SEPARATOR = '\n\n__QO_NOTE_BLOCK__\n\n'
+const NOTE_EMPTY_TOKEN = '__QO_NOTE_EMPTY__'
 const MAIN_ITEM_COLORS = [
   { value: '#000000', label: 'ดำ (Default)' },
   { value: '#dc2626', label: 'แดง' },
   { value: '#2563eb', label: 'น้ำเงิน' },
   { value: '#16a34a', label: 'เขียว' },
 ] as const
+type ItemSection = 'note' | 'image' | 'detail'
 
 const getSelectValue = (value: string, options: readonly string[], customValue: string) => {
   if (!value) return ''
@@ -106,19 +108,19 @@ const calcItemTotal = (item: QuotationItem) => {
 
 function parseNoteBlocks(note?: string): string[] {
   const raw = toPlainColoredMultiline(note)
-  if (!raw.trim()) return []
-  if (!raw.includes(NOTE_BLOCK_SEPARATOR)) return [raw]
-  return raw.split(NOTE_BLOCK_SEPARATOR)
+  if (raw === '') return []
+  if (!raw.includes(NOTE_BLOCK_SEPARATOR)) return [raw === NOTE_EMPTY_TOKEN ? '' : raw]
+  return raw.split(NOTE_BLOCK_SEPARATOR).map(v => (v === NOTE_EMPTY_TOKEN ? '' : v))
 }
 
 function stringifyNoteBlocks(blocks: string[]): string {
   const normalized = blocks.map(v => String(v ?? ''))
   if (normalized.length === 0) return ''
-  return normalized.join(NOTE_BLOCK_SEPARATOR)
+  return normalized.map(v => (v === '' ? NOTE_EMPTY_TOKEN : v)).join(NOTE_BLOCK_SEPARATOR)
 }
 
 function hasNoteContent(note?: string): boolean {
-  return toPlainColoredMultiline(note).trim().length > 0
+  return parseNoteBlocks(note).some(block => block.trim().length > 0)
 }
 
 function hasDetailRowContent(row: Partial<QuotationItemDetail> | undefined): boolean {
@@ -146,7 +148,7 @@ export default function QuotationFormPage() {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
-  const [itemUi, setItemUi] = useState<Array<{ showNote: boolean; showDetails: boolean }>>([{ showNote: false, showDetails: false }])
+  const [itemUi, setItemUi] = useState<Array<{ showNote: boolean; showDetails: boolean; sectionOrder: ItemSection[] }>>([{ showNote: false, showDetails: false, sectionOrder: [] }])
   const [editable, setEditable] = useState(true)
   const [activeItemIdx, setActiveItemIdx] = useState(0)
   const [activeColorPickerIdx, setActiveColorPickerIdx] = useState<number | null>(null)
@@ -208,7 +210,16 @@ export default function QuotationFormPage() {
             ...it,
             detailRows: Array.isArray(it.detailRows) && it.detailRows.length > 0 ? it.detailRows.map(row => normalizeDetailRow(row as Partial<QuotationItemDetail>)) : [],
           })) : [emptyItem()]
-          setItemUi(nextItems.map(item => ({ showNote: hasNoteContent(item.note), showDetails: hasDetailContent(item as QuotationItem) })))
+          setItemUi(nextItems.map(item => {
+            const showNote = hasNoteContent(item.note)
+            const showDetails = hasDetailContent(item as QuotationItem)
+            const showImage = Array.isArray(item.images) && item.images.length > 0
+            const sectionOrder: ItemSection[] = []
+            if (showNote) sectionOrder.push('note')
+            if (showImage) sectionOrder.push('image')
+            if (showDetails) sectionOrder.push('detail')
+            return { showNote, showDetails, sectionOrder }
+          }))
           setIsCustomLeadTime(Boolean(leadTime) && !LEAD_TIME_OPTIONS.includes(leadTime as typeof LEAD_TIME_OPTIONS[number]))
         })
         .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
@@ -315,9 +326,22 @@ export default function QuotationFormPage() {
     })
   }
 
+  const moveSection = (itemIdx: number, section: ItemSection, direction: 'up' | 'down') => {
+    setItemUi(prev => prev.map((ui, i) => {
+      if (i !== itemIdx) return ui
+      const order = (ui.sectionOrder || []).includes(section) ? [...(ui.sectionOrder || [])] : [...(ui.sectionOrder || []), section]
+      const currentIdx = order.indexOf(section)
+      const targetIdx = direction === 'up' ? currentIdx - 1 : currentIdx + 1
+      if (targetIdx < 0 || targetIdx >= order.length) return { ...ui, sectionOrder: order }
+      const next = [...order]
+      ;[next[currentIdx], next[targetIdx]] = [next[targetIdx], next[currentIdx]]
+      return { ...ui, sectionOrder: next }
+    }))
+  }
+
   const addItem = () => {
     setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
-    setItemUi(prev => [...prev, { showNote: false, showDetails: false }])
+    setItemUi(prev => [...prev, { showNote: false, showDetails: false, sectionOrder: [] }])
     setActiveItemIdx(form.items.length)
   }
 
@@ -327,12 +351,20 @@ export default function QuotationFormPage() {
   }
 
   const revealNote = (idx: number) => {
-    setItemUi(prev => prev.map((ui, i) => (i === idx ? { ...ui, showNote: true } : ui)))
+    setItemUi(prev => prev.map((ui, i) => {
+      if (i !== idx) return ui
+      const order = ui.sectionOrder || []
+      return { ...ui, showNote: true, sectionOrder: order.includes('note') ? order : [...order, 'note'] }
+    }))
     addNoteBlock(idx)
   }
 
   const revealDetails = (idx: number) => {
-    setItemUi(prev => prev.map((ui, i) => (i === idx ? { ...ui, showDetails: true } : ui)))
+    setItemUi(prev => prev.map((ui, i) => {
+      if (i !== idx) return ui
+      const order = ui.sectionOrder || []
+      return { ...ui, showDetails: true, sectionOrder: order.includes('detail') ? order : [...order, 'detail'] }
+    }))
     if (!(form.items[idx].detailRows && form.items[idx].detailRows.length > 0)) {
       addDetailRow(idx)
     }
@@ -340,11 +372,21 @@ export default function QuotationFormPage() {
 
   const triggerActiveImageUpload = () => {
     if (!form.items[activeItemIdx]) return
+    setItemUi(prev => prev.map((ui, i) => {
+      if (i !== activeItemIdx) return ui
+      const order = ui.sectionOrder || []
+      return { ...ui, sectionOrder: order.includes('image') ? order : [...order, 'image'] }
+    }))
     uploadInputRef.current?.click()
   }
 
   const triggerItemImageUpload = (itemIdx: number) => {
     if (!form.items[itemIdx]) return
+    setItemUi(prev => prev.map((ui, i) => {
+      if (i !== itemIdx) return ui
+      const order = ui.sectionOrder || []
+      return { ...ui, sectionOrder: order.includes('image') ? order : [...order, 'image'] }
+    }))
     setActiveItemIdx(itemIdx)
     uploadInputRef.current?.click()
   }
@@ -627,6 +669,24 @@ export default function QuotationFormPage() {
                 {form.items.map((item, i) => {
                   const showNoteSection = Boolean(itemUi[i]?.showNote) || hasNoteContent(item.note)
                   const showDetailSection = Boolean(itemUi[i]?.showDetails) || hasDetailContent(item)
+                  const showImageSection = Boolean(item.images && item.images.length > 0)
+                  const sectionOrder = itemUi[i]?.sectionOrder || []
+                  const visibleSections: ItemSection[] = []
+                  if (showNoteSection) visibleSections.push('note')
+                  if (showImageSection) visibleSections.push('image')
+                  if (showDetailSection) visibleSections.push('detail')
+                  const orderedSections: ItemSection[] = [
+                    ...sectionOrder.filter(section => visibleSections.includes(section)),
+                    ...(['note', 'image', 'detail'] as ItemSection[]).filter(section => visibleSections.includes(section) && !sectionOrder.includes(section)),
+                  ]
+                  const detailOrderIdx = orderedSections.indexOf('detail')
+                  const mainOrderedSections = (detailOrderIdx === -1 ? orderedSections : orderedSections.slice(0, detailOrderIdx)).filter(section => section !== 'detail')
+                  const afterOrderedSections = (detailOrderIdx === -1 ? [] : orderedSections.slice(detailOrderIdx + 1)).filter(section => section !== 'detail')
+                  const canMoveUp = (section: ItemSection) => orderedSections.indexOf(section) > 0
+                  const canMoveDown = (section: ItemSection) => {
+                    const idx = orderedSections.indexOf(section)
+                    return idx !== -1 && idx < orderedSections.length - 1
+                  }
                   const noteBlocks = parseNoteBlocks(item.note)
                   return (
                   <Fragment key={i}>
@@ -682,67 +742,116 @@ export default function QuotationFormPage() {
                             ) : null}
                           </div>
                         </div>
-                        {showNoteSection ? (
-                          <div className="mt-2 space-y-2">
-                            {(noteBlocks.length > 0 ? noteBlocks : ['']).map((noteText, noteIdx) => (
-                              <div key={`${i}-note-${noteIdx}`} className="flex items-start gap-2">
-                                <textarea
-                                  className="form-input py-1 text-xs w-full"
-                                  rows={3}
-                                  value={noteText}
-                                  onFocus={() => setActiveItemIdx(i)}
-                                  onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
-                                  placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
-                                />
-                                <button
-                                  type="button"
-                                  className="mt-1 p-1 text-red-400 hover:text-red-600"
-                                  onClick={() => removeNoteBlock(i, noteIdx)}
-                                  title="ลบหมายเหตุ"
-                                >
-                                  <X size={13} />
-                                </button>
-                              </div>
-                            ))}
-                            <button
-                              type="button"
-                              className="btn-outline btn-sm"
-                              onClick={() => addNoteBlock(i)}
-                            >
-                              <Plus size={14} /> เพิ่มหมายเหตุ
-                            </button>
-                          </div>
-                        ) : null}
-                        <div className="mt-2">
-                          {item.images && item.images.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 mb-1.5">
-                              {item.images.map((url, imgIdx) => (
-                                <div key={imgIdx} className="relative group">
-                                  <img
-                                    src={resolveFileUrl(url)}
-                                    alt=""
-                                    className="w-14 h-14 object-cover rounded border border-gray-200"
-                                  />
+                        {mainOrderedSections.map(section => {
+                          if (section === 'note') {
+                            return (
+                              <div key={`${i}-main-note`} className="mt-2 space-y-2">
+                                {noteBlocks.map((noteText, noteIdx) => (
+                                  <div key={`${i}-note-${noteIdx}`} className="flex items-start gap-2">
+                                    <textarea
+                                      className="form-input py-1 text-xs w-full"
+                                      rows={3}
+                                      value={noteText}
+                                      onFocus={() => setActiveItemIdx(i)}
+                                      onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
+                                      placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                                    />
+                                    <button
+                                      type="button"
+                                      className="mt-1 p-1 text-red-400 hover:text-red-600"
+                                      onClick={() => removeNoteBlock(i, noteIdx)}
+                                      title="ลบหมายเหตุ"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex flex-wrap gap-2">
                                   <button
                                     type="button"
-                                    onClick={() => removeItemImage(i, imgIdx)}
-                                    className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
-                                    title="ลบรูป"
+                                    className="btn-outline btn-sm"
+                                    onClick={() => addNoteBlock(i)}
                                   >
-                                    <X size={10} />
+                                    <Plus size={14} /> เพิ่มหมายเหตุ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveUp('note')}
+                                    onClick={() => moveSection(i, 'note', 'up')}
+                                    title="ย้ายขึ้น"
+                                  >
+                                    <ChevronUp size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveDown('note')}
+                                    onClick={() => moveSection(i, 'note', 'down')}
+                                    title="ย้ายลง"
+                                  >
+                                    <ChevronDown size={14} />
                                   </button>
                                 </div>
-                              ))}
-                            </div>
-                          )}
-                          <button
-                            type="button"
-                            className="btn-outline btn-sm"
-                            onClick={() => triggerItemImageUpload(i)}
-                          >
-                            <ImagePlus size={14} /> เพิ่มรูปภาพ
-                          </button>
-                        </div>
+                              </div>
+                            )
+                          }
+                          if (section === 'image') {
+                            return (
+                              <div key={`${i}-main-image`} className="mt-2 space-y-2">
+                                {item.images && item.images.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {item.images.map((url, imgIdx) => (
+                                      <div key={imgIdx} className="relative group">
+                                        <img
+                                          src={resolveFileUrl(url)}
+                                          alt=""
+                                          className="w-14 h-14 object-cover rounded border border-gray-200"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeItemImage(i, imgIdx)}
+                                          className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="ลบรูป"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    onClick={() => triggerItemImageUpload(i)}
+                                  >
+                                    <ImagePlus size={14} /> เพิ่มรูปภาพ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveUp('image')}
+                                    onClick={() => moveSection(i, 'image', 'up')}
+                                    title="ย้ายขึ้น"
+                                  >
+                                    <ChevronUp size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveDown('image')}
+                                    onClick={() => moveSection(i, 'image', 'down')}
+                                    title="ย้ายลง"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          }
+                          return null
+                        })}
                       </td>
                       <td className="py-2 px-2">
                         <input
@@ -933,17 +1042,159 @@ export default function QuotationFormPage() {
                       <tr className="border-t border-gray-100 bg-white/60">
                         <td className="py-2 px-2" />
                         <td className="py-2 px-2">
-                          <button
-                            type="button"
-                            className="btn-outline btn-sm"
-                            onClick={() => addDetailRow(i)}
-                          >
-                            <Plus size={14} /> เพิ่มบรรทัด
-                          </button>
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              onClick={() => addDetailRow(i)}
+                            >
+                              <Plus size={14} /> เพิ่มบรรทัด
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              disabled={!canMoveUp('detail')}
+                              onClick={() => moveSection(i, 'detail', 'up')}
+                              title="ย้ายขึ้น"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              disabled={!canMoveDown('detail')}
+                              onClick={() => moveSection(i, 'detail', 'down')}
+                              title="ย้ายลง"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
                         </td>
                         <td colSpan={6} className="py-2 px-2" />
                       </tr>
                     ) : null}
+                    {afterOrderedSections.map(section => {
+                      if (section === 'note') {
+                        return (
+                          <tr key={`${i}-after-note`} className="border-t border-gray-100 bg-white/60 align-top">
+                            <td className="py-2 px-2" />
+                            <td className="py-2 px-2">
+                              <div className="space-y-2">
+                                {noteBlocks.map((noteText, noteIdx) => (
+                                  <div key={`${i}-note-after-${noteIdx}`} className="flex items-start gap-2">
+                                    <textarea
+                                      className="form-input py-1 text-xs w-full"
+                                      rows={3}
+                                      value={noteText}
+                                      onFocus={() => setActiveItemIdx(i)}
+                                      onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
+                                      placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                                    />
+                                    <button
+                                      type="button"
+                                      className="mt-1 p-1 text-red-400 hover:text-red-600"
+                                      onClick={() => removeNoteBlock(i, noteIdx)}
+                                      title="ลบหมายเหตุ"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  </div>
+                                ))}
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    onClick={() => addNoteBlock(i)}
+                                  >
+                                    <Plus size={14} /> เพิ่มหมายเหตุ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveUp('note')}
+                                    onClick={() => moveSection(i, 'note', 'up')}
+                                    title="ย้ายขึ้น"
+                                  >
+                                    <ChevronUp size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveDown('note')}
+                                    onClick={() => moveSection(i, 'note', 'down')}
+                                    title="ย้ายลง"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                            <td colSpan={6} className="py-2 px-2" />
+                          </tr>
+                        )
+                      }
+                      if (section === 'image') {
+                        return (
+                          <tr key={`${i}-after-image`} className="border-t border-gray-100 bg-white/60 align-top">
+                            <td className="py-2 px-2" />
+                            <td className="py-2 px-2">
+                              <div className="space-y-2">
+                                {item.images && item.images.length > 0 ? (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {item.images.map((url, imgIdx) => (
+                                      <div key={`${i}-image-after-${imgIdx}`} className="relative group">
+                                        <img
+                                          src={resolveFileUrl(url)}
+                                          alt=""
+                                          className="w-14 h-14 object-cover rounded border border-gray-200"
+                                        />
+                                        <button
+                                          type="button"
+                                          onClick={() => removeItemImage(i, imgIdx)}
+                                          className="absolute -top-1.5 -right-1.5 bg-red-500 hover:bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                                          title="ลบรูป"
+                                        >
+                                          <X size={10} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="flex flex-wrap gap-2">
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    onClick={() => triggerItemImageUpload(i)}
+                                  >
+                                    <ImagePlus size={14} /> เพิ่มรูปภาพ
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveUp('image')}
+                                    onClick={() => moveSection(i, 'image', 'up')}
+                                    title="ย้ายขึ้น"
+                                  >
+                                    <ChevronUp size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    className="btn-outline btn-sm"
+                                    disabled={!canMoveDown('image')}
+                                    onClick={() => moveSection(i, 'image', 'down')}
+                                    title="ย้ายลง"
+                                  >
+                                    <ChevronDown size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                            <td colSpan={6} className="py-2 px-2" />
+                          </tr>
+                        )
+                      }
+                      return null
+                    })}
                   </Fragment>
                   )
                 })}
@@ -1050,3 +1301,5 @@ export default function QuotationFormPage() {
     </form>
   )
 }
+
+
