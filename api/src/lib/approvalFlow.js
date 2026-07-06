@@ -130,6 +130,41 @@ function filterCreatorSteps(steps, creatorRole, stepRole) {
   return steps.filter(step => normalizeRole(stepRole[step]) !== normalizedCreatorRole);
 }
 
+function normalizePrStageEntry(entry) {
+  if (Array.isArray(entry)) {
+    const steps = entry
+      .map(n => Number(n))
+      .filter(n => Number.isInteger(n) && n > 0);
+    return [...new Set(steps)];
+  }
+
+  const step = Number(entry);
+  if (!Number.isInteger(step) || step <= 0) return [];
+  return [step];
+}
+
+function normalizePrFlowStages(rawSteps) {
+  if (!Array.isArray(rawSteps)) return [];
+  return rawSteps
+    .map(normalizePrStageEntry)
+    .filter(stage => stage.length > 0);
+}
+
+function filterCreatorStages(stages, creatorRole, stepRole) {
+  if (!creatorRole) return stages.map(stage => [...stage]);
+
+  const normalizedCreatorRole = normalizeRole(creatorRole);
+  return stages
+    .map(stage => stage.filter(step => normalizeRole(stepRole[step]) !== normalizedCreatorRole))
+    .filter(stage => stage.length > 0);
+}
+
+function findPrStageIndexByStep(stages, step) {
+  const target = Number(step);
+  if (!Number.isInteger(target) || target <= 0) return -1;
+  return stages.findIndex(stage => stage.includes(target));
+}
+
 /**
  * Resolve the effective approval flow for a single PR.
  *  - prTypeSteps: array stored on the PR's PrType (may be empty/undefined)
@@ -143,30 +178,48 @@ function filterCreatorSteps(steps, creatorRole, stepRole) {
  * Then removes every step that belongs to the creator's own role.
  */
 async function resolvePrFlow(prTypeSteps, creatorRole) {
+  const stages = await resolvePrFlowStages(prTypeSteps, creatorRole);
+  return stages.map(stage => stage[0]);
+}
+
+/**
+ * Resolve PR flow into stages where each stage supports OR roles.
+ * Example:
+ *  - Legacy: [3,4,5]            -> [[3],[4],[5]]
+ *  - OR flow: [[3,4],5,[6,7]]   -> [[3,4],[5],[6,7]]
+ */
+async function resolvePrFlowStages(prTypeSteps, creatorRole) {
   const { stepRole } = await getStepRoleMapping();
   const hasTypeSpecificFlow = Array.isArray(prTypeSteps);
-  const baseSteps = hasTypeSpecificFlow
-    ? prTypeSteps.map(Number).filter(n => Number.isInteger(n) && n > 0)
-    : await getFlowSteps('pr');
-  return filterCreatorSteps(baseSteps, creatorRole, stepRole);
+  const baseRaw = hasTypeSpecificFlow ? prTypeSteps : await getFlowSteps('pr');
+  const baseStages = normalizePrFlowStages(baseRaw);
+  return filterCreatorStages(baseStages, creatorRole, stepRole);
 }
 
 /** First effective step for a PR, or null when it should auto-approve. */
 async function getPrFirstStep(prTypeSteps, creatorRole) {
-  const steps = await resolvePrFlow(prTypeSteps, creatorRole);
-  return steps.length > 0 ? steps[0] : null;
+  const stages = await resolvePrFlowStages(prTypeSteps, creatorRole);
+  return stages.length > 0 ? stages[0][0] : null;
 }
 
 /** Next effective step after currentStep for a PR, or null when finished. */
 async function getPrNextStep(prTypeSteps, creatorRole, currentStep) {
-  const steps = await resolvePrFlow(prTypeSteps, creatorRole);
-  const idx = steps.indexOf(currentStep);
-  if (idx === -1 || idx >= steps.length - 1) return null;
-  return steps[idx + 1];
+  const stages = await resolvePrFlowStages(prTypeSteps, creatorRole);
+  const idx = findPrStageIndexByStep(stages, currentStep);
+  if (idx === -1 || idx >= stages.length - 1) return null;
+  return stages[idx + 1][0];
+}
+
+/** Resolve current stage steps for a PR from the current approvalStep anchor. */
+async function getPrCurrentStageSteps(prTypeSteps, creatorRole, currentStep) {
+  const stages = await resolvePrFlowStages(prTypeSteps, creatorRole);
+  const idx = findPrStageIndexByStep(stages, currentStep);
+  if (idx === -1) return [];
+  return stages[idx];
 }
 
 module.exports = {
   ROLE_STEP, STEP_ROLE, DEFAULT_FLOW,
   getFlowSteps, getFirstStep, getNextStep, getStepRoleMapping,
-  resolvePrFlow, getPrFirstStep, getPrNextStep,
+  resolvePrFlow, resolvePrFlowStages, getPrFirstStep, getPrNextStep, getPrCurrentStageSteps,
 };

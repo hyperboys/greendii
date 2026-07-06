@@ -4,12 +4,29 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 
-// Normalize an approvalSteps payload into a clean array of positive integers
+function normalizeStageEntry(entry) {
+  if (Array.isArray(entry)) {
+    const stage = entry
+      .map(s => Number(s))
+      .filter(n => Number.isInteger(n) && n > 0);
+    if (stage.length === 0) return null;
+    const deduped = [...new Set(stage)];
+    return deduped.length === 1 ? deduped[0] : deduped;
+  }
+
+  const step = Number(entry);
+  if (!Number.isInteger(step) || step <= 0) return null;
+  return step;
+}
+
+// Normalize approvalSteps payload:
+// - Legacy: [3,4,5]
+// - OR stage: [[3,4],5,[6,7]]
 function normalizeSteps(steps) {
   if (!Array.isArray(steps)) return [];
   return steps
-    .map(s => Number(s))
-    .filter(n => Number.isInteger(n) && n > 0);
+    .map(normalizeStageEntry)
+    .filter(Boolean);
 }
 
 // GET /api/pr-types  — all authenticated users (needed when creating a PR)

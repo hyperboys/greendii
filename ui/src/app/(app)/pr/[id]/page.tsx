@@ -21,6 +21,24 @@ function fmtMoney(n: number) {
 
 const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
 
+function normalizeApprovalStages(steps: unknown): number[][] {
+  if (!Array.isArray(steps)) return []
+  return steps
+    .map((entry) => {
+      if (Array.isArray(entry)) {
+        const stage = entry
+          .map(n => Number(n))
+          .filter(n => Number.isInteger(n) && n > 0)
+        return Array.from(new Set(stage))
+      }
+
+      const step = Number(entry)
+      if (!Number.isInteger(step) || step <= 0) return []
+      return [step]
+    })
+    .filter(stage => stage.length > 0)
+}
+
 function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
   const raw = note ?? ''
   const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
@@ -78,9 +96,16 @@ export default function PRDetailPage() {
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canRevise = isMine && doc.status === 'approved' && (doc.active ?? true)
   const currentStep = doc.approvalStep
-  const currentStepRole = stepRoleConfig[String(currentStep)]
-  const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
   const prFlowSteps = Array.isArray(doc.prType?.approvalSteps) ? doc.prType.approvalSteps : []
+  const prFlowStages = normalizeApprovalStages(prFlowSteps)
+  const currentStage = prFlowStages.find(stage => stage.includes(currentStep)) ?? []
+  const currentStageRoles = currentStage
+    .map(step => normalizeUserRole(stepRoleConfig[String(step)]))
+    .filter(Boolean)
+  const actorRole = normalizeUserRole(user?.role)
+  const canApprove = doc.status === 'pending'
+    && currentStageRoles.includes(actorRole)
+    && !(currentStage.includes(1) && actorRole === 'sales' && isMine)
   const vatIncluded = Number(doc.vat ?? 0) > 0
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''

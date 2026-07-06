@@ -5,8 +5,8 @@ const { authenticate } = require('../middleware/auth');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
-const { notifyStep, notifyUser } = require('../lib/notify');
-const { getPrFirstStep, getPrNextStep, resolvePrFlow, getStepRoleMapping } = require('../lib/approvalFlow');
+const { notifyByRole, notifyUser } = require('../lib/notify');
+const { getPrFirstStep, getPrNextStep, resolvePrFlowStages, getPrCurrentStageSteps, getStepRoleMapping } = require('../lib/approvalFlow');
 const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
@@ -39,31 +39,83 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+function hasUserApprovedOrRejected(pr, userId) {
+  return Array.isArray(pr?.approvalLogs)
+    && pr.approvalLogs.some(
+      log => log?.approverId === userId && ['approve', 'reject'].includes(log?.action),
+    );
+}
+
+async function getCurrentPrStageRoles(pr, stepRole) {
+  const stageSteps = await getPrCurrentStageSteps(
+    pr?.prType?.approvalSteps,
+    pr?.sales?.role,
+    Number(pr?.approvalStep),
+  );
+
+  const roles = stageSteps
+    .map(step => normalizeRole(stepRole[step]))
+    .filter(Boolean);
+
+  return {
+    stageSteps,
+    roles: [...new Set(roles)],
+  };
+}
+
+async function isPendingPrCurrentApprover(user, pr, stepRole) {
+  if (!pr || pr.status !== 'pending') return false;
+
+  const { stageSteps, roles } = await getCurrentPrStageRoles(pr, stepRole);
+  if (!stageSteps.length || !roles.length) return false;
+
+  const actorRole = normalizeRole(user.role);
+  if (!roles.includes(actorRole)) return false;
+
+  // Sales creator cannot approve own doc when stage contains step 1.
+  if (stageSteps.includes(1) && actorRole === 'sales' && pr.salesId === user.id) return false;
+
+  return true;
+}
+
+async function isPrAccessibleForUser(user, pr, stepRole) {
+  if (!pr) return false;
+  if (pr.salesId === user.id) return true;
+  if (hasUserApprovedOrRejected(pr, user.id)) return true;
+  return isPendingPrCurrentApprover(user, pr, stepRole);
+}
+
 async function buildPrAccessWhere(user) {
   if (await canBypassDocApproval('pr', user.role)) return {};
 
-  const baseConditions = [{ salesId: user.id }];
-  const { roleStep } = await getStepRoleMapping();
-  const myStep = roleStep[normalizeRole(user.role)];
-
-  if (myStep) {
-    baseConditions.push({
-      status: 'pending',
-      approvalStep: myStep,
-      ...(myStep === 1 ? { NOT: { salesId: user.id } } : {}),
-    });
-  }
-
-  baseConditions.push({
-    approvalLogs: {
-      some: {
-        approverId: user.id,
-        action: { in: ['approve', 'reject'] },
+  return {
+    OR: [
+      { salesId: user.id },
+      { status: 'pending' },
+      {
+        approvalLogs: {
+          some: {
+            approverId: user.id,
+            action: { in: ['approve', 'reject'] },
+          },
+        },
       },
-    },
-  });
+    ],
+  };
+}
 
-  return { OR: baseConditions };
+async function notifyPrStage(stepRole, stageSteps, text, options = {}) {
+  const roles = [...new Set(
+    (stageSteps || [])
+      .map(step => normalizeRole(stepRole[step]))
+      .filter(Boolean),
+  )];
+
+  if (!roles.length) return;
+
+  await Promise.allSettled(
+    roles.map(role => notifyByRole(role, text, options)),
+  );
 }
 
 async function assertPrAccessible(req, pr) {
@@ -71,21 +123,10 @@ async function assertPrAccessible(req, pr) {
 
   if (await canBypassDocApproval('pr', req.user.role)) return;
 
-  if (pr.salesId === req.user.id) return;
+  const { stepRole } = await getStepRoleMapping();
+  const allowed = await isPrAccessibleForUser(req.user, pr, stepRole);
 
-  const actedByMe = Array.isArray(pr.approvalLogs)
-    && pr.approvalLogs.some(
-      log => log?.approverId === req.user.id && ['approve', 'reject'].includes(log?.action),
-    );
-  if (actedByMe) return;
-
-  if (pr.status === 'pending') {
-    const { roleStep } = await getStepRoleMapping();
-    const myStep = roleStep[normalizeRole(req.user.role)];
-    if (myStep && Number(pr.approvalStep) === Number(myStep)) {
-      if (Number(myStep) !== 1 || pr.salesId !== req.user.id) return;
-    }
-  }
+  if (allowed) return;
 
   const error = new Error('ไม่มีสิทธิ์เข้าถึงเอกสารนี้');
   error.status = 403;
@@ -96,64 +137,34 @@ async function assertPrCurrentApprover(req, pr) {
   if (await canBypassDocApproval('pr', req.user.role)) return;
 
   const { stepRole } = await getStepRoleMapping();
-  const requiredRole = normalizeRole(stepRole[pr.approvalStep]);
+  const { stageSteps, roles } = await getCurrentPrStageRoles(pr, stepRole);
   const actorRole = normalizeRole(req.user.role);
 
-  if (!requiredRole || requiredRole !== actorRole) {
+  if (!stageSteps.length || !roles.length) {
+    const error = new Error('ขั้นอนุมัติของเอกสารไม่ถูกต้อง');
+    error.status = 400;
+    throw error;
+  }
+
+  if (!roles.includes(actorRole)) {
     const error = new Error('ไม่มีสิทธิ์อนุมัติรายการนี้');
     error.status = 403;
     throw error;
   }
 
-  if (Number(pr.approvalStep) === 1 && pr.salesId === req.user.id) {
+  if (stageSteps.includes(1) && actorRole === 'sales' && pr.salesId === req.user.id) {
     const error = new Error('ผู้สร้างเอกสารไม่สามารถอนุมัติขั้น Sales ได้');
     error.status = 403;
     throw error;
   }
 
-  const effectiveSteps = await resolvePrFlow(pr.prType?.approvalSteps, pr.sales?.role);
-  if (!effectiveSteps.includes(Number(pr.approvalStep))) {
+  const effectiveStages = await resolvePrFlowStages(pr.prType?.approvalSteps, pr.sales?.role);
+  const hasCurrentStage = effectiveStages.some(stage => stage.includes(Number(pr.approvalStep)));
+  if (!hasCurrentStage) {
     const error = new Error('ขั้นอนุมัติของเอกสารไม่ถูกต้อง');
     error.status = 400;
     throw error;
   }
-}
-
-function stripRevisionSuffix(docNo = '') {
-  return String(docNo).replace(/-R\d+$/i, '');
-}
-
-function buildRevisionDocNo(baseNo, revisionNo) {
-  return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`;
-}
-
-function normalizePrItem(item, seq) {
-  const qty = Number(item?.qty ?? 0) || 0;
-  const price = Number(item?.price ?? 0) || 0;
-  return {
-    seq,
-    partNo: item?.partNo || null,
-    desc: String(item?.desc || ''),
-    note: item?.note || null,
-    qty,
-    unit: String(item?.unit || ''),
-    price,
-    amount: Number(item?.amount ?? (qty * price)) || 0,
-    images: Array.isArray(item?.images) ? item.images.filter(Boolean) : [],
-  };
-}
-
-async function getDocNumberFloor(prefix) {
-  const settings = await prisma.settings.findUnique({
-    where: { id: 'main' },
-    select: { approvalFlowConfig: true },
-  });
-  const cfg = settings?.approvalFlowConfig;
-  const floors = (cfg && typeof cfg === 'object' && cfg.docNoFloors && typeof cfg.docNoFloors === 'object')
-    ? cfg.docNoFloors
-    : {};
-  const floor = Number(floors[prefix]);
-  return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
 }
 
 // GET /api/pr
@@ -161,9 +172,6 @@ router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, q, active } = req.query;
     const andWhere = [await buildPrAccessWhere(req.user)];
-    if (status) andWhere.push({ status });
-    if (active !== undefined) andWhere.push({ active: active === 'true' });
-    else andWhere.push({ active: true });
     if (q) {
       andWhere.push({
         OR: [
@@ -176,24 +184,44 @@ router.get('/', authenticate, async (req, res, next) => {
     }
     const where = { AND: andWhere };
     const listInclude = {
-      sales: { select: { id: true, fullName: true, signatureText: true } },
+      sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
       prType: { select: { id: true, name: true, approvalSteps: true } },
+      approvalLogs: {
+        select: { approverId: true, action: true },
+      },
       items: true,
     };
-    const pg = getPagination(req.query);
-    if (pg) {
-      const [data, total] = await prisma.$transaction([
-        prisma.purchaseRequest.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
-        prisma.purchaseRequest.count({ where }),
-      ]);
-      return res.json(paginated(data, total, pg));
-    }
+
     const list = await prisma.purchaseRequest.findMany({
       where,
       include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
-    res.json(list);
+
+    if (await canBypassDocApproval('pr', req.user.role)) {
+      const pg = getPagination(req.query);
+      if (pg) {
+        const data = list.slice(pg.skip, pg.skip + pg.take);
+        return res.json(paginated(data, list.length, pg));
+      }
+      return res.json(list);
+    }
+
+    const { stepRole } = await getStepRoleMapping();
+    const visibleList = [];
+    for (const item of list) {
+      if (await isPrAccessibleForUser(req.user, item, stepRole)) {
+        visibleList.push(item);
+      }
+    }
+
+    const pg = getPagination(req.query);
+    if (pg) {
+      const data = visibleList.slice(pg.skip, pg.skip + pg.take);
+      return res.json(paginated(data, visibleList.length, pg));
+    }
+
+    res.json(visibleList);
   } catch (e) { next(e); }
 });
 
@@ -224,6 +252,12 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
         salesId: true,
         status: true,
         approvalStep: true,
+        sales: {
+          select: { role: true },
+        },
+        prType: {
+          select: { approvalSteps: true },
+        },
         approvalLogs: {
           select: { approverId: true, action: true },
         },
@@ -396,7 +430,8 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     const firstStep = await getPrFirstStep(pr.prType?.approvalSteps, pr.sales.role);
     let resumeStep = firstStep;
     if (pr.status === 'rejected') {
-      const steps = await resolvePrFlow(pr.prType?.approvalSteps, pr.sales.role);
+      const stages = await resolvePrFlowStages(pr.prType?.approvalSteps, pr.sales.role);
+      const steps = stages.map(stage => stage[0]);
       const currentStep = Number(pr.approvalStep);
       if (steps.includes(currentStep)) {
         resumeStep = currentStep;
@@ -420,7 +455,9 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       // ทุกขั้นถูกข้าม (ผู้สร้างครอบคลุมสายอนุมัติ) หรือไม่มีขั้นอนุมัติ → อนุมัติทันที
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(resumeStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+      const { stepRole } = await getStepRoleMapping();
+      const stageSteps = await getPrCurrentStageSteps(pr.prType?.approvalSteps, pr.sales.role, resumeStep);
+      await notifyPrStage(stepRole, stageSteps, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -452,7 +489,9 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     if (newStatus === 'approved') {
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
-      await notifyStep(nextStep, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+      const { stepRole } = await getStepRoleMapping();
+      const stageSteps = await getPrCurrentStageSteps(pr.prType?.approvalSteps, pr.sales.role, nextStep);
+      await notifyPrStage(stepRole, stageSteps, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }

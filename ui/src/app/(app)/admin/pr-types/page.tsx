@@ -1,19 +1,38 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { PrTypesAPI, SettingsAPI } from '@/lib/api'
 import type { PrType } from '@/types'
 import { DEFAULT_STEP_ROLE } from '@/types'
 import { useSettingsStore } from '@/store/settings'
-import { Plus, Pencil, Trash2, Save, X, GripVertical } from 'lucide-react'
+import { Plus, Pencil, Trash2, Save, X, ArrowUp, ArrowDown } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 interface Draft {
   name: string
-  approvalRoles: string[]
+  approvalStages: string[][]
 }
 
-const emptyDraft = (): Draft => ({ name: '', approvalRoles: [] })
+type StageStep = number | number[]
+
+const emptyDraft = (): Draft => ({ name: '', approvalStages: [] })
+
+function normalizeApprovalStages(steps: unknown): number[][] {
+  if (!Array.isArray(steps)) return []
+  return steps
+    .map((entry) => {
+      if (Array.isArray(entry)) {
+        const stage = entry
+          .map(n => Number(n))
+          .filter(n => Number.isInteger(n) && n > 0)
+        return Array.from(new Set(stage))
+      }
+      const step = Number(entry)
+      if (!Number.isInteger(step) || step <= 0) return []
+      return [step]
+    })
+    .filter(stage => stage.length > 0)
+}
 
 export default function PrTypesPage() {
   const { rolePermissionsConfig, fetchSettings } = useSettingsStore()
@@ -57,11 +76,12 @@ export default function PrTypesPage() {
     return getRoleLabel(roleKeyOrToken)
   }
 
-  const stepsToRoles = (steps: number[]) => {
-    return (steps ?? []).map(step => stepRoleConfig[String(step)] || `step:${step}`)
+  const stepsToStages = (steps: StageStep[]) => {
+    const normalized = normalizeApprovalStages(steps)
+    return normalized.map(stage => stage.map(step => stepRoleConfig[String(step)] || `step:${step}`))
   }
 
-  const rolesToSteps = async (roles: string[]) => {
+  const stagesToSteps = async (stages: string[][]): Promise<StageStep[]> => {
     const currentMap = { ...stepRoleConfig }
     const roleToStep = new Map<string, number>()
 
@@ -77,28 +97,38 @@ export default function PrTypesPage() {
       .reduce((m, n) => Math.max(m, n), 0)
 
     let changed = false
-    const steps = roles.map(roleKeyOrToken => {
-      if (isStepToken(roleKeyOrToken)) {
-        const step = parseStepToken(roleKeyOrToken)
-        return Number.isFinite(step) ? step : 0
-      }
+    const result: StageStep[] = []
 
-      const existingStep = roleToStep.get(roleKeyOrToken)
-      if (existingStep) return existingStep
+    for (const stageRoles of stages) {
+      const stageSteps = stageRoles
+        .map(roleKeyOrToken => {
+          if (isStepToken(roleKeyOrToken)) {
+            const step = parseStepToken(roleKeyOrToken)
+            return Number.isFinite(step) ? step : 0
+          }
 
-      maxStep += 1
-      currentMap[String(maxStep)] = roleKeyOrToken
-      roleToStep.set(roleKeyOrToken, maxStep)
-      changed = true
-      return maxStep
-    }).filter(step => step > 0)
+          const existingStep = roleToStep.get(roleKeyOrToken)
+          if (existingStep) return existingStep
+
+          maxStep += 1
+          currentMap[String(maxStep)] = roleKeyOrToken
+          roleToStep.set(roleKeyOrToken, maxStep)
+          changed = true
+          return maxStep
+        })
+        .filter(step => step > 0)
+
+      const deduped = Array.from(new Set(stageSteps))
+      if (deduped.length === 0) continue
+      result.push(deduped.length === 1 ? deduped[0] : deduped)
+    }
 
     if (changed) {
       await SettingsAPI.update({ stepRoleConfig: currentMap })
       setStepRoleConfig(currentMap)
     }
 
-    return steps
+    return result
   }
 
   // ── create ──────────────────────────────────────────────────────────────────
@@ -106,7 +136,7 @@ export default function PrTypesPage() {
     if (!creating?.name.trim()) { toast.error('กรุณาระบุชื่อประเภท'); return }
     setSaving(true)
     try {
-      const approvalSteps = await rolesToSteps(creating.approvalRoles)
+      const approvalSteps = await stagesToSteps(creating.approvalStages)
       await PrTypesAPI.create({ name: creating.name.trim(), approvalSteps })
       setCreating(null)
       load()
@@ -118,13 +148,13 @@ export default function PrTypesPage() {
   // ── edit ──────────────────────────────────────────────────────────────────
   const startEdit = (t: PrType) => {
     setEditingId(t.id)
-    setEditDraft({ name: t.name, approvalRoles: stepsToRoles(t.approvalSteps ?? []) })
+    setEditDraft({ name: t.name, approvalStages: stepsToStages(t.approvalSteps ?? []) })
   }
   const saveEdit = async () => {
     if (!editDraft.name.trim()) { toast.error('กรุณาระบุชื่อประเภท'); return }
     setSaving(true)
     try {
-      const approvalSteps = await rolesToSteps(editDraft.approvalRoles)
+      const approvalSteps = await stagesToSteps(editDraft.approvalStages)
       await PrTypesAPI.update(editingId!, { name: editDraft.name.trim(), approvalSteps })
       setEditingId(null)
       load()
@@ -179,10 +209,10 @@ export default function PrTypesPage() {
               placeholder="เช่น ซื้อทั่วไป, ซื้อโครงการ, ซื้อด่วน" />
           </div>
           <FlowEditor
-            roles={creating.approvalRoles}
+            stages={creating.approvalStages}
             availableRoles={allRoles.map(r => r.key)}
             getRoleLabel={getRoleChipLabel}
-            onChange={roles => setCreating(d => d ? { ...d, approvalRoles: roles } : d)}
+            onChange={stages => setCreating(d => d ? { ...d, approvalStages: stages } : d)}
           />
           <div className="flex justify-end gap-2">
             <button className="btn-outline btn-sm" onClick={() => setCreating(null)}>ยกเลิก</button>
@@ -205,10 +235,10 @@ export default function PrTypesPage() {
                     onChange={e => setEditDraft(d => ({ ...d, name: e.target.value }))} />
                 </div>
                 <FlowEditor
-                  roles={editDraft.approvalRoles}
+                  stages={editDraft.approvalStages}
                   availableRoles={allRoles.map(r => r.key)}
                   getRoleLabel={getRoleChipLabel}
-                  onChange={roles => setEditDraft(d => ({ ...d, approvalRoles: roles }))}
+                  onChange={stages => setEditDraft(d => ({ ...d, approvalStages: stages }))}
                 />
                 <div className="flex justify-end gap-2">
                   <button className="btn-outline btn-sm" onClick={() => setEditingId(null)}>ยกเลิก</button>
@@ -235,15 +265,20 @@ export default function PrTypesPage() {
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   <div className="px-3 py-1.5 rounded-lg bg-green-main text-white text-xs font-semibold">ผู้สร้าง</div>
-                  {(t.approvalSteps ?? []).length === 0 ? (
+                  {normalizeApprovalStages(t.approvalSteps ?? []).length === 0 ? (
                     <span className="text-xs text-gray-400">— ไม่มีผู้อนุมัติ (อนุมัติอัตโนมัติ) —</span>
                   ) : (
-                    stepsToRoles(t.approvalSteps ?? []).map(roleKey => (
-                      <div key={`${t.id}-${roleKey}`} className="flex items-center gap-1.5">
+                    stepsToStages(t.approvalSteps ?? []).map((stage, idx) => (
+                      <div key={`${t.id}-${idx}`} className="flex items-center gap-1.5">
                         <span className="text-gray-300 text-sm">→</span>
-                        <span className="px-2.5 py-1.5 rounded-lg border-2 border-green-200 bg-white text-xs font-semibold text-gray-700">
-                          {getRoleChipLabel(roleKey)}
-                        </span>
+                        <div className="px-2.5 py-1.5 rounded-lg border-2 border-green-200 bg-white text-xs font-semibold text-gray-700">
+                          {stage.map((roleKey, roleIdx) => (
+                            <span key={`${t.id}-${idx}-${roleKey}-${roleIdx}`}>
+                              {roleIdx > 0 ? ' / ' : ''}
+                              {getRoleChipLabel(roleKey)}
+                            </span>
+                          ))}
+                        </div>
                       </div>
                     ))
                   )}
@@ -262,74 +297,157 @@ export default function PrTypesPage() {
 
 // ── Reusable flow editor (chips + drag reorder) ───────────────────────────────
 function FlowEditor({
-  roles, availableRoles, getRoleLabel, onChange,
+  stages, availableRoles, getRoleLabel, onChange,
 }: {
-  roles: string[]
+  stages: string[][]
   availableRoles: string[]
   getRoleLabel: (roleKey: string) => string
-  onChange: (roles: string[]) => void
+  onChange: (stages: string[][]) => void
 }) {
-  const dragIdx = useRef<number | null>(null)
-  const [dragOver, setDragOver] = useState<number | null>(null)
-  const available = availableRoles.filter(roleKey => !roles.includes(roleKey))
+  const usedRoles = new Set(stages.flat())
+  const pickable = availableRoles.filter(roleKey => !usedRoles.has(roleKey))
+  const [newStageRole, setNewStageRole] = useState('')
+  const [stageRoleSelections, setStageRoleSelections] = useState<Record<number, string>>({})
 
-  const reorder = (from: number, to: number) => {
-    const arr = [...roles]
-    const [item] = arr.splice(from, 1)
-    arr.splice(to, 0, item)
+  const moveStage = (idx: number, dir: -1 | 1) => {
+    const next = idx + dir
+    if (next < 0 || next >= stages.length) return
+    const arr = [...stages]
+    const [item] = arr.splice(idx, 1)
+    arr.splice(next, 0, item)
     onChange(arr)
+  }
+
+  const addRoleToStage = (stageIdx: number, roleKey: string) => {
+    if (!roleKey) return
+    const arr = stages.map((stage, idx) => {
+      if (idx !== stageIdx) return stage
+      if (stage.includes(roleKey) || stage.length >= 2) return stage
+      return [...stage, roleKey]
+    })
+    onChange(arr)
+    setStageRoleSelections(prev => ({ ...prev, [stageIdx]: '' }))
+  }
+
+  const removeRoleFromStage = (stageIdx: number, roleKey: string) => {
+    const arr = stages
+      .map((stage, idx) => {
+        if (idx !== stageIdx) return stage
+        return stage.filter(role => role !== roleKey)
+      })
+      .filter(stage => stage.length > 0)
+    onChange(arr)
+  }
+
+  const addStage = (roleKey: string) => {
+    if (!roleKey || !pickable.includes(roleKey)) return
+    onChange([...stages, [roleKey]])
+    setNewStageRole('')
+  }
+
+  const removeStage = (idx: number) => {
+    onChange(stages.filter((_, i) => i !== idx))
   }
 
   return (
     <div>
-      <p className="text-xs text-gray-500 font-medium mb-2">สายอนุมัติ (เรียงตามลำดับ)</p>
-      <div className="flex flex-wrap items-center gap-2 min-h-[52px] p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
-        <div className="px-3 py-2 rounded-lg bg-green-main text-white text-xs font-semibold select-none">ผู้สร้าง</div>
-        {roles.map((roleKey, idx) => (
-          <div key={`${roleKey}-${idx}`} className="flex items-center gap-1.5">
-            <span className="text-gray-300 text-sm">→</span>
-            <div
-              draggable
-              onDragStart={() => { dragIdx.current = idx }}
-              onDragOver={e => { e.preventDefault(); setDragOver(idx) }}
-              onDragLeave={() => setDragOver(null)}
-              onDrop={() => {
-                if (dragIdx.current !== null && dragIdx.current !== idx) reorder(dragIdx.current, idx)
-                dragIdx.current = null
-                setDragOver(null)
-              }}
-              onDragEnd={() => { dragIdx.current = null; setDragOver(null) }}
-              className={`flex items-center gap-1 px-2.5 py-2 rounded-lg border-2 text-xs font-semibold cursor-grab active:cursor-grabbing transition-all select-none ${
-                dragOver === idx
-                  ? 'border-green-main bg-green-50 shadow-md scale-105'
-                  : 'border-green-200 bg-white text-gray-700 hover:border-green-400'
-              }`}
-            >
-              <GripVertical size={13} className="text-gray-400" />
-              {getRoleLabel(roleKey)}
-              <button onClick={() => onChange(roles.filter(r => r !== roleKey))}
-                className="ml-1 text-gray-400 hover:text-red-500 transition-colors">
-                <X size={12} />
-              </button>
-            </div>
-          </div>
-        ))}
-        {roles.length === 0 && (
-          <span className="text-xs text-gray-400">ไม่มีขั้นตอน (ไม่มีผู้อนุมัติ และอนุมัติอัตโนมัติ)</span>
+      <p className="text-xs text-gray-500 font-medium mb-2">สายอนุมัติ (รองรับ OR สูงสุด 2 Role ต่อขั้น)</p>
+      <div className="space-y-2 p-3 rounded-xl border-2 border-dashed border-gray-200 bg-gray-50">
+        <div className="inline-flex px-3 py-2 rounded-lg bg-green-main text-white text-xs font-semibold select-none">ผู้สร้าง</div>
+
+        {stages.length === 0 && (
+          <div className="text-xs text-gray-400">ไม่มีขั้นตอน (ไม่มีผู้อนุมัติ และอนุมัติอัตโนมัติ)</div>
         )}
+
+        {stages.map((stage, idx) => {
+          const stageUsedElsewhere = new Set(stages.flatMap((s, i) => i === idx ? [] : s))
+          const stagePickable = availableRoles.filter(roleKey => !stageUsedElsewhere.has(roleKey) && !stage.includes(roleKey))
+
+          return (
+            <div key={`stage-${idx}`} className="flex flex-wrap items-center gap-2 rounded-lg border-2 border-green-200 bg-white px-3 py-2">
+              <span className="text-gray-300 text-sm">→</span>
+              <span className="text-xs font-semibold text-gray-500">ขั้น {idx + 1}</span>
+
+              <div className="flex flex-wrap items-center gap-2">
+                {stage.map(roleKey => (
+                  <span key={`stage-${idx}-${roleKey}`} className="inline-flex items-center gap-1.5 rounded-lg border border-green-300 bg-green-50 px-2 py-1 text-xs font-semibold text-green-800">
+                    {getRoleLabel(roleKey)}
+                    <button
+                      type="button"
+                      className="text-green-700 hover:text-red-500"
+                      onClick={() => removeRoleFromStage(idx, roleKey)}
+                    >
+                      <X size={12} />
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {stage.length < 2 && stagePickable.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    className="form-select min-w-[180px]"
+                    value={stageRoleSelections[idx] ?? ''}
+                    onChange={e => setStageRoleSelections(prev => ({ ...prev, [idx]: e.target.value }))}
+                  >
+                    <option value="">เลือก Role ร่วม</option>
+                    {stagePickable.map(roleKey => (
+                      <option key={`stage-${idx}-option-${roleKey}`} value={roleKey}>
+                        {getRoleLabel(roleKey)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn-outline btn-sm"
+                    onClick={() => addRoleToStage(idx, stageRoleSelections[idx] ?? '')}
+                    disabled={!(stageRoleSelections[idx] ?? '')}
+                  >
+                    <Plus size={12} /> เพิ่ม Role ร่วม (OR)
+                  </button>
+                </div>
+              )}
+
+              <div className="ml-auto flex items-center gap-1">
+                <button type="button" className="btn-outline btn-sm" onClick={() => moveStage(idx, -1)} disabled={idx === 0}>
+                  <ArrowUp size={12} />
+                </button>
+                <button type="button" className="btn-outline btn-sm" onClick={() => moveStage(idx, 1)} disabled={idx === stages.length - 1}>
+                  <ArrowDown size={12} />
+                </button>
+                <button type="button" className="btn-danger btn-sm" onClick={() => removeStage(idx)}>
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          )
+        })}
       </div>
 
-      {available.length > 0 && (
+      {pickable.length > 0 && (
         <div className="mt-3">
-          <p className="text-xs text-gray-500 font-medium mb-2">เพิ่มขั้นตอน</p>
-          <div className="flex flex-wrap gap-2">
-            {available.map(roleKey => (
-              <button key={roleKey} onClick={() => onChange([...roles, roleKey])}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-xs text-gray-600 hover:border-green-400 hover:text-green-700 transition-colors">
-                <Plus size={12} />
-                {getRoleLabel(roleKey)}
-              </button>
-            ))}
+          <p className="text-xs text-gray-500 font-medium mb-2">เพิ่มขั้นตอนใหม่</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              className="form-select min-w-[220px]"
+              value={newStageRole}
+              onChange={e => setNewStageRole(e.target.value)}
+            >
+              <option value="">เลือก Role สำหรับขั้นใหม่</option>
+              {pickable.map(roleKey => (
+                <option key={`new-stage-${roleKey}`} value={roleKey}>
+                  {getRoleLabel(roleKey)}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              className="btn-outline btn-sm"
+              onClick={() => addStage(newStageRole)}
+              disabled={!newStageRole}
+            >
+              <Plus size={12} /> เพิ่มขั้นตอน
+            </button>
           </div>
         </div>
       )}

@@ -207,11 +207,14 @@ export interface Unit {
 export interface PrType {
   id: string
   name: string
-  approvalSteps: number[]
+  approvalSteps: ApprovalFlowStages
   active: boolean
   sortOrder: number
   createdAt?: string
 }
+
+export type ApprovalStepStage = number | number[]
+export type ApprovalFlowStages = ApprovalStepStage[]
 
 export interface Settings {
   id: string
@@ -519,7 +522,7 @@ export interface PurchaseRequest {
   workOrderId?: string
   workOrder?: { id: string; woNo: string }
   prTypeId?: string
-  prType?: { id: string; name: string; approvalSteps?: number[] }
+  prType?: { id: string; name: string; approvalSteps?: ApprovalFlowStages }
   salesId: string
   sales?: { id: string; fullName: string; signatureText?: string }
   customer: string

@@ -2,9 +2,11 @@
 
 import type { ApprovalLog, DocStatus } from '@/types'
 
+type StageInput = number | number[]
+
 type Props = {
   title: string
-  steps: number[]
+  steps: StageInput[]
   currentStep: number
   status: DocStatus
   approvalLogs?: ApprovalLog[]
@@ -56,6 +58,40 @@ function buildStepLatestLogMap(cycleLogs: ApprovalLog[]) {
   return stepLogs
 }
 
+function normalizeStages(steps: StageInput[]) {
+  if (!Array.isArray(steps)) return [] as number[][]
+
+  return steps
+    .map((entry) => {
+      if (Array.isArray(entry)) {
+        const stage = entry
+          .map(n => Number(n))
+          .filter(n => Number.isInteger(n) && n > 0)
+        return Array.from(new Set(stage))
+      }
+
+      const step = Number(entry)
+      if (!Number.isInteger(step) || step <= 0) return []
+      return [step]
+    })
+    .filter(stage => stage.length > 0)
+}
+
+function pickStageLatestLog(stage: number[], stepLogs: Map<number, ApprovalLog>) {
+  const logs = stage
+    .map(step => stepLogs.get(step))
+    .filter((log): log is ApprovalLog => !!log)
+
+  if (logs.length === 0) return undefined
+
+  return logs.sort((a, b) => {
+    const aTime = new Date(a.actedAt).getTime()
+    const bTime = new Date(b.actedAt).getTime()
+    if (aTime !== bTime) return bTime - aTime
+    return actionRank(b.action) - actionRank(a.action)
+  })[0]
+}
+
 export default function ApprovalFlowSteps({
   title,
   steps,
@@ -69,8 +105,9 @@ export default function ApprovalFlowSteps({
 }: Props) {
   const cycleLogs = getLatestCycleLogs(approvalLogs)
   const stepLogs = buildStepLatestLogMap(cycleLogs)
+  const stages = normalizeStages(steps)
 
-  if (steps.length === 0) return null
+  if (stages.length === 0) return null
 
   return (
     <div className="card p-5 no-print">
@@ -83,11 +120,14 @@ export default function ApprovalFlowSteps({
             <span className="mt-0.5 text-[11px] text-gray-600">{creatorName}</span>
           </div>
         )}
-        {steps.map(step => {
-          const roleKey = stepRoleConfig[String(step)]
-          const label = roleKey ? getRoleLabel(roleKey) : `Step ${step}`
-          const log = stepLogs.get(step)
-          const isCurrent = status === 'pending' && currentStep === step
+        {stages.map((stage) => {
+          const labels = stage.map(step => {
+            const roleKey = stepRoleConfig[String(step)]
+            return roleKey ? getRoleLabel(roleKey) : `Step ${step}`
+          })
+          const label = labels.join(' / ')
+          const log = pickStageLatestLog(stage, stepLogs)
+          const isCurrent = status === 'pending' && stage.includes(currentStep)
           const isApproved = log?.action === 'approve'
           const isRejected = log?.action === 'reject'
           const isSubmitted = log?.action === 'submit'
@@ -95,7 +135,7 @@ export default function ApprovalFlowSteps({
 
           return (
             <div
-              key={step}
+              key={stage.join('-')}
               className={`flex flex-col items-center px-3 py-2 rounded-lg border text-xs text-center min-w-[88px] ${
                 isApproved
                   ? 'bg-green-pale border-green-main text-green-dark'
