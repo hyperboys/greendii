@@ -187,6 +187,7 @@ export default function NewPRPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (saving) return
     if (!form.prTypeId) { toast.error('กรุณาเลือกประเภทใบขอซื้อ'); return }
     if (!form.customer) { toast.error('กรุณากรอกชื่อลูกค้า'); return }
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการ'); return }
@@ -207,13 +208,24 @@ export default function NewPRPage() {
         ...form, subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
         items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
       })
+
+      let attachmentUploadFailed = false
       for (const category of Array.from(new Set(pendingAttachments.map(p => p.category)))) {
         const files = pendingAttachments.filter(p => p.category === category).map(p => p.file)
         if (files.length > 0) {
-          await UploadAPI.upload(files, { purchaseRequestId: created.id, category })
+          try {
+            await UploadAPI.upload(files, { purchaseRequestId: created.id, category })
+          } catch {
+            attachmentUploadFailed = true
+          }
         }
       }
-      toast.success('สร้างใบขอซื้อสำเร็จ')
+
+      if (attachmentUploadFailed) {
+        toast.error('สร้างใบขอซื้อแล้ว แต่แนบไฟล์บางส่วนไม่สำเร็จ')
+      } else {
+        toast.success('สร้างใบขอซื้อสำเร็จ')
+      }
       router.replace(`/pr/${created.id}`)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'บันทึกไม่สำเร็จ')

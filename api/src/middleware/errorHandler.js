@@ -24,11 +24,23 @@ function mapPrismaError(err) {
   return null;
 }
 
+function mapMulterError(err) {
+  if (err?.code === 'LIMIT_UNEXPECTED_FILE') {
+    const field = err.field ? String(err.field) : 'files';
+    return {
+      status: 400,
+      message: `Unexpected field: โปรดส่งไฟล์ด้วย field "files" (received: ${field})`,
+    };
+  }
+  return null;
+}
+
 function errorHandler(err, req, res, _next) {
   const requestId = req.requestId || '-';
   const prismaMapped = mapPrismaError(err);
-  const status = prismaMapped?.status || err.status || err.statusCode || 500;
-  const rawMessage = prismaMapped?.message || err.message || 'Internal server error';
+  const multerMapped = mapMulterError(err);
+  const status = prismaMapped?.status || multerMapped?.status || err.status || err.statusCode || 500;
+  const rawMessage = prismaMapped?.message || multerMapped?.message || err.message || 'Internal server error';
   const validationDetail = summarizeValidationErrors(err.errors);
   const message = validationDetail && !String(rawMessage).includes(validationDetail)
     ? `${rawMessage}: ${validationDetail}`
