@@ -231,6 +231,7 @@ export interface Settings {
     workOrder?: number[]
     pr?: number[]
     handover?: number[]
+    prCurrencies?: string[]
     approvalBypassConfig?: {
       quotation?: string[]
       workOrder?: string[]
@@ -529,6 +530,7 @@ export interface PurchaseRequest {
   projectRef?: string
   dateIssue?: string
   dateRequired?: string
+  currency?: string
   subTotal: number
   specialDiscount: number
   vat: number

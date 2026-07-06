@@ -396,6 +396,7 @@ model PurchaseRequest {
   projectRef   String?
   dateIssue    DateTime?
   dateRequired DateTime?
+  currency     String     @default("THB")
   subTotal        Decimal    @default(0) @db.Decimal(12, 2)
   specialDiscount Decimal    @default(0) @db.Decimal(12, 2)
   vat             Decimal    @default(0) @db.Decimal(12, 2)

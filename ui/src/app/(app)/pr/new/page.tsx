@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, SettingsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -12,12 +12,29 @@ import AttachmentsSection, { type PendingAttachment } from '@/components/Attachm
 interface FormData {
   workOrderId: string
   prTypeId: string
+  currency: string
   customer: string
   projectRef: string
   dateIssue: string
   dateRequired: string
   remarks: string
   items: PRItem[]
+}
+
+function sanitizeCurrencies(raw?: unknown): string[] {
+  if (!Array.isArray(raw)) return ['THB', 'USD']
+  const cleaned = raw
+    .map(v => String(v || '').trim().toUpperCase())
+    .filter(v => /^[A-Z]{3}$/.test(v))
+  const deduped = Array.from(new Set(cleaned))
+  return deduped.length > 0 ? deduped : ['THB', 'USD']
+}
+
+function currencyPrefix(code?: string) {
+  const c = String(code || 'THB').trim().toUpperCase()
+  if (c === 'THB') return '฿'
+  if (c === 'USD') return '$'
+  return `${c} `
 }
 
 const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0, images: [] })
@@ -48,17 +65,25 @@ export default function NewPRPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [prTypes, setPrTypes] = useState<PrType[]>([])
+  const [prCurrencies, setPrCurrencies] = useState<string[]>(['THB', 'USD'])
   const [saving, setSaving] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
-    workOrderId: '', prTypeId: '', customer: '', projectRef: '',
+    workOrderId: '', prTypeId: '', currency: 'THB', customer: '', projectRef: '',
     dateIssue: '', dateRequired: '', remarks: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
   useEffect(() => {
-    Promise.all([WorkOrdersAPI.list({ status: 'approved' }), UnitsAPI.list(), PrTypesAPI.list({ active: 'true' })])
-      .then(([wo, u, t]) => { setWorkOrders(wo); setUnits(u); setPrTypes(t) })
+    Promise.all([WorkOrdersAPI.list({ status: 'approved' }), UnitsAPI.list(), PrTypesAPI.list({ active: 'true' }), SettingsAPI.get()])
+      .then(([wo, u, t, s]) => {
+        const currencies = sanitizeCurrencies(s.approvalFlowConfig?.prCurrencies)
+        setWorkOrders(wo)
+        setUnits(u)
+        setPrTypes(t)
+        setPrCurrencies(currencies)
+        setForm(prev => ({ ...prev, currency: currencies.includes(prev.currency) ? prev.currency : currencies[0] }))
+      })
   }, [])
 
   const handleWO = (id: string) => {
@@ -70,6 +95,7 @@ export default function NewPRPage() {
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const netTotal = roundMoney(afterDiscount + vat)
+  const moneyPrefix = currencyPrefix(form.currency)
 
   const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
     setForm(f => {
@@ -220,6 +246,13 @@ export default function NewPRPage() {
             onChange={e => setForm(f => ({ ...f, prTypeId: e.target.value }))}>
             <option value="">— กรุณาเลือกประเภทใบขอซื้อ —</option>
             {prTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">สกุลเงิน *</label>
+          <select className="form-input" required value={form.currency}
+            onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
+            {prCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
@@ -405,7 +438,7 @@ export default function NewPRPage() {
                   <td className="text-right text-gray-500 pr-2">{form.includeVat ? fmt(vat) : '-'}</td>
                   <td />
                 </tr>
-                <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">฿{fmt(netTotal)}</td><td /></tr>
+                <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">{moneyPrefix}{fmt(netTotal)}</td><td /></tr>
               </tfoot>
             </table>
           </div>

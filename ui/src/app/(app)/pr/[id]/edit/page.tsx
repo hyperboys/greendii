@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, SettingsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { Attachment, WorkOrder, PRItem, Unit, PrType } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
@@ -13,12 +13,29 @@ import AttachmentsSection from '@/components/AttachmentsSection'
 interface FormData {
   workOrderId: string
   prTypeId: string
+  currency: string
   customer: string
   projectRef: string
   dateIssue: string
   dateRequired: string
   remarks: string
   items: PRItem[]
+}
+
+function sanitizeCurrencies(raw?: unknown): string[] {
+  if (!Array.isArray(raw)) return ['THB', 'USD']
+  const cleaned = raw
+    .map(v => String(v || '').trim().toUpperCase())
+    .filter(v => /^[A-Z]{3}$/.test(v))
+  const deduped = Array.from(new Set(cleaned))
+  return deduped.length > 0 ? deduped : ['THB', 'USD']
+}
+
+function currencyPrefix(code?: string) {
+  const c = String(code || 'THB').trim().toUpperCase()
+  if (c === 'THB') return '฿'
+  if (c === 'USD') return '$'
+  return `${c} `
 }
 
 const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0, images: [] })
@@ -50,12 +67,13 @@ export default function EditPRPage() {
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [prTypes, setPrTypes] = useState<PrType[]>([])
+  const [prCurrencies, setPrCurrencies] = useState<string[]>(['THB', 'USD'])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
-    workOrderId: '', prTypeId: '', customer: '', projectRef: '',
+    workOrderId: '', prTypeId: '', currency: 'THB', customer: '', projectRef: '',
     dateIssue: '', dateRequired: '', remarks: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
@@ -64,12 +82,19 @@ export default function EditPRPage() {
       WorkOrdersAPI.list({ status: 'approved' }),
       UnitsAPI.list(),
       PrTypesAPI.list({ active: 'true' }),
+      SettingsAPI.get(),
       PRAPI.get(id),
     ])
-      .then(([woList, unitList, typeList, doc]) => {
+      .then(([woList, unitList, typeList, settings, doc]) => {
+        const currencies = sanitizeCurrencies(settings.approvalFlowConfig?.prCurrencies)
+        const docCurrency = String(doc.currency || '').trim().toUpperCase()
+        const mergedCurrencies = docCurrency && !currencies.includes(docCurrency)
+          ? [...currencies, docCurrency]
+          : currencies
         setWorkOrders(woList)
         setUnits(unitList)
         setPrTypes(typeList)
+        setPrCurrencies(mergedCurrencies)
         if (!isEditableApprovalDocStatus(doc.status)) {
           toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
           router.replace(`/pr/${id}`)
@@ -78,6 +103,7 @@ export default function EditPRPage() {
         setForm({
           workOrderId: doc.workOrderId ?? '',
           prTypeId: doc.prTypeId ?? '',
+          currency: docCurrency || mergedCurrencies[0] || 'THB',
           customer: doc.customer ?? '',
           projectRef: doc.projectRef ?? '',
           dateIssue: doc.dateIssue ? doc.dateIssue.slice(0, 10) : '',
@@ -107,6 +133,7 @@ export default function EditPRPage() {
   const afterDiscount = roundMoney(subTotal - Number(form.specialDiscount))
   const vat = form.includeVat ? roundMoney(afterDiscount * VAT_RATE) : 0
   const netTotal = roundMoney(afterDiscount + vat)
+  const moneyPrefix = currencyPrefix(form.currency)
 
   const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
     setForm(f => {
@@ -254,6 +281,13 @@ export default function EditPRPage() {
             onChange={e => setForm(f => ({ ...f, prTypeId: e.target.value }))}>
             <option value="">— กรุณาเลือกประเภทใบขอซื้อ —</option>
             {prTypes.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="form-label">สกุลเงิน *</label>
+          <select className="form-input" required value={form.currency}
+            onChange={e => setForm(f => ({ ...f, currency: e.target.value }))}>
+            {prCurrencies.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
         <div>
@@ -440,7 +474,7 @@ export default function EditPRPage() {
                   <td className="text-right text-gray-500 pr-2">{form.includeVat ? fmt(vat) : '-'}</td>
                   <td />
                 </tr>
-                <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">฿{fmt(netTotal)}</td><td /></tr>
+                <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-2 py-2">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark pr-2 text-base">{moneyPrefix}{fmt(netTotal)}</td><td /></tr>
               </tfoot>
             </table>
           </div>

@@ -19,6 +19,13 @@ function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+function currencyPrefix(code?: string) {
+  const c = String(code || 'THB').trim().toUpperCase()
+  if (c === 'THB') return '฿'
+  if (c === 'USD') return '$'
+  return `${c} `
+}
+
 export default function PRPage() {
   const router = useRouter()
   const { user } = useAuthStore()
@@ -94,7 +101,7 @@ export default function PRPage() {
                 <td>{p.prType?.name || '-'}</td>
                 <td>{p.customer}</td>
                 <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
-                <td className="text-right font-medium">฿{fmtMoney(p.netTotal)}</td>
+                <td className="text-right font-medium">{currencyPrefix(p.currency)}{fmtMoney(p.netTotal)}</td>
                 <td><span className={STATUS_COLORS[p.status]}>{STATUS_LABELS[p.status]}</span></td>
                 <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('en-GB')}</td>
               </tr>

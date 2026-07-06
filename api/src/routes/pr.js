@@ -10,6 +10,7 @@ const { getPrFirstStep, getPrNextStep, resolvePrFlowStages, getPrCurrentStageSte
 const { canManageAllDocs, canDeleteOthersDocs } = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
+const { getPrCurrencies, normalizeCurrencyCode } = require('../lib/prCurrency');
 
 const prValidators = [
   body('prTypeId').trim().notEmpty().withMessage('กรุณาเลือกประเภทใบขอซื้อ'),
@@ -17,6 +18,7 @@ const prValidators = [
   body('projectRef').optional({ nullable: true }).isString(),
   body('dateIssue').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
   body('dateRequired').optional({ nullable: true }).isISO8601().withMessage('รูปแบบวันที่ไม่ถูกต้อง'),
+  body('currency').optional({ nullable: true }).isString(),
   body('items').optional().isArray().withMessage('items ต้องเป็น array'),
   body('items.*.desc').optional({ nullable: true }).isString(),
   body('items.*.qty').optional().isFloat({ min: 0 }).withMessage('จำนวนต้องไม่ติดลบ'),
@@ -172,6 +174,9 @@ router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, q, active } = req.query;
     const andWhere = [await buildPrAccessWhere(req.user)];
+    if (status) andWhere.push({ status });
+    if (active !== undefined) andWhere.push({ active: active === 'true' });
+    else andWhere.push({ active: true });
     if (q) {
       andWhere.push({
         OR: [
@@ -276,9 +281,14 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
   try {
     const {
       workOrderId, prTypeId, customer, projectRef,
-      dateIssue, dateRequired, items = [],
+      dateIssue, dateRequired, currency, items = [],
       subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
+    const allowedCurrencies = await getPrCurrencies();
+    const requestedCurrency = normalizeCurrencyCode(currency || 'THB');
+    if (!allowedCurrencies.includes(requestedCurrency)) {
+      return res.status(400).json({ message: `currency ต้องเป็นหนึ่งใน: ${allowedCurrencies.join(', ')}` });
+    }
     if (!customer) return res.status(400).json({ message: 'customer required' });
     const yy = String(new Date().getFullYear()).slice(2);
     const prPrefix = `PR${yy}`;
@@ -295,6 +305,7 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
         prNo, workOrderId: workOrderId || null, prTypeId: prTypeId || null, customer, projectRef,
         dateIssue: dateIssue ? new Date(dateIssue) : null,
         dateRequired: dateRequired ? new Date(dateRequired) : null,
+        currency: requestedCurrency,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
         remarks, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
         items: {
@@ -345,6 +356,7 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           projectRef: source.projectRef,
           dateIssue: source.dateIssue,
           dateRequired: source.dateRequired,
+          currency: source.currency || 'THB',
           subTotal: source.subTotal,
           specialDiscount: source.specialDiscount,
           vat: source.vat,
@@ -376,8 +388,16 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
     }
     const {
       customer, projectRef, dateIssue, dateRequired, prTypeId,
-      items = [], subTotal, specialDiscount, vat, netTotal, remarks,
+      currency, items = [], subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
+    let normalizedCurrency;
+    if (currency !== undefined) {
+      const allowedCurrencies = await getPrCurrencies();
+      normalizedCurrency = normalizeCurrencyCode(currency || 'THB');
+      if (!allowedCurrencies.includes(normalizedCurrency)) {
+        return res.status(400).json({ message: `currency ต้องเป็นหนึ่งใน: ${allowedCurrencies.join(', ')}` });
+      }
+    }
     const item = await prisma.$transaction(async (tx) => {
       await tx.purchaseRequestItem.deleteMany({ where: { purchaseRequestId: req.params.id } });
       return tx.purchaseRequest.update({
@@ -387,6 +407,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
           prTypeId: prTypeId !== undefined ? (prTypeId || null) : undefined,
           dateIssue: dateIssue ? new Date(dateIssue) : null,
           dateRequired: dateRequired ? new Date(dateRequired) : null,
+          currency: normalizedCurrency,
           subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
           remarks,
           items: {

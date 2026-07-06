@@ -19,6 +19,13 @@ function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
 }
 
+function currencyPrefix(code?: string) {
+  const c = String(code || 'THB').trim().toUpperCase()
+  if (c === 'THB') return '฿'
+  if (c === 'USD') return '$'
+  return `${c} `
+}
+
 const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
 
 function normalizeApprovalStages(steps: unknown): number[][] {
@@ -107,6 +114,7 @@ export default function PRDetailPage() {
     && currentStageRoles.includes(actorRole)
     && !(currentStage.includes(1) && actorRole === 'sales' && isMine)
   const vatIncluded = Number(doc.vat ?? 0) > 0
+  const moneyPrefix = currencyPrefix(doc.currency)
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -202,6 +210,7 @@ export default function PRDetailPage() {
         <div><span className="form-label">ประเภท PR</span><p>{doc.prType?.name || '-'}</p></div>
         <div><span className="form-label">Project Ref</span><p>{doc.projectRef || '-'}</p></div>
         <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
+        <div><span className="form-label">สกุลเงิน</span><p>{doc.currency || 'THB'}</p></div>
         <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.remarks && <div className="col-span-full"><span className="form-label">Remarks</span><p>{doc.remarks}</p></div>}
@@ -258,12 +267,12 @@ export default function PRDetailPage() {
             ))}
           </tbody>
           <tfoot>
-            <tr className="bg-gray-50"><td colSpan={6} className="text-right font-semibold px-4 py-3">ยอดรวม</td><td className="text-right font-semibold px-4 py-3">฿{fmtMoney(doc.subTotal)}</td></tr>
+            <tr className="bg-gray-50"><td colSpan={6} className="text-right font-semibold px-4 py-3">ยอดรวม</td><td className="text-right font-semibold px-4 py-3">{moneyPrefix}{fmtMoney(doc.subTotal)}</td></tr>
             {Number(doc.specialDiscount) > 0 && (
-              <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td><td className="text-right text-gray-500 px-4 py-2">-฿{fmtMoney(doc.specialDiscount)}</td></tr>
+              <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">ส่วนลดพิเศษ</td><td className="text-right text-gray-500 px-4 py-2">-{moneyPrefix}{fmtMoney(doc.specialDiscount)}</td></tr>
             )}
-            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td><td className="text-right text-gray-500 px-4 py-2">฿{fmtMoney(vatIncluded ? doc.vat : 0)}</td></tr>
-            <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark px-4 py-3 text-base">฿{fmtMoney(doc.netTotal)}</td></tr>
+            <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-4 py-2">VAT</td><td className="text-right text-gray-500 px-4 py-2">{moneyPrefix}{fmtMoney(vatIncluded ? doc.vat : 0)}</td></tr>
+            <tr className="bg-green-pale"><td colSpan={6} className="text-right font-bold text-green-dark px-4 py-3">ยอดสุทธิ</td><td className="text-right font-bold text-green-dark px-4 py-3 text-base">{moneyPrefix}{fmtMoney(doc.netTotal)}</td></tr>
           </tfoot>
         </table>
       </div>

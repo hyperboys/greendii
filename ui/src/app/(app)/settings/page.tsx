@@ -12,16 +12,33 @@ const EMPTY: Partial<Settings> = {
   taxId: '', tel: '', email: '', website: '',
 }
 
+function sanitizeCurrencies(input: string): string[] {
+  const list = input
+    .split(',')
+    .map(v => v.trim().toUpperCase())
+    .filter(v => /^[A-Z]{3}$/.test(v))
+
+  const deduped = Array.from(new Set(list))
+  return deduped.length > 0 ? deduped : ['THB', 'USD']
+}
+
 export default function SettingsPage() {
   const { user } = useAuthStore()
   const canEdit = user?.role === 'admin' || user?.role === 'director'
   const [form, setForm] = useState<Partial<Settings>>(EMPTY)
+  const [prCurrenciesInput, setPrCurrenciesInput] = useState('THB, USD')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     SettingsAPI.get()
-      .then(s => setForm(s))
+      .then(s => {
+        setForm(s)
+        const configured = Array.isArray(s.approvalFlowConfig?.prCurrencies)
+          ? s.approvalFlowConfig?.prCurrencies
+          : ['THB', 'USD']
+        setPrCurrenciesInput(configured.join(', '))
+      })
       .catch(() => toast.error('โหลดการตั้งค่าไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }, [])
@@ -36,8 +53,16 @@ export default function SettingsPage() {
   const save = async () => {
     setSaving(true)
     try {
-      const updated = await SettingsAPI.update(form)
+      const prCurrencies = sanitizeCurrencies(prCurrenciesInput)
+      const updated = await SettingsAPI.update({
+        ...form,
+        approvalFlowConfig: {
+          ...(form.approvalFlowConfig || {}),
+          prCurrencies,
+        },
+      })
       setForm(updated)
+      setPrCurrenciesInput((updated.approvalFlowConfig?.prCurrencies || prCurrencies).join(', '))
       toast.success('บันทึกการตั้งค่าสำเร็จ')
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'บันทึกไม่สำเร็จ')
@@ -115,6 +140,27 @@ export default function SettingsPage() {
             <label className="form-label flex items-center gap-1"><Globe size={12} /> เว็บไซต์</label>
             <input className="form-input" {...f('website')} placeholder="https://greendii.app" />
           </div>
+        </div>
+      </div>
+
+      {/* PR Currency Config */}
+      <div className="card p-5 mb-4">
+        <div className="flex items-center gap-2 mb-4">
+          <Hash size={18} className="text-green-main" />
+          <h3 className="font-semibold text-gray-800">สกุลเงินใบขอซื้อ (PR)</h3>
+        </div>
+        <div>
+          <label className="form-label">รายการสกุลเงิน (คั่นด้วย ,)</label>
+          <input
+            className="form-input"
+            value={prCurrenciesInput}
+            onChange={e => setPrCurrenciesInput(e.target.value)}
+            disabled={!canEdit}
+            placeholder="THB, USD"
+          />
+          <p className="mt-2 text-xs text-gray-500">
+            ตัวอย่าง: THB, USD (ระบบจะใช้รูปแบบรหัส 3 ตัวอักษร และลบค่าซ้ำให้อัตโนมัติ)
+          </p>
         </div>
       </div>
 

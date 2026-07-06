@@ -13,6 +13,18 @@ function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
 }
 
+function currencyPrefix(code?: string): string {
+  const c = String(code || 'THB').trim().toUpperCase()
+  if (c === 'THB') return '฿'
+  if (c === 'USD') return '$'
+  return `${c} `
+}
+
+function currencyCode(code?: string): string {
+  const c = String(code || 'THB').trim().toUpperCase()
+  return /^[A-Z]{3}$/.test(c) ? c : 'THB'
+}
+
 function fmtDateTH(dateStr?: string): string {
   if (!dateStr) return ''
   const d = new Date(dateStr)
@@ -83,6 +95,8 @@ export default function PRPrint({ doc, settings }: Props) {
   const border = '1px solid #000'
   const hasSpecialDiscount = Number(doc.specialDiscount) > 0
   const vatIncluded = Number(doc.vat) > 0
+  const moneyPrefix = currencyPrefix(doc.currency)
+  const moneyCode = currencyCode(doc.currency)
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = fmtDateTH(doc.dateIssue || doc.createdAt)
 
@@ -253,8 +267,8 @@ export default function PRPrint({ doc, settings }: Props) {
               </td>
               <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
               <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.price) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtAmt(item.amount) : ''}</td>
+              <td style={{ ...tdS, textAlign: 'right' }}>{item ? `${moneyCode} ${fmtAmt(item.price)}` : ''}</td>
+              <td style={{ ...tdS, textAlign: 'right' }}>{item ? `${moneyCode} ${fmtAmt(item.amount)}` : ''}</td>
               <td style={{ ...tdS }}></td>
             </tr>
           ))}
@@ -282,26 +296,26 @@ export default function PRPrint({ doc, settings }: Props) {
               <tr>
                 <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
                 <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
-                <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtAmt(doc.specialDiscount)}</td>
+                <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{moneyCode} {fmtAmt(doc.specialDiscount)}</td>
                 <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
             )}
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
               <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
-              <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtAmt(doc.subTotal)}</td>
+              <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{moneyCode} {fmtAmt(doc.subTotal)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
               <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtAmt(vatIncluded ? doc.vat : 0)}</td>
+              <td style={{ ...tdTotalS, textAlign: 'right' }}>{moneyCode} {fmtAmt(vatIncluded ? doc.vat : 0)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
             <tr>
               <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
               <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
-              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtAmt(doc.netTotal)}</td>
+              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{moneyCode} {fmtAmt(doc.netTotal)}</td>
               <td style={{ border: 'none' }}>&nbsp;</td>
             </tr>
           </tbody>
