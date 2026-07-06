@@ -157,6 +157,80 @@ async function notifyPrStage(stepRole, stageSteps, text, options = {}) {
   );
 }
 
+async function loadAttachmentBytes(att) {
+  const fileUrl = att.fileUrl || '';
+  if (/^https?:\/\//i.test(fileUrl)) {
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) throw new Error(`fetch failed ${resp.status}`);
+    return Buffer.from(await resp.arrayBuffer());
+  }
+  const path = require('path');
+  const fs = require('fs/promises');
+  return fs.readFile(path.join(__dirname, '../../uploads', att.filename));
+}
+
+function isImageAttachment(att) {
+  const mime = String(att?.mimeType || '').toLowerCase();
+  if (mime.startsWith('image/')) return true;
+  const name = String(att?.originalName || att?.filename || '');
+  return /\.(png|jpe?g)$/i.test(name);
+}
+
+async function appendPrintableAttachments(basePdf, attachments) {
+  const printableAtts = (attachments || []).filter((att) => {
+    if (!att) return false;
+    if (att.mimeType === 'application/pdf') return true;
+    if (isImageAttachment(att)) return true;
+    return false;
+  });
+  if (printableAtts.length === 0) return basePdf;
+
+  const { PDFDocument } = require('pdf-lib');
+  let merged;
+  try {
+    merged = await PDFDocument.load(basePdf);
+  } catch {
+    return basePdf;
+  }
+
+  for (const att of printableAtts) {
+    try {
+      const bytes = await loadAttachmentBytes(att);
+      if (att.mimeType === 'application/pdf') {
+        const src = await PDFDocument.load(bytes);
+        const copied = await merged.copyPages(src, src.getPageIndices());
+        copied.forEach(p => merged.addPage(p));
+        continue;
+      }
+
+      // Append image attachments as standalone A4 pages.
+      let embeddedImage;
+      const mime = String(att?.mimeType || '').toLowerCase();
+      const fileName = String(att?.originalName || att?.filename || '').toLowerCase();
+      if (mime === 'image/png' || fileName.endsWith('.png')) {
+        embeddedImage = await merged.embedPng(bytes);
+      } else {
+        embeddedImage = await merged.embedJpg(bytes);
+      }
+
+      const page = merged.addPage([595.28, 841.89]); // A4 portrait in points
+      const margin = 24;
+      const maxWidth = page.getWidth() - margin * 2;
+      const maxHeight = page.getHeight() - margin * 2;
+      const scale = Math.min(maxWidth / embeddedImage.width, maxHeight / embeddedImage.height, 1);
+      const drawWidth = embeddedImage.width * scale;
+      const drawHeight = embeddedImage.height * scale;
+      const x = (page.getWidth() - drawWidth) / 2;
+      const y = (page.getHeight() - drawHeight) / 2;
+      page.drawImage(embeddedImage, { x, y, width: drawWidth, height: drawHeight });
+    } catch {
+      // Skip unreadable / unsupported attachment and keep the rest.
+    }
+  }
+
+  return Buffer.from(await merged.save());
+}
+
 async function assertPrAccessible(req, pr) {
   if (!pr) return;
 
@@ -285,7 +359,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);
-    const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}`;
+    const url = `${uiBase}/print/pr/${req.params.id}?token=${encodeURIComponent(token)}&mode=pdf`;
     const item = await prisma.purchaseRequest.findUniqueOrThrow({
       where: { id: req.params.id },
       select: {
@@ -303,13 +377,18 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
         approvalLogs: {
           select: { approverId: true, action: true },
         },
+        attachments: {
+          select: { filename: true, fileUrl: true, mimeType: true, originalName: true },
+          orderBy: { uploadedAt: 'asc' },
+        },
       },
     });
     await assertPrAccessible(req, item);
     const pdf = await renderUrlToPdf(url);
+    const finalPdf = await appendPrintableAttachments(pdf, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
-    res.send(pdf);
+    res.send(finalPdf);
   } catch (e) { next(e); }
 });
 

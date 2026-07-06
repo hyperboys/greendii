@@ -49,6 +49,17 @@ function splitDescriptionLines(note?: string): string[] {
   return lines
 }
 
+function isImageAttachment(mimeType?: string, fileName?: string): boolean {
+  if (String(mimeType || '').toLowerCase().startsWith('image/')) return true
+  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(fileName || ''))
+}
+
+function attachmentUrl(fileUrl?: string, filename?: string): string {
+  if (fileUrl && String(fileUrl).trim()) return resolveFileUrl(fileUrl)
+  if (filename && String(filename).trim()) return resolveFileUrl(`/uploads/${filename}`)
+  return ''
+}
+
 const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
 
 function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
@@ -66,9 +77,10 @@ const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
+  embedPdfAttachments?: boolean
 }
 
-export default function PRPrint({ doc, settings }: Props) {
+export default function PRPrint({ doc, settings, embedPdfAttachments = true }: Props) {
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0')
     const now = new Date()
@@ -99,6 +111,13 @@ export default function PRPrint({ doc, settings }: Props) {
   const moneyCode = currencyCode(doc.currency)
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = fmtDateTH(doc.dateIssue || doc.createdAt)
+  const attachmentSheets = (Array.isArray(doc.attachments) ? doc.attachments : []).filter(att => {
+    const hasSource = Boolean((att.fileUrl && String(att.fileUrl).trim()) || (att.filename && String(att.filename).trim()))
+    if (!hasSource) return false
+    if (isImageAttachment(att.mimeType, att.originalName || att.filename)) return true
+    if (att.mimeType === 'application/pdf') return embedPdfAttachments
+    return false
+  })
 
   const thS: React.CSSProperties = {
     border,
@@ -144,7 +163,16 @@ export default function PRPrint({ doc, settings }: Props) {
         fontSize: '11pt',
       }}
     >
-      <div style={{ height: '277mm', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      <div
+        style={{
+          height: '277mm',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          pageBreakAfter: attachmentSheets.length > 0 ? 'always' : 'auto',
+          breakAfter: attachmentSheets.length > 0 ? 'page' : 'auto',
+        }}
+      >
 
       {/* ═══ Company Header ═══ */}
       <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
@@ -391,6 +419,39 @@ export default function PRPrint({ doc, settings }: Props) {
       </div>
 
       </div>
+
+      {attachmentSheets.map((att, ai) => {
+        const isLastSheet = ai === attachmentSheets.length - 1
+        const isImage = isImageAttachment(att.mimeType, att.originalName || att.filename)
+        const url = attachmentUrl(att.fileUrl, att.filename)
+        return (
+          <div
+            key={`pr-att-${att.id || att.filename || ai}`}
+            style={{
+              minHeight: '277mm',
+              display: 'flex',
+              flexDirection: 'column',
+              pageBreakAfter: isLastSheet ? 'auto' : 'always',
+              breakAfter: isLastSheet ? 'auto' : 'page',
+            }}
+          >
+            {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={url}
+                alt={att.originalName || att.filename || ''}
+                style={{ maxWidth: '100%', maxHeight: '277mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
+              />
+            ) : (
+              <iframe
+                src={url}
+                title={att.originalName || `pr-attachment-${ai + 1}`}
+                style={{ width: '100%', height: '277mm', border: 'none', background: '#fff' }}
+              />
+            )}
+          </div>
+        )
+      })}
 
     </div>
   )

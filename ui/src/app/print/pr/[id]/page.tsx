@@ -11,9 +11,13 @@ export default function PrintPRPage() {
   const [doc, setDoc] = useState<PurchaseRequest | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [error, setError] = useState<string>('')
+  const [pdfMode, setPdfMode] = useState(false)
 
   useEffect(() => {
     const token = getTokenFromQuery()
+    if (typeof window !== 'undefined') {
+      setPdfMode(new URLSearchParams(window.location.search).get('mode') === 'pdf')
+    }
     Promise.all([
       apiGet<PurchaseRequest>(`/pr/${id}`, token),
       apiGet<Settings>('/settings', token).catch(() => null),
@@ -27,5 +31,5 @@ export default function PrintPRPage() {
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>
   if (!doc) return <div style={{ padding: 20 }}>Loading…</div>
 
-  return <PRPrint doc={doc} settings={settings} />
+  return <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} />
 }
