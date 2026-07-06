@@ -41,6 +41,43 @@ const INCLUDE_FULL = {
   attachments: true,
 };
 
+function stripRevisionSuffix(docNo = '') {
+  return String(docNo).replace(/-R\d+$/i, '');
+}
+
+function buildRevisionDocNo(baseNo, revisionNo) {
+  return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`;
+}
+
+async function getDocNumberFloor(prefix) {
+  const settings = await prisma.settings.findUnique({
+    where: { id: 'main' },
+    select: { approvalFlowConfig: true },
+  });
+  const cfg = settings?.approvalFlowConfig;
+  const floors = (cfg && typeof cfg === 'object' && cfg.docNoFloors && typeof cfg.docNoFloors === 'object')
+    ? cfg.docNoFloors
+    : {};
+  const floor = Number(floors[prefix]);
+  return Number.isFinite(floor) && floor > 0 ? Math.floor(floor) : 1;
+}
+
+function normalizePrItem(item, index) {
+  const qty = Number(item?.qty ?? 0) || 0;
+  const price = Number(item?.price ?? 0) || 0;
+  return {
+    seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
+    partNo: item?.partNo == null ? null : String(item.partNo),
+    desc: String(item?.desc ?? '').trim(),
+    note: item?.note == null ? null : String(item.note),
+    qty,
+    unit: String(item?.unit ?? '').trim(),
+    price,
+    amount: qty * price,
+    images: Array.isArray(item?.images) ? item.images.map(v => String(v || '')).filter(Boolean) : [],
+  };
+}
+
 function hasUserApprovedOrRejected(pr, userId) {
   return Array.isArray(pr?.approvalLogs)
     && pr.approvalLogs.some(
