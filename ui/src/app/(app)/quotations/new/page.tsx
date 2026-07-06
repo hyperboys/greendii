@@ -1,10 +1,9 @@
 'use client'
 
-import { Fragment, useEffect, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
-import { parseColoredLine, parseColoredMultiline, stringifyColoredLine, stringifyColoredMultiline, toPlainColoredMultiline } from '@/lib/coloredText'
-import QuickColorPicker from '@/components/QuickColorPicker'
+import { parseColoredLine, stringifyColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 import { useAuthStore } from '@/store/auth'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
@@ -44,6 +43,13 @@ const roundMoney = (value: number) => Math.round(value * 100) / 100
 const LEAD_TIME_OPTIONS = ['7 Days', '15 Days', '30 Days', '60 Days', '90 Days'] as const
 const CUSTOM_LEAD_TIME = '__custom_lead_time__'
 const DEFAULT_LINE_COLOR = '#000000'
+const NOTE_BLOCK_SEPARATOR = '\n\n__QO_NOTE_BLOCK__\n\n'
+const MAIN_ITEM_COLORS = [
+  { value: '#000000', label: 'ดำ (Default)' },
+  { value: '#dc2626', label: 'แดง' },
+  { value: '#2563eb', label: 'น้ำเงิน' },
+  { value: '#16a34a', label: 'เขียว' },
+] as const
 
 const getSelectValue = (value: string, options: readonly string[], customValue: string) => {
   if (!value) return ''
@@ -96,9 +102,17 @@ const calcItemTotal = (item: QuotationItem) => {
   return normalized.amount + detailTotal
 }
 
-const getNoteLines = (note?: string) => {
-  const lines = parseColoredMultiline(note)
-  return lines.length > 0 ? lines : [{ text: '', color: undefined }]
+function parseNoteBlocks(note?: string): string[] {
+  const raw = toPlainColoredMultiline(note)
+  if (!raw.trim()) return []
+  if (!raw.includes(NOTE_BLOCK_SEPARATOR)) return [raw]
+  return raw.split(NOTE_BLOCK_SEPARATOR)
+}
+
+function stringifyNoteBlocks(blocks: string[]): string {
+  const normalized = blocks.map(v => String(v ?? ''))
+  if (normalized.length === 0) return ''
+  return normalized.join(NOTE_BLOCK_SEPARATOR)
 }
 
 function hasNoteContent(note?: string): boolean {
@@ -126,6 +140,10 @@ export default function NewQuotationPage() {
   const [saving, setSaving] = useState(false)
   const [isCustomLeadTime, setIsCustomLeadTime] = useState(false)
   const [itemUi, setItemUi] = useState<Array<{ showNote: boolean; showDetails: boolean }>>([{ showNote: false, showDetails: false }])
+  const [activeItemIdx, setActiveItemIdx] = useState(0)
+  const [activeColorPickerIdx, setActiveColorPickerIdx] = useState<number | null>(null)
+  const [activeDetailColorPickerKey, setActiveDetailColorPickerKey] = useState<string | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement | null>(null)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     customerId: '', customerName: '', attn: '', project: '',
@@ -178,24 +196,33 @@ export default function NewQuotationPage() {
     })
   }
 
-  const setItemNoteFreeText = (itemIdx: number, text: string) => {
+  const setItemNoteBlock = (itemIdx: number, noteIdx: number, text: string) => {
     setForm(f => {
       const items = [...f.items]
-      const currentLines = getNoteLines(items[itemIdx].note)
-      const nextLines = String(text)
-        .split('\n')
-        .map((line, idx) => ({ text: line, color: currentLines[idx]?.color }))
-      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyColoredMultiline(nextLines) })
+      const blocks = parseNoteBlocks(items[itemIdx].note)
+      const nextBlocks = blocks.length > 0 ? [...blocks] : ['']
+      nextBlocks[noteIdx] = text
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
       return { ...f, items }
     })
   }
 
-  const setItemNoteColor = (itemIdx: number, color: string) => {
+  const addNoteBlock = (itemIdx: number) => {
     setForm(f => {
       const items = [...f.items]
-      const lines = getNoteLines(items[itemIdx].note)
-      const nextLines = lines.map(line => ({ ...line, color }))
-      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyColoredMultiline(nextLines) })
+      const blocks = parseNoteBlocks(items[itemIdx].note)
+      const nextBlocks = [...blocks, '']
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
+      return { ...f, items }
+    })
+  }
+
+  const removeNoteBlock = (itemIdx: number, noteIdx: number) => {
+    setForm(f => {
+      const items = [...f.items]
+      const blocks = parseNoteBlocks(items[itemIdx].note)
+      blocks.splice(noteIdx, 1)
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(blocks) })
       return { ...f, items }
     })
   }
@@ -213,7 +240,7 @@ export default function NewQuotationPage() {
   const addDetailRow = (itemIdx: number) => {
     setForm(f => {
       const items = [...f.items]
-      const detailRows = [...(items[itemIdx].detailRows || []), emptyDetailRow()]
+      const detailRows = [...(items[itemIdx].detailRows || []), normalizeDetailRow({ qty: 1, materialPrice: 0, labourPrice: 0, unit: '' })]
       items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows })
       return { ...f, items }
     })
@@ -232,6 +259,7 @@ export default function NewQuotationPage() {
   const addItem = () => {
     setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
     setItemUi(prev => [...prev, { showNote: false, showDetails: false }])
+    setActiveItemIdx(form.items.length)
   }
 
   const removeItem = (idx: number) => {
@@ -241,6 +269,7 @@ export default function NewQuotationPage() {
 
   const revealNote = (idx: number) => {
     setItemUi(prev => prev.map((ui, i) => (i === idx ? { ...ui, showNote: true } : ui)))
+    addNoteBlock(idx)
   }
 
   const revealDetails = (idx: number) => {
@@ -248,6 +277,17 @@ export default function NewQuotationPage() {
     if (!(form.items[idx].detailRows && form.items[idx].detailRows.length > 0)) {
       addDetailRow(idx)
     }
+  }
+
+  const triggerActiveImageUpload = () => {
+    if (!form.items[activeItemIdx]) return
+    uploadInputRef.current?.click()
+  }
+
+  const triggerItemImageUpload = (itemIdx: number) => {
+    if (!form.items[itemIdx]) return
+    setActiveItemIdx(itemIdx)
+    uploadInputRef.current?.click()
   }
 
   const handleCustomer = (id: string) => {
@@ -294,6 +334,14 @@ export default function NewQuotationPage() {
     e.preventDefault()
     if (!form.customerName || !form.project) { toast.error('กรุณากรอกลูกค้าและโครงการ'); return }
     if (form.items.some(i => !parseColoredLine(i.desc).text.trim())) { toast.error('กรุณากรอกรายการสินค้า'); return }
+    if (form.items.some(i => !Number.isFinite(Number(i.qty)) || !Number.isFinite(Number(i.materialPrice)) || !Number.isFinite(Number(i.labourPrice)))) {
+      toast.error('Q\'ty และ Price ต้องเป็นตัวเลข')
+      return
+    }
+    if (form.items.some(i => (i.detailRows || []).some(r => !Number.isFinite(Number(r.materialPrice))))) {
+      toast.error('ราคาในบรรทัดย่อยต้องเป็นตัวเลข')
+      return
+    }
     setSaving(true)
     try {
       // 1) Save any new units used by items
@@ -490,48 +538,88 @@ export default function NewQuotationPage() {
                 {form.items.map((item, i) => {
                   const showNoteSection = Boolean(itemUi[i]?.showNote) || hasNoteContent(item.note)
                   const showDetailSection = Boolean(itemUi[i]?.showDetails) || hasDetailContent(item)
+                  const noteBlocks = parseNoteBlocks(item.note)
                   return (
                   <Fragment key={i}>
-                    <tr className="border-t border-gray-100 align-top">
+                    <tr className={`border-t align-top ${activeItemIdx === i ? 'border-green-400 bg-green-50/40' : 'border-gray-100'}`}>
                       <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
                       <td className="py-2 px-2">
                         <div className="flex items-start gap-2">
                           <input className="form-input py-1 w-full" value={parseColoredLine(item.desc).text} required
                             onChange={e => setItemDescriptionText(i, e.target.value)}
+                            onFocus={() => setActiveItemIdx(i)}
                             placeholder="ชื่อสินค้า/บริการ *" />
-                          <QuickColorPicker
-                            value={parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR}
-                            onChange={color => setItemDescriptionColor(i, color)}
-                            title="สีข้อความรายการ"
-                          />
-                        </div>
-                        {showNoteSection ? (
-                          <div className="mt-2 flex items-start gap-2">
-                            <textarea
-                              className="form-input py-1 text-xs w-full"
-                              rows={3}
-                              value={toPlainColoredMultiline(item.note)}
-                              onChange={e => setItemNoteFreeText(i, e.target.value)}
-                              placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
-                            />
-                            <QuickColorPicker
-                              value={getNoteLines(item.note)[0]?.color || DEFAULT_LINE_COLOR}
-                              onChange={color => setItemNoteColor(i, color)}
-                              title="สีข้อความหมายเหตุ"
-                            />
-                          </div>
-                        ) : (
-                          <div className="mt-2">
+                          <div className="relative shrink-0" onBlurCapture={e => {
+                            if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActiveColorPickerIdx(null)
+                          }}>
                             <button
                               type="button"
-                              className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
-                              onClick={() => revealNote(i)}
+                              className="form-input flex h-9 w-11 items-center justify-center gap-1 rounded-md px-0"
+                              onClick={() => setActiveColorPickerIdx(activeColorPickerIdx === i ? null : i)}
+                              title="สีข้อความรายการ"
+                              aria-label="สีข้อความรายการ"
                             >
-                              <Plus size={12} /> เพิ่มหมายเหตุ
+                              <span
+                                aria-hidden="true"
+                                className="h-3.5 w-3.5 rounded-full border border-white shadow-sm"
+                                style={{ backgroundColor: parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR }}
+                              />
+                              <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                            </button>
+                            {activeColorPickerIdx === i ? (
+                              <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                {MAIN_ITEM_COLORS.map(color => {
+                                  const selected = (parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR) === color.value
+                                  return (
+                                    <button
+                                      key={color.value}
+                                      type="button"
+                                      className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                      onClick={() => {
+                                        setItemDescriptionColor(i, color.value)
+                                        setActiveColorPickerIdx(null)
+                                      }}
+                                    >
+                                      <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                      <span>{color.label}</span>
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                        {showNoteSection ? (
+                          <div className="mt-2 space-y-2">
+                            {(noteBlocks.length > 0 ? noteBlocks : ['']).map((noteText, noteIdx) => (
+                              <div key={`${i}-note-${noteIdx}`} className="flex items-start gap-2">
+                                <textarea
+                                  className="form-input py-1 text-xs w-full"
+                                  rows={3}
+                                  value={noteText}
+                                  onFocus={() => setActiveItemIdx(i)}
+                                  onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
+                                  placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                                />
+                                <button
+                                  type="button"
+                                  className="mt-1 p-1 text-red-400 hover:text-red-600"
+                                  onClick={() => removeNoteBlock(i, noteIdx)}
+                                  title="ลบหมายเหตุ"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            ))}
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              onClick={() => addNoteBlock(i)}
+                            >
+                              <Plus size={14} /> เพิ่มหมายเหตุ
                             </button>
                           </div>
-                        )}
-                        {/* Item images */}
+                        ) : null}
                         <div className="mt-2">
                           {item.images && item.images.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mb-1.5">
@@ -554,24 +642,19 @@ export default function NewQuotationPage() {
                               ))}
                             </div>
                           )}
-                          <label className="inline-flex items-center gap-1 text-xs text-blue-700 hover:text-blue-800 font-medium cursor-pointer">
-                            <ImagePlus size={12} /> เพิ่มรูปภาพ
-                            <input
-                              type="file"
-                              accept="image/*"
-                              multiple
-                              className="hidden"
-                              onChange={e => {
-                                uploadItemImages(i, e.target.files)
-                                e.target.value = ''
-                              }}
-                            />
-                          </label>
+                          <button
+                            type="button"
+                            className="btn-outline btn-sm"
+                            onClick={() => triggerItemImageUpload(i)}
+                          >
+                            <ImagePlus size={14} /> เพิ่มรูปภาพ
+                          </button>
                         </div>
                       </td>
                       <td className="py-2 px-2">
                         <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
                           value={emptyWhenZero(item.qty)}
+                          onFocus={() => setActiveItemIdx(i)}
                           onChange={e => {
                             const raw = e.target.value.trim()
                             setItem(i, 'qty', raw === '' ? 0 : Number(raw))
@@ -580,15 +663,18 @@ export default function NewQuotationPage() {
                       <td className="py-2 px-2">
                         <input list="units-datalist" className="form-input py-1"
                           value={item.unit}
+                          onFocus={() => setActiveItemIdx(i)}
                           onChange={e => setItem(i, 'unit', e.target.value)}
                           placeholder="-" />
                       </td>
                       <td className="py-2 px-2">
                         <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                          onFocus={() => setActiveItemIdx(i)}
                           value={item.materialPrice} onChange={e => setItem(i, 'materialPrice', +e.target.value)} />
                       </td>
                       <td className="py-2 px-2">
                         <input type="number" min={0} step="any" className="form-input py-1 text-right"
+                          onFocus={() => setActiveItemIdx(i)}
                           value={item.labourPrice} onChange={e => setItem(i, 'labourPrice', +e.target.value)} />
                       </td>
                       <td className="py-2.5 px-2 text-right font-medium pr-2 pt-3.5">{fmt(normalizeItem(item).amount)}</td>
@@ -609,37 +695,83 @@ export default function NewQuotationPage() {
                             <input
                               className="form-input py-1 text-xs w-full text-gray-700"
                               value={parseColoredLine(detail.desc).text}
+                              onFocus={() => setActiveItemIdx(i)}
                               onChange={e => {
                                 const prev = parseColoredLine(detail.desc)
                                 setDetailRow(i, detailIdx, 'desc', stringifyColoredLine({ text: e.target.value, color: prev.color }))
                               }}
                               placeholder={`รายละเอียดบรรทัดที่ ${detailIdx + 1} (ไม่บังคับ)`}
                             />
-                            <QuickColorPicker
-                              value={parseColoredLine(detail.desc).color || DEFAULT_LINE_COLOR}
-                              onChange={color => {
-                                const prev = parseColoredLine(detail.desc)
-                                setDetailRow(i, detailIdx, 'desc', stringifyColoredLine({ text: prev.text, color }))
+                            <div
+                              className="relative shrink-0"
+                              onBlurCapture={e => {
+                                if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActiveDetailColorPickerKey(null)
                               }}
-                              title="สีข้อความรายละเอียด"
-                            />
+                            >
+                              <button
+                                type="button"
+                                className="form-input flex h-8 w-11 items-center justify-center gap-1 rounded-md px-0"
+                                onFocus={() => setActiveItemIdx(i)}
+                                onClick={() => {
+                                  const key = `${i}-${detailIdx}`
+                                  setActiveDetailColorPickerKey(activeDetailColorPickerKey === key ? null : key)
+                                }}
+                                title="สีข้อความรายละเอียด"
+                                aria-label="สีข้อความรายละเอียด"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="h-3 w-3 rounded-full border border-white shadow-sm"
+                                  style={{ backgroundColor: parseColoredLine(detail.desc).color || DEFAULT_LINE_COLOR }}
+                                />
+                                <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                              </button>
+                              {activeDetailColorPickerKey === `${i}-${detailIdx}` ? (
+                                <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                  {MAIN_ITEM_COLORS.map(color => {
+                                    const selected = (parseColoredLine(detail.desc).color || DEFAULT_LINE_COLOR) === color.value
+                                    return (
+                                      <button
+                                        key={color.value}
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                        onClick={() => {
+                                          const prev = parseColoredLine(detail.desc)
+                                          setDetailRow(i, detailIdx, 'desc', stringifyColoredLine({ text: prev.text, color: color.value }))
+                                          setActiveDetailColorPickerKey(null)
+                                        }}
+                                      >
+                                        <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                        <span>{color.label}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
                           </div>
                         </td>
                         <td className="py-1.5 px-2">
                           <input
                             type="number"
                             min={0}
+                            max={99999}
                             step="any"
                             className="form-input py-1 text-xs text-right"
                             value={emptyWhenZero(detail.qty)}
-                            onChange={e => setDetailRow(i, detailIdx, 'qty', +e.target.value)}
+                            onFocus={() => setActiveItemIdx(i)}
+                            onChange={e => {
+                              const raw = e.target.value.trim()
+                              setDetailRow(i, detailIdx, 'qty', raw === '' ? 0 : Number(raw))
+                            }}
                           />
                         </td>
                         <td className="py-1.5 px-2">
                           <input
                             list="units-datalist"
                             className="form-input py-1 text-xs"
-                            value={detail.unit}
+                            value={detail.unit || ''}
+                            onFocus={() => setActiveItemIdx(i)}
                             onChange={e => setDetailRow(i, detailIdx, 'unit', e.target.value)}
                             placeholder="-"
                           />
@@ -651,7 +783,8 @@ export default function NewQuotationPage() {
                             step="any"
                             className="form-input py-1 text-xs text-right"
                             value={emptyWhenZero(detail.materialPrice)}
-                            onChange={e => setDetailRow(i, detailIdx, 'materialPrice', +e.target.value)}
+                            onFocus={() => setActiveItemIdx(i)}
+                            onChange={e => setDetailRow(i, detailIdx, 'materialPrice', Number(e.target.value || 0))}
                           />
                         </td>
                         <td className="py-1.5 px-2">
@@ -661,13 +794,14 @@ export default function NewQuotationPage() {
                             step="any"
                             className="form-input py-1 text-xs text-right"
                             value={emptyWhenZero(detail.labourPrice)}
-                            onChange={e => setDetailRow(i, detailIdx, 'labourPrice', +e.target.value)}
+                            onFocus={() => setActiveItemIdx(i)}
+                            onChange={e => setDetailRow(i, detailIdx, 'labourPrice', Number(e.target.value || 0))}
                           />
                         </td>
                         <td className="py-1.5 px-2 text-right pr-2">
                           <span className="inline-block min-w-[72px] rounded bg-gray-100 px-2 py-1 text-right text-xs font-semibold text-gray-700">
                             {(() => {
-                              const detailAmount = Number(detail.qty) * (Number(detail.materialPrice) + Number(detail.labourPrice))
+                              const detailAmount = Number(detail.qty || 0) * (Number(detail.materialPrice || 0) + Number(detail.labourPrice || 0))
                               return detailAmount === 0 ? '' : fmt(detailAmount)
                             })()}
                           </span>
@@ -684,32 +818,54 @@ export default function NewQuotationPage() {
                         </td>
                       </tr>
                     ))}
-                    <tr>
-                      <td className="px-2 py-1.5" />
-                      <td className="px-2 py-1.5">
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
-                          onClick={() => (showDetailSection ? addDetailRow(i) : revealDetails(i))}
-                        >
-                          <Plus size={12} /> {showDetailSection ? 'เพิ่มรายละเอียด' : 'เพิ่มรายละเอียดบรรทัด'}
-                        </button>
-                      </td>
-                      <td colSpan={6} className="px-2 py-1.5" />
-                    </tr>
+                    {showDetailSection ? (
+                      <tr className="border-t border-gray-100 bg-white/60">
+                        <td className="py-2 px-2" />
+                        <td className="py-2 px-2">
+                          <button
+                            type="button"
+                            className="btn-outline btn-sm"
+                            onClick={() => addDetailRow(i)}
+                          >
+                            <Plus size={14} /> เพิ่มบรรทัด
+                          </button>
+                        </td>
+                        <td colSpan={6} className="py-2 px-2" />
+                      </tr>
+                    ) : null}
                   </Fragment>
                   )
                 })}
                 <tr className="border-t border-gray-100 bg-white/70">
                   <td className="px-2 py-2" />
                   <td className="px-2 py-2">
-                    <button
-                      type="button"
-                      className="btn-outline btn-sm"
-                      onClick={addItem}
-                    >
-                      <Plus size={14} /> เพิ่มรายการ
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                      <button type="button" className="btn-outline btn-sm" onClick={addItem}>
+                        <Plus size={14} /> เพิ่มรายการ
+                      </button>
+                      <button type="button" className="btn-outline btn-sm" onClick={() => revealNote(activeItemIdx)} disabled={!form.items[activeItemIdx]}>
+                        <Plus size={14} /> เพิ่มหมายเหตุ
+                      </button>
+                      <button type="button" className="btn-outline btn-sm" onClick={() => revealDetails(activeItemIdx)} disabled={!form.items[activeItemIdx]}>
+                        <Plus size={14} /> เพิ่มบรรทัด
+                      </button>
+                      <div className="flex flex-nowrap items-center gap-2">
+                        <button type="button" className="btn-outline btn-sm whitespace-nowrap shrink-0" onClick={triggerActiveImageUpload} disabled={!form.items[activeItemIdx]}>
+                          <ImagePlus size={14} /> เพิ่มรูปภาพ
+                        </button>
+                        <input
+                          ref={uploadInputRef}
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={e => {
+                            uploadItemImages(activeItemIdx, e.target.files)
+                            e.target.value = ''
+                          }}
+                        />
+                      </div>
+                    </div>
                   </td>
                   <td colSpan={6} className="px-2 py-2" />
                 </tr>
