@@ -3,6 +3,8 @@ import type {
   User, Customer, Product, Unit, PrType, Settings,
   Quotation, WorkOrder, HandOverJob, PurchaseRequest,
   PendingApprovals, ReportOverview, ReportSales, ReportApprovalPerf,
+  SalesPerformanceReport,
+  WorkStatusReport,
   WorkOrderNoPoReport, WorkOrderPoOverviewReport,
   Attachment, AuditPage, UserRole, ActivityLogPage, EmailLogPage,
   WorkOrderEmailCandidate, WorkOrderEmailContext, EmailHistoryEntry,
@@ -351,6 +353,26 @@ export const ApprovalsAPI = {
 export const ReportsAPI = {
   overview: () => http.get<ReportOverview>('/reports/overview').then(r => r.data),
   sales: () => http.get<ReportSales[]>('/reports/sales').then(r => r.data),
+  salesPerformance: (params?: {
+    from?: string
+    to?: string
+    salesIds?: string
+    customer?: string
+    status?: 'all' | 'has_po' | 'qt_only' | 'no_document'
+    page?: string
+    limit?: string
+  }) => http.get<SalesPerformanceReport>('/reports/sales-performance', { params }).then(r => r.data),
+  workStatus: (params?: {
+    from?: string
+    to?: string
+    salesId?: string
+    salesIds?: string
+    customer?: string
+    poStatus?: 'all' | 'has' | 'pending'
+    agingRange?: 'all' | '0-7' | '8-15' | '16-30' | '30+'
+    page?: string
+    limit?: string
+  }) => http.get<WorkStatusReport>('/reports/work-status', { params }).then(r => r.data),
   approvalPerformance: () =>
     http.get<ReportApprovalPerf[]>('/reports/approval-performance').then(r => r.data),
   quotationSummary: (params?: { from?: string; to?: string; salesId?: string }) =>

@@ -671,6 +671,100 @@ export interface ReportApprovalPerf {
   reject: number
 }
 
+export type SalesPerformanceStatus = 'all' | 'has_po' | 'qt_only' | 'no_document'
+
+export interface SalesPerformanceRow {
+  salesId: string
+  salesName: string
+  quotationId: string
+  quotationNo: string
+  qtDate: string
+  customerName: string
+  qtAmount: number
+  poNo: string | null
+  poRefName: string | null
+  poWorkOrderId: string | null
+  poAmount: number
+  recognizedAmount: number
+  source: 'QT' | 'PO' | 'None'
+  statusKey: Exclude<SalesPerformanceStatus, 'all'>
+}
+
+export interface SalesPerformanceGroup {
+  salesId: string
+  salesName: string
+  quotationCount: number
+  poCount: number
+  recognizedAmount: number
+  conversionRate: number
+}
+
+export interface SalesPerformanceReport {
+  dateRange: { from: string; to: string }
+  summary: {
+    totalRecognizedAmount: number
+    totalQtCount: number
+    conversionRate: number
+    topSales: SalesPerformanceGroup[]
+  }
+  groupedBySales: SalesPerformanceGroup[]
+  customers: string[]
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  rows: SalesPerformanceRow[]
+}
+
+export type WorkStatusPoFilter = 'all' | 'has' | 'pending'
+export type WorkStatusAgingFilter = 'all' | '0-7' | '8-15' | '16-30' | '30+'
+
+export interface WorkStatusRow {
+  id: string
+  workNo: string
+  workDate: string
+  customerName: string
+  salesId: string
+  salesName: string
+  project: string
+  quotationId: string | null
+  quotationNo: string
+  qtAmount: number
+  poNo: string | null
+  poAmount: number
+  poStatus: 'Received' | 'Partial' | 'Pending'
+  poStatusKey: 'has' | 'pending'
+  agingDays: number
+  agingRange: Exclude<WorkStatusAgingFilter, 'all'> | null
+  expectedPoDate: string | null
+}
+
+export interface WorkStatusReport {
+  dateRange: { from: string; to: string }
+  summary: {
+    totalWorks: number
+    worksWithPo: number
+    worksWithPoPct: number
+    worksPendingPo: number
+    worksPendingPoPct: number
+    totalQtAmountAtRisk: number
+    averagePendingAging: number
+  }
+  charts: {
+    pendingBySales: Array<{ salesId: string; salesName: string; count: number }>
+    poSplit: Array<{ key: 'has' | 'pending'; label: string; value: number }>
+  }
+  pagination: {
+    page: number
+    limit: number
+    total: number
+    totalPages: number
+  }
+  rows: WorkStatusRow[]
+}
+
 // ─── ACTIVITY LOG ─────────────────────────────────────────────────────────────
 
 export interface ActivityLog {

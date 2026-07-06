@@ -30,6 +30,14 @@ function poAttachmentFilter() {
   return { category: { equals: 'po', mode: 'insensitive' } };
 }
 
+function parsePageInt(raw, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}) {
+  const n = Number.parseInt(String(raw ?? ''), 10);
+  if (!Number.isFinite(n)) return fallback;
+  if (n < min) return min;
+  if (n > max) return max;
+  return n;
+}
+
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
   try {
@@ -81,6 +89,192 @@ router.get('/sales', authenticate, async (req, res, next) => {
       if (q.status === 'approved') map[q.customerName].approved += Number(q.grandTotal);
     }
     res.json(Object.values(map).sort((a, b) => b.total - a.total));
+  } catch (e) { next(e); }
+});
+
+// GET /api/reports/sales-performance
+// Query:
+// - from=YYYY-MM-DD (default: first day of current month)
+// - to=YYYY-MM-DD   (default: last day of current month)
+// - salesIds=comma-separated user ids
+// - customer=string (optional contains)
+// - status=all|has_po|qt_only|no_document
+// - page=number (default 1)
+// - limit=number (default 50, max 500)
+router.get('/sales-performance', authenticate, async (req, res, next) => {
+  try {
+    const canSeeAllReports = await canViewAllReports(req.user.role);
+    const now = new Date();
+
+    const rawFrom = req.query.from;
+    const rawTo = req.query.to;
+    const dateFrom = rawFrom
+      ? new Date(String(rawFrom))
+      : new Date(now.getFullYear(), now.getMonth(), 1);
+    const dateTo = rawTo
+      ? new Date(`${rawTo}T23:59:59.999Z`)
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+
+    const salesIds = parseSalesIds(req.query.salesIds);
+    const customer = String(req.query.customer || '').trim();
+    const statusFilter = String(req.query.status || 'all').trim().toLowerCase();
+    const page = parsePageInt(req.query.page, 1, { min: 1, max: 100000 });
+    const limit = parsePageInt(req.query.limit, 50, { min: 1, max: 500 });
+
+    const where = {
+      active: true,
+      createdAt: { gte: dateFrom, lte: dateTo },
+      ...(customer ? { customerName: { contains: customer, mode: 'insensitive' } } : {}),
+    };
+
+    if (!canSeeAllReports) {
+      where.salesId = req.user.id;
+    } else if (salesIds.length > 0) {
+      where.salesId = { in: salesIds };
+    }
+
+    const quotations = await prisma.quotation.findMany({
+      where,
+      select: {
+        id: true,
+        quoNo: true,
+        createdAt: true,
+        customerName: true,
+        grandTotal: true,
+        status: true,
+        salesId: true,
+        sales: { select: { id: true, fullName: true } },
+        workOrders: {
+          where: {
+            active: true,
+            status: { not: 'cancelled' },
+          },
+          select: {
+            id: true,
+            woNo: true,
+            attachments: {
+              where: poAttachmentFilter(),
+              select: {
+                id: true,
+                originalName: true,
+                poAmount: true,
+                uploadedAt: true,
+              },
+              orderBy: { uploadedAt: 'desc' },
+            },
+          },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { quoNo: 'desc' }],
+    });
+
+    const mappedRows = quotations.map((q) => {
+      const poEntries = [];
+      for (const wo of q.workOrders) {
+        for (const att of wo.attachments) {
+          poEntries.push({
+            workOrderId: wo.id,
+            workOrderNo: wo.woNo,
+            poName: att.originalName || '',
+            poAmount: Number(att.poAmount || 0),
+            uploadedAt: att.uploadedAt,
+          });
+        }
+      }
+
+      const hasPo = poEntries.length > 0;
+      const poAmount = poEntries.reduce((sum, p) => sum + Number(p.poAmount || 0), 0);
+      const qtAmount = Number(q.grandTotal || 0);
+
+      let source = 'None';
+      let recognizedAmount = 0;
+      if (hasPo) {
+        source = 'PO';
+        recognizedAmount = poAmount;
+      } else if (q.status === 'approved') {
+        source = 'QT';
+        recognizedAmount = qtAmount;
+      }
+
+      const statusKey = hasPo ? 'has_po' : source === 'QT' ? 'qt_only' : 'no_document';
+      const firstPo = poEntries[0] || null;
+
+      return {
+        salesId: q.salesId,
+        salesName: q.sales?.fullName || q.salesId,
+        quotationId: q.id,
+        quotationNo: q.quoNo,
+        qtDate: q.createdAt,
+        customerName: q.customerName || '-',
+        qtAmount,
+        poNo: firstPo?.workOrderNo || null,
+        poRefName: firstPo?.poName || null,
+        poWorkOrderId: firstPo?.workOrderId || null,
+        poAmount,
+        recognizedAmount,
+        source,
+        statusKey,
+      };
+    });
+
+    const filteredRows = statusFilter === 'all'
+      ? mappedRows
+      : mappedRows.filter(r => r.statusKey === statusFilter);
+
+    const totalQtCount = filteredRows.length;
+    const totalRecognizedAmount = filteredRows.reduce((sum, r) => sum + Number(r.recognizedAmount || 0), 0);
+    const qtHasPoCount = filteredRows.filter(r => r.statusKey === 'has_po').length;
+    const conversionRate = totalQtCount > 0 ? (qtHasPoCount / totalQtCount) * 100 : 0;
+
+    const groupMap = {};
+    for (const row of filteredRows) {
+      if (!groupMap[row.salesId]) {
+        groupMap[row.salesId] = {
+          salesId: row.salesId,
+          salesName: row.salesName,
+          quotationCount: 0,
+          poCount: 0,
+          recognizedAmount: 0,
+        };
+      }
+      groupMap[row.salesId].quotationCount += 1;
+      if (row.statusKey === 'has_po') groupMap[row.salesId].poCount += 1;
+      groupMap[row.salesId].recognizedAmount += Number(row.recognizedAmount || 0);
+    }
+    const groupedBySales = Object.values(groupMap)
+      .map(g => ({
+        ...g,
+        conversionRate: g.quotationCount > 0 ? (g.poCount / g.quotationCount) * 100 : 0,
+      }))
+      .sort((a, b) => b.recognizedAmount - a.recognizedAmount);
+
+    const topSales = groupedBySales.slice(0, 5);
+    const customerOptions = Array.from(new Set(filteredRows.map(r => r.customerName).filter(Boolean))).sort((a, b) => a.localeCompare(b));
+
+    const total = filteredRows.length;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * limit;
+    const rows = filteredRows.slice(start, start + limit);
+
+    res.json({
+      dateRange: { from: dateFrom, to: dateTo },
+      summary: {
+        totalRecognizedAmount,
+        totalQtCount,
+        conversionRate,
+        topSales,
+      },
+      groupedBySales,
+      customers: customerOptions,
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+      },
+      rows,
+    });
   } catch (e) { next(e); }
 });
 
@@ -525,6 +719,203 @@ router.get('/workorders/po-overview', authenticate, async (req, res, next) => {
     });
 
     res.json({ rows });
+  } catch (e) { next(e); }
+});
+
+// GET /api/reports/work-status
+// Query:
+// - from=YYYY-MM-DD (default: last 30 days)
+// - to=YYYY-MM-DD   (default: today)
+// - salesId=single sales id (legacy support)
+// - salesIds=comma-separated sales ids
+// - customer=optional text
+// - poStatus=all|has|pending
+// - agingRange=all|0-7|8-15|16-30|30+
+// - page=number (default 1)
+// - limit=number (default 50, max 500)
+router.get('/work-status', authenticate, async (req, res, next) => {
+  try {
+    const canSeeAllReports = await canViewAllReports(req.user.role);
+    const now = new Date();
+    const defaultFrom = new Date(now);
+    defaultFrom.setDate(defaultFrom.getDate() - 30);
+
+    const rawFrom = req.query.from;
+    const rawTo = req.query.to;
+    const dateFrom = rawFrom ? new Date(String(rawFrom)) : new Date(defaultFrom.getFullYear(), defaultFrom.getMonth(), defaultFrom.getDate(), 0, 0, 0, 0);
+    const dateTo = rawTo ? new Date(`${rawTo}T23:59:59.999Z`) : new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+
+    const salesIds = parseSalesIds(req.query.salesIds);
+    const singleSalesId = String(req.query.salesId || '').trim();
+    if (singleSalesId && !salesIds.includes(singleSalesId)) salesIds.push(singleSalesId);
+
+    const customer = String(req.query.customer || '').trim();
+    const poStatus = String(req.query.poStatus || 'all').trim().toLowerCase();
+    const agingRange = String(req.query.agingRange || 'all').trim().toLowerCase();
+    const page = parsePageInt(req.query.page, 1, { min: 1, max: 100000 });
+    const limit = parsePageInt(req.query.limit, 50, { min: 1, max: 500 });
+
+    const where = {
+      active: true,
+      createdAt: { gte: dateFrom, lte: dateTo },
+      ...(customer ? { customerName: { contains: customer, mode: 'insensitive' } } : {}),
+    };
+
+    if (!canSeeAllReports) {
+      where.salesId = req.user.id;
+    } else if (salesIds.length > 0) {
+      where.salesId = { in: salesIds };
+    }
+
+    const workOrders = await prisma.workOrder.findMany({
+      where,
+      select: {
+        id: true,
+        woNo: true,
+        project: true,
+        createdAt: true,
+        status: true,
+        customerName: true,
+        salesId: true,
+        sales: { select: { id: true, fullName: true } },
+        quotation: { select: { id: true, quoNo: true, grandTotal: true } },
+        attachments: {
+          where: poAttachmentFilter(),
+          select: {
+            id: true,
+            originalName: true,
+            poAmount: true,
+            uploadedAt: true,
+          },
+          orderBy: { uploadedAt: 'desc' },
+        },
+      },
+      orderBy: [{ createdAt: 'desc' }, { woNo: 'desc' }],
+    });
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const mapAgingRange = (days) => {
+      if (!Number.isFinite(days) || days < 0) return null;
+      if (days <= 7) return '0-7';
+      if (days <= 15) return '8-15';
+      if (days <= 30) return '16-30';
+      return '30+';
+    };
+
+    const mappedRows = workOrders
+      .filter(wo => wo.status !== 'cancelled')
+      .map((wo) => {
+        const poFiles = wo.attachments || [];
+        const poAmount = poFiles.reduce((sum, po) => sum + Number(po.poAmount || 0), 0);
+        const hasPo = poFiles.length > 0;
+        const qtAmount = Number(wo.quotation?.grandTotal || 0);
+
+        let poStatusLabel = 'Pending';
+        if (hasPo && qtAmount > 0 && poAmount < qtAmount) poStatusLabel = 'Partial';
+        else if (hasPo) poStatusLabel = 'Received';
+
+        const poStatusKey = hasPo ? 'has' : 'pending';
+
+        const firstPo = poFiles[0] || null;
+        const workDate = new Date(wo.createdAt);
+        workDate.setHours(0, 0, 0, 0);
+        const agingDaysRaw = Math.max(0, Math.floor((today.getTime() - workDate.getTime()) / 86400000));
+        const agingDays = hasPo ? 0 : agingDaysRaw;
+
+        return {
+          id: wo.id,
+          workNo: wo.woNo,
+          workDate: wo.createdAt,
+          customerName: wo.customerName || '-',
+          salesId: wo.salesId,
+          salesName: wo.sales?.fullName || wo.salesId,
+          project: wo.project || '-',
+          quotationId: wo.quotation?.id || null,
+          quotationNo: wo.quotation?.quoNo || '-',
+          qtAmount,
+          poNo: firstPo?.originalName || null,
+          poAmount,
+          poStatus: poStatusLabel,
+          poStatusKey,
+          agingDays,
+          agingRange: mapAgingRange(agingDays),
+          expectedPoDate: null,
+        };
+      });
+
+    let filteredRows = mappedRows;
+    if (poStatus === 'has') {
+      filteredRows = filteredRows.filter(r => r.poStatusKey === 'has');
+    } else if (poStatus === 'pending') {
+      filteredRows = filteredRows.filter(r => r.poStatusKey === 'pending');
+    }
+
+    if (agingRange !== 'all') {
+      filteredRows = filteredRows.filter(r => {
+        if (r.poStatusKey !== 'pending') return false;
+        return r.agingRange === agingRange;
+      });
+    }
+
+    const totalWorks = filteredRows.length;
+    const worksWithPo = filteredRows.filter(r => r.poStatusKey === 'has').length;
+    const worksPendingPo = filteredRows.filter(r => r.poStatusKey === 'pending').length;
+    const withPoPct = totalWorks > 0 ? (worksWithPo / totalWorks) * 100 : 0;
+    const pendingPoPct = totalWorks > 0 ? (worksPendingPo / totalWorks) * 100 : 0;
+    const totalQtAmountAtRisk = filteredRows
+      .filter(r => r.poStatusKey === 'pending')
+      .reduce((sum, r) => sum + Number(r.qtAmount || 0), 0);
+    const pendingAgingList = filteredRows.filter(r => r.poStatusKey === 'pending').map(r => Number(r.agingDays || 0));
+    const averagePendingAging = pendingAgingList.length > 0
+      ? pendingAgingList.reduce((sum, n) => sum + n, 0) / pendingAgingList.length
+      : 0;
+
+    const pendingBySalesMap = {};
+    for (const row of filteredRows) {
+      if (row.poStatusKey !== 'pending') continue;
+      if (!pendingBySalesMap[row.salesId]) {
+        pendingBySalesMap[row.salesId] = { salesId: row.salesId, salesName: row.salesName, count: 0 };
+      }
+      pendingBySalesMap[row.salesId].count += 1;
+    }
+
+    const pendingBySales = Object.values(pendingBySalesMap).sort((a, b) => b.count - a.count);
+    const poSplit = [
+      { key: 'has', label: 'Has PO', value: worksWithPo },
+      { key: 'pending', label: 'Pending PO', value: worksPendingPo },
+    ];
+
+    const total = filteredRows.length;
+    const totalPages = total > 0 ? Math.ceil(total / limit) : 1;
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * limit;
+    const rows = filteredRows.slice(start, start + limit);
+
+    res.json({
+      dateRange: { from: dateFrom, to: dateTo },
+      summary: {
+        totalWorks,
+        worksWithPo,
+        worksWithPoPct: withPoPct,
+        worksPendingPo,
+        worksPendingPoPct: pendingPoPct,
+        totalQtAmountAtRisk,
+        averagePendingAging,
+      },
+      charts: {
+        pendingBySales,
+        poSplit,
+      },
+      pagination: {
+        page: safePage,
+        limit,
+        total,
+        totalPages,
+      },
+      rows,
+    });
   } catch (e) { next(e); }
 });
 
