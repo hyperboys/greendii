@@ -5,13 +5,14 @@ import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 
-const PACK_CAP_NON_LAST = 26
-const PACK_CAP_LAST = 23
+const PACK_CAP_NON_LAST = 45
+const PACK_CAP_LAST = 25
 const FRAGMENT_CAP = PACK_CAP_LAST
 
 const HEADER_GAP = 12
 const SAFETY = 10
 const TAIL_GAP = 10
+const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
@@ -112,6 +113,25 @@ interface PageChunk {
   tail: boolean
 }
 
+function moveTrailingToTail<T>(pages: T[][], getSize: (item: T) => number, cap: number): T[] {
+  const tail: T[] = []
+  let used = 0
+
+  for (let pageIdx = pages.length - 1; pageIdx >= 0; pageIdx -= 1) {
+    const page = pages[pageIdx]
+    while (page.length > 0) {
+      const candidate = page[page.length - 1]
+      const size = getSize(candidate)
+      if (used + size > cap) return tail
+      page.pop()
+      tail.unshift(candidate)
+      used += size
+    }
+  }
+
+  return tail
+}
+
 function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
   if (items.length === 0) {
     return [{ items: [], isLast: true, tail: true }]
@@ -133,18 +153,31 @@ function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
     }
   }
   if (current.length > 0) rawPages.push(current)
+  const lastWeight = rawPages[rawPages.length - 1].reduce((sum, fragment) => sum + itemWeight(fragment), 0)
 
-  const pages = rawPages.map((pageItems) => ({
+  if (lastWeight <= PACK_CAP_LAST) {
+    const pages = rawPages.map((pageItems) => ({
+      items: pageItems,
+      isLast: false,
+      tail: false,
+    }))
+    const lastPage = pages[pages.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+    return pages
+  }
+
+  const mutablePages = rawPages.map((page) => [...page])
+  const tailItems = moveTrailingToTail(mutablePages, itemWeight, PACK_CAP_LAST)
+  const remainingPages = mutablePages.filter((page) => page.length > 0)
+  const pages = remainingPages.map((pageItems) => ({
     items: pageItems,
     isLast: false,
     tail: false,
   }))
-  const lastWeight = rawPages[rawPages.length - 1].reduce((sum, fragment) => sum + itemWeight(fragment), 0)
 
-  if (lastWeight <= PACK_CAP_LAST) {
-    const lastPage = pages[pages.length - 1]
-    lastPage.isLast = true
-    lastPage.tail = true
+  if (tailItems.length > 0) {
+    pages.push({ items: tailItems, isLast: true, tail: true })
   } else {
     pages.push({ items: [], isLast: true, tail: true })
   }
@@ -174,17 +207,30 @@ function packByHeight(items: WorkOrderItemFragment[], heights: number[], availNo
   }
   if (current.length > 0) rawPages.push(current)
 
-  const pages = rawPages.map((pageItems) => ({
+  const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
+  if (lastPageHeight <= availLast) {
+    const pages = rawPages.map((pageItems) => ({
+      items: pageItems.map(entry => entry.item),
+      isLast: false,
+      tail: false,
+    }))
+    const lastPage = pages[pages.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+    return pages
+  }
+
+  const mutablePages = rawPages.map((page) => [...page])
+  const tailEntries = moveTrailingToTail(mutablePages, (entry) => entry.height, availLast)
+  const remainingPages = mutablePages.filter((page) => page.length > 0)
+  const pages = remainingPages.map((pageItems) => ({
     items: pageItems.map(entry => entry.item),
     isLast: false,
     tail: false,
   }))
 
-  const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
-  if (lastPageHeight <= availLast) {
-    const lastPage = pages[pages.length - 1]
-    lastPage.isLast = true
-    lastPage.tail = true
+  if (tailEntries.length > 0) {
+    pages.push({ items: tailEntries.map(entry => entry.item), isLast: true, tail: true })
   } else {
     pages.push({ items: [], isLast: true, tail: true })
   }
@@ -703,8 +749,9 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
                 <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: `${100 / sigCols.length}%`, verticalAlign: 'top' }}>
                   <div style={{ fontSize: '9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '10px' }}>{role}</div>
                   <div style={{
-                    fontFamily: 'var(--font-signature)',
+                    fontFamily: SIGNATURE_FONT_FAMILY,
                     fontStyle: 'italic',
+                    fontWeight: 400,
                     fontSize: fpt(14),
                     marginTop: '2px',
                     marginBottom: '0',
