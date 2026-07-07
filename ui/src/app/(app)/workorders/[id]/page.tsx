@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
 import { getWorkOrderDetailNoteText, getWorkOrderItemsSource } from '@/lib/workOrderItems'
+import { decodeDisplayFileName } from '@/lib/filename'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
@@ -533,7 +534,8 @@ export default function WorkOrderDetailPage() {
                   const url = resolveFileUrl(att.fileUrl || '')
                   const isImage = !!att.mimeType?.startsWith('image/')
                   const isPdf = att.mimeType === 'application/pdf'
-                  const name = att.originalName || att.fileUrl || 'attachment'
+                  const rawName = att.originalName || att.filename || att.fileUrl || 'attachment'
+                  const name = decodeDisplayFileName(rawName) || rawName
                   return (
                     <div key={att.id} className="rounded-md border border-gray-200 p-2">
                       {isImage ? (

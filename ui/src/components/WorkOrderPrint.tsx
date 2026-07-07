@@ -5,8 +5,8 @@ import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
 
-const PACK_CAP_NON_LAST = 45
-const PACK_CAP_LAST = 25
+const PACK_CAP_NON_LAST = 60
+const PACK_CAP_LAST = 20
 const FRAGMENT_CAP = PACK_CAP_LAST
 
 const HEADER_GAP = 12
