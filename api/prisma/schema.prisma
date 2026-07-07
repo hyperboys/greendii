@@ -61,6 +61,7 @@ model User {
 
   quotations       Quotation[]
   workOrders       WorkOrder[]
+  workOrderCloseLogs WorkOrderCloseLog[]
   handOverJobs     HandOverJob[]
   purchaseRequests PurchaseRequest[]
   approvalLogs     ApprovalLog[]
@@ -316,6 +317,7 @@ model WorkOrder {
   approvalLogs     ApprovalLog[]
   attachments      Attachment[]
   poAuditLogs      WorkOrderPoAudit[]
+  closeLogs        WorkOrderCloseLog[]
   emailLogs        EmailLog[]
 
   @@map("work_orders")
@@ -334,6 +336,20 @@ model WorkOrderPoAudit {
   @@index([workOrderId, createdAt])
   @@index([userId, createdAt])
   @@map("workorder_po_audits")
+}
+
+model WorkOrderCloseLog {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment     String?
+  closedAt    DateTime  @default(now())
+
+  @@index([workOrderId, closedAt])
+  @@index([userId, closedAt])
+  @@map("workorder_close_logs")
 }
 
 // ─────────────────────────────────────────────

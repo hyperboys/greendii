@@ -57,6 +57,7 @@ export default function WorkOrderDetailPage() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
+  const [closeComment, setCloseComment] = useState('')
   const [acting, setActing] = useState(false)
   const [approvalChecklist, setApprovalChecklist] = useState<Record<string, boolean>>({ ...DEFAULT_DOC_CHECKLIST })
   const [poAmount, setPoAmount] = useState('')
@@ -166,11 +167,12 @@ export default function WorkOrderDetailPage() {
       if (action === 'submit') await WorkOrdersAPI.submit(id, comment)
       else if (action === 'approve') await WorkOrdersAPI.approve(id, comment, canEditTeamChecklistOnApprove ? checklist : undefined)
       else if (action === 'reject') await WorkOrdersAPI.reject(id, comment)
-      else if (action === 'close') await WorkOrdersAPI.close(id)
+      else if (action === 'close') await WorkOrdersAPI.close(id, closeComment)
       else if (action === 'delete') { await WorkOrdersAPI.cancel(id); router.push('/workorders'); return }
       toast.success('ดำเนินการสำเร็จ')
       load()
       setComment('')
+      if (action === 'close') setCloseComment('')
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด')
     } finally {
@@ -421,10 +423,35 @@ export default function WorkOrderDetailPage() {
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ปิดงาน</h3>
           <p className="text-xs text-gray-500">ใช้เมื่อใบสั่งงานนี้เสร็จสิ้นจริง และต้องการปิดงานด้วยมือ</p>
+          <textarea
+            className="form-input"
+            rows={2}
+            placeholder="หมายเหตุการปิดงาน (บังคับ)"
+            value={closeComment}
+            onChange={e => setCloseComment(e.target.value)}
+          />
           <div className="flex gap-2">
-            <button className="btn-primary" onClick={() => act('close')} disabled={acting}>
+            <button className="btn-primary" onClick={() => act('close')} disabled={acting || !closeComment.trim()}>
               <CheckCircle size={15} /> ปิดงาน
             </button>
+          </div>
+        </div>
+      )}
+
+      {!!doc.closeLogs?.length && (
+        <div className="card p-5 space-y-3">
+          <h3 className="font-semibold text-gray-800">ประวัติการปิดงาน</h3>
+          <div className="space-y-2">
+            {doc.closeLogs.map(log => (
+              <div key={log.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                  <span className="font-medium text-gray-700">{log.user?.fullName ?? log.userId}</span>
+                  <span>({log.user?.role ?? '-'})</span>
+                  <span>ปิดเมื่อ {new Date(log.closedAt).toLocaleString('en-GB')}</span>
+                </div>
+                <div className="mt-1 whitespace-pre-line text-sm text-gray-700">{log.comment || '-'}</div>
+              </div>
+            ))}
           </div>
         </div>
       )}

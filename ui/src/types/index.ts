@@ -385,9 +385,18 @@ export interface WorkOrder {
   isClosed: boolean
   closedAt?: string
   approvalLogs?: ApprovalLog[]
+  closeLogs?: WorkOrderCloseLog[]
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
+}
+
+export interface WorkOrderCloseLog {
+  id: string
+  userId: string
+  user?: { id: string; fullName: string; role: string }
+  comment?: string
+  closedAt: string
 }
 
 export interface WorkOrderNoPoSummary {

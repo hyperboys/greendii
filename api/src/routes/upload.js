@@ -60,6 +60,28 @@ function normalizeAttachmentCategory(category) {
   return String(category || '').trim().toLowerCase();
 }
 
+function normalizeOriginalFileName(name) {
+  const raw = String(name || '').trim();
+  if (!raw) return 'attachment';
+
+  const hasThai = /[\u0E00-\u0E7F]/.test(raw);
+  if (hasThai) return raw;
+
+  try {
+    const decoded = Buffer.from(raw, 'latin1').toString('utf8').trim();
+    if (!decoded) return raw;
+    if (decoded.includes('\uFFFD')) return raw;
+
+    const decodedHasThai = /[\u0E00-\u0E7F]/.test(decoded);
+    const looksMojibake = /(?:Ã.|à¸|à¹|â.)/.test(raw);
+    if (decodedHasThai || looksMojibake) return decoded;
+  } catch {
+    // Keep original name when conversion fails.
+  }
+
+  return raw;
+}
+
 function parsePoAmount(value) {
   if (value === undefined || value === null) return null;
   const parsed = Number(String(value).replace(/,/g, '').trim());
@@ -262,7 +284,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
       const attachment = await prisma.attachment.create({
         data: {
           filename,
-          originalName: file.originalname,
+          originalName: normalizeOriginalFileName(file.originalname),
           mimeType: file.mimetype,
           size: file.size,
           fileUrl,

@@ -61,6 +61,10 @@ const INCLUDE_FULL = {
     orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
   },
   attachments: true,
+  closeLogs: {
+    include: { user: { select: { id: true, fullName: true, role: true } } },
+    orderBy: { closedAt: 'desc' },
+  },
 };
 
 function stripRevisionSuffix(docNo = '') {
@@ -929,6 +933,7 @@ router.post('/:id/close', authenticate, async (req, res, next) => {
   try {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     await assertWorkOrderClosePermission(req);
+    const closeComment = typeof req.body?.comment === 'string' ? req.body.comment.trim() : '';
 
     if (wo.status !== 'approved') {
       return res.status(400).json({ message: 'ปิดงานได้เฉพาะเอกสารที่อนุมัติแล้วเท่านั้น' });
@@ -936,10 +941,27 @@ router.post('/:id/close', authenticate, async (req, res, next) => {
     if (wo.isClosed) {
       return res.status(400).json({ message: 'Work order ปิดงานแล้ว' });
     }
+    if (!closeComment) {
+      return res.status(400).json({ message: 'กรุณาระบุหมายเหตุการปิดงาน' });
+    }
 
-    const updated = await prisma.workOrder.update({
-      where: { id: req.params.id },
-      data: { isClosed: true, closedAt: new Date() },
+    const closedAt = new Date();
+    const updated = await prisma.$transaction(async (tx) => {
+      const closedWorkOrder = await tx.workOrder.update({
+        where: { id: req.params.id },
+        data: { isClosed: true, closedAt },
+      });
+
+      await tx.workOrderCloseLog.create({
+        data: {
+          workOrderId: wo.id,
+          userId: req.user.id,
+          comment: closeComment,
+          closedAt,
+        },
+      });
+
+      return closedWorkOrder;
     });
 
     res.json(updated);

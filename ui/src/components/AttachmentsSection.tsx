@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { UploadAPI } from '@/lib/api'
 import { APPROVAL_ATTACHMENT_LOCK_MESSAGE } from '@/lib/approvalFlowRules'
+import { decodeDisplayFileName } from '@/lib/filename'
 import type { Attachment } from '@/types'
 import { Paperclip, Trash2, FileText, Image, File, CheckCircle2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -170,10 +171,10 @@ export default function AttachmentsSection({
                       rel="noopener noreferrer"
                       className="text-sm text-blue-600 hover:underline truncate block"
                     >
-                      {att.originalName}
+                      {decodeDisplayFileName(att.originalName)}
                     </a>
                   ) : (
-                    <span className="text-sm text-gray-700 truncate block">{att.originalName}</span>
+                    <span className="text-sm text-gray-700 truncate block">{decodeDisplayFileName(att.originalName)}</span>
                   )}
                   <span className="text-xs text-gray-400">{fmtSize(att.size)}</span>
                 </div>
