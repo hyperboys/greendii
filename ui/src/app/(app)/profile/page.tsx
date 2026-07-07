@@ -45,6 +45,7 @@ export default function ProfilePage() {
       })
       await refreshMe()
       toast.success('บันทึกข้อมูลสำเร็จ')
+      router.push('/dashboard')
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด')
     } finally {

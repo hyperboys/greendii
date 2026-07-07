@@ -100,6 +100,12 @@ router.put('/:id', authenticate, async (req, res, next) => {
     }
     const { fullName, initials, lineUserId, email, phone, department, position, signatureText, role, active,
             firstName, lastName, firstNameEn, lastNameEn } = req.body;
+
+    const normalizeNamePart = (value) => {
+      if (typeof value !== 'string') return '';
+      return value.trim();
+    };
+
     const data = {};
     if (fullName !== undefined) data.fullName = fullName;
     if (initials !== undefined) data.initials = initials;
@@ -113,6 +119,19 @@ router.put('/:id', authenticate, async (req, res, next) => {
     if (lastName !== undefined) data.lastName = lastName;
     if (firstNameEn !== undefined) data.firstNameEn = firstNameEn;
     if (lastNameEn !== undefined) data.lastNameEn = lastNameEn;
+
+    // Keep fullName in sync with Thai first/last name for profile editing.
+    if (firstName !== undefined || lastName !== undefined) {
+      const currentUser = await prisma.user.findUniqueOrThrow({
+        where: { id },
+        select: { firstName: true, lastName: true },
+      });
+      const nextFirstName = normalizeNamePart(firstName !== undefined ? firstName : currentUser.firstName);
+      const nextLastName = normalizeNamePart(lastName !== undefined ? lastName : currentUser.lastName);
+      const nextFullName = [nextFirstName, nextLastName].filter(Boolean).join(' ');
+      if (nextFullName) data.fullName = nextFullName;
+    }
+
     // Only admin can change role/active
     if (['admin', 'director', 'admin_mgr'].includes(req.user.role)) {
       if (role !== undefined) data.role = role;
