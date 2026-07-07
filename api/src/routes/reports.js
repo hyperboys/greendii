@@ -2,6 +2,9 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { canViewAllReports } = require('../lib/roles');
+const { getPrCurrentStageSteps, getStepRoleMapping } = require('../lib/approvalFlow');
+const { normalizeRole } = require('../lib/roleAliases');
+const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 function parseSalesIds(raw) {
   if (!raw) return [];
@@ -38,6 +41,102 @@ function parsePageInt(raw, fallback, { min = 1, max = Number.MAX_SAFE_INTEGER } 
   return n;
 }
 
+function hasUserApprovedOrRejected(pr, userId) {
+  return Array.isArray(pr?.approvalLogs)
+    && pr.approvalLogs.some(
+      log => log?.approverId === userId && ['approve', 'reject'].includes(log?.action),
+    );
+}
+
+async function getCurrentPrStageRoles(pr, stepRole) {
+  const stageSteps = await getPrCurrentStageSteps(
+    pr?.prType?.approvalSteps,
+    pr?.sales?.role,
+    Number(pr?.approvalStep),
+  );
+
+  const roles = [...new Set(
+    stageSteps
+      .map(step => normalizeRole(stepRole[step]))
+      .filter(Boolean),
+  )];
+
+  return { stageSteps, roles };
+}
+
+async function isPendingPrCurrentApprover(user, pr, stepRole) {
+  if (!pr || pr.status !== 'pending') return false;
+
+  const actorRole = normalizeRole(user?.role);
+  if (!actorRole) return false;
+
+  const { stageSteps, roles } = await getCurrentPrStageRoles(pr, stepRole);
+  if (!stageSteps.length || !roles.length) return false;
+  if (!roles.includes(actorRole)) return false;
+
+  if (stageSteps.includes(1) && actorRole === 'sales' && pr.salesId === user.id) return false;
+  return true;
+}
+
+async function isPrAccessibleForUser(user, pr, stepRole) {
+  if (!pr) return false;
+  if (pr.salesId === user.id) return true;
+  if (hasUserApprovedOrRejected(pr, user.id)) return true;
+  return isPendingPrCurrentApprover(user, pr, stepRole);
+}
+
+async function buildPrAccessWhere(user) {
+  if (await canBypassDocApproval('pr', user.role)) return {};
+
+  return {
+    OR: [
+      { salesId: user.id },
+      { status: 'pending' },
+      {
+        approvalLogs: {
+          some: {
+            approverId: user.id,
+            action: { in: ['approve', 'reject'] },
+          },
+        },
+      },
+    ],
+  };
+}
+
+async function countVisiblePurchaseRequests(user) {
+  const where = {
+    AND: [
+      await buildPrAccessWhere(user),
+      { active: true },
+    ],
+  };
+
+  const list = await prisma.purchaseRequest.findMany({
+    where,
+    select: {
+      id: true,
+      salesId: true,
+      status: true,
+      approvalStep: true,
+      sales: { select: { role: true } },
+      prType: { select: { approvalSteps: true } },
+      approvalLogs: {
+        select: { approverId: true, action: true },
+      },
+    },
+  });
+
+  if (await canBypassDocApproval('pr', user.role)) return list.length;
+
+  const { stepRole } = await getStepRoleMapping();
+  let visible = 0;
+  for (const item of list) {
+    if (await isPrAccessibleForUser(user, item, stepRole)) visible += 1;
+  }
+  return visible;
+}
+
 // GET /api/reports/overview
 router.get('/overview', authenticate, async (req, res, next) => {
   try {
@@ -56,7 +155,7 @@ router.get('/overview', authenticate, async (req, res, next) => {
       prisma.workOrder.count({ where: { status: 'approved' } }),
       prisma.workOrder.count({ where: { status: 'pending' } }),
       prisma.handOverJob.count(),
-      prisma.purchaseRequest.count(),
+      countVisiblePurchaseRequests(req.user),
       prisma.approvalLog.findMany({
         take: 10,
         orderBy: { actedAt: 'desc' },
