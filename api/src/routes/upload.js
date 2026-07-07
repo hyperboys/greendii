@@ -105,9 +105,13 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
     error.status = 404;
     throw error;
   }
+
+  // Exception: after WO is approved, configured roles may attach/delete only PO
+  // attachments across documents, even when they are not the owner.
+  if (await canAttachApprovedWorkOrderPo(req, workOrder, category)) return;
+
   assertDocAccessible(req, workOrder);
   if (isEditableApprovalDocStatus(workOrder.status)) return;
-  if (await canAttachApprovedWorkOrderPo(req, workOrder, category)) return;
   if (!isEditableApprovalDocStatus(workOrder.status)) {
     const error = new Error(APPROVAL_ATTACHMENT_LOCK_MESSAGE);
     error.status = 400;
