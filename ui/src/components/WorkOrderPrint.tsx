@@ -15,7 +15,10 @@ const TAIL_GAP = 10
 
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
-  const lines = note.split('\n').map(v => v.trim())
+  const raw = String(note)
+  const separator = '\n\n__WO_NOTE_META__\n\n'
+  const detailNote = raw.includes(separator) ? raw.split(separator, 2)[0] : raw
+  const lines = detailNote.split('\n').map(v => v.trim())
   if (lines.length === 1 && lines[0] === '') return []
   return lines
 }

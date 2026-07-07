@@ -11,7 +11,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
-import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
+import { getWorkOrderDetailNoteText, getWorkOrderItemsSource } from '@/lib/workOrderItems'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
 import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
@@ -316,7 +316,7 @@ export default function WorkOrderDetailPage() {
                     <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
                     <td className="border px-2 py-1.5">
                       <div>{item.desc}</div>
-                      {item.note && <div className="whitespace-pre-line text-xs text-gray-400">{item.note}</div>}
+                      {getWorkOrderDetailNoteText(item.note) && <div className="whitespace-pre-line text-xs text-gray-400">{getWorkOrderDetailNoteText(item.note)}</div>}
                       {Array.isArray(item.images) && item.images.length > 0 && (
                         <div className="mt-3 flex flex-wrap gap-2">
                           {item.images.map((url, imageIndex) => (

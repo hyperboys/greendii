@@ -1,12 +1,13 @@
 'use client'
 
-import { Fragment } from 'react'
-import { ImagePlus, Plus, Trash2, X } from 'lucide-react'
+import { Fragment, useEffect, useState } from 'react'
+import { ChevronDown, ChevronUp, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { Unit, WorkOrderItem } from '@/types'
 import {
   createEmptyWorkOrderItem,
+  parseWorkOrderNoteBlocks,
   parseWorkOrderDetailRows,
   stringifyWorkOrderDetailRows,
 } from '@/lib/workOrderItems'
@@ -24,6 +25,30 @@ export default function WorkOrderItemsEditor({
   onChange,
   title = 'รายการงาน WorkOrder',
 }: Props) {
+  const [activeItemIdx, setActiveItemIdx] = useState(0)
+  const [detailBeforeNoteByItem, setDetailBeforeNoteByItem] = useState<boolean[]>([])
+
+  useEffect(() => {
+    if (items.length === 0) {
+      setActiveItemIdx(0)
+      return
+    }
+    setActiveItemIdx(prev => Math.max(0, Math.min(prev, items.length - 1)))
+  }, [items.length])
+
+  useEffect(() => {
+    setDetailBeforeNoteByItem((prev) => {
+      const next = [...prev]
+      if (next.length < items.length) {
+        for (let i = next.length; i < items.length; i += 1) next.push(false)
+      }
+      if (next.length > items.length) {
+        next.length = items.length
+      }
+      return next
+    })
+  }, [items.length])
+
   const setItemField = (index: number, key: keyof WorkOrderItem, value: string | number | string[]) => {
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)))
   }
@@ -31,29 +56,61 @@ export default function WorkOrderItemsEditor({
   const setDescriptionLine = (itemIdx: number, lineIdx: number, key: 'desc' | 'qty' | 'unit', value: string | number | null) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     rows[lineIdx] = { ...rows[lineIdx], [key]: value }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
     onChange(nextItems)
   }
 
   const addDescriptionLine = (itemIdx: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
     rows.push({ desc: '', qty: null, unit: '' })
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
     onChange(nextItems)
   }
 
   const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
     if (rows.length <= 1) {
-      nextItems[itemIdx] = { ...nextItems[itemIdx], detailRows: [], note: '' }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows([], { noteBlocks }) }
     } else {
       rows.splice(lineIdx, 1)
-      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows) }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
     }
+    onChange(nextItems)
+  }
+
+  const setNoteBlock = (itemIdx: number, blockIdx: number, value: string) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const nextBlocks = blocks.length > 0 ? [...blocks] : ['']
+    nextBlocks[blockIdx] = value
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
+    onChange(nextItems)
+  }
+
+  const addNoteBlock = (itemIdx: number) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const nextBlocks = [...blocks, '']
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
+    onChange(nextItems)
+  }
+
+  const removeNoteBlock = (itemIdx: number, blockIdx: number) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const nextBlocks = [...blocks]
+    nextBlocks.splice(blockIdx, 1)
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
     onChange(nextItems)
   }
 
@@ -95,6 +152,24 @@ export default function WorkOrderItemsEditor({
   const removeItem = (index: number) => {
     const nextItems = items.filter((_, itemIndex) => itemIndex !== index)
     onChange(nextItems.length > 0 ? nextItems : [createEmptyWorkOrderItem(0)])
+    setDetailBeforeNoteByItem((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
+  }
+
+  const moveSection = (itemIdx: number, section: 'note' | 'detail', direction: 'up' | 'down') => {
+    setDetailBeforeNoteByItem((prev) => {
+      const next = [...prev]
+      const detailBeforeNote = Boolean(next[itemIdx])
+      if (section === 'note') {
+        if (direction === 'up') next[itemIdx] = false
+        if (direction === 'down') next[itemIdx] = true
+      }
+      if (section === 'detail') {
+        if (direction === 'up') next[itemIdx] = true
+        if (direction === 'down') next[itemIdx] = false
+      }
+      if (detailBeforeNote === next[itemIdx]) return prev
+      return next
+    })
   }
 
   return (
@@ -120,13 +195,204 @@ export default function WorkOrderItemsEditor({
             <tbody>
               {items.map((item, index) => (
                 <Fragment key={`${item.seq ?? index}-${index}`}>
-                  <tr className="border-t border-gray-100 align-top">
+                  {(() => {
+                    const detailRows = parseWorkOrderDetailRows(item)
+                    const detailBeforeNote = Boolean(detailBeforeNoteByItem[index])
+                    const noteBlocks = parseWorkOrderNoteBlocks(item.note)
+                    const canMoveNoteUp = detailBeforeNote
+                    const canMoveNoteDown = !detailBeforeNote
+                    const canMoveDetailUp = !detailBeforeNote
+                    const canMoveDetailDown = detailBeforeNote
+
+                    const detailRowsView = detailRows.map((row, lineIdx) => (
+                      <tr key={`detail-${lineIdx}`} className="border-t border-gray-100 bg-white/60 align-top">
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-0.5">
+                          <input
+                            className="form-input w-full py-1 text-xs text-gray-700"
+                            value={row.desc}
+                            onFocus={() => setActiveItemIdx(index)}
+                            onChange={event => setDescriptionLine(index, lineIdx, 'desc', event.target.value)}
+                            placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                          />
+                        </td>
+                        <td className="px-2 py-0.5">
+                          <input
+                            type="number"
+                            min={0}
+                            max={99999}
+                            step="any"
+                            className="form-input w-full py-1 text-right text-xs"
+                            value={row.qty ?? ''}
+                            onFocus={() => setActiveItemIdx(index)}
+                            onChange={event => {
+                              const raw = event.target.value.trim()
+                              setDescriptionLine(index, lineIdx, 'qty', raw === '' ? null : Number(raw))
+                            }}
+                            placeholder="Q'ty"
+                          />
+                        </td>
+                        <td className="px-2 py-0.5">
+                          <input
+                            list="workorder-units-datalist"
+                            className="form-input w-full py-1 text-xs"
+                            value={row.unit ?? ''}
+                            onFocus={() => setActiveItemIdx(index)}
+                            onChange={event => setDescriptionLine(index, lineIdx, 'unit', event.target.value)}
+                            placeholder="Unit"
+                          />
+                        </td>
+                        <td className="px-2 py-0.5 text-right">
+                          <button
+                            type="button"
+                            className="p-1 text-red-400 transition-colors hover:text-red-600"
+                            onClick={() => removeDescriptionLine(index, lineIdx)}
+                            title="ลบบรรทัด"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+
+                    const noteRowView = (
+                      <tr className="border-t border-gray-100 bg-white/60">
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-2">
+                          <div className="space-y-2">
+                            {noteBlocks.map((block, blockIdx) => (
+                              <div key={`note-${blockIdx}`} className="flex items-start gap-2">
+                                <textarea
+                                  className="form-input w-full py-1 text-xs"
+                                  rows={2}
+                                  value={block}
+                                  onFocus={() => setActiveItemIdx(index)}
+                                  onChange={event => setNoteBlock(index, blockIdx, event.target.value)}
+                                  placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                                />
+                                <button
+                                  type="button"
+                                  className="mt-1 p-1 text-red-400 transition-colors hover:text-red-600"
+                                  onClick={() => removeNoteBlock(index, blockIdx)}
+                                  title="ลบหมายเหตุ"
+                                >
+                                  <X size={13} />
+                                </button>
+                              </div>
+                            ))}
+                            <div className="flex flex-wrap items-center gap-2">
+                              <button
+                                type="button"
+                                className="btn-outline btn-sm"
+                                onClick={() => addNoteBlock(index)}
+                              >
+                                <Plus size={14} /> เพิ่มหมายเหตุ
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline btn-sm"
+                                disabled={!canMoveNoteUp}
+                                onClick={() => moveSection(index, 'note', 'up')}
+                                title="ย้ายขึ้น"
+                              >
+                                <ChevronUp size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-outline btn-sm"
+                                disabled={!canMoveNoteDown}
+                                onClick={() => moveSection(index, 'note', 'down')}
+                                title="ย้ายลง"
+                              >
+                                <ChevronDown size={14} />
+                              </button>
+                            </div>
+                            {item.images && item.images.length > 0 && (
+                              <div className="mb-1.5 flex flex-wrap gap-1.5">
+                                {item.images.map((url, imageIdx) => (
+                                  <div key={imageIdx} className="group relative">
+                                    <img src={resolveFileUrl(url)} alt="" className="h-14 w-14 rounded border border-gray-200 object-cover" />
+                                    <button
+                                      type="button"
+                                      onClick={() => removeItemImage(index, imageIdx)}
+                                      className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
+                                      title="ลบรูป"
+                                    >
+                                      <X size={10} />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
+                              <ImagePlus size={12} /> เพิ่มรูปภาพ
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={event => {
+                                  uploadItemImages(index, event.target.files)
+                                  event.target.value = ''
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </td>
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-0.5"></td>
+                      </tr>
+                    )
+
+                    const detailActionRow = (
+                      <tr className="border-t border-gray-100 bg-white/60">
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              onClick={() => addDescriptionLine(index)}
+                            >
+                              <Plus size={14} /> เพิ่มบรรทัด Description
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              disabled={!canMoveDetailUp}
+                              onClick={() => moveSection(index, 'detail', 'up')}
+                              title="ย้ายขึ้น"
+                            >
+                              <ChevronUp size={14} />
+                            </button>
+                            <button
+                              type="button"
+                              className="btn-outline btn-sm"
+                              disabled={!canMoveDetailDown}
+                              onClick={() => moveSection(index, 'detail', 'down')}
+                              title="ย้ายลง"
+                            >
+                              <ChevronDown size={14} />
+                            </button>
+                          </div>
+                        </td>
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-0.5"></td>
+                        <td className="px-2 py-0.5"></td>
+                      </tr>
+                    )
+
+                    return (
+                      <>
+                  <tr className={`border-t align-top ${activeItemIdx === index ? 'border-green-400 bg-green-50/40' : 'border-gray-100'}`}>
                     <td className="px-2 py-2.5 pt-3.5 text-xs text-gray-400">{index + 1}</td>
                     <td className="px-2 py-2">
                       <input
                         className="form-input w-full py-1"
                         value={item.desc}
                         required
+                        onFocus={() => setActiveItemIdx(index)}
                         onChange={event => setItemField(index, 'desc', event.target.value)}
                         placeholder="ชื่อสินค้า/บริการ *"
                       />
@@ -139,6 +405,7 @@ export default function WorkOrderItemsEditor({
                         step="any"
                         className="form-input py-1 text-right"
                         value={item.qty}
+                        onFocus={() => setActiveItemIdx(index)}
                         onChange={event => setItemField(index, 'qty', Number(event.target.value || 0))}
                       />
                     </td>
@@ -147,6 +414,7 @@ export default function WorkOrderItemsEditor({
                         list="workorder-units-datalist"
                         className="form-input py-1"
                         value={item.unit}
+                        onFocus={() => setActiveItemIdx(index)}
                         onChange={event => setItemField(index, 'unit', event.target.value)}
                         placeholder="-"
                       />
@@ -163,104 +431,43 @@ export default function WorkOrderItemsEditor({
                       )}
                     </td>
                   </tr>
-
-                  {parseWorkOrderDetailRows(item).map((row, lineIdx) => (
-                    <tr key={`detail-${lineIdx}`} className="align-top">
-                      <td className="px-2 py-0.5"></td>
-                      <td className="px-2 py-0.5">
-                        <input
-                          className="form-input w-full py-1 text-xs text-gray-700"
-                          value={row.desc}
-                          onChange={event => setDescriptionLine(index, lineIdx, 'desc', event.target.value)}
-                          placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
-                        />
-                      </td>
-                      <td className="px-2 py-0.5">
-                        <input
-                          type="number"
-                          min={0}
-                          max={99999}
-                          step="any"
-                          className="form-input w-full py-1 text-right text-xs"
-                          value={row.qty ?? ''}
-                          onChange={event => {
-                            const raw = event.target.value.trim()
-                            setDescriptionLine(index, lineIdx, 'qty', raw === '' ? null : Number(raw))
-                          }}
-                          placeholder="Q'ty"
-                        />
-                      </td>
-                      <td className="px-2 py-0.5">
-                        <input
-                          list="workorder-units-datalist"
-                          className="form-input w-full py-1 text-xs"
-                          value={row.unit ?? ''}
-                          onChange={event => setDescriptionLine(index, lineIdx, 'unit', event.target.value)}
-                          placeholder="Unit"
-                        />
-                      </td>
-                      <td className="px-2 py-0.5 text-right">
-                        <button
-                          type="button"
-                          className="p-1 text-red-400 transition-colors hover:text-red-600"
-                          onClick={() => removeDescriptionLine(index, lineIdx)}
-                          title="ลบบรรทัด"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-
-                  <tr>
-                    <td className="px-2 py-0.5"></td>
-                    <td className="px-2 py-1">
-                      <button
-                        type="button"
-                        className="inline-flex items-center gap-1 text-xs font-medium text-green-700 hover:text-green-800"
-                        onClick={() => addDescriptionLine(index)}
-                      >
-                        <Plus size={12} /> เพิ่มบรรทัด Description
-                      </button>
-                      <div className="mt-2">
-                        {item.images && item.images.length > 0 && (
-                          <div className="mb-1.5 flex flex-wrap gap-1.5">
-                            {item.images.map((url, imageIdx) => (
-                              <div key={imageIdx} className="group relative">
-                                <img src={resolveFileUrl(url)} alt="" className="h-14 w-14 rounded border border-gray-200 object-cover" />
-                                <button
-                                  type="button"
-                                  onClick={() => removeItemImage(index, imageIdx)}
-                                  className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                                  title="ลบรูป"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
-                          <ImagePlus size={12} /> เพิ่มรูปภาพ
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={event => {
-                              uploadItemImages(index, event.target.files)
-                              event.target.value = ''
-                            }}
-                          />
-                        </label>
-                      </div>
-                    </td>
-                    <td className="px-2 py-0.5"></td>
-                    <td className="px-2 py-0.5"></td>
-                    <td className="px-2 py-0.5"></td>
-                  </tr>
+                        {detailBeforeNote ? detailRowsView : noteRowView}
+                        {detailActionRow}
+                        {detailBeforeNote ? noteRowView : detailRowsView}
+                      </>
+                    )
+                  })()}
                 </Fragment>
               ))}
+              <tr className="border-t border-gray-100 bg-white/70">
+                <td className="px-2 py-2"></td>
+                <td className="px-2 py-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button type="button" className="btn-outline btn-sm" onClick={addItem}>
+                      <Plus size={14} /> เพิ่มรายการ
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={() => addNoteBlock(activeItemIdx)}
+                      disabled={!items[activeItemIdx]}
+                    >
+                      <Plus size={14} /> เพิ่มหมายเหตุ
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={() => addDescriptionLine(activeItemIdx)}
+                      disabled={!items[activeItemIdx]}
+                    >
+                      <Plus size={14} /> เพิ่มบรรทัด
+                    </button>
+                  </div>
+                </td>
+                <td colSpan={3} className="px-2 py-2 text-right text-xs text-gray-500">
+                  {items[activeItemIdx] ? `กำลังแก้ไขรายการที่ ${activeItemIdx + 1}` : ''}
+                </td>
+              </tr>
             </tbody>
           </table>
         </div>

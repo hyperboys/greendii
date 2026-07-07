@@ -125,6 +125,32 @@ function normalizeDocChecklist(input, fallback = {}, canEditTeamChecklist = fals
 function normalizeWorkOrderItems(items) {
   if (!Array.isArray(items)) return [];
 
+  const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n';
+
+  const parseWorkOrderNote = (rawNote) => {
+    const note = String(rawNote ?? '');
+    if (!note.includes(WORKORDER_NOTE_META_SEPARATOR)) {
+      return { detailNote: note, noteBlocks: [] };
+    }
+
+    const [detailNote, rawMeta] = note.split(WORKORDER_NOTE_META_SEPARATOR, 2);
+    try {
+      const parsed = JSON.parse(rawMeta || '{}');
+      const noteBlocks = Array.isArray(parsed?.noteBlocks)
+        ? parsed.noteBlocks.map((block) => String(block ?? ''))
+        : [];
+      return { detailNote, noteBlocks };
+    } catch {
+      return { detailNote: note, noteBlocks: [] };
+    }
+  };
+
+  const stringifyWorkOrderNote = (normalizedDetailRows, noteBlocks) => {
+    const detailNote = normalizedDetailRows.map((row) => row.desc).join('\n');
+    if (!Array.isArray(noteBlocks) || noteBlocks.length === 0) return detailNote;
+    return `${detailNote}${WORKORDER_NOTE_META_SEPARATOR}${JSON.stringify({ noteBlocks })}`;
+  };
+
   const normalizeDetailRows = (rows) => {
     if (!Array.isArray(rows)) return [];
     return rows
@@ -142,7 +168,7 @@ function normalizeWorkOrderItems(items) {
       .filter((row) => row.desc || row.qty != null || row.unit);
   };
 
-  const fallbackDetailRowsFromNote = (note) => String(note ?? '')
+  const fallbackDetailRowsFromNote = (note) => parseWorkOrderNote(note).detailNote
     .split('\n')
     .map((line) => String(line).trim())
     .filter(Boolean)
@@ -156,6 +182,7 @@ function normalizeWorkOrderItems(items) {
       const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
       const unit = String(item?.unit ?? '').trim();
       const note = item?.note == null ? '' : String(item.note);
+      const noteInfo = parseWorkOrderNote(note);
       const images = Array.isArray(item?.images)
         ? item.images.map(v => String(v || '')).filter(Boolean)
         : [];
@@ -164,7 +191,7 @@ function normalizeWorkOrderItems(items) {
       return {
         seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
         desc,
-        note: normalizedDetailRows.map((row) => row.desc).join('\n'),
+        note: stringifyWorkOrderNote(normalizedDetailRows, noteInfo.noteBlocks),
         detailRows: normalizedDetailRows,
         qty,
         unit,
