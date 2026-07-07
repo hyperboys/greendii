@@ -244,6 +244,10 @@ export interface Settings {
       userIds?: string[]
       messageTemplate?: string
     }
+    workOrderCloseAccess?: {
+      roles?: string[]
+      userIds?: string[]
+    }
     workOrderApprovedPoAttachRoles?: string[]
     [key: string]: unknown
   }

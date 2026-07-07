@@ -11,11 +11,16 @@ import toast from 'react-hot-toast'
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify'
 const APPROVAL_BYPASS_KEY = 'approvalBypassConfig'
 const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles'
+const WO_CLOSE_ACCESS_KEY = 'workOrderCloseAccess'
 const DEFAULT_WO_APPROVED_NOTIFY = {
   enabled: false,
   roles: [] as string[],
   userIds: [] as string[],
   messageTemplate: 'ใบสั่งงาน {woNo} อนุมัติครบแล้ว',
+}
+const DEFAULT_WO_CLOSE_ACCESS = {
+  roles: ['admin'] as string[],
+  userIds: [] as string[],
 }
 const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator']
 const DEFAULT_APPROVAL_BYPASS_CONFIG: Record<string, string[]> = {
@@ -34,6 +39,7 @@ export default function ApprovalFlowPage() {
   // stepRoleConfig: { "1": "sales", "2": "sale_mgr", ... }
   const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
   const [woApprovedNotify, setWoApprovedNotify] = useState(DEFAULT_WO_APPROVED_NOTIFY)
+  const [woCloseAccess, setWoCloseAccess] = useState(DEFAULT_WO_CLOSE_ACCESS)
   const [woApprovedPoAttachRoles, setWoApprovedPoAttachRoles] = useState<string[]>(DEFAULT_WO_APPROVED_PO_ATTACH_ROLES)
   const [approvalBypassConfig, setApprovalBypassConfig] = useState<Record<string, string[]>>(DEFAULT_APPROVAL_BYPASS_CONFIG)
   const [allUsers, setAllUsers] = useState<User[]>([])
@@ -67,6 +73,20 @@ export default function ApprovalFlowPage() {
     }
   }
 
+  const parseWoCloseAccess = (raw: unknown) => {
+    if (!raw || typeof raw !== 'object') return { ...DEFAULT_WO_CLOSE_ACCESS }
+    const cfg = raw as {
+      roles?: unknown
+      userIds?: unknown
+    }
+    const roles = Array.isArray(cfg.roles) ? cfg.roles.map(String).filter(Boolean) : []
+    const userIds = Array.isArray(cfg.userIds) ? cfg.userIds.map(String).filter(Boolean) : []
+    return {
+      roles: roles.length > 0 ? roles : DEFAULT_WO_CLOSE_ACCESS.roles,
+      userIds,
+    }
+  }
+
   useEffect(() => {
     fetchSettings()
     Promise.all([
@@ -86,6 +106,7 @@ export default function ApprovalFlowPage() {
       }))
       if (s.stepRoleConfig) setStepRoleConfig(s.stepRoleConfig as Record<string, string>)
       setWoApprovedNotify(parseWoApprovedNotify(approvalFlowConfig[WO_APPROVED_NOTIFY_KEY]))
+      setWoCloseAccess(parseWoCloseAccess(approvalFlowConfig[WO_CLOSE_ACCESS_KEY]))
       const poAttachRolesRaw = approvalFlowConfig[WO_APPROVED_PO_ATTACH_ROLES_KEY]
       setWoApprovedPoAttachRoles(
         Array.isArray(poAttachRolesRaw) && poAttachRolesRaw.length > 0
@@ -174,6 +195,10 @@ export default function ApprovalFlowPage() {
           userIds: Array.from(new Set(woApprovedNotify.userIds)),
           messageTemplate: woApprovedNotify.messageTemplate?.trim() || DEFAULT_WO_APPROVED_NOTIFY.messageTemplate,
         },
+        [WO_CLOSE_ACCESS_KEY]: {
+          roles: Array.from(new Set((woCloseAccess.roles || []).map(String).filter(Boolean))),
+          userIds: Array.from(new Set((woCloseAccess.userIds || []).map(String).filter(Boolean))),
+        },
         [WO_APPROVED_PO_ATTACH_ROLES_KEY]: Array.from(new Set(woApprovedPoAttachRoles.map(String).filter(Boolean))),
         [APPROVAL_BYPASS_KEY]: {
           quotation: Array.from(new Set(approvalBypassConfig.quotation || [])),
@@ -204,6 +229,7 @@ export default function ApprovalFlowPage() {
       return next
     })
     setStepRoleConfig(DEFAULT_STEP_ROLE)
+    setWoCloseAccess(DEFAULT_WO_CLOSE_ACCESS)
     setWoApprovedPoAttachRoles(DEFAULT_WO_APPROVED_PO_ATTACH_ROLES)
     setApprovalBypassConfig(DEFAULT_APPROVAL_BYPASS_CONFIG)
     toast('รีเซ็ตเป็นค่าเริ่มต้นแล้ว (ยังไม่ได้บันทึก)', { icon: '↩️' })
@@ -428,6 +454,63 @@ export default function ApprovalFlowPage() {
               onChange={e => setWoApprovedNotify(prev => ({ ...prev, messageTemplate: e.target.value }))}
               placeholder="ใบสั่งงาน {woNo} อนุมัติครบแล้ว"
             />
+          </div>
+        </div>
+
+        <div className="card p-5">
+          <h3 className="font-semibold text-gray-800 mb-1">สิทธิ์ปิดงานพิเศษ (Work Order)</h3>
+          <p className="text-xs text-gray-500 mb-4">
+            เลือก Role หรือผู้ใช้ ที่สามารถกดปิดงานได้เมื่อ Work Order อยู่สถานะ approved
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-2">เลือกทีม (Role)</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+                {allRoles.map(role => {
+                  const checked = woCloseAccess.roles.includes(role.key)
+                  return (
+                    <label key={`wo-close-role-${role.key}`} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => setWoCloseAccess(prev => ({
+                          ...prev,
+                          roles: e.target.checked
+                            ? Array.from(new Set([...prev.roles, role.key]))
+                            : prev.roles.filter(r => r !== role.key),
+                        }))}
+                      />
+                      <span>{role.label} ({role.key})</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <p className="text-xs text-gray-500 font-medium mb-2">เลือกผู้รับเฉพาะคน</p>
+              <div className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
+                {allUsers.map(user => {
+                  const checked = woCloseAccess.userIds.includes(user.id)
+                  return (
+                    <label key={`wo-close-user-${user.id}`} className="flex items-center gap-2 text-sm px-1 py-1 rounded hover:bg-gray-50">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => setWoCloseAccess(prev => ({
+                          ...prev,
+                          userIds: e.target.checked
+                            ? Array.from(new Set([...prev.userIds, user.id]))
+                            : prev.userIds.filter(id => id !== user.id),
+                        }))}
+                      />
+                      <span>{user.fullName} ({user.role})</span>
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
           </div>
         </div>
 

@@ -12,6 +12,11 @@ const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = req
 const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify';
+const WO_CLOSE_ACCESS_KEY = 'workOrderCloseAccess';
+const DEFAULT_WO_CLOSE_ACCESS = {
+  roles: ['admin'],
+  userIds: [],
+};
 const TEAM_CHECKLIST_KEYS = [
   'team_delivery_only',
   'team_floor',
@@ -404,6 +409,49 @@ function buildWorkOrderNotifyMessage(template, wo) {
     .replaceAll('{woNo}', wo.woNo || '-')
     .replaceAll('{project}', wo.project || '-')
     .replaceAll('{customerName}', wo.customerName || '-');
+}
+
+function parseWorkOrderCloseAccess(raw) {
+  if (!raw || typeof raw !== 'object') return { ...DEFAULT_WO_CLOSE_ACCESS };
+
+  const cfg = raw;
+  const roles = Array.isArray(cfg.roles)
+    ? cfg.roles.map(role => String(role || '').trim()).filter(Boolean)
+    : [];
+  const userIds = Array.isArray(cfg.userIds)
+    ? cfg.userIds.map(id => String(id || '').trim()).filter(Boolean)
+    : [];
+
+  return {
+    roles: roles.length > 0 ? roles : [...DEFAULT_WO_CLOSE_ACCESS.roles],
+    userIds,
+  };
+}
+
+async function getWorkOrderCloseAccess() {
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'main' },
+      select: { approvalFlowConfig: true },
+    });
+    return parseWorkOrderCloseAccess(settings?.approvalFlowConfig?.[WO_CLOSE_ACCESS_KEY]);
+  } catch {
+    return { ...DEFAULT_WO_CLOSE_ACCESS };
+  }
+}
+
+async function assertWorkOrderClosePermission(req) {
+  const cfg = await getWorkOrderCloseAccess();
+  const actorRole = normalizeRole(req.user.role);
+  const roleCandidates = Array.from(new Set((cfg.roles || []).flatMap(expandRoleAliases).map(normalizeRole)));
+  const allowedUserIds = new Set((cfg.userIds || []).map(id => String(id)));
+
+  if (allowedUserIds.has(req.user.id)) return;
+  if (roleCandidates.includes(actorRole)) return;
+
+  const error = new Error('ไม่มีสิทธิ์ปิดงาน');
+  error.status = 403;
+  throw error;
 }
 
 async function notifyWorkOrderApprovedTargets(wo, actorUserId) {
@@ -852,12 +900,10 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
       : undefined;
     const nextStep = await getNextStep('workOrder', wo.approvalStep);
     const newStatus = nextStep === null ? 'approved' : 'pending';
-    const isClosed = nextStep === null;
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
       data: {
         approvalStep: nextStep ?? wo.approvalStep, status: newStatus,
-        isClosed, closedAt: isClosed ? new Date() : null,
         ...(nextDocChecklist ? { docChecklist: nextDocChecklist } : {}),
       },
     });
@@ -874,6 +920,28 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
     } else {
       await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/close
+router.post('/:id/close', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
+    await assertWorkOrderClosePermission(req);
+
+    if (wo.status !== 'approved') {
+      return res.status(400).json({ message: 'ปิดงานได้เฉพาะเอกสารที่อนุมัติแล้วเท่านั้น' });
+    }
+    if (wo.isClosed) {
+      return res.status(400).json({ message: 'Work order ปิดงานแล้ว' });
+    }
+
+    const updated = await prisma.workOrder.update({
+      where: { id: req.params.id },
+      data: { isClosed: true, closedAt: new Date() },
+    });
+
     res.json(updated);
   } catch (e) { next(e); }
 });

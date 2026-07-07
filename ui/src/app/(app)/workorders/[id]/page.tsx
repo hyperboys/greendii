@@ -18,7 +18,9 @@ import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSectio
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
 const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles'
+const WO_CLOSE_ACCESS_KEY = 'workOrderCloseAccess'
 const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator']
+const DEFAULT_WO_CLOSE_ACCESS = { roles: ['admin'] as string[], userIds: [] as string[] }
 
 const CHECKLIST_GROUPS = {
   team: [
@@ -120,6 +122,16 @@ export default function WorkOrderDetailPage() {
     ? undefined
     : (canUploadPoAfterApproved ? ['po'] : [])
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
+  const closeAccessRaw = settings?.approvalFlowConfig?.[WO_CLOSE_ACCESS_KEY]
+  const closeAccessRoles = Array.isArray((closeAccessRaw as { roles?: unknown })?.roles)
+    ? ((closeAccessRaw as { roles: unknown[] }).roles.map(String).filter(Boolean))
+    : DEFAULT_WO_CLOSE_ACCESS.roles
+  const closeAccessUserIds = Array.isArray((closeAccessRaw as { userIds?: unknown })?.userIds)
+    ? ((closeAccessRaw as { userIds: unknown[] }).userIds.map(String).filter(Boolean))
+    : DEFAULT_WO_CLOSE_ACCESS.userIds
+  const canCloseByRole = closeAccessRoles.map(normalizeUserRole).includes(normalizeUserRole(user?.role))
+  const canCloseByUserId = Boolean(user?.id && closeAccessUserIds.includes(user.id))
+  const canClose = doc.status === 'approved' && !doc.isClosed && (canCloseByRole || canCloseByUserId)
 
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
@@ -146,13 +158,15 @@ export default function WorkOrderDetailPage() {
   ]
   const previewAttachments = doc.attachments ?? []
 
-  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete') => {
+  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete' | 'close') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
+    if (action === 'close' && !confirm('ยืนยันการปิดงานนี้?')) return
     setActing(true)
     try {
       if (action === 'submit') await WorkOrdersAPI.submit(id, comment)
       else if (action === 'approve') await WorkOrdersAPI.approve(id, comment, canEditTeamChecklistOnApprove ? checklist : undefined)
       else if (action === 'reject') await WorkOrdersAPI.reject(id, comment)
+      else if (action === 'close') await WorkOrdersAPI.close(id)
       else if (action === 'delete') { await WorkOrdersAPI.cancel(id); router.push('/workorders'); return }
       toast.success('ดำเนินการสำเร็จ')
       load()
@@ -399,6 +413,18 @@ export default function WorkOrderDetailPage() {
                 </button>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {canClose && (
+        <div className="card p-5 space-y-3">
+          <h3 className="font-semibold text-gray-800">ปิดงาน</h3>
+          <p className="text-xs text-gray-500">ใช้เมื่อใบสั่งงานนี้เสร็จสิ้นจริง และต้องการปิดงานด้วยมือ</p>
+          <div className="flex gap-2">
+            <button className="btn-primary" onClick={() => act('close')} disabled={acting}>
+              <CheckCircle size={15} /> ปิดงาน
+            </button>
           </div>
         </div>
       )}
