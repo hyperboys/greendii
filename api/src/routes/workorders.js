@@ -503,7 +503,7 @@ async function notifyWorkOrderApprovedTargets(wo, actorUserId) {
   if (recipientIds.size === 0) return;
 
   const text = buildWorkOrderNotifyMessage(notifyCfg.messageTemplate, wo);
-  await Promise.all([...recipientIds].map(userId => notifyUser(userId, text).catch(() => {})));
+  await Promise.all([...recipientIds].map(userId => notifyUser(userId, text, { sendLine: true }).catch(() => {})));
 }
 
 // GET /api/workorders/by-quotation/:quotationId/previous
@@ -882,7 +882,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(resumeStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+    await notifyStep(resumeStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id, sendLine: true }).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
@@ -919,10 +919,10 @@ router.post('/:id/approve', authenticate, async (req, res, next) => {
       },
     });
     if (newStatus === 'approved') {
-      await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
+      await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ได้รับการอนุมัติแล้ว`, { sendLine: true }).catch(() => {});
       await notifyWorkOrderApprovedTargets(wo, req.user.id).catch(() => {});
     } else {
-      await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+      await notifyStep(nextStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id, sendLine: true }).catch(() => {});
     }
     res.json(updated);
   } catch (e) { next(e); }
@@ -1000,7 +1000,7 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
 
       return rejected;
     });
-    await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ถูกปฏิเสธ`).catch(() => {});
+    await notifyUser(wo.salesId, `ใบสั่งงาน ${wo.woNo} ถูกปฏิเสธ`, { sendLine: true }).catch(() => {});
     res.json(updated);
 
   } catch (e) { next(e); }

@@ -55,19 +55,22 @@ export const createEmptyWorkOrderItem = (seq: number): WorkOrderItem => ({
 
 function normalizeDetailRows(
   rows?: WorkOrderDetailRow[] | null,
-  options?: { keepEmpty?: boolean },
+  options?: { keepEmpty?: boolean; trimText?: boolean },
 ): WorkOrderDetailRow[] {
   const keepEmpty = options?.keepEmpty === true
+  const trimText = options?.trimText !== false
   if (!Array.isArray(rows)) return []
   const normalized = rows
     .map((row) => {
-      const desc = String(row?.desc ?? '').trim()
+      const descRaw = String(row?.desc ?? '')
+      const unitRaw = String(row?.unit ?? '')
+      const desc = trimText ? descRaw.trim() : descRaw
       const rawQty = row?.qty as unknown
       const qty = rawQty == null || rawQty === '' ? null : Number(rawQty)
       return {
         desc,
         qty: Number.isFinite(qty) ? qty : null,
-        unit: String(row?.unit ?? '').trim(),
+        unit: trimText ? unitRaw.trim() : unitRaw,
       }
     })
 
@@ -90,7 +93,7 @@ export function parseWorkOrderNoteBlocks(note?: string): string[] {
 }
 
 export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows' | 'note'> | null): WorkOrderDetailRow[] {
-  const fromRows = normalizeDetailRows(item?.detailRows, { keepEmpty: true })
+  const fromRows = normalizeDetailRows(item?.detailRows, { keepEmpty: true, trimText: false })
   if (fromRows.length > 0) return fromRows
 
   const fromNote = fallbackRowsFromNote(item?.note)
@@ -103,7 +106,7 @@ export function stringifyWorkOrderDetailRows(
   rows: WorkOrderDetailRow[],
   options?: { noteBlocks?: string[] },
 ): Pick<WorkOrderItem, 'detailRows' | 'note'> {
-  const normalizedRows = normalizeDetailRows(rows, { keepEmpty: true })
+  const normalizedRows = normalizeDetailRows(rows, { keepEmpty: true, trimText: false })
   return {
     detailRows: normalizedRows,
     note: buildWorkOrderNote(normalizedRows, options?.noteBlocks),

@@ -87,8 +87,9 @@ async function sendEmail(to, subject, text) {
 
 // ─── Core notification helpers ───────────────────────────────────────────────
 
-// Notify a specific user by DB id (in-app + LINE + email)
-async function notifyUser(userId, text) {
+// Notify a specific user by DB id (in-app + email; LINE when options.sendLine=true)
+async function notifyUser(userId, text, options = {}) {
+  const { sendLine: shouldSendLine = false } = options;
   await prisma.notification.create({ data: { userId, text } });
 
   // Fire-and-forget external channels — never block the main flow
@@ -97,15 +98,15 @@ async function notifyUser(userId, text) {
     select: { lineUserId: true, email: true },
   }).then(user => {
     if (!user) return;
-    sendLine(user.lineUserId, text);
+    if (shouldSendLine) sendLine(user.lineUserId, text);
     sendEmail(user.email, 'GreenDii แจ้งเตือน', text);
   }).catch(() => {});
 }
 
-// Notify all active users of a given role (in-app + LINE + email)
+// Notify all active users of a given role (in-app + email; LINE when options.sendLine=true)
 // options.excludeUserId: skip a specific actor (e.g. submitter) from recipients
 async function notifyByRole(role, text, options = {}) {
-  const { excludeUserId } = options;
+  const { excludeUserId, sendLine: shouldSendLine = false } = options;
   const candidateRoles = expandRoleAliases(role);
   const users = await prisma.user.findMany({
     where: {
@@ -123,7 +124,7 @@ async function notifyByRole(role, text, options = {}) {
 
   // Fire-and-forget external channels for each user
   for (const u of users) {
-    sendLine(u.lineUserId, text);
+    if (shouldSendLine) sendLine(u.lineUserId, text);
     sendEmail(u.email, 'GreenDii แจ้งเตือน', text);
   }
 }
