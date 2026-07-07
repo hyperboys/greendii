@@ -6,7 +6,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { notifyStep, notifyUser } = require('../lib/notify');
-const { getFirstStep, getNextStep, getStepRoleMapping, getFlowSteps } = require('../lib/approvalFlow');
+const { getFirstStep, getNextStep, getStepRoleMapping } = require('../lib/approvalFlow');
 const { normalizeRole, expandRoleAliases } = require('../lib/roleAliases');
 const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
@@ -862,18 +862,9 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     const wo = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
     if (!['draft', 'rejected'].includes(wo.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     const firstStep = await getFirstStep('workOrder');
-    let resumeStep = firstStep;
-    if (wo.status === 'rejected') {
-      const steps = await getFlowSteps('workOrder');
-      const currentStep = Number(wo.approvalStep);
-      if (steps.includes(currentStep)) {
-        // Continue from the step that previously rejected the document.
-        resumeStep = currentStep;
-      }
-    }
     const updated = await prisma.workOrder.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: resumeStep },
+      data: { status: 'pending', approvalStep: firstStep },
     });
     await prisma.approvalLog.create({
       data: {
@@ -882,7 +873,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
       },
     });
-    await notifyStep(resumeStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id, sendLine: true }).catch(() => {});
+    await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id, sendLine: true }).catch(() => {});
     res.json(updated);
   } catch (e) { next(e); }
 });
