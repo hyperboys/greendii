@@ -72,6 +72,26 @@ function parseNoteParts(note?: string): { noteText: string; detailLines: string[
   return { noteText, detailLines }
 }
 
+function getPenultimateApprovalLog(doc: PurchaseRequest) {
+  const historyLogs = [...(doc.approvalLogs ?? [])]
+    .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
+
+  const latestSubmitAt = [...historyLogs]
+    .reverse()
+    .find(log => log.action === 'submit')?.actedAt
+
+  const cycleLogs = latestSubmitAt
+    ? historyLogs.filter(log => new Date(log.actedAt).getTime() >= new Date(latestSubmitAt).getTime())
+    : historyLogs
+
+  const approvedLogs = cycleLogs
+    .filter(log => log.action === 'approve')
+    .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
+
+  if (approvedLogs.length === 0) return null
+  return approvedLogs[approvedLogs.length - 2] ?? approvedLogs[approvedLogs.length - 1]
+}
+
 const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
 
 interface Props {
@@ -116,6 +136,12 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   }
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = fmtDateTH(doc.dateIssue || doc.createdAt)
+  const approvalSignatureLog = getPenultimateApprovalLog(doc)
+  const approvalSignature = formatSignatureText(
+    approvalSignatureLog?.approver?.signatureText,
+    approvalSignatureLog?.approver?.fullName,
+  )
+  const approvalDate = fmtDateTH(approvalSignatureLog?.actedAt)
   const attachmentSheets = (Array.isArray(doc.attachments) ? doc.attachments : []).filter(att => {
     const hasSource = Boolean((att.fileUrl && String(att.fileUrl).trim()) || (att.filename && String(att.filename).trim()))
     if (!hasSource) return false
@@ -411,11 +437,40 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval</span>
-                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      borderBottom: '1px dotted #666',
+                      minHeight: '1.15em',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      fontFamily: 'var(--font-signature)',
+                      fontStyle: 'italic',
+                      fontSize: '14pt',
+                      lineHeight: 1,
+                      paddingBottom: '1px',
+                    }}
+                  >
+                    {approvalSignature || '\u00A0'}
+                  </span>
                 </div>
                 <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
                   <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
-                  <span style={{ flex: 1, borderBottom: '1px dotted #666', height: '0.9em' }} />
+                  <span
+                    style={{
+                      flex: 1,
+                      borderBottom: '1px dotted #666',
+                      minHeight: '0.9em',
+                      display: 'flex',
+                      alignItems: 'flex-end',
+                      justifyContent: 'center',
+                      lineHeight: 1,
+                      paddingBottom: '1px',
+                    }}
+                  >
+                    {approvalDate || '\u00A0'}
+                  </span>
                 </div>
               </td>
             </tr>

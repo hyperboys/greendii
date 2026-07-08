@@ -35,7 +35,7 @@ const INCLUDE_FULL = {
   workOrder: { select: { id: true, woNo: true } },
   items: { orderBy: { seq: 'asc' } },
   approvalLogs: {
-    include: { approver: { select: { id: true, fullName: true, role: true } } },
+    include: { approver: { select: { id: true, fullName: true, role: true, signatureText: true } } },
     orderBy: { actedAt: 'asc' },
   },
   attachments: true,
