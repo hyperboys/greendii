@@ -739,7 +739,9 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
 
           await tx.workOrder.update({ where: { id: prevActiveWo.id }, data: { active: false } })
         } else {
-          woNo = buildRevisionDocNo(await nextWorkOrderBaseNo(), revisionNo)
+          // First WO in a revised quotation chain should keep a base WO number.
+          // Apply -R{n} only when there is an existing WO to revise from.
+          woNo = await nextWorkOrderBaseNo()
           projectValue = project || linkedQuotation.project
           customerNameValue = customerName || linkedQuotation.customerName
           itemsValue = normalizedItems.length > 0 ? normalizedItems : quotationItemsSnapshot
