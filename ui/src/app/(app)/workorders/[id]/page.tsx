@@ -11,7 +11,12 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
-import { getWorkOrderDetailNoteText, getWorkOrderItemsSource } from '@/lib/workOrderItems'
+import {
+  getWorkOrderDetailNoteText,
+  getWorkOrderItemsSource,
+  parseWorkOrderDetailBeforeNote,
+  parseWorkOrderNoteBlocks,
+} from '@/lib/workOrderItems'
 import { decodeDisplayFileName } from '@/lib/filename'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -329,28 +334,60 @@ export default function WorkOrderDetailPage() {
               </thead>
               <tbody>
                 {workOrderItems.map((item, i) => (
-                  <tr key={i} className="border-b">
-                    <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
-                    <td className="border px-2 py-1.5">
-                      <div>{item.desc}</div>
-                      {getWorkOrderDetailNoteText(item.note) && <div className="whitespace-pre-line text-xs text-gray-400">{getWorkOrderDetailNoteText(item.note)}</div>}
-                      {Array.isArray(item.images) && item.images.length > 0 && (
-                        <div className="mt-3 flex flex-wrap gap-2">
-                          {item.images.map((url, imageIndex) => (
-                            // eslint-disable-next-line @next/next/no-img-element
-                            <img
-                              key={`${i}-${imageIndex}`}
-                              src={resolveFileUrl(url)}
-                              alt="รูปประกอบจากใบเสนอราคา"
-                              className="h-24 w-24 rounded border border-gray-200 object-contain bg-white p-1"
-                            />
+                  (() => {
+                    const detailText = getWorkOrderDetailNoteText(item.note)
+                    const noteBlocks = parseWorkOrderNoteBlocks(item.note)
+                    const detailBeforeNote = parseWorkOrderDetailBeforeNote(item.note)
+
+                    const detailView = detailText
+                      ? <div className="whitespace-pre-line text-xs text-gray-400">{detailText}</div>
+                      : null
+
+                    const noteView = noteBlocks.length > 0
+                      ? (
+                        <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                          {noteBlocks.map((block, blockIndex) => (
+                            <div key={`${i}-note-${blockIndex}`} className="whitespace-pre-line">{block}</div>
                           ))}
                         </div>
-                      )}
-                    </td>
-                    <td className="border px-2 py-1.5 text-right">{item.qty}</td>
-                    <td className="border px-2 py-1.5 text-center">{item.unit}</td>
-                  </tr>
+                      )
+                      : null
+
+                    return (
+                      <tr key={i} className="border-b">
+                        <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
+                        <td className="border px-2 py-1.5">
+                          <div>{item.desc}</div>
+                          {detailBeforeNote ? (
+                            <>
+                              {detailView}
+                              {noteView}
+                            </>
+                          ) : (
+                            <>
+                              {noteView}
+                              {detailView}
+                            </>
+                          )}
+                          {Array.isArray(item.images) && item.images.length > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {item.images.map((url, imageIndex) => (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img
+                                  key={`${i}-${imageIndex}`}
+                                  src={resolveFileUrl(url)}
+                                  alt="รูปประกอบจากใบเสนอราคา"
+                                  className="h-24 w-24 rounded border border-gray-200 object-contain bg-white p-1"
+                                />
+                              ))}
+                            </div>
+                          )}
+                        </td>
+                        <td className="border px-2 py-1.5 text-right">{item.qty}</td>
+                        <td className="border px-2 py-1.5 text-center">{item.unit}</td>
+                      </tr>
+                    )
+                  })()
                 ))}
               </tbody>
             </table>

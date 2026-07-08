@@ -3,7 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
-import { getWorkOrderItemsSource } from '@/lib/workOrderItems'
+import {
+  getWorkOrderDetailNoteText,
+  getWorkOrderItemsSource,
+  parseWorkOrderDetailBeforeNote,
+  parseWorkOrderNoteBlocks,
+} from '@/lib/workOrderItems'
 
 const PACK_CAP_NON_LAST = 60
 const PACK_CAP_LAST = 20
@@ -15,10 +20,7 @@ const TAIL_GAP = 10
 const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
 function splitDescriptionLines(note?: string): string[] {
-  if (note == null) return []
-  const raw = String(note)
-  const separator = '\n\n__WO_NOTE_META__\n\n'
-  const detailNote = raw.includes(separator) ? raw.split(separator, 2)[0] : raw
+  const detailNote = getWorkOrderDetailNoteText(note)
   const lines = detailNote.split('\n').map(v => v.trim())
   if (lines.length === 1 && lines[0] === '') return []
   return lines
@@ -53,13 +55,22 @@ type ItemSource = Pick<QuotationItem, 'id' | 'seq' | 'desc' | 'note' | 'qty' | '
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderItemFragment[] {
   const workOrderItem = item as WorkOrderItem
   const sourceDetailRows = Array.isArray(workOrderItem.detailRows) ? workOrderItem.detailRows : []
-  const detailRows = sourceDetailRows.length > 0
+  const detailBeforeNote = parseWorkOrderDetailBeforeNote(item.note)
+  const detailRowsFromItem = sourceDetailRows.length > 0
     ? sourceDetailRows.map((row) => ({
       desc: String(row?.desc ?? '').trim(),
       qty: row?.qty == null ? null : (Number.isFinite(row.qty) ? row.qty : null),
       unit: String(row?.unit ?? '').trim(),
     }))
     : splitDescriptionLines(item.note).map((line) => ({ desc: line, qty: null, unit: '' }))
+  const noteBlockRows = parseWorkOrderNoteBlocks(item.note)
+    .flatMap((block) => String(block ?? '').split('\n'))
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => ({ desc: line, qty: null, unit: '' }))
+  const detailRows = detailBeforeNote
+    ? [...detailRowsFromItem, ...noteBlockRows]
+    : [...noteBlockRows, ...detailRowsFromItem]
   const remainingRows = [...detailRows]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: WorkOrderItemFragment[] = []

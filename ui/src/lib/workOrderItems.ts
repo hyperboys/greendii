@@ -5,6 +5,7 @@ const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n'
 
 type WorkOrderNoteMeta = {
   noteBlocks?: string[]
+  detailBeforeNote?: boolean
 }
 
 function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; meta: WorkOrderNoteMeta } {
@@ -22,6 +23,7 @@ function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; 
         noteBlocks: Array.isArray(parsed.noteBlocks)
           ? parsed.noteBlocks.map((block) => String(block ?? ''))
           : [],
+        detailBeforeNote: parsed.detailBeforeNote === true,
       },
     }
   } catch {
@@ -33,14 +35,23 @@ export function getWorkOrderDetailNoteText(note?: string): string {
   return parseWorkOrderNoteMeta(note).detailNote
 }
 
-function buildWorkOrderNote(detailRows: WorkOrderDetailRow[], noteBlocks?: string[]): string {
+function buildWorkOrderNote(
+  detailRows: WorkOrderDetailRow[],
+  noteBlocks?: string[],
+  detailBeforeNote?: boolean,
+): string {
   const detailNote = detailRows.map((row) => row.desc).filter(Boolean).join('\n')
   const normalizedNoteBlocks = Array.isArray(noteBlocks)
     ? noteBlocks.map((block) => String(block ?? ''))
     : []
 
-  if (normalizedNoteBlocks.length === 0) return detailNote
-  return `${detailNote}${WORKORDER_NOTE_META_SEPARATOR}${JSON.stringify({ noteBlocks: normalizedNoteBlocks })}`
+  if (normalizedNoteBlocks.length === 0 && detailBeforeNote !== true) return detailNote
+
+  const meta: WorkOrderNoteMeta = {}
+  if (normalizedNoteBlocks.length > 0) meta.noteBlocks = normalizedNoteBlocks
+  if (detailBeforeNote === true) meta.detailBeforeNote = true
+
+  return `${detailNote}${WORKORDER_NOTE_META_SEPARATOR}${JSON.stringify(meta)}`
 }
 
 export const createEmptyWorkOrderItem = (seq: number): WorkOrderItem => ({
@@ -92,6 +103,11 @@ export function parseWorkOrderNoteBlocks(note?: string): string[] {
   return Array.isArray(meta.noteBlocks) ? meta.noteBlocks : []
 }
 
+export function parseWorkOrderDetailBeforeNote(note?: string): boolean {
+  const { meta } = parseWorkOrderNoteMeta(note)
+  return meta.detailBeforeNote === true
+}
+
 export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows' | 'note'> | null): WorkOrderDetailRow[] {
   const fromRows = normalizeDetailRows(item?.detailRows, { keepEmpty: true, trimText: false })
   if (fromRows.length > 0) return fromRows
@@ -104,12 +120,12 @@ export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows'
 
 export function stringifyWorkOrderDetailRows(
   rows: WorkOrderDetailRow[],
-  options?: { noteBlocks?: string[] },
+  options?: { noteBlocks?: string[]; detailBeforeNote?: boolean },
 ): Pick<WorkOrderItem, 'detailRows' | 'note'> {
   const normalizedRows = normalizeDetailRows(rows, { keepEmpty: true, trimText: false })
   return {
     detailRows: normalizedRows,
-    note: buildWorkOrderNote(normalizedRows, options?.noteBlocks),
+    note: buildWorkOrderNote(normalizedRows, options?.noteBlocks, options?.detailBeforeNote),
   }
 }
 
@@ -128,7 +144,10 @@ export function mapQuotationItemsToWorkOrderItems(items?: QuotationItem[] | null
 export function mapWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem[] {
   if (!Array.isArray(items) || items.length === 0) return []
   return items.map((item, index) => ({
-    ...stringifyWorkOrderDetailRows(parseWorkOrderDetailRows(item), { noteBlocks: parseWorkOrderNoteBlocks(item.note) }),
+    ...stringifyWorkOrderDetailRows(parseWorkOrderDetailRows(item), {
+      noteBlocks: parseWorkOrderNoteBlocks(item.note),
+      detailBeforeNote: parseWorkOrderDetailBeforeNote(item.note),
+    }),
     seq: item.seq ?? index,
     desc: item.desc ?? '',
     qty: Number(item.qty ?? 0),
@@ -140,7 +159,10 @@ export function mapWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem
 export function normalizeWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem[] {
   return mapWorkOrderItems(items)
     .map((item, index) => ({
-      ...stringifyWorkOrderDetailRows(normalizeDetailRows(parseWorkOrderDetailRows(item)), { noteBlocks: parseWorkOrderNoteBlocks(item.note) }),
+      ...stringifyWorkOrderDetailRows(normalizeDetailRows(parseWorkOrderDetailRows(item)), {
+        noteBlocks: parseWorkOrderNoteBlocks(item.note),
+        detailBeforeNote: parseWorkOrderDetailBeforeNote(item.note),
+      }),
       seq: index,
       desc: String(item.desc ?? '').trim(),
       qty: Number(item.qty ?? 0),

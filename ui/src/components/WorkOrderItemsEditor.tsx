@@ -7,6 +7,7 @@ import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import type { Unit, WorkOrderItem } from '@/types'
 import {
   createEmptyWorkOrderItem,
+  parseWorkOrderDetailBeforeNote,
   parseWorkOrderNoteBlocks,
   parseWorkOrderDetailRows,
   stringifyWorkOrderDetailRows,
@@ -37,17 +38,8 @@ export default function WorkOrderItemsEditor({
   }, [items.length])
 
   useEffect(() => {
-    setDetailBeforeNoteByItem((prev) => {
-      const next = [...prev]
-      if (next.length < items.length) {
-        for (let i = next.length; i < items.length; i += 1) next.push(false)
-      }
-      if (next.length > items.length) {
-        next.length = items.length
-      }
-      return next
-    })
-  }, [items.length])
+    setDetailBeforeNoteByItem(items.map((item) => parseWorkOrderDetailBeforeNote(item.note)))
+  }, [items])
 
   const setItemField = (index: number, key: keyof WorkOrderItem, value: string | number | string[]) => {
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)))
@@ -57,9 +49,10 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     rows[lineIdx] = { ...rows[lineIdx], [key]: value }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -67,8 +60,9 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     rows.push({ desc: '', qty: null, unit: '' })
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -76,11 +70,12 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     if (rows.length <= 1) {
-      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows([], { noteBlocks }) }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows([], { noteBlocks, detailBeforeNote }) }
     } else {
       rows.splice(lineIdx, 1)
-      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks }) }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     }
     onChange(nextItems)
   }
@@ -89,9 +84,10 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = blocks.length > 0 ? [...blocks] : ['']
     nextBlocks[blockIdx] = value
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -99,8 +95,9 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = [...blocks, '']
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -108,9 +105,10 @@ export default function WorkOrderItemsEditor({
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = [...blocks]
     nextBlocks.splice(blockIdx, 1)
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -168,6 +166,19 @@ export default function WorkOrderItemsEditor({
         if (direction === 'down') next[itemIdx] = false
       }
       if (detailBeforeNote === next[itemIdx]) return prev
+
+      const nextItems = [...items]
+      const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+      const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+      nextItems[itemIdx] = {
+        ...nextItems[itemIdx],
+        ...stringifyWorkOrderDetailRows(rows, {
+          noteBlocks,
+          detailBeforeNote: Boolean(next[itemIdx]),
+        }),
+      }
+      onChange(nextItems)
+
       return next
     })
   }
