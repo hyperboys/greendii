@@ -142,7 +142,9 @@ router.get('/overview', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
     const canSeeAllReports = await canViewAllReports(req.user.role);
-    const quotationWhere = canSeeAllReports ? {} : { salesId: userId };
+    const quotationWhere = canSeeAllReports
+      ? { active: true }
+      : { salesId: userId, active: true };
     const [
       quoTotal, quoApproved, quoGrandTotal,
       woTotal, woApproved, woPending,

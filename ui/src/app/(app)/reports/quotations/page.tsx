@@ -49,7 +49,6 @@ const DONUT_COLORS: Partial<Record<DocStatus, string>> = {
   rejected:  '#EF4444',
   cancelled: '#FB923C',
 }
-const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director']
 const PAGE_SIZES    = [10, 25, 50]
 const DATE_PRESETS  = [
   { value: 'all',          label: 'ทั้งหมด' },
@@ -235,8 +234,7 @@ function ChartTooltip({ active, payload, label }: { active?: boolean; payload?: 
 // Main Page
 export default function QuotationSummaryReportPage() {
   const router = useRouter()
-  const { user } = useAuthStore()
-  const isManager = MANAGER_ROLES.includes(user?.role ?? '')
+  useAuthStore()
 
   const [rows, setRows]               = useState<Quotation[]>([])
   const [salesList, setSalesList]     = useState<User[]>([])
@@ -253,23 +251,22 @@ export default function QuotationSummaryReportPage() {
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (!isManager) return
-    UsersAPI.list({ active: 'true' })
+    UsersAPI.list({ active: 'true', forReport: 'true' })
       .then(users => setSalesList(users.filter(u => hasRole(u.role, ['sales', 'sale_mgr']))))
       .catch(() => {})
-  }, [isManager])
+  }, [])
 
   const load = useCallback(() => {
     setLoading(true)
     const params: Record<string, string> = { active: 'true', forReport: 'true' }
     if (search.trim())            params.q       = search.trim()
     if (statusFilter)             params.status  = statusFilter
-    if (isManager && salesFilter) params.salesId = salesFilter
+    if (salesFilter)              params.salesId = salesFilter
     QuotationsAPI.list(params)
       .then(data => { setRows(data); setPage(1) })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [search, statusFilter, isManager, salesFilter])
+  }, [search, statusFilter, salesFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -526,15 +523,13 @@ export default function QuotationSummaryReportPage() {
               {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
           </div>
-          {isManager && (
-            <div>
-              <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
-              <select className="form-input py-2 text-sm" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
-                <option value="">ทั้งหมด</option>
-                {salesList.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
+            <select className="form-input py-2 text-sm" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
+              <option value="">ทั้งหมด</option>
+              {salesList.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+            </select>
+          </div>
           <div>
             <label className="text-[11px] font-medium text-gray-500 block mb-1">
               <Calendar size={10} className="inline mr-1" />ช่วงเวลา

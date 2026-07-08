@@ -55,7 +55,6 @@ const STAGE_TARGETS: Record<Stage, number> = {
   complete:   0,
 }
 
-const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director', 'project_mgr']
 const PAGE_SIZES    = [10, 25, 50]
 const DATE_PRESETS  = [
   { value: 'all',          label: 'ทั้งหมด' },
@@ -397,8 +396,7 @@ function BarTooltip({ active, payload, label }: {
 
 export default function WorkflowTrackingReportPage() {
   const router   = useRouter()
-  const { user } = useAuthStore()
-  const isManager = MANAGER_ROLES.includes(user?.role ?? '')
+  useAuthStore()
 
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [workOrders, setWorkOrders] = useState<WorkOrder[]>([])
@@ -427,7 +425,7 @@ export default function WorkflowTrackingReportPage() {
       WorkOrdersAPI.list(),
       HandoversAPI.list(),
       PRAPI.list(),
-      isManager ? UsersAPI.list({ active: 'true', forReport: 'true' }) : Promise.resolve([] as User[]),
+      UsersAPI.list({ active: 'true', forReport: 'true' }),
     ])
       .then(([qs, wos, hos, prList, users]) => {
         setQuotations(qs)
@@ -438,7 +436,7 @@ export default function WorkflowTrackingReportPage() {
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [isManager])
+  }, [])
 
   useEffect(() => { load() }, [load])
 
@@ -885,16 +883,14 @@ export default function WorkflowTrackingReportPage() {
           </div>
 
           {/* Salesperson */}
-          {isManager && (
-            <div>
-              <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
-              <select className="form-input py-2 text-sm" value={salesFilter}
-                onChange={e => setSalesFilter(e.target.value)}>
-                <option value="">ทั้งหมด</option>
-                {salesUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
+            <select className="form-input py-2 text-sm" value={salesFilter}
+              onChange={e => setSalesFilter(e.target.value)}>
+              <option value="">ทั้งหมด</option>
+              {salesUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+            </select>
+          </div>
 
           {/* Customer */}
           <div>

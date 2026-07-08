@@ -35,8 +35,18 @@ function fmtDate(iso: string | undefined | null) {
 }
 function fmtPct(n: number) { return `${n.toFixed(1)}%` }
 
+function getLastApprovedLog(pr: PurchaseRequest) {
+  const approvedLogs = (pr.approvalLogs ?? []).filter(
+    (log) => log.action === 'approve' && typeof log.actedAt === 'string' && log.actedAt.length > 0,
+  )
+
+  if (approvedLogs.length === 0) return null
+
+  return approvedLogs
+    .sort((a, b) => new Date(b.actedAt).getTime() - new Date(a.actedAt).getTime())[0] ?? null
+}
+
 // ─── Constants ────────────────────────────────────────────────────────────────
-const MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'director', 'procurement']
 const PAGE_SIZES    = [10, 25, 50]
 const DATE_PRESETS  = [
   { value: 'all',          label: 'ทั้งหมด' },
@@ -245,8 +255,7 @@ function ChartTooltip({ active, payload, label }: {
 
 export default function PurchaseRequestReportPage() {
   const router    = useRouter()
-  const { user }  = useAuthStore()
-  const isManager = MANAGER_ROLES.includes(user?.role ?? '')
+  useAuthStore()
 
   const [rows, setRows]           = useState<PurchaseRequest[]>([])
   const [prTypes, setPrTypes]     = useState<PrType[]>([])
@@ -271,14 +280,12 @@ export default function PurchaseRequestReportPage() {
     PrTypesAPI.list({ active: 'true' })
       .then(setPrTypes)
       .catch(() => {})
-    if (isManager) {
-      UsersAPI.list({ active: 'true' })
-        .then(users => setSalesList(users.filter(u =>
-          hasRole(u.role, ['sales', 'sale_mgr', 'admin_mgr', 'procurement'])
-        )))
-        .catch(() => {})
-    }
-  }, [isManager])
+    UsersAPI.list({ active: 'true', forReport: 'true' })
+      .then(users => setSalesList(users.filter(u =>
+        hasRole(u.role, ['sales', 'sale_mgr', 'admin_mgr', 'procurement'])
+      )))
+      .catch(() => {})
+  }, [])
 
   const load = useCallback(() => {
     setLoading(true)
@@ -286,12 +293,12 @@ export default function PurchaseRequestReportPage() {
     if (search.trim())                  params.q        = search.trim()
     if (statusFilter)                   params.status   = statusFilter
     if (prTypeFilter)                   params.prTypeId = prTypeFilter
-    if (isManager && requesterFilter)   params.salesId  = requesterFilter
+    if (requesterFilter)                params.salesId  = requesterFilter
     PRAPI.list(params)
       .then(data => { setRows(data); setPage(1) })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [search, statusFilter, prTypeFilter, isManager, requesterFilter])
+  }, [search, statusFilter, prTypeFilter, requesterFilter])
 
   useEffect(() => { load() }, [load])
 
@@ -343,9 +350,7 @@ export default function PurchaseRequestReportPage() {
     // Average approval time: createdAt → last approvalLog with action=approve
     const times = approvedList
       .map(pr => {
-        const lastApproval = pr.approvalLogs
-          ?.filter(l => l.action === 'approve')
-          .sort((a, b) => b.actedAt.localeCompare(a.actedAt))[0]
+        const lastApproval = getLastApprovedLog(pr)
         if (!lastApproval) return null
         return (new Date(lastApproval.actedAt).getTime() - new Date(pr.createdAt).getTime()) / 86_400_000
       })
@@ -414,9 +419,7 @@ export default function PurchaseRequestReportPage() {
         [],
         ['เลขที่', 'ประเภท', 'ผู้ขอ', 'ลูกค้า', 'อ้างอิง WO', 'มูลค่าสุทธิ', 'สถานะ', 'วันที่ขอ', 'วันที่อนุมัติ'],
         ...sortedRows.map(pr => {
-          const lastApproval = pr.approvalLogs
-            ?.filter(l => l.action === 'approve')
-            .sort((a, b) => b.actedAt.localeCompare(a.actedAt))[0]
+          const lastApproval = getLastApprovedLog(pr)
           return [
             pr.prNo,
             pr.prType?.name ?? '—',
@@ -575,17 +578,15 @@ export default function PurchaseRequestReportPage() {
             </select>
           </div>
 
-          {/* Requester (manager only) */}
-          {isManager && (
-            <div>
-              <label className="text-[11px] font-medium text-gray-500 block mb-1">ผู้ขอ</label>
-              <select className="form-input py-2 text-sm" value={requesterFilter}
-                onChange={e => setRequesterFilter(e.target.value)}>
-                <option value="">ทั้งหมด</option>
-                {salesList.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
-              </select>
-            </div>
-          )}
+          {/* Requester */}
+          <div>
+            <label className="text-[11px] font-medium text-gray-500 block mb-1">ผู้ขอ</label>
+            <select className="form-input py-2 text-sm" value={requesterFilter}
+              onChange={e => setRequesterFilter(e.target.value)}>
+              <option value="">ทั้งหมด</option>
+              {salesList.map(s => <option key={s.id} value={s.id}>{s.fullName}</option>)}
+            </select>
+          </div>
 
           {/* Date preset */}
           <div>
@@ -784,9 +785,7 @@ export default function PurchaseRequestReportPage() {
                   </td>
                 </tr>
               ) : pagedRows.map((pr, idx) => {
-                const lastApproval = pr.approvalLogs
-                  ?.filter(l => l.action === 'approve')
-                  .sort((a, b) => b.actedAt.localeCompare(a.actedAt))[0]
+                const lastApproval = getLastApprovedLog(pr)
                 const firstItem = pr.items?.[0]
                 const itemCount = pr.items?.length ?? 0
 
