@@ -366,7 +366,7 @@ export default function WorkOrderItemsEditor({
                               className="btn-outline btn-sm"
                               onClick={() => addDescriptionLine(index)}
                             >
-                              <Plus size={14} /> เพิ่มบรรทัด Description
+                              <Plus size={14} /> เพิ่มบรรทัด
                             </button>
                             <button
                               type="button"
@@ -442,9 +442,19 @@ export default function WorkOrderItemsEditor({
                       )}
                     </td>
                   </tr>
-                        {detailBeforeNote ? detailRowsView : noteRowView}
-                        {detailActionRow}
-                        {detailBeforeNote ? noteRowView : detailRowsView}
+                        {detailBeforeNote ? (
+                          <>
+                            {detailRowsView}
+                            {detailActionRow}
+                            {noteRowView}
+                          </>
+                        ) : (
+                          <>
+                            {noteRowView}
+                            {detailRowsView}
+                            {detailActionRow}
+                          </>
+                        )}
                       </>
                     )
                   })()}

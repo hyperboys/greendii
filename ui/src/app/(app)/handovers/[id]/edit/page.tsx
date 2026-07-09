@@ -337,7 +337,7 @@ export default function EditHandoverPage() {
                           className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
                           onClick={() => addDescriptionLine(i)}
                         >
-                          <Plus size={12} /> เพิ่มบรรทัด Description
+                          <Plus size={12} /> เพิ่มบรรทัด
                         </button>
                       </div>
                       <div className="mt-2">
