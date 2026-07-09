@@ -83,6 +83,23 @@ export default function WorkOrderEmailPage() {
   }, [user?.email])
 
   useEffect(() => {
+    let active = true
+    WorkOrderEmailsAPI.latestRecipients()
+      .then((preset) => {
+        if (!active) return
+        setToEmails(Array.isArray(preset.to) ? preset.to : [])
+        setCcEmails(prev => {
+          const ownEmail = normalizeEmail(user?.email)
+          const merged = [...new Set([...(Array.isArray(preset.cc) ? preset.cc : []), ownEmail].filter(Boolean))]
+          return merged
+        })
+        setBccEmails(Array.isArray(preset.bcc) ? preset.bcc : [])
+      })
+      .catch(() => {})
+    return () => { active = false }
+  }, [user?.email])
+
+  useEffect(() => {
     if (!canViewMenu) {
       toast.error('ไม่มีสิทธิ์เข้าถึงเมนูนี้')
       router.replace('/workorders')
@@ -182,9 +199,6 @@ export default function WorkOrderEmailPage() {
       if (result.historySynced === false) {
         toast.error('ส่งเมลสำเร็จ แต่บันทึก Email History ไม่สมบูรณ์ (สามารถ Re-sync ได้จาก Email Log)')
       }
-      setToEmails([])
-      setCcEmails([])
-      setBccEmails([])
       setExtraFiles([])
     } catch (e) {
       toast.error(typeof e === 'string' ? e : 'ส่งอีเมลไม่สำเร็จ')

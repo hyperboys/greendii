@@ -8,6 +8,7 @@ import type {
   WorkOrderNoPoReport, WorkOrderPoOverviewReport,
   Attachment, AuditPage, UserRole, ActivityLogPage, EmailLogPage,
   WorkOrderEmailCandidate, WorkOrderEmailContext, EmailHistoryEntry,
+  WorkOrderEmailRecipientPreset,
 } from '@/types'
 
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
@@ -299,6 +300,8 @@ export const WorkOrderEmailsAPI = {
     http.get<WorkOrderEmailContext>(`/workorder-emails/workorders/${workOrderId}/context`).then(r => r.data),
   history: (params?: { q?: string; customerId?: string; limit?: number }) =>
     http.get<EmailHistoryEntry[]>('/workorder-emails/history', { params }).then(r => r.data),
+  latestRecipients: () =>
+    http.get<WorkOrderEmailRecipientPreset>('/workorder-emails/recipients/latest').then(r => r.data),
   send: (payload: FormData) =>
     http.post<{ ok: boolean; message: string; recipientCount: number; historySynced?: boolean }>('/workorder-emails/send', payload, {
       headers: { 'Content-Type': 'multipart/form-data' },

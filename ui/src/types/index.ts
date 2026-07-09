@@ -612,6 +612,12 @@ export interface EmailHistoryEntry {
   customerId?: string | null
 }
 
+export interface WorkOrderEmailRecipientPreset {
+  to: string[]
+  cc: string[]
+  bcc: string[]
+}
+
 export interface WorkOrderEmailContext {
   workOrder: WorkOrder
   customerId?: string | null

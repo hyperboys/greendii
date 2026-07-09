@@ -481,6 +481,34 @@ router.get('/history', authenticate, async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// GET /api/workorder-emails/recipients/latest
+router.get('/recipients/latest', authenticate, async (req, res, next) => {
+  try {
+    const log = await prisma.emailLog.findFirst({
+      where: {
+        sentById: req.user.id,
+        status: 'sent',
+      },
+      orderBy: { sentAt: 'desc' },
+      select: {
+        toRecipients: true,
+        ccRecipients: true,
+        bccRecipients: true,
+      },
+    });
+
+    if (!log) {
+      return res.json({ to: [], cc: [], bcc: [] });
+    }
+
+    res.json({
+      to: normalizeRecipientsArray(log.toRecipients),
+      cc: normalizeRecipientsArray(log.ccRecipients),
+      bcc: normalizeRecipientsArray(log.bccRecipients),
+    });
+  } catch (e) { next(e); }
+});
+
 // GET /api/workorder-emails/logs
 router.get('/logs', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
   try {
@@ -709,7 +737,7 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
       console.warn('[workorder-email] history update failed:', historyError?.message || historyError);
     }
 
-    createEmailLog({
+    await createEmailLog({
       req,
       workOrder,
       to,
