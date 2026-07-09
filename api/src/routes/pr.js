@@ -565,20 +565,11 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
 
     const firstStep = await getPrFirstStep(pr.prType?.approvalSteps, pr.sales.role);
-    let resumeStep = firstStep;
-    if (pr.status === 'rejected') {
-      const stages = await resolvePrFlowStages(pr.prType?.approvalSteps, pr.sales.role);
-      const steps = stages.map(stage => stage[0]);
-      const currentStep = Number(pr.approvalStep);
-      if (steps.includes(currentStep)) {
-        resumeStep = currentStep;
-      }
-    }
-    const newStatus = resumeStep === null ? 'approved' : 'pending';
+    const newStatus = firstStep === null ? 'approved' : 'pending';
 
     const updated = await prisma.purchaseRequest.update({
       where: { id: req.params.id },
-      data: { status: newStatus, approvalStep: resumeStep ?? 0 },
+      data: { status: newStatus, approvalStep: firstStep ?? 0 },
     });
     await prisma.approvalLog.create({
       data: {
@@ -593,7 +584,7 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       await notifyUser(pr.salesId, `ใบขอซื้อ ${pr.prNo} ได้รับการอนุมัติแล้ว`).catch(() => {});
     } else {
       const { stepRole } = await getStepRoleMapping();
-      const stageSteps = await getPrCurrentStageSteps(pr.prType?.approvalSteps, pr.sales.role, resumeStep);
+      const stageSteps = await getPrCurrentStageSteps(pr.prType?.approvalSteps, pr.sales.role, firstStep);
       await notifyPrStage(stepRole, stageSteps, `ใบขอซื้อ ${pr.prNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
     }
     res.json(updated);
