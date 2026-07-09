@@ -90,7 +90,7 @@ export default function WorkOrderEmailPage() {
         setToEmails(Array.isArray(preset.to) ? preset.to : [])
         setCcEmails(prev => {
           const ownEmail = normalizeEmail(user?.email)
-          const merged = [...new Set([...(Array.isArray(preset.cc) ? preset.cc : []), ownEmail].filter(Boolean))]
+          const merged = Array.from(new Set([...(Array.isArray(preset.cc) ? preset.cc : []), ownEmail].filter(Boolean)))
           return merged
         })
         setBccEmails(Array.isArray(preset.bcc) ? preset.bcc : [])
