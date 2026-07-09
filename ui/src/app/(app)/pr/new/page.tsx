@@ -41,6 +41,18 @@ const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit:
 const VAT_RATE = 0.07
 const roundMoney = (value: number) => Math.round(value * 100) / 100
 const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
+const formatMoneyInput = (value: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0)
+
+function parseMoneyInput(value: string): number {
+  const cleaned = value.replace(/,/g, '').replace(/[^\d.]/g, '')
+  const firstDot = cleaned.indexOf('.')
+  const normalized = firstDot === -1
+    ? cleaned
+    : `${cleaned.slice(0, firstDot + 1)}${cleaned.slice(firstDot + 1).replace(/\./g, '')}`
+  if (!normalized || normalized === '.') return 0
+  const parsed = Number(normalized)
+  return Number.isFinite(parsed) ? roundMoney(parsed) : 0
+}
 
 function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
   const raw = note ?? ''
@@ -68,6 +80,8 @@ export default function NewPRPage() {
   const [prCurrencies, setPrCurrencies] = useState<string[]>(['THB', 'USD'])
   const [saving, setSaving] = useState(false)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([])
+  const [specialDiscountInput, setSpecialDiscountInput] = useState('0.00')
+  const [isSpecialDiscountFocused, setIsSpecialDiscountFocused] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     workOrderId: '', prTypeId: '', currency: 'THB', customer: '', projectRef: '',
@@ -85,6 +99,10 @@ export default function NewPRPage() {
         setForm(prev => ({ ...prev, currency: currencies.includes(prev.currency) ? prev.currency : currencies[0] }))
       })
   }, [])
+
+  useEffect(() => {
+    if (!isSpecialDiscountFocused) setSpecialDiscountInput(formatMoneyInput(form.specialDiscount))
+  }, [form.specialDiscount, isSpecialDiscountFocused])
 
   const handleWO = (id: string) => {
     const w = workOrders.find(x => x.id === id)
@@ -434,7 +452,7 @@ export default function NewPRPage() {
               </tbody>
               <tfoot className="sticky bottom-0 bg-white shadow-[0_-1px_0_0_#e5e7eb]">
                 <tr className="bg-gray-50"><td colSpan={6} className="text-right font-semibold px-2 py-2">ยอดรวม</td><td className="text-right font-semibold pr-2">{fmt(subTotal)}</td><td /></tr>
-                <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="number" min={0} step="any" className="form-input py-0.5 text-right w-24 inline-block" value={form.specialDiscount} onChange={e => setForm(f => ({ ...f, specialDiscount: +e.target.value }))} /></td><td /></tr>
+                <tr className="bg-gray-50"><td colSpan={6} className="text-right text-gray-500 px-2 py-1">ส่วนลดพิเศษ</td><td className="text-right pr-2"><input type="text" inputMode="decimal" className="form-input py-0.5 text-right w-28 inline-block" value={specialDiscountInput} onFocus={() => { setIsSpecialDiscountFocused(true); setSpecialDiscountInput(form.specialDiscount === 0 ? '' : String(form.specialDiscount)) }} onBlur={() => { setIsSpecialDiscountFocused(false); setSpecialDiscountInput(formatMoneyInput(form.specialDiscount)) }} onChange={e => { const value = e.target.value; setSpecialDiscountInput(value); setForm(f => ({ ...f, specialDiscount: parseMoneyInput(value) })) }} /></td><td /></tr>
                 <tr className="bg-gray-50">
                   <td colSpan={6} className="text-right text-gray-500 px-2 py-1">
                     <label className="inline-flex items-center gap-2 cursor-pointer select-none">
