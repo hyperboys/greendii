@@ -83,6 +83,35 @@ function parseSelectedAttachmentIds(raw) {
   return parseArrayField(raw).map(v => String(v || '').trim()).filter(Boolean);
 }
 
+function normalizeOriginalFileName(name) {
+  const raw = String(name || '').trim();
+  if (!raw) return 'attachment';
+
+  if (/[\u0E00-\u0E7F]/.test(raw)) return raw;
+
+  try {
+    const decoded = Buffer.from(raw, 'latin1').toString('utf8').trim();
+    if (!decoded) return raw;
+    if (decoded.includes('\uFFFD')) return raw;
+
+    const decodedHasThai = /[\u0E00-\u0E7F]/.test(decoded);
+    const looksMojibake = /(?:Ã.|à¸|à¹|â.)/.test(raw);
+    if (decodedHasThai || looksMojibake) return decoded;
+  } catch {
+    // Keep original name when conversion fails.
+  }
+
+  return raw;
+}
+
+function normalizeAttachmentFileName(att) {
+  const normalizedName = normalizeOriginalFileName(att.originalName || att.filename);
+  return {
+    ...att,
+    originalName: normalizedName,
+  };
+}
+
 function normalizeRecipientsArray(value) {
   if (!Array.isArray(value)) return [];
   return value
@@ -294,7 +323,7 @@ async function getRelatedAttachments(workOrderId) {
       sourceLabel: 'Handover',
     })),
     ...buildGeneratedAttachments(workOrder),
-  ];
+  ].map(normalizeAttachmentFileName);
 
   return {
     workOrder,
@@ -707,8 +736,9 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
         const content = att.id.startsWith(GENERATED_PREFIX)
           ? await buildGeneratedPdfBytes(att, req, workOrder)
           : await loadAttachmentBytes(att);
+        const filename = normalizeOriginalFileName(att.originalName || att.filename);
         return {
-          filename: att.originalName,
+          filename,
           contentType: att.mimeType,
           content,
         };
@@ -716,7 +746,7 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
     );
 
     const uploadedAttachments = (req.files || []).map((f) => ({
-      filename: f.originalname,
+      filename: normalizeOriginalFileName(f.originalname),
       contentType: f.mimetype,
       content: f.buffer,
     }));
@@ -736,7 +766,7 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
     const attachmentAudit = [
       ...selectedAttachments.map(att => ({
         id: att.id,
-        filename: att.originalName,
+        filename: normalizeOriginalFileName(att.originalName || att.filename),
         sourceType: att.sourceType,
         sourceLabel: att.sourceLabel,
         sourceDocNo: att.sourceDocNo,

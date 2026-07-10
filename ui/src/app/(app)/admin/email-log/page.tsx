@@ -9,6 +9,7 @@ import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import { useRouter } from 'next/navigation'
 import DateInput from '@/components/DateInput'
+import { decodeDisplayFileName } from '@/lib/filename'
 
 const LIMIT = 40
 
@@ -225,7 +226,7 @@ export default function EmailLogPage() {
                               <ul className="list-disc ml-5 mt-1">
                                 {(row.attachments || []).length === 0 && <li>-</li>}
                                 {(row.attachments || []).map((att, index) => (
-                                  <li key={`${row.id}-att-${index}`}>{att.filename} ({att.sourceLabel} {att.sourceDocNo}){att.generated ? ' [generated]' : ''}</li>
+                                  <li key={`${row.id}-att-${index}`}>{decodeDisplayFileName(att.filename) || att.filename} ({att.sourceLabel} {att.sourceDocNo}){att.generated ? ' [generated]' : ''}</li>
                                 ))}
                               </ul>
                             </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import toast from 'react-hot-toast'
 import { ArrowLeft, Eye, Loader2, Mail, Paperclip, Search, Send, Trash2, Upload, X } from 'lucide-react'
 import { WorkOrderEmailsAPI, resolveFileUrl } from '@/lib/api'
+import { decodeDisplayFileName } from '@/lib/filename'
 import type { WorkOrderEmailAttachment, WorkOrderEmailCandidate, WorkOrderEmailContext } from '@/types'
 import EmailChipInput from '@/components/EmailChipInput'
 import SimpleRichTextEditor from '@/components/SimpleRichTextEditor'
@@ -175,6 +176,14 @@ export default function WorkOrderEmailPage() {
 
     return resolveFileUrl(previewAttachment.fileUrl)
   }, [previewAttachment, previewToken])
+
+  const previewDisplayName = useMemo(() => {
+    if (!previewAttachment) return ''
+    return decodeDisplayFileName(previewAttachment.originalName || previewAttachment.filename)
+      || previewAttachment.originalName
+      || previewAttachment.filename
+      || ''
+  }, [previewAttachment])
 
   const previewIsImage = Boolean(previewAttachment?.mimeType?.startsWith('image/'))
 
@@ -355,6 +364,7 @@ export default function WorkOrderEmailPage() {
               <ul className="divide-y divide-gray-100">
                 {(context?.attachments || []).map(att => {
                   const checked = selectedAttachmentIds.includes(att.id)
+                  const displayName = decodeDisplayFileName(att.originalName || att.filename) || att.originalName || att.filename
                   return (
                     <li key={att.id} className="px-3 py-2 flex items-start gap-2 text-sm">
                       <input
@@ -370,7 +380,7 @@ export default function WorkOrderEmailPage() {
                         }}
                       />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-gray-800">{att.originalName}</p>
+                        <p className="truncate text-gray-800">{displayName}</p>
                         <p className="text-xs text-gray-500">
                           {att.sourceLabel} {att.sourceDocNo}
                           {att.virtualType ? ' • generated PDF' : ` • ${formatSize(att.size)}`}
@@ -415,7 +425,7 @@ export default function WorkOrderEmailPage() {
               <ul className="space-y-1 border border-gray-200 rounded-lg p-2 max-h-32 overflow-auto">
                 {extraFiles.map((f, idx) => (
                   <li key={`${f.name}-${idx}`} className="text-sm flex items-center gap-2">
-                    <span className="min-w-0 flex-1 truncate">{f.name} ({formatSize(f.size)})</span>
+                    <span className="min-w-0 flex-1 truncate">{decodeDisplayFileName(f.name) || f.name} ({formatSize(f.size)})</span>
                     <button
                       type="button"
                       className="text-gray-400 hover:text-red-500"
@@ -454,7 +464,7 @@ export default function WorkOrderEmailPage() {
         <div className="flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">
           <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-gray-800">พรีวิวไฟล์แนบก่อนส่ง</div>
-            <div className="truncate text-xs text-gray-500">{previewAttachment.originalName}</div>
+            <div className="truncate text-xs text-gray-500">{previewDisplayName}</div>
           </div>
           <button
             type="button"
@@ -471,12 +481,12 @@ export default function WorkOrderEmailPage() {
               previewIsImage ? (
                 <img
                   src={previewUrl}
-                  alt={previewAttachment.originalName}
+                  alt={previewDisplayName}
                   className="block max-h-[calc(100vh-10rem)] max-w-full bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
                 />
               ) : (
                 <iframe
-                  title={`Attachment preview ${previewAttachment.originalName}`}
+                  title={`Attachment preview ${previewDisplayName}`}
                   src={previewUrl}
                   className="block h-[calc(100vh-10rem)] min-h-[70vh] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
                 />
