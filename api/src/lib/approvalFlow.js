@@ -155,8 +155,12 @@ function filterCreatorStages(stages, creatorRole, stepRole) {
 
   const normalizedCreatorRole = normalizeRole(creatorRole);
   return stages
-    .map(stage => stage.filter(step => normalizeRole(stepRole[step]) !== normalizedCreatorRole))
-    .filter(stage => stage.length > 0);
+    .filter((stage) => {
+      // PR rule: if creator's role exists in this stage (including OR stage),
+      // treat the stage as already approved and skip the whole stage.
+      return !stage.some(step => normalizeRole(stepRole[step]) === normalizedCreatorRole);
+    })
+    .map(stage => [...stage]);
 }
 
 function findPrStageIndexByStep(stages, step) {

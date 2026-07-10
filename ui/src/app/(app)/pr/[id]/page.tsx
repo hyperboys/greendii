@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { PurchaseRequest, Settings } from '@/types'
+import type { ApprovalLog, PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
@@ -14,6 +14,10 @@ import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 import AttachmentsSection from '@/components/AttachmentsSection'
+
+type PRDetailDoc = PurchaseRequest & {
+  sales?: (PurchaseRequest['sales'] & { role?: string })
+}
 
 function fmtMoney(n: number) {
   return new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -46,6 +50,18 @@ function normalizeApprovalStages(steps: unknown): number[][] {
     .filter(stage => stage.length > 0)
 }
 
+function getEffectivePrStages(steps: unknown, creatorRole: string | undefined, stepRoleConfig: Record<string, string>): number[][] {
+  const stages = normalizeApprovalStages(steps)
+  const normalizedCreatorRole = normalizeUserRole(creatorRole)
+  if (!normalizedCreatorRole) return stages
+
+  return stages.filter((stage) => {
+    // Keep UI consistent with backend PR rule: if creator is in a stage,
+    // that whole stage is treated as auto-approved (skip).
+    return !stage.some((step) => normalizeUserRole(stepRoleConfig[String(step)]) === normalizedCreatorRole)
+  })
+}
+
 function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
   const raw = note ?? ''
   const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
@@ -56,12 +72,20 @@ function parseNoteParts(note?: string): { noteText: string; detailLines: string[
   return { noteText, detailLines }
 }
 
+function getLatestSubmitterRole(approvalLogs?: ApprovalLog[]): string | undefined {
+  const submitLogs = (approvalLogs ?? [])
+    .filter(log => log.action === 'submit')
+    .sort((a, b) => new Date(b.actedAt).getTime() - new Date(a.actedAt).getTime())
+
+  return submitLogs[0]?.approver?.role
+}
+
 export default function PRDetailPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
   const { user } = useAuthStore()
   const { stepRoleConfig, getRoleLabel } = useSettingsStore()
-  const [doc, setDoc] = useState<PurchaseRequest | null>(null)
+  const [doc, setDoc] = useState<PRDetailDoc | null>(null)
   const [settings, setSettings] = useState<Settings | null>(null)
   const [loading, setLoading] = useState(true)
   const [comment, setComment] = useState('')
@@ -72,7 +96,7 @@ export default function PRDetailPage() {
   const load = () => {
     setLoading(true)
     PRAPI.get(id)
-      .then(setDoc)
+      .then((data) => setDoc(data as PRDetailDoc))
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
@@ -103,8 +127,11 @@ export default function PRDetailPage() {
   const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const canRevise = isMine && doc.status === 'approved' && (doc.active ?? true)
   const currentStep = doc.approvalStep
-  const prFlowSteps = Array.isArray(doc.prType?.approvalSteps) ? doc.prType.approvalSteps : []
+  const creatorRoleForFlow = normalizeUserRole(getLatestSubmitterRole(doc.approvalLogs) || (isMine ? user?.role : undefined))
+  const configuredPrStages = normalizeApprovalStages(doc.prType?.approvalSteps)
+  const prFlowSteps = getEffectivePrStages(doc.prType?.approvalSteps, creatorRoleForFlow, stepRoleConfig)
   const prFlowStages = normalizeApprovalStages(prFlowSteps)
+  const autoSkippedStageCount = Math.max(0, configuredPrStages.length - prFlowStages.length)
   const currentStage = prFlowStages.find(stage => stage.includes(currentStep)) ?? []
   const currentStageRoles = currentStage
     .map(step => normalizeUserRole(stepRoleConfig[String(step)]))
@@ -288,6 +315,11 @@ export default function PRDetailPage() {
         creatorName={doc.sales?.fullName ?? doc.salesId}
         showSubmitState
       />
+      {autoSkippedStageCount > 0 && (
+        <div className="-mt-3 text-xs text-amber-700 no-print">
+          มีการข้ามขั้นอนุมัติอัตโนมัติ {autoSkippedStageCount} ขั้น เนื่องจากผู้สร้างอยู่ในสายอนุมัติของขั้นนั้น
+        </div>
+      )}
 
       {(canSubmit || canResubmit || canApprove) && (
         <div className="card p-5 space-y-3 no-print">

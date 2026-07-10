@@ -363,7 +363,7 @@ export interface WorkOrder {
   handOverJob?: { id: string; hoNo: string; quotationId?: string }
   handOverJobs?: Array<{ id: string; hoNo: string; quotationId?: string }>
   salesId: string
-  sales?: { id: string; fullName: string; signatureText?: string }
+  sales?: { id: string; fullName: string; role?: string; signatureText?: string }
   project: string
   location?: string
   products?: string
