@@ -22,6 +22,19 @@ function normalizeEmail(value?: string | null) {
   return String(value || '').trim().toLowerCase()
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return ''
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return d.toLocaleString('th-TH', {
+    day: '2-digit',
+    month: '2-digit',
+    year: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 function parseGeneratedAttachmentId(attachmentId: string) {
   const match = String(attachmentId || '').match(/^generated:(workorder|quotation|handover):(.+)$/)
   if (!match) return null
@@ -249,14 +262,15 @@ export default function WorkOrderEmailPage() {
                   <th>WO No.</th>
                   <th>โครงการ</th>
                   <th>ฝ่ายขาย</th>
+                  <th>สถานะอีเมล</th>
                   <th>สถานะ</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingList ? (
-                  <tr><td colSpan={4} className="text-center py-6 text-gray-400">กำลังโหลด...</td></tr>
+                  <tr><td colSpan={5} className="text-center py-6 text-gray-400">กำลังโหลด...</td></tr>
                 ) : workOrders.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center py-6 text-gray-400">ไม่พบ Work Order</td></tr>
+                  <tr><td colSpan={5} className="text-center py-6 text-gray-400">ไม่พบ Work Order</td></tr>
                 ) : workOrders.map(row => (
                   <tr
                     key={row.id}
@@ -266,6 +280,23 @@ export default function WorkOrderEmailPage() {
                     <td className="font-mono text-xs font-semibold text-blue-700">{row.woNo}</td>
                     <td className="max-w-[240px] truncate">{row.project}</td>
                     <td>{row.sales?.fullName || '-'}</td>
+                    <td>
+                      {row.emailSentCount ? (
+                        <div className="space-y-1">
+                          <div className="flex flex-wrap items-center gap-1">
+                            <span className="badge badge-approved">ส่งแล้ว {row.emailSentCount} ครั้ง</span>
+                            {row.emailedByMe
+                              ? <span className="badge bg-blue-600 text-white">พี่เคยส่งแล้ว</span>
+                              : null}
+                          </div>
+                          {row.lastEmailSentAt ? (
+                            <div className="text-xs text-gray-500">ล่าสุด: {formatDateTime(row.lastEmailSentAt)}</div>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="badge badge-draft">ยังไม่ส่ง</span>
+                      )}
+                    </td>
                     <td>
                       <span className={`badge ${row.workflowStatus === 'Completed' ? 'badge-approved' : 'badge-pending'}`}>
                         {row.workflowStatus}

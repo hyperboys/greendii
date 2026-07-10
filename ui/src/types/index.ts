@@ -601,6 +601,11 @@ export interface WorkOrderEmailAttachment extends Attachment {
 
 export interface WorkOrderEmailCandidate extends WorkOrder {
   workflowStatus: 'Approved' | 'Completed'
+  emailSentCount?: number
+  lastEmailSentAt?: string | null
+  myEmailSentCount?: number
+  myLastEmailSentAt?: string | null
+  emailedByMe?: boolean
 }
 
 export interface EmailHistoryEntry {

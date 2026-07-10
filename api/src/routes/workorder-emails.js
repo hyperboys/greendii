@@ -400,9 +400,50 @@ router.get('/workorders', authenticate, async (req, res, next) => {
       return canManageAllDocs(req.user.role);
     });
 
+    const workOrderIds = filtered.map(row => row.id).filter(Boolean);
+    const [sentStats, mySentStats] = workOrderIds.length
+      ? await Promise.all([
+          prisma.emailLog.groupBy({
+            by: ['workOrderId'],
+            where: {
+              workOrderId: { in: workOrderIds, not: null },
+              status: 'sent',
+            },
+            _count: { _all: true },
+            _max: { sentAt: true },
+          }),
+          prisma.emailLog.groupBy({
+            by: ['workOrderId'],
+            where: {
+              workOrderId: { in: workOrderIds, not: null },
+              status: 'sent',
+              sentById: req.user.id,
+            },
+            _count: { _all: true },
+            _max: { sentAt: true },
+          }),
+        ])
+      : [[], []];
+
+    const sentMap = new Map(
+      sentStats
+        .filter((row) => row.workOrderId)
+        .map((row) => [row.workOrderId, row])
+    );
+    const mySentMap = new Map(
+      mySentStats
+        .filter((row) => row.workOrderId)
+        .map((row) => [row.workOrderId, row])
+    );
+
     res.json(filtered.map(row => ({
       ...row,
       workflowStatus: row.isClosed ? 'Completed' : 'Approved',
+      emailSentCount: sentMap.get(row.id)?._count?._all || 0,
+      lastEmailSentAt: sentMap.get(row.id)?._max?.sentAt || null,
+      myEmailSentCount: mySentMap.get(row.id)?._count?._all || 0,
+      myLastEmailSentAt: mySentMap.get(row.id)?._max?.sentAt || null,
+      emailedByMe: Boolean((mySentMap.get(row.id)?._count?._all || 0) > 0),
     })));
   } catch (e) { next(e); }
 });

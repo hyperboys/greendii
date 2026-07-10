@@ -142,6 +142,10 @@ export default function PRDetailPage() {
     && !(currentStage.includes(1) && actorRole === 'sales' && isMine)
   const vatIncluded = Number(doc.vat ?? 0) > 0
   const moneyPrefix = currencyPrefix(doc.currency)
+  const prRemark = doc.remarks ?? (doc as PurchaseRequest & { remark?: string }).remark ?? ''
+  const latestRejectLog = [...(doc.approvalLogs ?? [])]
+    .filter((log: ApprovalLog) => log.action === 'reject')
+    .sort((a, b) => new Date(b.actedAt).getTime() - new Date(a.actedAt).getTime())[0]
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
@@ -240,7 +244,7 @@ export default function PRDetailPage() {
         <div><span className="form-label">สกุลเงิน</span><p>{doc.currency || 'THB'}</p></div>
         <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
-        {doc.remarks && <div className="col-span-full"><span className="form-label">Remarks</span><p>{doc.remarks}</p></div>}
+        {prRemark && <div className="col-span-full"><span className="form-label">Remark</span><p className="whitespace-pre-line">{prRemark}</p></div>}
       </div>
 
       <AttachmentsSection
@@ -250,6 +254,16 @@ export default function PRDetailPage() {
         onRefresh={load}
         readOnly={!canEdit}
       />
+
+      {doc.status === 'rejected' && latestRejectLog?.comment && (
+        <div className="card border border-red-200 bg-red-50 p-5 no-print">
+          <div className="text-sm font-semibold text-red-700">เหตุผลที่ถูกปฏิเสธล่าสุด</div>
+          <div className="mt-2 whitespace-pre-line text-sm text-red-900">{latestRejectLog.comment}</div>
+          <div className="mt-2 text-xs text-red-600">
+            {latestRejectLog.approver?.fullName ?? latestRejectLog.approverId} · {new Date(latestRejectLog.actedAt).toLocaleString('en-GB')}
+          </div>
+        </div>
+      )}
 
       <div className="card overflow-x-auto no-print">
         <table className="data-table">

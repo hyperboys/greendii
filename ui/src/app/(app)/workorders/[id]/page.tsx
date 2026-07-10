@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { WorkOrdersAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { DEFAULT_APPROVAL_FLOW } from '@/types'
-import type { WorkOrder, Settings } from '@/types'
+import type { ApprovalLog, WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
@@ -153,6 +153,10 @@ export default function WorkOrderDetailPage() {
       ? 'border-emerald-300 bg-emerald-50 text-emerald-900'
       : 'border-gray-200 bg-white text-gray-700'}`
 
+  const latestRejectLog = [...(doc.approvalLogs ?? [])]
+    .filter((log: ApprovalLog) => log.action === 'reject')
+    .sort((a, b) => new Date(b.actedAt).getTime() - new Date(a.actedAt).getTime())[0]
+
   const workOrderFlowSteps = settings?.approvalFlowConfig?.workOrder?.length
     ? settings.approvalFlowConfig.workOrder
     : DEFAULT_APPROVAL_FLOW.workOrder
@@ -263,6 +267,16 @@ export default function WorkOrderDetailPage() {
         <div><span className="form-label">วัน QC</span><p>{doc.qcDate ? new Date(doc.qcDate).toLocaleDateString('en-GB') : '-'}</p></div>
         {doc.remark && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>}
       </div>
+
+      {doc.status === 'rejected' && latestRejectLog?.comment && (
+        <div className="card border border-red-200 bg-red-50 p-5">
+          <div className="text-sm font-semibold text-red-700">เหตุผลที่ถูกปฏิเสธล่าสุด</div>
+          <div className="mt-2 whitespace-pre-line text-sm text-red-900">{latestRejectLog.comment}</div>
+          <div className="mt-2 text-xs text-red-600">
+            {latestRejectLog.approver?.fullName ?? latestRejectLog.approverId} · {new Date(latestRejectLog.actedAt).toLocaleString('en-GB')}
+          </div>
+        </div>
+      )}
 
       <div className="card p-5 space-y-4">
         <div>
