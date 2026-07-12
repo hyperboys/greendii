@@ -10,8 +10,11 @@ import type { WorkOrderEmailAttachment, WorkOrderEmailCandidate, WorkOrderEmailC
 import EmailChipInput from '@/components/EmailChipInput'
 import SimpleRichTextEditor from '@/components/SimpleRichTextEditor'
 import DateInput from '@/components/DateInput'
+import ListPager from '@/components/ListPager'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
+
+const PAGE_LIMIT = 20
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`
@@ -54,6 +57,8 @@ export default function WorkOrderEmailPage() {
   const [loadingList, setLoadingList] = useState(false)
   const [sending, setSending] = useState(false)
   const [workOrders, setWorkOrders] = useState<WorkOrderEmailCandidate[]>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [selectedWorkOrderId, setSelectedWorkOrderId] = useState('')
   const [context, setContext] = useState<WorkOrderEmailContext | null>(null)
 
@@ -74,11 +79,20 @@ export default function WorkOrderEmailPage() {
 
   const canViewMenu = hasPerm('workorder_email_view', user?.role ?? '')
 
-  const loadWorkOrders = useCallback(async () => {
+  const loadWorkOrders = useCallback(async (nextPage = 1) => {
     setLoadingList(true)
     try {
-      const rows = await WorkOrderEmailsAPI.listApprovedWorkOrders({ woNo, customerName, dateFrom, dateTo })
-      setWorkOrders(rows)
+      const rows = await WorkOrderEmailsAPI.listApprovedWorkOrdersPage({
+        woNo,
+        customerName,
+        dateFrom,
+        dateTo,
+        page: String(nextPage),
+        pageSize: String(PAGE_LIMIT),
+      })
+      setWorkOrders(rows.rows)
+      setPage(rows.page)
+      setTotalPages(rows.totalPages)
     } catch {
       toast.error('โหลดรายการ Work Order ไม่สำเร็จ')
     } finally {
@@ -87,7 +101,7 @@ export default function WorkOrderEmailPage() {
   }, [woNo, customerName, dateFrom, dateTo])
 
   useEffect(() => {
-    loadWorkOrders()
+    loadWorkOrders(1)
   }, [loadWorkOrders])
 
   useEffect(() => {
@@ -244,7 +258,7 @@ export default function WorkOrderEmailPage() {
             <p className="page-sub">เลือก Work Order ที่อนุมัติแล้ว แล้วส่งอีเมลพร้อมไฟล์แนบให้ทีมงานภายใน</p>
           </div>
         </div>
-        <button className="btn-outline" onClick={loadWorkOrders}>
+        <button className="btn-outline" onClick={() => loadWorkOrders(1)}>
           <Search size={14} /> ค้นหาใหม่
         </button>
       </div>
@@ -254,7 +268,7 @@ export default function WorkOrderEmailPage() {
         <input className="form-input" placeholder="ชื่อลูกค้า" value={customerName} onChange={e => setCustomerName(e.target.value)} />
         <DateInput value={dateFrom} onChange={setDateFrom} />
         <DateInput value={dateTo} onChange={setDateTo} />
-        <button className="btn-primary" onClick={loadWorkOrders}>
+        <button className="btn-primary" onClick={() => loadWorkOrders(1)}>
           <Search size={14} /> ค้นหา
         </button>
       </div>
@@ -316,6 +330,7 @@ export default function WorkOrderEmailPage() {
               </tbody>
             </table>
           </div>
+          <ListPager page={page} totalPages={totalPages} onPageChange={loadWorkOrders} />
         </div>
 
         <div className="card p-4 space-y-4">

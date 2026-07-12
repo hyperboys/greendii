@@ -813,6 +813,14 @@ export interface ActivityLogPage {
   limit: number
 }
 
+export interface PaginatedList<T> {
+  rows: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
+
 // ─── APPROVAL STEPS ───────────────────────────────────────────────────────────
 
 export const HANDOVER_APPROVAL_STEPS = [

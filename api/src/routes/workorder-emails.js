@@ -7,6 +7,7 @@ const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
 const { assertDocAccessible, canManageAllDocs } = require('../lib/roles');
+const { getPagination, paginated } = require('../lib/pagination');
 
 const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 const GENERATED_PREFIX = 'generated:';
@@ -398,6 +399,7 @@ router.get('/workorders', authenticate, async (req, res, next) => {
     const where = {
       status: 'approved',
       active: true,
+      ...(canManageAllDocs(req.user.role) ? {} : { salesId: req.user.id }),
       ...(woNo
         ? { woNo: { contains: String(woNo), mode: 'insensitive' } }
         : {}),
@@ -414,22 +416,23 @@ router.get('/workorders', authenticate, async (req, res, next) => {
         : {}),
     };
 
-    const rows = await prisma.workOrder.findMany({
-      where,
-      include: {
-        sales: { select: { id: true, fullName: true } },
-        quotation: { select: { id: true, quoNo: true, customerId: true } },
-      },
-      orderBy: [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
-      take: 100,
-    });
+    const pg = getPagination(req.query);
+    const include = {
+      sales: { select: { id: true, fullName: true } },
+      quotation: { select: { id: true, quoNo: true, customerId: true } },
+    };
 
-    const filtered = rows.filter(row => {
-      if (row.salesId === req.user.id) return true;
-      return canManageAllDocs(req.user.role);
-    });
+    const [total, rows] = await Promise.all([
+      prisma.workOrder.count({ where }),
+      prisma.workOrder.findMany({
+        where,
+        include,
+        orderBy: [{ closedAt: 'desc' }, { updatedAt: 'desc' }],
+        ...(pg ? { skip: pg.skip, take: pg.take } : {}),
+      }),
+    ]);
 
-    const workOrderIds = filtered.map(row => row.id).filter(Boolean);
+    const workOrderIds = rows.map(row => row.id).filter(Boolean);
     const [sentStats, mySentStats] = workOrderIds.length
       ? await Promise.all([
           prisma.emailLog.groupBy({
@@ -465,7 +468,7 @@ router.get('/workorders', authenticate, async (req, res, next) => {
         .map((row) => [row.workOrderId, row])
     );
 
-    res.json(filtered.map(row => ({
+    const payload = rows.map(row => ({
       ...row,
       workflowStatus: row.isClosed ? 'Completed' : 'Approved',
       emailSentCount: sentMap.get(row.id)?._count?._all || 0,
@@ -473,7 +476,15 @@ router.get('/workorders', authenticate, async (req, res, next) => {
       myEmailSentCount: mySentMap.get(row.id)?._count?._all || 0,
       myLastEmailSentAt: mySentMap.get(row.id)?._max?.sentAt || null,
       emailedByMe: Boolean((mySentMap.get(row.id)?._count?._all || 0) > 0),
-    })));
+    }));
+
+    if (pg) {
+      const totalPages = total > 0 ? Math.ceil(total / pg.limit) : 1;
+      const safePage = Math.min(Number(pg.page), totalPages);
+      return res.json(paginated(payload, total, { ...pg, page: safePage }));
+    }
+
+    res.json(payload);
   } catch (e) { next(e); }
 });
 

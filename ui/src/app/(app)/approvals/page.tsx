@@ -85,7 +85,7 @@ export default function ApprovalsPage() {
 
           {(data?.prs.length ?? 0) > 0 && (
             <div className="card p-5">
-              <h3 className="font-semibold text-gray-800 mb-3">ใบขอซื้อ (PR) · {data!.prs.length} รายการ</h3>
+              <h3 className="font-semibold text-gray-800 mb-3">Purchase Request · {data!.prs.length} รายการ</h3>
               <table className="data-table">
                 <thead>
                   <tr><th>เลขที่</th><th>ลูกค้า</th><th className="text-right">ยอดสุทธิ</th><th>วันที่</th></tr>

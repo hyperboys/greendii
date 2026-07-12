@@ -9,6 +9,7 @@ import type {
   Attachment, AuditPage, UserRole, ActivityLogPage, EmailLogPage,
   WorkOrderEmailCandidate, WorkOrderEmailContext, EmailHistoryEntry,
   WorkOrderEmailRecipientPreset,
+  PaginatedList,
 } from '@/types'
 
 // ─── AXIOS INSTANCE ──────────────────────────────────────────────────────────
@@ -254,6 +255,15 @@ export const PrTypesAPI = {
 export const QuotationsAPI = {
   list: (params?: Record<string, string>) =>
     http.get<Quotation[]>('/quotations', { params }).then(r => r.data),
+  listPage: (params?: Record<string, string>) =>
+    http.get<{ data: Quotation[]; total: number; page: number; pageSize: number; totalPages: number }>('/quotations', { params })
+      .then(r => ({
+        rows: r.data.data,
+        total: r.data.total,
+        page: r.data.page,
+        limit: r.data.pageSize,
+        totalPages: r.data.totalPages,
+      })),
   get: (id: string) => http.get<Quotation>(`/quotations/${id}`).then(r => r.data),
   create: (data: Partial<Quotation>) => http.post<Quotation>('/quotations', data).then(r => r.data),
   update: (id: string, data: Partial<Quotation>) =>
@@ -273,6 +283,15 @@ export const QuotationsAPI = {
 export const WorkOrdersAPI = {
   list: (params?: Record<string, string>) =>
     http.get<WorkOrder[]>('/workorders', { params }).then(r => r.data),
+  listPage: (params?: Record<string, string>) =>
+    http.get<{ data: WorkOrder[]; total: number; page: number; pageSize: number; totalPages: number }>('/workorders', { params })
+      .then(r => ({
+        rows: r.data.data,
+        total: r.data.total,
+        page: r.data.page,
+        limit: r.data.pageSize,
+        totalPages: r.data.totalPages,
+      })),
   previousByQuotation: (quotationId: string) =>
     http.get<WorkOrder | null>(`/workorders/by-quotation/${quotationId}/previous`).then(r => r.data),
   get: (id: string) => http.get<WorkOrder>(`/workorders/${id}`).then(r => r.data),
@@ -298,6 +317,15 @@ export const WorkOrdersAPI = {
 export const WorkOrderEmailsAPI = {
   listApprovedWorkOrders: (params?: { woNo?: string; customerName?: string; dateFrom?: string; dateTo?: string }) =>
     http.get<WorkOrderEmailCandidate[]>('/workorder-emails/workorders', { params }).then(r => r.data),
+  listApprovedWorkOrdersPage: (params?: { woNo?: string; customerName?: string; dateFrom?: string; dateTo?: string; page?: string; pageSize?: string; limit?: string }) =>
+    http.get<{ data: WorkOrderEmailCandidate[]; total: number; page: number; pageSize: number; totalPages: number }>('/workorder-emails/workorders', { params })
+      .then(r => ({
+        rows: r.data.data,
+        total: r.data.total,
+        page: r.data.page,
+        limit: r.data.pageSize,
+        totalPages: r.data.totalPages,
+      })),
   getContext: (workOrderId: string) =>
     http.get<WorkOrderEmailContext>(`/workorder-emails/workorders/${workOrderId}/context`).then(r => r.data),
   history: (params?: { q?: string; customerId?: string; limit?: number }) =>
@@ -315,6 +343,15 @@ export const WorkOrderEmailsAPI = {
 export const HandoversAPI = {
   list: (params?: Record<string, string>) =>
     http.get<HandOverJob[]>('/handovers', { params }).then(r => r.data),
+  listPage: (params?: Record<string, string>) =>
+    http.get<{ data: HandOverJob[]; total: number; page: number; pageSize: number; totalPages: number }>('/handovers', { params })
+      .then(r => ({
+        rows: r.data.data,
+        total: r.data.total,
+        page: r.data.page,
+        limit: r.data.pageSize,
+        totalPages: r.data.totalPages,
+      })),
   get: (id: string) => http.get<HandOverJob>(`/handovers/${id}`).then(r => r.data),
   create: (data: Partial<HandOverJob>) => http.post<HandOverJob>('/handovers', data).then(r => r.data),
   update: (id: string, data: Partial<HandOverJob>) =>
@@ -334,6 +371,15 @@ export const HandoversAPI = {
 export const PRAPI = {
   list: (params?: Record<string, string>) =>
     http.get<PurchaseRequest[]>('/pr', { params }).then(r => r.data),
+  listPage: (params?: Record<string, string>) =>
+    http.get<{ data: PurchaseRequest[]; total: number; page: number; pageSize: number; totalPages: number }>('/pr', { params })
+      .then(r => ({
+        rows: r.data.data,
+        total: r.data.total,
+        page: r.data.page,
+        limit: r.data.pageSize,
+        totalPages: r.data.totalPages,
+      })),
   get: (id: string) => http.get<PurchaseRequest>(`/pr/${id}`).then(r => r.data),
   create: (data: Partial<PurchaseRequest>) =>
     http.post<PurchaseRequest>('/pr', data).then(r => r.data),

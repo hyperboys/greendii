@@ -10,6 +10,9 @@ import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ListPager from '@/components/ListPager'
+
+const PAGE_LIMIT = 20
 
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft: 'badge-draft', pending: 'badge-pending', approved: 'badge-approved',
@@ -26,6 +29,8 @@ export default function WorkOrdersPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [salesFilter, setSalesFilter] = useState('')
   const [salesOptions, setSalesOptions] = useState<Array<{ id: string; name: string }>>([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
 
@@ -60,16 +65,20 @@ export default function WorkOrdersPage() {
     }
   }
 
-  const load = () => {
+  const load = (nextPage = 1) => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
     if (statusFilter) params.status = statusFilter
     if (salesFilter) params.salesId = salesFilter
-    WorkOrdersAPI.list(params)
+    params.page = String(nextPage)
+    params.pageSize = String(PAGE_LIMIT)
+    WorkOrdersAPI.listPage(params)
       .then((data) => {
-        setRows(data)
-        mergeSalesOptionsFromRows(data)
+        setRows(data.rows)
+        setPage(data.page)
+        setTotalPages(data.totalPages)
+        mergeSalesOptionsFromRows(data.rows)
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
@@ -79,7 +88,7 @@ export default function WorkOrdersPage() {
     loadSalesUsers()
   }, [canLoadSalesUsers])
 
-  useEffect(() => { load() }, [statusFilter, salesFilter])
+  useEffect(() => { load(1) }, [statusFilter, salesFilter])
 
   const canCreate = hasPerm('wo_create', user?.role ?? '')
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
@@ -123,7 +132,7 @@ export default function WorkOrdersPage() {
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ / ลูกค้า / โครงการ"
-            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
+            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load(1)} />
         </div>
         <select className="form-input w-auto py-1.5" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">ทุกสถานะ</option>
@@ -133,7 +142,7 @@ export default function WorkOrdersPage() {
           <option value="">ทุก Sale</option>
           {salesOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
-        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> ค้นหา</button>
+        <button className="btn-outline btn-sm" onClick={() => load(1)}><RefreshCw size={14} /> ค้นหา</button>
       </div>
 
       <div className="card overflow-x-auto">
@@ -170,6 +179,8 @@ export default function WorkOrdersPage() {
           </tbody>
         </table>
       </div>
+
+      <ListPager page={page} totalPages={totalPages} onPageChange={load} />
     </div>
   )
 }

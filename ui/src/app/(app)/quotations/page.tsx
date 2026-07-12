@@ -9,6 +9,9 @@ import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ListPager from '@/components/ListPager'
+
+const PAGE_LIMIT = 20
 
 type SortKey = 'quoNo' | 'customerName' | 'project' | 'salesId' | 'grandTotal' | 'status' | 'updatedAt'
 type SortDir = 'asc' | 'desc'
@@ -35,23 +38,31 @@ export default function QuotationsPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [sortBy, setSortBy] = useState<SortKey>('quoNo')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'updatedAt' || key === 'quoNo' ? 'desc' : 'asc')
 
-  const load = () => {
+  const load = (nextPage = 1) => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
     if (statusFilter) params.status = statusFilter
     params.orderBy = sortBy
     params.orderDir = sortDir
-    QuotationsAPI.list(params)
-      .then(setRows)
+    params.page = String(nextPage)
+    params.pageSize = String(PAGE_LIMIT)
+    QuotationsAPI.listPage(params)
+      .then((data) => {
+        setRows(data.rows)
+        setPage(data.page)
+        setTotalPages(data.totalPages)
+      })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [statusFilter, sortBy, sortDir])
+  useEffect(() => { load(1) }, [statusFilter, sortBy, sortDir])
 
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) {
@@ -92,7 +103,7 @@ export default function QuotationsPage() {
             placeholder="ค้นหา เลขที่ / ลูกค้า / โครงการ"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && load()}
+            onKeyDown={e => e.key === 'Enter' && load(1)}
           />
         </div>
         <select
@@ -105,7 +116,7 @@ export default function QuotationsPage() {
             <option key={k} value={k}>{v}</option>
           ))}
         </select>
-        <button className="btn-outline btn-sm" onClick={load}>
+        <button className="btn-outline btn-sm" onClick={() => load(1)}>
           <RefreshCw size={14} /> ค้นหา
         </button>
       </div>
@@ -177,6 +188,8 @@ export default function QuotationsPage() {
           </tbody>
         </table>
       </div>
+
+      <ListPager page={page} totalPages={totalPages} onPageChange={load} />
     </div>
   )
 }

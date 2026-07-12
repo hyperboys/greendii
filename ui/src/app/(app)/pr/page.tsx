@@ -9,6 +9,9 @@ import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
+import ListPager from '@/components/ListPager'
+
+const PAGE_LIMIT = 20
 
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft: 'badge-draft', pending: 'badge-pending', approved: 'badge-approved',
@@ -34,19 +37,27 @@ export default function PRPage() {
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState('')
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
-  const load = () => {
+  const load = (nextPage = 1) => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (search) params.q = search
     if (statusFilter) params.status = statusFilter
-    PRAPI.list(params)
-      .then(setRows)
+    params.page = String(nextPage)
+    params.pageSize = String(PAGE_LIMIT)
+    PRAPI.listPage(params)
+      .then((data) => {
+        setRows(data.rows)
+        setPage(data.page)
+        setTotalPages(data.totalPages)
+      })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [statusFilter])
+  useEffect(() => { load(1) }, [statusFilter])
 
   const canCreate = hasPerm('pr_create', user?.role ?? '')
 
@@ -54,8 +65,8 @@ export default function PRPage() {
     <div>
       <div className="page-header">
         <div>
-          <h2 className="page-title">ใบขอซื้อ (PR)</h2>
-          <p className="page-sub">รายการใบขอซื้อทั้งหมด</p>
+          <h2 className="page-title">Purchase Request</h2>
+          <p className="page-sub">All Purchase Requests</p>
         </div>
         {canCreate && (
           <button className="btn-primary" onClick={() => router.push('/pr/new')}>
@@ -68,26 +79,26 @@ export default function PRPage() {
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ / ลูกค้า"
-            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load()} />
+            value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load(1)} />
         </div>
         <select className="form-input w-auto py-1.5" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
           <option value="">ทุกสถานะ</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
-        <button className="btn-outline btn-sm" onClick={load}><RefreshCw size={14} /> ค้นหา</button>
+        <button className="btn-outline btn-sm" onClick={() => load(1)}><RefreshCw size={14} /> ค้นหา</button>
       </div>
 
       <div className="card overflow-x-auto">
-        <table className="data-table">
+        <table className="data-table table-fixed min-w-[1100px]">
           <thead>
             <tr>
-              <th>เลขที่ PR</th>
-              <th>ประเภท PR</th>
-              <th>ลูกค้า</th>
-              <th>อ้างอิง WO</th>
-              <th className="text-right">ยอดสุทธิ</th>
-              <th>สถานะ</th>
-              <th>วันที่</th>
+              <th className="w-[120px]">เลขที่ PR</th>
+              <th className="w-[260px]">ประเภท PR</th>
+              <th className="w-[420px]">ลูกค้า</th>
+              <th className="w-[110px]">อ้างอิง WO</th>
+              <th className="w-[170px] text-right">ยอดสุทธิ</th>
+              <th className="w-[120px]">สถานะ</th>
+              <th className="w-[120px]">วันที่</th>
             </tr>
           </thead>
           <tbody>
@@ -99,7 +110,9 @@ export default function PRPage() {
               <tr key={p.id} className="cursor-pointer" onClick={() => router.push(`/pr/${p.id}`)}>
                 <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
                 <td>{p.prType?.name || '-'}</td>
-                <td>{p.customer}</td>
+                <td>
+                  <div className="truncate" title={p.customer}>{p.customer}</div>
+                </td>
                 <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
                 <td className="text-right font-medium">{currencyPrefix(p.currency)}{fmtMoney(p.netTotal)}</td>
                 <td><span className={STATUS_COLORS[p.status]}>{STATUS_LABELS[p.status]}</span></td>
@@ -109,6 +122,8 @@ export default function PRPage() {
           </tbody>
         </table>
       </div>
+
+      <ListPager page={page} totalPages={totalPages} onPageChange={load} />
     </div>
   )
 }
