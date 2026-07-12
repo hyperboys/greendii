@@ -559,21 +559,60 @@ router.get('/', authenticate, async (req, res, next) => {
       { project: { contains: q, mode: 'insensitive' } },
       { customerName: { contains: q, mode: 'insensitive' } },
     ];
-    const listInclude = { sales: { select: { id: true, fullName: true } } };
+    const listInclude = {
+      sales: { select: { id: true, fullName: true } },
+      readLogs: {
+        where: { userId: req.user.id },
+        select: { id: true },
+      },
+    };
+    const withReadStatus = (list) => list.map(({ readLogs, ...item }) => ({
+      ...item,
+      isRead: Array.isArray(readLogs) && readLogs.length > 0,
+    }));
     const pg = getPagination(req.query);
     if (pg) {
       const [data, total] = await prisma.$transaction([
         prisma.workOrder.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
         prisma.workOrder.count({ where }),
       ]);
-      return res.json(paginated(data, total, pg));
+      return res.json(paginated(withReadStatus(data), total, pg));
     }
     const list = await prisma.workOrder.findMany({
       where,
       include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
-    res.json(list);
+    res.json(withReadStatus(list));
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/mark-read
+router.post('/:id/mark-read', authenticate, async (req, res, next) => {
+  try {
+    const wo = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+      select: { id: true, salesId: true, status: true, approvalStep: true },
+    });
+    await assertWorkOrderAccessible(req, wo);
+
+    const readAt = new Date();
+    await prisma.workOrderReadLog.upsert({
+      where: {
+        workOrderId_userId: {
+          workOrderId: wo.id,
+          userId: req.user.id,
+        },
+      },
+      create: {
+        workOrderId: wo.id,
+        userId: req.user.id,
+        readAt,
+      },
+      update: { readAt },
+    });
+
+    res.json({ ok: true, isRead: true, readAt });
   } catch (e) { next(e); }
 });
 

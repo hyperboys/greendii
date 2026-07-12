@@ -72,6 +72,7 @@ model User {
   workOrderPoAudits WorkOrderPoAudit[]
   refreshTokens    RefreshToken[]
   quotationCounters QuotationCounter[]
+  workOrderReadLogs WorkOrderReadLog[]
 
   @@map("users")
 }
@@ -319,8 +320,23 @@ model WorkOrder {
   poAuditLogs      WorkOrderPoAudit[]
   closeLogs        WorkOrderCloseLog[]
   emailLogs        EmailLog[]
+  readLogs         WorkOrderReadLog[]
 
   @@map("work_orders")
+}
+
+model WorkOrderReadLog {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt      DateTime  @default(now()) @map("read_at")
+
+  @@unique([workOrderId, userId])
+  @@index([userId, readAt])
+  @@index([workOrderId, readAt])
+  @@map("work_order_read_logs")
 }
 
 model WorkOrderPoAudit {

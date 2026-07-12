@@ -84,6 +84,20 @@ export default function WorkOrdersPage() {
   const canCreate = hasPerm('wo_create', user?.role ?? '')
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
 
+  const handleOpenWorkOrder = (workOrderId: string) => {
+    const prevRows = rows
+    setRows((current) => current.map((item) => (
+      item.id === workOrderId ? { ...item, isRead: true } : item
+    )))
+
+    WorkOrdersAPI.markRead(workOrderId).catch(() => {
+      setRows(prevRows)
+      toast.error('อัปเดตสถานะอ่านแล้วไม่สำเร็จ')
+    })
+
+    router.push(`/workorders/${workOrderId}`)
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -142,8 +156,8 @@ export default function WorkOrdersPage() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={8} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(w => (
-              <tr key={w.id} className="cursor-pointer" onClick={() => router.push(`/workorders/${w.id}`)}>
-                <td className="font-mono text-xs font-semibold text-blue-700">{w.woNo}</td>
+              <tr key={w.id} className="cursor-pointer" onClick={() => handleOpenWorkOrder(w.id)}>
+                <td className={`font-mono text-xs ${w.isRead ? 'wo-read' : 'wo-unread'}`}>{w.woNo}</td>
                 <td>{w.customerName}</td>
                 <td className="max-w-[180px] truncate">{w.project}</td>
                 <td>{w.sales?.fullName ?? w.salesId}</td>

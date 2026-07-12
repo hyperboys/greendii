@@ -81,6 +81,9 @@ export default function WorkOrderDetailPage() {
   useEffect(() => { load() }, [id])
   useEffect(() => { SettingsAPI.get().then(setSettings).catch(() => {}) }, [])
   useEffect(() => {
+    WorkOrdersAPI.markRead(id).catch(() => {})
+  }, [id])
+  useEffect(() => {
     setApprovalChecklist({ ...DEFAULT_DOC_CHECKLIST, ...(doc?.docChecklist ?? {}) })
   }, [doc])
 

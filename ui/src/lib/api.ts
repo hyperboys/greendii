@@ -287,6 +287,8 @@ export const WorkOrdersAPI = {
     http.post<WorkOrder>(`/workorders/${id}/reject`, { comment }).then(r => r.data),
   close: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/close`, { comment }).then(r => r.data),
+  markRead: (id: string) =>
+    http.post<{ ok: boolean; isRead: boolean; readAt: string }>(`/workorders/${id}/mark-read`, {}).then(r => r.data),
   cancel: (id: string) => http.delete(`/workorders/${id}`).then(r => r.data),
   pdf: (id: string) => http.get(`/workorders/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
 }

@@ -354,6 +354,7 @@ export interface Quotation {
 export interface WorkOrder {
   id: string
   woNo: string
+  isRead?: boolean
   active?: boolean
   revisionNo?: number
   rootWorkOrderId?: string | null

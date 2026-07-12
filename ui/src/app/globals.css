@@ -86,6 +86,9 @@
   .data-table tbody tr:hover { @apply bg-green-pale/40; }
   .data-table tbody tr:last-child td { @apply border-b-0; }
 
+  .wo-unread { @apply font-semibold text-blue-700; }
+  .wo-read { @apply font-normal text-gray-800; }
+
   /* Horizontal scroll container for tables on small screens */
   .table-wrap { @apply w-full overflow-x-auto -mx-2 px-2; }
 
