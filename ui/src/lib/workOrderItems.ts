@@ -1,11 +1,16 @@
 import type { QuotationItem, WorkOrder, WorkOrderDetailRow, WorkOrderItem } from '@/types'
-import { toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
+import { parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 
 const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n'
 
 type WorkOrderNoteMeta = {
   noteBlocks?: string[]
   detailBeforeNote?: boolean
+}
+
+export type WorkOrderNoteBlock = {
+  text: string
+  color?: string
 }
 
 function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; meta: WorkOrderNoteMeta } {
@@ -37,12 +42,18 @@ export function getWorkOrderDetailNoteText(note?: string): string {
 
 function buildWorkOrderNote(
   detailRows: WorkOrderDetailRow[],
-  noteBlocks?: string[],
+  noteBlocks?: Array<string | WorkOrderNoteBlock>,
   detailBeforeNote?: boolean,
 ): string {
-  const detailNote = detailRows.map((row) => row.desc).filter(Boolean).join('\n')
+  const detailNote = detailRows
+    .map((row) => toPlainColoredLine(row.desc))
+    .filter(Boolean)
+    .join('\n')
   const normalizedNoteBlocks = Array.isArray(noteBlocks)
-    ? noteBlocks.map((block) => String(block ?? ''))
+    ? noteBlocks.map((block) => {
+      if (typeof block === 'string') return String(block ?? '')
+      return stringifyColoredLine({ text: String(block?.text ?? ''), color: block?.color })
+    })
     : []
 
   if (normalizedNoteBlocks.length === 0 && detailBeforeNote !== true) return detailNote
@@ -99,8 +110,16 @@ function fallbackRowsFromNote(note?: string): WorkOrderDetailRow[] {
 }
 
 export function parseWorkOrderNoteBlocks(note?: string): string[] {
+  return parseWorkOrderColoredNoteBlocks(note).map((block) => block.text)
+}
+
+export function parseWorkOrderColoredNoteBlocks(note?: string): WorkOrderNoteBlock[] {
   const { meta } = parseWorkOrderNoteMeta(note)
-  return Array.isArray(meta.noteBlocks) ? meta.noteBlocks : []
+  if (!Array.isArray(meta.noteBlocks)) return []
+  return meta.noteBlocks.map((block) => {
+    const parsed = parseColoredLine(String(block ?? ''))
+    return { text: parsed.text, color: parsed.color }
+  })
 }
 
 export function parseWorkOrderDetailBeforeNote(note?: string): boolean {
@@ -120,7 +139,7 @@ export function parseWorkOrderDetailRows(item?: Pick<WorkOrderItem, 'detailRows'
 
 export function stringifyWorkOrderDetailRows(
   rows: WorkOrderDetailRow[],
-  options?: { noteBlocks?: string[]; detailBeforeNote?: boolean },
+  options?: { noteBlocks?: Array<string | WorkOrderNoteBlock>; detailBeforeNote?: boolean },
 ): Pick<WorkOrderItem, 'detailRows' | 'note'> {
   const normalizedRows = normalizeDetailRows(rows, { keepEmpty: true, trimText: false })
   return {
@@ -169,7 +188,7 @@ export function normalizeWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrd
       unit: String(item.unit ?? '').trim(),
       images: Array.isArray(item.images) ? item.images.filter(Boolean) : [],
     }))
-    .filter(item => item.desc)
+    .filter(item => toPlainColoredLine(item.desc))
 }
 
 export function getWorkOrderItemsSource(doc?: Pick<WorkOrder, 'items' | 'quotation'> | null): WorkOrderItem[] {

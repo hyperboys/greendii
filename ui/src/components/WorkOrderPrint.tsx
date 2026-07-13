@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { parseColoredLine } from '@/lib/coloredText'
 import {
   getWorkOrderDetailNoteText,
   getWorkOrderItemsSource,
+  parseWorkOrderColoredNoteBlocks,
   parseWorkOrderDetailBeforeNote,
-  parseWorkOrderNoteBlocks,
 } from '@/lib/workOrderItems'
 
 const PACK_CAP_NON_LAST = 60
@@ -29,7 +30,8 @@ function splitDescriptionLines(note?: string): string[] {
 interface WorkOrderItemFragment {
   key: string
   desc: string
-  detailRows: Array<{ desc: string; qty: number | null; unit: string }>
+  descColor?: string
+  detailRows: Array<{ desc: string; qty: number | null; unit: string; color?: string }>
   images: string[]
   qty?: number
   unit?: string
@@ -57,17 +59,23 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderI
   const sourceDetailRows = Array.isArray(workOrderItem.detailRows) ? workOrderItem.detailRows : []
   const detailBeforeNote = parseWorkOrderDetailBeforeNote(item.note)
   const detailRowsFromItem = sourceDetailRows.length > 0
-    ? sourceDetailRows.map((row) => ({
-      desc: String(row?.desc ?? '').trim(),
+    ? sourceDetailRows.map((row) => {
+      const parsed = parseColoredLine(String(row?.desc ?? '').trim())
+      return {
+      desc: parsed.text,
       qty: row?.qty == null ? null : (Number.isFinite(row.qty) ? row.qty : null),
       unit: String(row?.unit ?? '').trim(),
-    }))
-    : splitDescriptionLines(item.note).map((line) => ({ desc: line, qty: null, unit: '' }))
-  const noteBlockRows = parseWorkOrderNoteBlocks(item.note)
-    .flatMap((block) => String(block ?? '').split('\n'))
-    .map((line) => line.trim())
-    .filter(Boolean)
-    .map((line) => ({ desc: line, qty: null, unit: '' }))
+      color: parsed.color,
+    }})
+    : splitDescriptionLines(item.note).map((line) => ({ desc: line, qty: null, unit: '', color: undefined }))
+  const noteBlockRows = parseWorkOrderColoredNoteBlocks(item.note)
+    .flatMap((block) => String(block.text ?? '').split('\n').map((line) => ({
+      desc: line.trim(),
+      qty: null,
+      unit: '',
+      color: block.color,
+    })))
+    .filter((line) => Boolean(line.desc))
   const detailRows = detailBeforeNote
     ? [...detailRowsFromItem, ...noteBlockRows]
     : [...noteBlockRows, ...detailRowsFromItem]
@@ -76,10 +84,11 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderI
   const fragments: WorkOrderItemFragment[] = []
   const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
   const itemId = 'id' in item ? item.id : undefined
+  const parsedDesc = parseColoredLine(item.desc ?? '')
   let fragmentIndex = 0
 
   while (fragmentIndex === 0 || remainingRows.length > 0 || remainingImages.length > 0) {
-    const detailRowChunk: Array<{ desc: string; qty: number | null; unit: string }> = []
+    const detailRowChunk: Array<{ desc: string; qty: number | null; unit: string; color?: string }> = []
     const imageChunk: string[] = []
     let weight = 1
 
@@ -100,7 +109,8 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderI
 
     fragments.push({
       key: `${itemId ?? item.seq ?? itemIndex}-${fragmentIndex}`,
-      desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
+      desc: fragmentIndex === 0 ? parsedDesc.text : '',
+      descColor: fragmentIndex === 0 ? parsedDesc.color : undefined,
       detailRows: detailRowChunk,
       images: imageChunk,
       qty: fragmentIndex === 0 ? item.qty : undefined,
@@ -564,9 +574,9 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
       <tr key={item.key} ref={rowRef} style={{ height: '24px' }}>
         <td style={itemCellS}>{item.displaySeq ?? ''}</td>
         <td style={{ ...itemCellS, textAlign: 'left' }}>
-          {item.desc && <div style={{ whiteSpace: 'pre-wrap' }}>{item.desc}</div>}
+          {item.desc && <div style={{ whiteSpace: 'pre-wrap', color: item.descColor || '#000' }}>{item.desc}</div>}
           {item.detailRows.map((row, idx) => (
-            <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
+            <span key={idx} style={{ color: row.color || '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
               {row.desc || '\u00A0'}
             </span>
           ))}

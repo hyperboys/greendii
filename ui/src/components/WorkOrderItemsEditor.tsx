@@ -4,14 +4,24 @@ import { Fragment, useEffect, useState } from 'react'
 import { ChevronDown, ChevronUp, ImagePlus, Plus, Trash2, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { UploadAPI, resolveFileUrl } from '@/lib/api'
+import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
 import type { Unit, WorkOrderItem } from '@/types'
 import {
   createEmptyWorkOrderItem,
+  parseWorkOrderColoredNoteBlocks,
   parseWorkOrderDetailBeforeNote,
   parseWorkOrderNoteBlocks,
   parseWorkOrderDetailRows,
   stringifyWorkOrderDetailRows,
 } from '@/lib/workOrderItems'
+
+const DEFAULT_LINE_COLOR = '#000000'
+const MAIN_ITEM_COLORS = [
+  { value: '#000000', label: 'ดำ (Default)' },
+  { value: '#dc2626', label: 'แดง' },
+  { value: '#2563eb', label: 'น้ำเงิน' },
+  { value: '#16a34a', label: 'เขียว' },
+] as const
 
 interface Props {
   items: WorkOrderItem[]
@@ -28,6 +38,9 @@ export default function WorkOrderItemsEditor({
 }: Props) {
   const [activeItemIdx, setActiveItemIdx] = useState(0)
   const [detailBeforeNoteByItem, setDetailBeforeNoteByItem] = useState<boolean[]>([])
+  const [activeColorPickerIdx, setActiveColorPickerIdx] = useState<number | null>(null)
+  const [activeDetailColorPickerKey, setActiveDetailColorPickerKey] = useState<string | null>(null)
+  const [activeNoteColorPickerKey, setActiveNoteColorPickerKey] = useState<string | null>(null)
 
   useEffect(() => {
     if (items.length === 0) {
@@ -45,6 +58,20 @@ export default function WorkOrderItemsEditor({
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)))
   }
 
+  const setItemDescriptionText = (index: number, text: string) => {
+    const nextItems = [...items]
+    const prev = parseColoredLine(nextItems[index]?.desc)
+    nextItems[index] = { ...nextItems[index], desc: stringifyColoredLine({ text, color: prev.color }) }
+    onChange(nextItems)
+  }
+
+  const setItemDescriptionColor = (index: number, color: string) => {
+    const nextItems = [...items]
+    const prev = parseColoredLine(nextItems[index]?.desc)
+    nextItems[index] = { ...nextItems[index], desc: stringifyColoredLine({ text: prev.text, color }) }
+    onChange(nextItems)
+  }
+
   const setDescriptionLine = (itemIdx: number, lineIdx: number, key: 'desc' | 'qty' | 'unit', value: string | number | null) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
@@ -52,6 +79,30 @@ export default function WorkOrderItemsEditor({
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     rows[lineIdx] = { ...rows[lineIdx], [key]: value }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    onChange(nextItems)
+  }
+
+  const setDescriptionLineText = (itemIdx: number, lineIdx: number, value: string) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
+    while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
+    const prev = parseColoredLine(rows[lineIdx]?.desc)
+    rows[lineIdx] = { ...rows[lineIdx], desc: stringifyColoredLine({ text: value, color: prev.color }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    onChange(nextItems)
+  }
+
+  const setDescriptionLineColor = (itemIdx: number, lineIdx: number, color: string) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
+    while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
+    const prev = parseColoredLine(rows[lineIdx]?.desc)
+    rows[lineIdx] = { ...rows[lineIdx], desc: stringifyColoredLine({ text: prev.text, color }) }
     nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
@@ -83,10 +134,23 @@ export default function WorkOrderItemsEditor({
   const setNoteBlock = (itemIdx: number, blockIdx: number, value: string) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
-    const nextBlocks = blocks.length > 0 ? [...blocks] : ['']
-    nextBlocks[blockIdx] = value
+    const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
+    const current = nextBlocks[blockIdx] || { text: '' }
+    nextBlocks[blockIdx] = { ...current, text: value }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
+    onChange(nextItems)
+  }
+
+  const setNoteBlockColor = (itemIdx: number, blockIdx: number, color: string) => {
+    const nextItems = [...items]
+    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
+    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
+    const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
+    const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
+    const current = nextBlocks[blockIdx] || { text: '' }
+    nextBlocks[blockIdx] = { ...current, color }
     nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
@@ -94,9 +158,9 @@ export default function WorkOrderItemsEditor({
   const addNoteBlock = (itemIdx: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
-    const nextBlocks = [...blocks, '']
+    const nextBlocks = [...blocks, { text: '' }]
     nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
@@ -104,7 +168,7 @@ export default function WorkOrderItemsEditor({
   const removeNoteBlock = (itemIdx: number, blockIdx: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = [...blocks]
     nextBlocks.splice(blockIdx, 1)
@@ -209,7 +273,7 @@ export default function WorkOrderItemsEditor({
                   {(() => {
                     const detailRows = parseWorkOrderDetailRows(item)
                     const detailBeforeNote = Boolean(detailBeforeNoteByItem[index])
-                    const noteBlocks = parseWorkOrderNoteBlocks(item.note)
+                    const noteBlocks = parseWorkOrderColoredNoteBlocks(item.note)
                     const canMoveNoteUp = detailBeforeNote
                     const canMoveNoteDown = !detailBeforeNote
                     const canMoveDetailUp = !detailBeforeNote
@@ -219,13 +283,62 @@ export default function WorkOrderItemsEditor({
                       <tr key={`detail-${lineIdx}`} className="border-t border-gray-100 bg-white/60 align-top">
                         <td className="px-2 py-0.5"></td>
                         <td className="px-2 py-0.5">
-                          <input
-                            className="form-input w-full py-1 text-xs text-gray-700"
-                            value={row.desc}
-                            onFocus={() => setActiveItemIdx(index)}
-                            onChange={event => setDescriptionLine(index, lineIdx, 'desc', event.target.value)}
-                            placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
-                          />
+                          <div className="flex items-start gap-2">
+                            <input
+                              className="form-input w-full py-1 text-xs"
+                              value={parseColoredLine(row.desc).text}
+                              style={{ color: parseColoredLine(row.desc).color || DEFAULT_LINE_COLOR }}
+                              onFocus={() => setActiveItemIdx(index)}
+                              onChange={event => setDescriptionLineText(index, lineIdx, event.target.value)}
+                              placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
+                            />
+                            <div
+                              className="relative shrink-0"
+                              onBlurCapture={event => {
+                                if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveDetailColorPickerKey(null)
+                              }}
+                            >
+                              <button
+                                type="button"
+                                className="form-input flex h-8 w-11 items-center justify-center gap-1 rounded-md px-0"
+                                onFocus={() => setActiveItemIdx(index)}
+                                onClick={() => {
+                                  const key = `${index}-${lineIdx}`
+                                  setActiveDetailColorPickerKey(activeDetailColorPickerKey === key ? null : key)
+                                }}
+                                title="สีข้อความรายละเอียด"
+                                aria-label="สีข้อความรายละเอียด"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className="h-3 w-3 rounded-full border border-white shadow-sm"
+                                  style={{ backgroundColor: parseColoredLine(row.desc).color || DEFAULT_LINE_COLOR }}
+                                />
+                                <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                              </button>
+                              {activeDetailColorPickerKey === `${index}-${lineIdx}` ? (
+                                <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                  {MAIN_ITEM_COLORS.map(color => {
+                                    const selected = (parseColoredLine(row.desc).color || DEFAULT_LINE_COLOR) === color.value
+                                    return (
+                                      <button
+                                        key={color.value}
+                                        type="button"
+                                        className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                        onClick={() => {
+                                          setDescriptionLineColor(index, lineIdx, color.value)
+                                          setActiveDetailColorPickerKey(null)
+                                        }}
+                                      >
+                                        <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                        <span>{color.label}</span>
+                                      </button>
+                                    )
+                                  })}
+                                </div>
+                              ) : null}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-2 py-0.5">
                           <input
@@ -276,11 +389,58 @@ export default function WorkOrderItemsEditor({
                                 <textarea
                                   className="form-input w-full py-1 text-xs"
                                   rows={2}
-                                  value={block}
+                                  value={block.text}
+                                  style={{ color: block.color || DEFAULT_LINE_COLOR }}
                                   onFocus={() => setActiveItemIdx(index)}
                                   onChange={event => setNoteBlock(index, blockIdx, event.target.value)}
                                   placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
                                 />
+                                <div
+                                  className="relative shrink-0"
+                                  onBlurCapture={event => {
+                                    if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveNoteColorPickerKey(null)
+                                  }}
+                                >
+                                  <button
+                                    type="button"
+                                    className="form-input mt-1 flex h-8 w-11 items-center justify-center gap-1 rounded-md px-0"
+                                    onFocus={() => setActiveItemIdx(index)}
+                                    onClick={() => {
+                                      const key = `${index}-${blockIdx}`
+                                      setActiveNoteColorPickerKey(activeNoteColorPickerKey === key ? null : key)
+                                    }}
+                                    title="สีข้อความหมายเหตุ"
+                                    aria-label="สีข้อความหมายเหตุ"
+                                  >
+                                    <span
+                                      aria-hidden="true"
+                                      className="h-3 w-3 rounded-full border border-white shadow-sm"
+                                      style={{ backgroundColor: block.color || DEFAULT_LINE_COLOR }}
+                                    />
+                                    <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                                  </button>
+                                  {activeNoteColorPickerKey === `${index}-${blockIdx}` ? (
+                                    <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                      {MAIN_ITEM_COLORS.map(color => {
+                                        const selected = (block.color || DEFAULT_LINE_COLOR) === color.value
+                                        return (
+                                          <button
+                                            key={color.value}
+                                            type="button"
+                                            className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                            onClick={() => {
+                                              setNoteBlockColor(index, blockIdx, color.value)
+                                              setActiveNoteColorPickerKey(null)
+                                            }}
+                                          >
+                                            <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                            <span>{color.label}</span>
+                                          </button>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : null}
+                                </div>
                                 <button
                                   type="button"
                                   className="mt-1 p-1 text-red-400 transition-colors hover:text-red-600"
@@ -399,14 +559,59 @@ export default function WorkOrderItemsEditor({
                   <tr className={`border-t align-top ${activeItemIdx === index ? 'border-green-400 bg-green-50/40' : 'border-gray-100'}`}>
                     <td className="px-2 py-2.5 pt-3.5 text-xs text-gray-400">{index + 1}</td>
                     <td className="px-2 py-2">
-                      <input
-                        className="form-input w-full py-1"
-                        value={item.desc}
-                        required
-                        onFocus={() => setActiveItemIdx(index)}
-                        onChange={event => setItemField(index, 'desc', event.target.value)}
-                        placeholder="ชื่อสินค้า/บริการ *"
-                      />
+                      <div className="flex items-start gap-2">
+                        <input
+                          className="form-input w-full py-1"
+                          value={parseColoredLine(item.desc).text}
+                          style={{ color: parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR }}
+                          required
+                          onFocus={() => setActiveItemIdx(index)}
+                          onChange={event => setItemDescriptionText(index, event.target.value)}
+                          placeholder="ชื่อสินค้า/บริการ *"
+                        />
+                        <div
+                          className="relative shrink-0"
+                          onBlurCapture={event => {
+                            if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setActiveColorPickerIdx(null)
+                          }}
+                        >
+                          <button
+                            type="button"
+                            className="form-input flex h-9 w-11 items-center justify-center gap-1 rounded-md px-0"
+                            onClick={() => setActiveColorPickerIdx(activeColorPickerIdx === index ? null : index)}
+                            title="สีข้อความรายการ"
+                            aria-label="สีข้อความรายการ"
+                          >
+                            <span
+                              aria-hidden="true"
+                              className="h-3.5 w-3.5 rounded-full border border-white shadow-sm"
+                              style={{ backgroundColor: parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR }}
+                            />
+                            <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                          </button>
+                          {activeColorPickerIdx === index ? (
+                            <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                              {MAIN_ITEM_COLORS.map(color => {
+                                const selected = (parseColoredLine(item.desc).color || DEFAULT_LINE_COLOR) === color.value
+                                return (
+                                  <button
+                                    key={color.value}
+                                    type="button"
+                                    className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                    onClick={() => {
+                                      setItemDescriptionColor(index, color.value)
+                                      setActiveColorPickerIdx(null)
+                                    }}
+                                  >
+                                    <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                    <span>{color.label}</span>
+                                  </button>
+                                )
+                              })}
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
                     </td>
                     <td className="px-2 py-2">
                       <input

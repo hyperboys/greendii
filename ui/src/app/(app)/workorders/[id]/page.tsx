@@ -11,11 +11,12 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { parseColoredLine } from '@/lib/coloredText'
 import {
-  getWorkOrderDetailNoteText,
   getWorkOrderItemsSource,
+  parseWorkOrderColoredNoteBlocks,
+  parseWorkOrderDetailRows,
   parseWorkOrderDetailBeforeNote,
-  parseWorkOrderNoteBlocks,
 } from '@/lib/workOrderItems'
 import { decodeDisplayFileName } from '@/lib/filename'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
@@ -352,19 +353,33 @@ export default function WorkOrderDetailPage() {
               <tbody>
                 {workOrderItems.map((item, i) => (
                   (() => {
-                    const detailText = getWorkOrderDetailNoteText(item.note)
-                    const noteBlocks = parseWorkOrderNoteBlocks(item.note)
+                    const detailRows = parseWorkOrderDetailRows(item)
+                    const noteBlocks = parseWorkOrderColoredNoteBlocks(item.note)
                     const detailBeforeNote = parseWorkOrderDetailBeforeNote(item.note)
+                    const itemDesc = parseColoredLine(item.desc)
 
-                    const detailView = detailText
-                      ? <div className="whitespace-pre-line text-xs text-gray-400">{detailText}</div>
+                    const detailView = detailRows.length > 0
+                      ? (
+                        <div className="mt-1 space-y-0.5 text-xs">
+                          {detailRows.map((row, rowIndex) => {
+                            const parsed = parseColoredLine(row.desc)
+                            return (
+                              <div key={`${i}-detail-${rowIndex}`} className="whitespace-pre-line" style={{ color: parsed.color || '#9ca3af' }}>
+                                {parsed.text}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
                       : null
 
                     const noteView = noteBlocks.length > 0
                       ? (
                         <div className="mt-1 space-y-0.5 text-xs text-gray-500">
                           {noteBlocks.map((block, blockIndex) => (
-                            <div key={`${i}-note-${blockIndex}`} className="whitespace-pre-line">{block}</div>
+                            <div key={`${i}-note-${blockIndex}`} className="whitespace-pre-line" style={{ color: block.color || '#6b7280' }}>
+                              {block.text}
+                            </div>
                           ))}
                         </div>
                       )
@@ -374,7 +389,7 @@ export default function WorkOrderDetailPage() {
                       <tr key={i} className="border-b">
                         <td className="border px-2 py-1.5 text-center text-gray-500">{(item.seq !== undefined ? item.seq : i) + 1}</td>
                         <td className="border px-2 py-1.5">
-                          <div>{item.desc}</div>
+                          <div style={{ color: itemDesc.color || '#111827' }}>{itemDesc.text}</div>
                           {detailBeforeNote ? (
                             <>
                               {detailView}
