@@ -760,6 +760,8 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
         woNo: wo.woNo,
         openedAt: wo.createdAt,
         customerName: wo.customerName,
+        project: wo.project || '',
+        products: wo.products || '',
         amount: Number(wo.quotation?.grandTotal || 0),
         ageDays: calcAgeDays(wo.createdAt),
         status: wo.status,

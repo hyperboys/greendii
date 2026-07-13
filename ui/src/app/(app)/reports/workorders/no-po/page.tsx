@@ -10,7 +10,7 @@ import { hasRole } from '@/lib/roleAliases'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
 import { ChevronRight, FileSpreadsheet } from 'lucide-react'
 
-type SortKey = 'woNo' | 'openedAt' | 'customerName' | 'amount' | 'ageDays' | 'status' | 'salesName'
+type SortKey = 'woNo' | 'openedAt' | 'customerName' | 'project' | 'products' | 'amount' | 'ageDays' | 'status' | 'salesName'
 
 function fmtDate(iso: string) {
   return new Date(iso).toLocaleDateString('th-TH', { year: 'numeric', month: 'short', day: 'numeric' })
@@ -91,6 +91,8 @@ export default function WorkOrdersNoPoBySalesPage() {
       'WO No.': r.woNo,
       'วันที่เปิด': fmtDate(r.openedAt),
       'ลูกค้า': r.customerName,
+      'โครงการ': r.project || '-',
+      'สินค้า': r.products || '-',
       'ยอดเงิน': r.amount,
       'อายุ WO (วัน)': r.ageDays,
       'สถานะ': r.status,
@@ -180,12 +182,14 @@ export default function WorkOrdersNoPoBySalesPage() {
         {loading ? (
           <div className="p-6 text-gray-400">กำลังโหลด…</div>
         ) : (
-          <table className="data-table min-w-[980px]">
+          <table className="data-table min-w-[1240px]">
             <thead>
               <tr>
                 <th onClick={() => toggleSort('woNo')} className="cursor-pointer select-none">WO No.{sortIndicator('woNo')}</th>
                 <th onClick={() => toggleSort('openedAt')} className="cursor-pointer select-none">วันที่เปิด{sortIndicator('openedAt')}</th>
                 <th onClick={() => toggleSort('customerName')} className="cursor-pointer select-none">ลูกค้า{sortIndicator('customerName')}</th>
+                <th onClick={() => toggleSort('project')} className="cursor-pointer select-none">โครงการ{sortIndicator('project')}</th>
+                <th onClick={() => toggleSort('products')} className="cursor-pointer select-none">สินค้า{sortIndicator('products')}</th>
                 <th onClick={() => toggleSort('amount')} className="cursor-pointer select-none text-right">ยอดเงิน{sortIndicator('amount')}</th>
                 <th onClick={() => toggleSort('ageDays')} className="cursor-pointer select-none text-right">อายุ WO (วัน){sortIndicator('ageDays')}</th>
                 <th onClick={() => toggleSort('status')} className="cursor-pointer select-none">สถานะ{sortIndicator('status')}</th>
@@ -198,6 +202,8 @@ export default function WorkOrdersNoPoBySalesPage() {
                   <td>{r.woNo}</td>
                   <td>{fmtDate(r.openedAt)}</td>
                   <td>{r.customerName}</td>
+                  <td>{r.project || '-'}</td>
+                  <td>{r.products || '-'}</td>
                   <td className="text-right">฿{fmtMoney(r.amount)}</td>
                   <td className="text-right">{r.ageDays}</td>
                   <td>{r.status}</td>
@@ -206,7 +212,7 @@ export default function WorkOrdersNoPoBySalesPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="text-center text-gray-400 py-6">ไม่พบข้อมูล</td>
+                  <td colSpan={9} className="text-center text-gray-400 py-6">ไม่พบข้อมูล</td>
                 </tr>
               )}
             </tbody>

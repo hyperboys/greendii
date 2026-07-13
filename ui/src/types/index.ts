@@ -411,6 +411,8 @@ export interface WorkOrderNoPoRow {
   woNo: string
   openedAt: string
   customerName: string
+  project: string
+  products: string
   amount: number
   ageDays: number
   status: DocStatus
