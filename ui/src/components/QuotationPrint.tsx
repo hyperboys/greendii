@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
-import { parseColoredLine, parseColoredMultiline } from '@/lib/coloredText'
+import { parseColoredLine, parseQuotationNoteMultiline } from '@/lib/coloredText'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -60,7 +60,7 @@ type DetailRow = {
 }
 
 function splitDescriptionLines(note?: string) {
-  const lines = parseColoredMultiline(note)
+  const lines = parseQuotationNoteMultiline(note)
   if (lines.length === 1 && lines[0].text.trim() === '') return []
   return lines
 }

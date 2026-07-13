@@ -4,6 +4,8 @@ export interface ColoredTextLine {
 }
 
 const COLOR_TAG = /^\[color=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\]([\s\S]*)$/
+const QUOTATION_NOTE_BLOCK_TOKEN = /^_+Q[OQ]_NOTE_BLOCK_+$/i
+const QUOTATION_NOTE_EMPTY_TOKEN = /^_+QO_NOTE_EMPTY_+$/i
 
 export function normalizeColorHex(input?: string | null): string | undefined {
   const value = String(input || '').trim()
@@ -39,6 +41,22 @@ export function parseColoredMultiline(value?: string | null): ColoredTextLine[] 
   return String(value)
     .split('\n')
     .map(line => parseColoredLine(line))
+}
+
+export function parseQuotationNoteMultiline(value?: string | null): ColoredTextLine[] {
+  if (value == null) return []
+
+  return String(value)
+    .split('\n')
+    .flatMap(rawLine => {
+      const line = parseColoredLine(rawLine)
+      const text = line.text.trim()
+
+      if (QUOTATION_NOTE_BLOCK_TOKEN.test(text)) return []
+      if (QUOTATION_NOTE_EMPTY_TOKEN.test(text)) return [{ text: '' }]
+
+      return [line]
+    })
 }
 
 export function stringifyColoredMultiline(lines: ColoredTextLine[]): string {

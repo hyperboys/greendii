@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { parseColoredLine, parseColoredMultiline } from '@/lib/coloredText'
+import { parseColoredLine, parseQuotationNoteMultiline } from '@/lib/coloredText'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { Quotation, Settings } from '@/types'
 import { useAuthStore } from '@/store/auth'
@@ -18,7 +18,7 @@ function fmtMoney(n: number) {
 }
 
 function splitDescriptionLines(note?: string) {
-  return parseColoredMultiline(note)
+  return parseQuotationNoteMultiline(note)
     .map(line => ({ ...line, text: line.text.trim() }))
     .filter(line => line.text)
 }
