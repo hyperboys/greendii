@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { parseColoredLine, stringifyColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
+import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X, ChevronUp, ChevronDown } from 'lucide-react'
@@ -54,6 +54,7 @@ const MAIN_ITEM_COLORS = [
   { value: '#16a34a', label: 'เขียว' },
 ] as const
 type ItemSection = 'note' | 'image' | 'detail'
+type NoteBlock = { text: string; color?: string }
 
 const getSelectValue = (value: string, options: readonly string[], customValue: string) => {
   if (!value) return ''
@@ -106,21 +107,28 @@ const calcItemTotal = (item: QuotationItem) => {
   return normalized.amount + detailTotal
 }
 
-function parseNoteBlocks(note?: string): string[] {
-  const raw = toPlainColoredMultiline(note)
+function parseNoteBlocks(note?: string): NoteBlock[] {
+  const raw = String(note ?? '')
   if (raw === '') return []
-  if (!raw.includes(NOTE_BLOCK_SEPARATOR)) return [raw === NOTE_EMPTY_TOKEN ? '' : raw]
-  return raw.split(NOTE_BLOCK_SEPARATOR).map(v => (v === NOTE_EMPTY_TOKEN ? '' : v))
+  const parseBlock = (value: string): NoteBlock => {
+    if (value === NOTE_EMPTY_TOKEN) return { text: '' }
+    const parsed = parseColoredLine(value)
+    return { text: parsed.text, color: parsed.color }
+  }
+  if (!raw.includes(NOTE_BLOCK_SEPARATOR)) return [parseBlock(raw)]
+  return raw.split(NOTE_BLOCK_SEPARATOR).map(parseBlock)
 }
 
-function stringifyNoteBlocks(blocks: string[]): string {
-  const normalized = blocks.map(v => String(v ?? ''))
+function stringifyNoteBlocks(blocks: NoteBlock[]): string {
+  const normalized = blocks.map(block => ({ text: String(block?.text ?? ''), color: block?.color }))
   if (normalized.length === 0) return ''
-  return normalized.map(v => (v === '' ? NOTE_EMPTY_TOKEN : v)).join(NOTE_BLOCK_SEPARATOR)
+  return normalized
+    .map(block => (block.text === '' ? NOTE_EMPTY_TOKEN : stringifyColoredLine(block)))
+    .join(NOTE_BLOCK_SEPARATOR)
 }
 
 function hasNoteContent(note?: string): boolean {
-  return parseNoteBlocks(note).some(block => block.trim().length > 0)
+  return parseNoteBlocks(note).some(block => block.text.trim().length > 0)
 }
 
 function hasDetailRowContent(row: Partial<QuotationItemDetail> | undefined): boolean {
@@ -152,6 +160,7 @@ export default function QuotationFormPage() {
   const [editable, setEditable] = useState(true)
   const [activeItemIdx, setActiveItemIdx] = useState(0)
   const [activeColorPickerIdx, setActiveColorPickerIdx] = useState<number | null>(null)
+  const [activeNoteColorPickerKey, setActiveNoteColorPickerKey] = useState<string | null>(null)
   const [activeDetailColorPickerKey, setActiveDetailColorPickerKey] = useState<string | null>(null)
   const uploadInputRef = useRef<HTMLInputElement | null>(null)
 
@@ -270,8 +279,21 @@ export default function QuotationFormPage() {
     setForm(f => {
       const items = [...f.items]
       const blocks = parseNoteBlocks(items[itemIdx].note)
-      const nextBlocks = blocks.length > 0 ? [...blocks] : ['']
-      nextBlocks[noteIdx] = text
+      const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
+      const current = nextBlocks[noteIdx] || { text: '' }
+      nextBlocks[noteIdx] = { ...current, text }
+      items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
+      return { ...f, items }
+    })
+  }
+
+  const setItemNoteBlockColor = (itemIdx: number, noteIdx: number, color: string) => {
+    setForm(f => {
+      const items = [...f.items]
+      const blocks = parseNoteBlocks(items[itemIdx].note)
+      const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
+      const current = nextBlocks[noteIdx] || { text: '' }
+      nextBlocks[noteIdx] = { ...current, color }
       items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
       return { ...f, items }
     })
@@ -281,7 +303,7 @@ export default function QuotationFormPage() {
     setForm(f => {
       const items = [...f.items]
       const blocks = parseNoteBlocks(items[itemIdx].note)
-      const nextBlocks = [...blocks, '']
+      const nextBlocks = [...blocks, { text: '' }]
       items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
       return { ...f, items }
     })
@@ -751,11 +773,58 @@ export default function QuotationFormPage() {
                                     <textarea
                                       className="form-input py-1 text-xs w-full"
                                       rows={3}
-                                      value={noteText}
+                                      value={noteText.text}
+                                      style={{ color: noteText.color || DEFAULT_LINE_COLOR }}
                                       onFocus={() => setActiveItemIdx(i)}
                                       onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
                                       placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
                                     />
+                                    <div
+                                      className="relative shrink-0"
+                                      onBlurCapture={e => {
+                                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActiveNoteColorPickerKey(null)
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className="form-input mt-1 flex h-8 w-11 items-center justify-center gap-1 rounded-md px-0"
+                                        onFocus={() => setActiveItemIdx(i)}
+                                        onClick={() => {
+                                          const key = `${i}-${noteIdx}`
+                                          setActiveNoteColorPickerKey(activeNoteColorPickerKey === key ? null : key)
+                                        }}
+                                        title="สีข้อความหมายเหตุ"
+                                        aria-label="สีข้อความหมายเหตุ"
+                                      >
+                                        <span
+                                          aria-hidden="true"
+                                          className="h-3 w-3 rounded-full border border-white shadow-sm"
+                                          style={{ backgroundColor: noteText.color || DEFAULT_LINE_COLOR }}
+                                        />
+                                        <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                                      </button>
+                                      {activeNoteColorPickerKey === `${i}-${noteIdx}` ? (
+                                        <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                          {MAIN_ITEM_COLORS.map(color => {
+                                            const selected = (noteText.color || DEFAULT_LINE_COLOR) === color.value
+                                            return (
+                                              <button
+                                                key={color.value}
+                                                type="button"
+                                                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                                onClick={() => {
+                                                  setItemNoteBlockColor(i, noteIdx, color.value)
+                                                  setActiveNoteColorPickerKey(null)
+                                                }}
+                                              >
+                                                <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                                <span>{color.label}</span>
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      ) : null}
+                                    </div>
                                     <button
                                       type="button"
                                       className="mt-1 p-1 text-red-400 hover:text-red-600"
@@ -1085,11 +1154,58 @@ export default function QuotationFormPage() {
                                     <textarea
                                       className="form-input py-1 text-xs w-full"
                                       rows={3}
-                                      value={noteText}
+                                      value={noteText.text}
+                                      style={{ color: noteText.color || DEFAULT_LINE_COLOR }}
                                       onFocus={() => setActiveItemIdx(i)}
                                       onChange={e => setItemNoteBlock(i, noteIdx, e.target.value)}
                                       placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
                                     />
+                                    <div
+                                      className="relative shrink-0"
+                                      onBlurCapture={e => {
+                                        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActiveNoteColorPickerKey(null)
+                                      }}
+                                    >
+                                      <button
+                                        type="button"
+                                        className="form-input mt-1 flex h-8 w-11 items-center justify-center gap-1 rounded-md px-0"
+                                        onFocus={() => setActiveItemIdx(i)}
+                                        onClick={() => {
+                                          const key = `${i}-${noteIdx}`
+                                          setActiveNoteColorPickerKey(activeNoteColorPickerKey === key ? null : key)
+                                        }}
+                                        title="สีข้อความหมายเหตุ"
+                                        aria-label="สีข้อความหมายเหตุ"
+                                      >
+                                        <span
+                                          aria-hidden="true"
+                                          className="h-3 w-3 rounded-full border border-white shadow-sm"
+                                          style={{ backgroundColor: noteText.color || DEFAULT_LINE_COLOR }}
+                                        />
+                                        <span aria-hidden="true" className="text-[10px] leading-none text-gray-500">▾</span>
+                                      </button>
+                                      {activeNoteColorPickerKey === `${i}-${noteIdx}` ? (
+                                        <div className="absolute left-0 top-full z-20 mt-1 min-w-36 overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                                          {MAIN_ITEM_COLORS.map(color => {
+                                            const selected = (noteText.color || DEFAULT_LINE_COLOR) === color.value
+                                            return (
+                                              <button
+                                                key={color.value}
+                                                type="button"
+                                                className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-green-50 ${selected ? 'bg-green-50 font-medium text-green-700' : 'text-gray-700'}`}
+                                                onClick={() => {
+                                                  setItemNoteBlockColor(i, noteIdx, color.value)
+                                                  setActiveNoteColorPickerKey(null)
+                                                }}
+                                              >
+                                                <span className="h-3.5 w-3.5 rounded-full border border-white shadow-sm" style={{ backgroundColor: color.value }} />
+                                                <span>{color.label}</span>
+                                              </button>
+                                            )
+                                          })}
+                                        </div>
+                                      ) : null}
+                                    </div>
                                     <button
                                       type="button"
                                       className="mt-1 p-1 text-red-400 hover:text-red-600"
