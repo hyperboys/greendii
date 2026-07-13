@@ -23,6 +23,7 @@ function fmtMoney(n: number) {
 export default function WorkOrdersNoPoBySalesPage() {
   const [sales, setSales] = useState<User[]>([])
   const [selectedSales, setSelectedSales] = useState<string[]>([])
+  const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
   const [report, setReport] = useState<WorkOrderNoPoReport>({ summary: [], rows: [] })
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('openedAt')
@@ -36,13 +37,16 @@ export default function WorkOrdersNoPoBySalesPage() {
 
   const load = () => {
     setLoading(true)
-    ReportsAPI.workOrdersNoPoBySales({ salesIds: selectedSales.join(',') || undefined })
+    ReportsAPI.workOrdersNoPoBySales({
+      salesIds: selectedSales.join(',') || undefined,
+      statuses: selectedStatuses.join(',') || undefined,
+    })
       .then(setReport)
       .catch(() => toast.error('โหลดรายงานไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [selectedSales.join(',')])
+  useEffect(() => { load() }, [selectedSales.join(','), selectedStatuses.join(',')])
 
   const rows = useMemo(() => {
     const data = [...report.rows]
@@ -70,6 +74,16 @@ export default function WorkOrdersNoPoBySalesPage() {
   const sortIndicator = (key: SortKey) => (sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : '')
 
   const salesOptions = useMemo(() => sales.map(s => ({ value: s.id, label: s.fullName })), [sales])
+  const statusOptions = useMemo(
+    () => [
+      { value: 'draft', label: 'draft' },
+      { value: 'pending', label: 'pending' },
+      { value: 'approved', label: 'approved' },
+      { value: 'rejected', label: 'rejected' },
+      { value: 'cancelled', label: 'cancelled' },
+    ],
+    []
+  )
   const grandTotal = useMemo(() => report.summary.reduce((sum, s) => sum + s.total, 0), [report.summary])
 
   const exportExcel = () => {
@@ -119,17 +133,32 @@ export default function WorkOrdersNoPoBySalesPage() {
         </div>
       </div>
 
-      <div className="card p-4">
-        <label className="form-label">เลือก Sales (เลือกได้หลายคน)</label>
-        <div className="max-w-md">
-          <MultiSelectDropdown
-            options={salesOptions}
-            selected={selectedSales}
-            onChange={setSelectedSales}
-            placeholder="ทุก Sales"
-          />
+      <div className="card p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="form-label">เลือก Sales (เลือกได้หลายคน)</label>
+          <div className="max-w-md">
+            <MultiSelectDropdown
+              options={salesOptions}
+              selected={selectedSales}
+              onChange={setSelectedSales}
+              placeholder="ทุก Sales"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-2">ไม่เลือก = แสดงทุก Sales</p>
         </div>
-        <p className="text-xs text-gray-400 mt-2">ไม่เลือก = แสดงทุก Sales</p>
+
+        <div>
+          <label className="form-label">เลือกสถานะ Work Order (เลือกได้หลายสถานะ)</label>
+          <div className="max-w-md">
+            <MultiSelectDropdown
+              options={statusOptions}
+              selected={selectedStatuses}
+              onChange={setSelectedStatuses}
+              placeholder="ทุกสถานะ (ยกเว้น cancelled)"
+            />
+          </div>
+          <p className="text-xs text-gray-400 mt-2">ไม่เลือก = แสดงทุกสถานะ ยกเว้น cancelled</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

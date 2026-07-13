@@ -14,6 +14,15 @@ function parseSalesIds(raw) {
     .filter(Boolean);
 }
 
+function parseDocStatuses(raw) {
+  const ALLOWED = new Set(['draft', 'pending', 'approved', 'rejected', 'cancelled']);
+  if (!raw) return [];
+  return String(raw)
+    .split(',')
+    .map(v => v.trim().toLowerCase())
+    .filter(v => ALLOWED.has(v));
+}
+
 function normalizeDateRange(rawFrom, rawTo) {
   const where = {};
   if (rawFrom) where.gte = new Date(rawFrom);
@@ -709,15 +718,18 @@ router.get('/quotation-summary', authenticate, async (req, res, next) => {
 });
 
 // GET /api/reports/workorders/no-po-by-sales
-// Query: salesIds=comma-separated, from=YYYY-MM-DD, to=YYYY-MM-DD
+// Query: salesIds=comma-separated, statuses=comma-separated, from=YYYY-MM-DD, to=YYYY-MM-DD
 router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) => {
   try {
     const canSeeAllReports = await canViewAllReports(req.user.role);
     const salesIds = parseSalesIds(req.query.salesIds);
+    const statuses = parseDocStatuses(req.query.statuses);
     const createdAt = normalizeDateRange(req.query.from, req.query.to);
     const where = {
       active: true,
-      status: { not: 'cancelled' },
+      status: statuses.length > 0
+        ? { in: statuses }
+        : { not: 'cancelled' },
       attachments: { none: poAttachmentFilter() },
       ...(createdAt ? { createdAt } : {}),
     };
