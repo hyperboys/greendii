@@ -139,8 +139,8 @@ export default function HandoversPage() {
             ) : rows.map(h => (
               <tr key={h.id} className="cursor-pointer" onClick={() => router.push(`/handovers/${h.id}`)}>
                 <td className="font-mono text-xs font-semibold text-orange-600">{h.hoNo}</td>
-                <td>{h.project}</td>
                 <td className="max-w-[160px] truncate">{h.contractor || '-'}</td>
+                <td>{h.project}</td>
                 <td>{h.sales?.fullName ?? h.salesId}</td>
                 <td className="text-xs text-gray-500">{h.serviceDate ? new Date(h.serviceDate).toLocaleDateString('en-GB') : '-'}</td>
                 <td><span className={`badge badge-${h.status}`}>{STATUS_LABELS[h.status]}</span></td>
