@@ -46,17 +46,28 @@ export function parseColoredMultiline(value?: string | null): ColoredTextLine[] 
 export function parseQuotationNoteMultiline(value?: string | null): ColoredTextLine[] {
   if (value == null) return []
 
-  return String(value)
-    .split('\n')
-    .flatMap(rawLine => {
-      const line = parseColoredLine(rawLine)
-      const text = line.text.trim()
+  let activeColor: string | undefined
+  const result: ColoredTextLine[] = []
 
-      if (QUOTATION_NOTE_BLOCK_TOKEN.test(text)) return []
-      if (QUOTATION_NOTE_EMPTY_TOKEN.test(text)) return [{ text: '' }]
+  for (const rawLine of String(value).split('\n')) {
+    const line = parseColoredLine(rawLine)
+    const text = line.text.trim()
 
-      return [line]
-    })
+    if (QUOTATION_NOTE_BLOCK_TOKEN.test(text)) {
+      activeColor = undefined
+      continue
+    }
+    if (QUOTATION_NOTE_EMPTY_TOKEN.test(text)) {
+      result.push({ text: '' })
+      activeColor = undefined
+      continue
+    }
+
+    if (line.color) activeColor = line.color
+    result.push({ text: line.text, color: line.color || activeColor })
+  }
+
+  return result
 }
 
 export function stringifyColoredMultiline(lines: ColoredTextLine[]): string {
