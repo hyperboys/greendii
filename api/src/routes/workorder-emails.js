@@ -69,9 +69,39 @@ async function loadAttachmentBytes(att) {
   if (/^https?:\/\//i.test(fileUrl)) {
     const resp = await fetch(fileUrl);
     if (!resp.ok) throw new Error(`fetch failed ${resp.status}`);
-    return Buffer.from(await resp.arrayBuffer());
+    const bytes = Buffer.from(await resp.arrayBuffer());
+    const expectedMime = String(att?.mimeType || '').toLowerCase();
+    const responseMime = String(resp.headers.get('content-type') || '').toLowerCase();
+
+    // Guard against remote HTML/text error pages accidentally saved as .pdf.
+    if (
+      expectedMime === 'application/pdf'
+      && responseMime
+      && !responseMime.includes('application/pdf')
+      && !responseMime.includes('application/octet-stream')
+    ) {
+      throw new Error(`invalid remote mime for pdf: ${responseMime || 'unknown'}`);
+    }
+
+    return bytes;
   }
   return fs.readFile(path.join(__dirname, '../../uploads', att.filename));
+}
+
+function isPdfBuffer(buf) {
+  if (!buf || !Buffer.isBuffer(buf) || buf.length < 5) return false;
+  return buf.subarray(0, 5).toString('ascii') === '%PDF-';
+}
+
+function buildBinaryMailAttachment({ filename, contentType, content }) {
+  const safeContent = Buffer.isBuffer(content) ? content : Buffer.from(content || '');
+  return {
+    filename: normalizeOriginalFileName(filename),
+    content: safeContent.toString('base64'),
+    encoding: 'base64',
+    contentType: contentType || 'application/octet-stream',
+    contentDisposition: 'attachment',
+  };
 }
 
 function getRequesterIp(req) {
@@ -191,13 +221,19 @@ async function buildGeneratedPdfBytes(attachment, req, workOrder) {
   const query = `?token=${encodeURIComponent(token)}&mode=pdf`;
 
   if (attachment.virtualType === 'workorder-pdf') {
-    return renderUrlToPdf(`${uiBase}/print/workorder-email/${workOrder.id}${query}`);
+    const pdf = await renderUrlToPdf(`${uiBase}/print/workorder-email/${workOrder.id}${query}`);
+    if (!isPdfBuffer(pdf)) throw new Error('generated workorder pdf is invalid');
+    return pdf;
   }
   if (attachment.virtualType === 'quotation-pdf' && workOrder.quotationId) {
-    return renderUrlToPdf(`${uiBase}/print/quotation/${workOrder.quotationId}${query}`);
+    const pdf = await renderUrlToPdf(`${uiBase}/print/quotation/${workOrder.quotationId}${query}`);
+    if (!isPdfBuffer(pdf)) throw new Error('generated quotation pdf is invalid');
+    return pdf;
   }
   if (attachment.virtualType === 'handover-pdf' && attachment.handOverJobId) {
-    return renderUrlToPdf(`${uiBase}/print/handover/${attachment.handOverJobId}${query}`);
+    const pdf = await renderUrlToPdf(`${uiBase}/print/handover/${attachment.handOverJobId}${query}`);
+    if (!isPdfBuffer(pdf)) throw new Error('generated handover pdf is invalid');
+    return pdf;
   }
   throw new Error('unknown generated attachment type');
 }
@@ -748,19 +784,29 @@ router.post('/send', authenticate, upload.array('extraFiles', 10), async (req, r
           ? await buildGeneratedPdfBytes(att, req, workOrder)
           : await loadAttachmentBytes(att);
         const filename = normalizeOriginalFileName(att.originalName || att.filename);
-        return {
+        const mimeType = String(att.mimeType || '').toLowerCase();
+        if (mimeType === 'application/pdf' && !isPdfBuffer(content)) {
+          throw new Error(`invalid pdf attachment: ${filename}`);
+        }
+        return buildBinaryMailAttachment({
           filename,
           contentType: att.mimeType,
           content,
-        };
+        });
       })
     );
 
-    const uploadedAttachments = (req.files || []).map((f) => ({
-      filename: normalizeOriginalFileName(f.originalname),
-      contentType: f.mimetype,
-      content: f.buffer,
-    }));
+    const uploadedAttachments = (req.files || []).map((f) => {
+      const mimeType = String(f.mimetype || '').toLowerCase();
+      if (mimeType === 'application/pdf' && !isPdfBuffer(f.buffer)) {
+        throw new Error(`invalid uploaded pdf: ${f.originalname || 'attachment.pdf'}`);
+      }
+      return buildBinaryMailAttachment({
+        filename: normalizeOriginalFileName(f.originalname),
+        contentType: f.mimetype,
+        content: f.buffer,
+      });
+    });
 
     const payload = {
       from: `"GreenDii" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
