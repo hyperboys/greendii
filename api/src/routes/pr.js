@@ -231,6 +231,25 @@ async function appendPrintableAttachments(basePdf, attachments) {
   return Buffer.from(await merged.save());
 }
 
+async function mergePdfBuffers(buffers) {
+  const validBuffers = (buffers || []).filter(b => Buffer.isBuffer(b) && b.length > 0);
+  if (validBuffers.length === 0) return Buffer.alloc(0);
+  if (validBuffers.length === 1) return validBuffers[0];
+
+  const { PDFDocument } = require('pdf-lib');
+  const merged = await PDFDocument.create();
+  for (const pdfBuffer of validBuffers) {
+    try {
+      const src = await PDFDocument.load(pdfBuffer);
+      const copied = await merged.copyPages(src, src.getPageIndices());
+      copied.forEach(page => merged.addPage(page));
+    } catch {
+      // Skip unreadable buffers and continue merging the remaining PDFs.
+    }
+  }
+  return Buffer.from(await merged.save());
+}
+
 async function assertPrAccessible(req, pr) {
   if (!pr) return;
 
@@ -365,6 +384,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
       select: {
         id: true,
         prNo: true,
+        workOrderId: true,
         salesId: true,
         status: true,
         approvalStep: true,
@@ -384,8 +404,20 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
       },
     });
     await assertPrAccessible(req, item);
-    const pdf = await renderUrlToPdf(url);
-    const finalPdf = await appendPrintableAttachments(pdf, item.attachments);
+    const buffers = [await renderUrlToPdf(url)];
+
+    if (item.workOrderId) {
+      const workOrderUrl = `${uiBase}/print/workorder-email/${item.workOrderId}?token=${encodeURIComponent(token)}&mode=pdf`;
+      try {
+        const workOrderPdf = await renderUrlToPdf(workOrderUrl);
+        buffers.push(workOrderPdf);
+      } catch {
+        // Skip linked WorkOrder PDF if rendering fails.
+      }
+    }
+
+    const mergedMain = await mergePdfBuffers(buffers);
+    const finalPdf = await appendPrintableAttachments(mergedMain, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
     res.send(finalPdf);
