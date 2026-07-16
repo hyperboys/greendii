@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/auth'
 import type { WorkOrder, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
+import DateInput from '@/components/DateInput'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -38,6 +39,7 @@ const DATE_PRESETS  = [
   { value: 'this_month',   label: 'เดือนนี้' },
   { value: 'this_quarter', label: 'ไตรมาสนี้' },
   { value: 'this_year',    label: 'ปีนี้' },
+  { value: 'custom',       label: 'กำหนดเอง' },
 ]
 
 // WO-specific status labels (friendlier display names)
@@ -75,8 +77,27 @@ const DONUT_LABELS: Record<string, string> = {
 }
 
 // ─── Date helpers ─────────────────────────────────────────────────────────────
-function getDateRange(preset: string): { from: Date | null; to: Date | null } {
+function parseStartDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function parseEndDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+function getDateRange(preset: string, customFrom = '', customTo = ''): { from: Date | null; to: Date | null } {
   const now = new Date()
+  if (preset === 'custom') {
+    return { from: parseStartDate(customFrom), to: parseEndDate(customTo) }
+  }
   if (preset === 'this_month')
     return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) }
   if (preset === 'this_quarter') {
@@ -304,6 +325,8 @@ export default function WorkOrderReportPage() {
   const [salesFilter, setSalesFilter] = useState('')
   const [priorityFilter, setPriorityFilter] = useState('')
   const [datePreset, setDatePreset]   = useState('all')
+  const [dateFrom, setDateFrom]       = useState('')
+  const [dateTo, setDateTo]           = useState('')
 
   const [sortKey, setSortKey]   = useState<'woNo' | 'customerName' | 'installDate' | 'createdAt' | null>(null)
   const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc')
@@ -335,8 +358,13 @@ export default function WorkOrderReportPage() {
     let r = rows
 
     // Date preset (on createdAt)
-    const { from, to } = getDateRange(datePreset)
-    if (from) r = r.filter(wo => { const d = new Date(wo.createdAt); return d >= from && d <= to! })
+    const { from, to } = getDateRange(datePreset, dateFrom, dateTo)
+    if (from || to) {
+      r = r.filter(wo => {
+        const d = new Date(wo.createdAt)
+        return (from ? d >= from : true) && (to ? d <= to : true)
+      })
+    }
 
     // Status filter (uses display status)
     if (statusFilter) {
@@ -349,7 +377,13 @@ export default function WorkOrderReportPage() {
     }
 
     return r
-  }, [rows, datePreset, statusFilter, priorityFilter])
+  }, [rows, datePreset, dateFrom, dateTo, statusFilter, priorityFilter])
+
+  const dateRangeLabel = useMemo(() => {
+    if (datePreset !== 'custom') return DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'
+    if (!dateFrom && !dateTo) return 'กำหนดเอง'
+    return `${dateFrom || '...'} - ${dateTo || '...'}`
+  }, [datePreset, dateFrom, dateTo])
 
   function toggleSort(key: typeof sortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -459,7 +493,7 @@ export default function WorkOrderReportPage() {
       const ws   = XLSX.utils.aoa_to_sheet([
         ['Work Order Report'],
         ['Export Date', new Date().toLocaleDateString('th-TH')],
-        ['ช่วงเวลา', DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'],
+        ['ช่วงเวลา', dateRangeLabel],
         ['สถานะ',    statusFilter ? (WO_STATUS_DISPLAY[statusFilter]?.label ?? statusFilter) : 'ทั้งหมด'],
         [],
         ['เลขที่', 'อ้างอิง QUO', 'ลูกค้า', 'โครงการ', 'พนักงานขาย', 'Priority', 'สถานะ', 'วันที่สร้าง', 'กำหนดส่ง', 'วันที่ปิด'],
@@ -672,6 +706,19 @@ export default function WorkOrderReportPage() {
               {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
+
+          {datePreset === 'custom' && (
+            <>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">จากวันที่</label>
+                <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(1) }} />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">ถึงวันที่</label>
+                <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(1) }} />
+              </div>
+            </>
+          )}
 
           {/* Result count */}
           <div className="self-end">

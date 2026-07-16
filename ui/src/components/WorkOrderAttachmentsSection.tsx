@@ -32,10 +32,10 @@ interface Props {
 }
 
 const CATEGORIES = [
-  { key: 'other',   label: 'อื่นๆ (Other)',         accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*', hint: 'PDF, รูปภาพ, Office, ZIP', Icon: File },
+  { key: 'po',      label: 'PO (Purchase Order)',   accept: '.pdf,.jpg,.jpeg,.png',                           hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
   { key: 'drawing', label: 'Drawing / แบบ',         accept: '.pdf,.dwg,.dxf,image/*',  hint: 'PDF, รูปภาพ, CAD',      Icon: PenTool         },
   { key: 'mom',     label: 'Minutes of Meeting',    accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: ClipboardList   },
-  { key: 'po',      label: 'PO (Purchase Order)',  accept: '.pdf,.jpg,.jpeg,.png',      hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
+  { key: 'other',   label: 'อื่นๆ (Other)',         accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*', hint: 'PDF, รูปภาพ, Office, ZIP', Icon: File },
 ] as const
 
 type CategoryKey = typeof CATEGORIES[number]['key']
@@ -135,8 +135,8 @@ export default function AttachmentsSection({
   }
 
   return (
-    <div className="card p-5 space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <div className="card p-3 md:p-5 space-y-3 md:space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-1.5 md:gap-2">
         <h3 className="font-semibold text-gray-800 flex items-center gap-2">
           <Paperclip size={16} />
           เอกสารแนบ
@@ -156,7 +156,7 @@ export default function AttachmentsSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {CATEGORIES.map(({ key, label, accept, hint, Icon }) => {
           const savedFiles = attachments.filter(a => a.category === key)
           const pendingFiles = pending.filter(p => p.category === key)
@@ -164,7 +164,7 @@ export default function AttachmentsSection({
           const categoryLocked = !isCategoryAllowed(key)
 
           return (
-            <div key={key} className="space-y-2">
+            <div key={key} className="space-y-1.5 md:space-y-2">
               <p className="text-sm font-medium text-gray-700">{label}</p>
 
               {key === 'po' && (
@@ -183,16 +183,28 @@ export default function AttachmentsSection({
                 </div>
               )}
 
+              {(key === 'drawing' || key === 'mom') && (
+                <div className="hidden md:block invisible" aria-hidden="true">
+                  <label className="text-xs text-gray-500">ยอดเงิน PO (บาท) *</label>
+                  <input
+                    type="text"
+                    disabled
+                    tabIndex={-1}
+                    className="form-input mt-1"
+                  />
+                </div>
+              )}
+
               {/* Drop zone */}
               {readOnly || categoryLocked ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
+                <div className="border-2 border-dashed border-gray-200 rounded-lg p-3 md:p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
                   <Icon size={28} className="text-gray-300" />
                   <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
                   <span className="text-xs text-gray-400">{categoryLocked ? 'หมวดนี้ยังไม่อนุญาตในสถานะปัจจุบัน' : 'ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้'}</span>
                 </div>
               ) : (
                 <div
-                  className="border-2 border-dashed border-gray-200 rounded-lg p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
+                  className="border-2 border-dashed border-gray-200 rounded-lg p-3 md:p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
                   onClick={() => {
                     if (isUploading) return
                     if (key === 'po' && !isPoAmountValid) {
@@ -221,9 +233,9 @@ export default function AttachmentsSection({
 
               {/* Saved file list (immediate mode) */}
               {savedFiles.length > 0 && (
-                <ul className="space-y-1">
+                <ul className="space-y-0.5 md:space-y-1">
                   {savedFiles.map(att => (
-                    <li key={att.id} className="flex items-center gap-2">
+                    <li key={att.id} className="flex items-center gap-1.5 md:gap-2">
                       {fileIcon(att.mimeType)}
                       <div className="flex-1 min-w-0">
                         {att.fileUrl ? (
@@ -260,9 +272,9 @@ export default function AttachmentsSection({
 
               {/* Pending file list (deferred mode) */}
               {pendingFiles.length > 0 && (
-                <ul className="space-y-1">
+                <ul className="space-y-0.5 md:space-y-1">
                   {pendingFiles.map(p => (
-                    <li key={p.id} className="flex items-center gap-2">
+                    <li key={p.id} className="flex items-center gap-1.5 md:gap-2">
                       {fileIcon(p.file.type)}
                       <div className="flex-1 min-w-0">
                         <span className="text-sm text-gray-700 truncate block">{p.file.name}</span>

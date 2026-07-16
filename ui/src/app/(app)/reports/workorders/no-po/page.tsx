@@ -8,6 +8,7 @@ import { ReportsAPI, UsersAPI } from '@/lib/api'
 import type { User, WorkOrderNoPoReport, WorkOrderNoPoRow } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 import MultiSelectDropdown from '@/components/MultiSelectDropdown'
+import DateInput from '@/components/DateInput'
 import { ChevronRight, FileSpreadsheet } from 'lucide-react'
 
 type SortKey = 'woNo' | 'openedAt' | 'customerName' | 'project' | 'products' | 'amount' | 'ageDays' | 'status' | 'salesName'
@@ -24,6 +25,8 @@ export default function WorkOrdersNoPoBySalesPage() {
   const [sales, setSales] = useState<User[]>([])
   const [selectedSales, setSelectedSales] = useState<string[]>([])
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>([])
+  const [from, setFrom] = useState('')
+  const [to, setTo] = useState('')
   const [report, setReport] = useState<WorkOrderNoPoReport>({ summary: [], rows: [] })
   const [loading, setLoading] = useState(true)
   const [sortKey, setSortKey] = useState<SortKey>('openedAt')
@@ -40,13 +43,15 @@ export default function WorkOrdersNoPoBySalesPage() {
     ReportsAPI.workOrdersNoPoBySales({
       salesIds: selectedSales.join(',') || undefined,
       statuses: selectedStatuses.join(',') || undefined,
+      from: from || undefined,
+      to: to || undefined,
     })
       .then(setReport)
       .catch(() => toast.error('โหลดรายงานไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load() }, [selectedSales.join(','), selectedStatuses.join(',')])
+  useEffect(() => { load() }, [selectedSales.join(','), selectedStatuses.join(','), from, to])
 
   const rows = useMemo(() => {
     const data = [...report.rows]
@@ -135,7 +140,7 @@ export default function WorkOrdersNoPoBySalesPage() {
         </div>
       </div>
 
-      <div className="card p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div className="card p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
         <div>
           <label className="form-label">เลือก Sales (เลือกได้หลายคน)</label>
           <div className="max-w-md">
@@ -160,6 +165,18 @@ export default function WorkOrdersNoPoBySalesPage() {
             />
           </div>
           <p className="text-xs text-gray-400 mt-2">ไม่เลือก = แสดงทุกสถานะ ยกเว้น cancelled</p>
+        </div>
+
+        <div>
+          <label className="form-label">จากวันที่</label>
+          <DateInput value={from} onChange={setFrom} />
+          <p className="text-xs text-gray-400 mt-2">ไม่ระบุ = ไม่จำกัดวันเริ่มต้น</p>
+        </div>
+
+        <div>
+          <label className="form-label">ถึงวันที่</label>
+          <DateInput value={to} onChange={setTo} />
+          <p className="text-xs text-gray-400 mt-2">ไม่ระบุ = ไม่จำกัดวันสิ้นสุด</p>
         </div>
       </div>
 

@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/auth'
 import type { Quotation, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
+import DateInput from '@/components/DateInput'
 
 // Helpers
 function fmtMoney(n: number) {
@@ -55,11 +56,29 @@ const DATE_PRESETS  = [
   { value: 'this_month',   label: 'เดือนนี้' },
   { value: 'this_quarter', label: 'ไตรมาสนี้' },
   { value: 'this_year',    label: 'ปีนี้' },
+  { value: 'custom',       label: 'กำหนดเอง' },
 ]
 
 // Date range helper
-function getDateRange(preset: string): { from: Date | null; to: Date | null } {
+function parseStartDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function parseEndDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+function getDateRange(preset: string, customFrom = '', customTo = ''): { from: Date | null; to: Date | null } {
   const now = new Date()
+  if (preset === 'custom') return { from: parseStartDate(customFrom), to: parseEndDate(customTo) }
   if (preset === 'this_month')   return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) }
   if (preset === 'this_quarter') { const q = Math.floor(now.getMonth() / 3); return { from: new Date(now.getFullYear(), q * 3, 1), to: new Date(now.getFullYear(), q * 3 + 3, 0, 23, 59, 59) } }
   if (preset === 'this_year')    return { from: new Date(now.getFullYear(), 0, 1), to: new Date(now.getFullYear(), 11, 31, 23, 59, 59) }
@@ -244,6 +263,8 @@ export default function QuotationSummaryReportPage() {
   const [statusFilter, setStatusFilter] = useState('')
   const [salesFilter, setSalesFilter] = useState('')
   const [datePreset, setDatePreset]   = useState('all')
+  const [dateFrom, setDateFrom]       = useState('')
+  const [dateTo, setDateTo]           = useState('')
   const [sortKey, setSortKey]   = useState<'quoNo' | 'customerName' | 'grandTotal' | 'createdAt' | null>(null)
   const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc')
   const [page, setPage]         = useState(1)
@@ -272,10 +293,19 @@ export default function QuotationSummaryReportPage() {
 
   // Client-side date filter
   const dateFilteredRows = useMemo(() => {
-    const { from, to } = getDateRange(datePreset)
-    if (!from) return rows
-    return rows.filter(q => { const d = new Date(q.createdAt); return d >= from && d <= to! })
-  }, [rows, datePreset])
+    const { from, to } = getDateRange(datePreset, dateFrom, dateTo)
+    if (!from && !to) return rows
+    return rows.filter(q => {
+      const d = new Date(q.createdAt)
+      return (from ? d >= from : true) && (to ? d <= to : true)
+    })
+  }, [rows, datePreset, dateFrom, dateTo])
+
+  const dateRangeLabel = useMemo(() => {
+    if (datePreset !== 'custom') return DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'
+    if (!dateFrom && !dateTo) return 'กำหนดเอง'
+    return `${dateFrom || '...'} - ${dateTo || '...'}`
+  }, [datePreset, dateFrom, dateTo])
 
   function toggleSort(key: typeof sortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
@@ -389,7 +419,7 @@ export default function QuotationSummaryReportPage() {
         ['Export Date', new Date().toLocaleDateString('th-TH')],
         ['คำค้น', search || '-'],
         ['สถานะ', statusFilter ? (STATUS_LABELS[statusFilter as DocStatus] ?? statusFilter) : 'ทั้งหมด'],
-        ['ช่วงเวลา', DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'],
+        ['ช่วงเวลา', dateRangeLabel],
         [],
         ['เลขที่', 'ลูกค้า', 'โครงการ', 'พนักงานขาย', 'มูลค่ารวม', 'สถานะ', 'วันที่'],
         ...filteredRows.map(q => [
@@ -538,6 +568,18 @@ export default function QuotationSummaryReportPage() {
               {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
+          {datePreset === 'custom' && (
+            <>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">จากวันที่</label>
+                <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(1) }} />
+              </div>
+              <div>
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">ถึงวันที่</label>
+                <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(1) }} />
+              </div>
+            </>
+          )}
           <div className="self-end">
             <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
                              bg-[#E8F5E9] text-[#1B5E20] text-xs font-semibold border border-green-200">

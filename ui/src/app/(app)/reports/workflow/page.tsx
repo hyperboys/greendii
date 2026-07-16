@@ -18,6 +18,7 @@ import { QuotationsAPI, WorkOrdersAPI, HandoversAPI, PRAPI, UsersAPI } from '@/l
 import { useAuthStore } from '@/store/auth'
 import type { Quotation, WorkOrder, HandOverJob, PurchaseRequest, User } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
+import DateInput from '@/components/DateInput'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -61,6 +62,7 @@ const DATE_PRESETS  = [
   { value: 'this_month',   label: 'เดือนนี้' },
   { value: 'this_quarter', label: 'ไตรมาสนี้' },
   { value: 'this_year',    label: 'ปีนี้' },
+  { value: 'custom',       label: 'กำหนดเอง' },
 ]
 
 // ─── Domain model ────────────────────────────────────────────────────────────
@@ -90,8 +92,27 @@ interface ProjectChain {
   hoId?: string
 }
 
-function getDateRange(preset: string): { from: Date | null; to: Date | null } {
+function parseStartDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(0, 0, 0, 0)
+  return d
+}
+
+function parseEndDate(value: string): Date | null {
+  if (!value) return null
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return null
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
+function getDateRange(preset: string, customFrom = '', customTo = ''): { from: Date | null; to: Date | null } {
   const now = new Date()
+  if (preset === 'custom') {
+    return { from: parseStartDate(customFrom), to: parseEndDate(customTo) }
+  }
   if (preset === 'this_month')
     return { from: new Date(now.getFullYear(), now.getMonth(), 1), to: new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59) }
   if (preset === 'this_quarter') {
@@ -411,6 +432,8 @@ export default function WorkflowTrackingReportPage() {
   const [salesFilter,   setSalesFilter]   = useState('')
   const [customerFilter,setCustomerFilter] = useState('')
   const [datePreset,    setDatePreset]    = useState('all')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const [sortKey, setSortKey] = useState<'quoNo' | 'customer' | 'totalDays' | 'startDate'>('startDate')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
@@ -448,10 +471,19 @@ export default function WorkflowTrackingReportPage() {
 
   // Date-filtered
   const dateFilteredChains = useMemo(() => {
-    const { from, to } = getDateRange(datePreset)
-    if (!from) return allChains
-    return allChains.filter(c => { const d = new Date(c.startDate); return d >= from && d <= to! })
-  }, [allChains, datePreset])
+    const { from, to } = getDateRange(datePreset, dateFrom, dateTo)
+    if (!from && !to) return allChains
+    return allChains.filter(c => {
+      const d = new Date(c.startDate)
+      return (from ? d >= from : true) && (to ? d <= to : true)
+    })
+  }, [allChains, datePreset, dateFrom, dateTo])
+
+  const dateRangeLabel = useMemo(() => {
+    if (datePreset !== 'custom') return DATE_PRESETS.find(p => p.value === datePreset)?.label ?? 'ทั้งหมด'
+    if (!dateFrom && !dateTo) return 'กำหนดเอง'
+    return `${dateFrom || '...'} - ${dateTo || '...'}`
+  }, [datePreset, dateFrom, dateTo])
 
   // All unique customers
   const uniqueCustomers = useMemo(
@@ -608,6 +640,7 @@ export default function WorkflowTrackingReportPage() {
       const ws   = XLSX.utils.aoa_to_sheet([
         ['End-to-End Workflow Tracking Report'],
         ['Export Date', new Date().toLocaleDateString('th-TH')],
+        ['ช่วงเวลา', dateRangeLabel],
         [],
         ['QUO No', 'WO No', 'HO No', 'PR Nos', 'Customer', 'Project',
          'Salesperson', 'Current Stage', 'Start Date', 'Total Days'],
@@ -912,6 +945,19 @@ export default function WorkflowTrackingReportPage() {
               {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
             </select>
           </div>
+
+          {datePreset === 'custom' && (
+            <div className="flex items-end gap-3 shrink-0">
+              <div className="min-w-[180px]">
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">จากวันที่</label>
+                <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(1) }} />
+              </div>
+              <div className="min-w-[180px]">
+                <label className="text-[11px] font-medium text-gray-500 block mb-1">ถึงวันที่</label>
+                <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(1) }} />
+              </div>
+            </div>
+          )}
 
           {/* Count badge */}
           <div className="self-end">
