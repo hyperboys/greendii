@@ -6,7 +6,28 @@ import { usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/auth'
 import { type UserRole, ROLE_LABELS } from '@/types'
 import {
-  ChevronLeft, ChevronRight, LogOut, X,
+  BadgeCheck,
+  Boxes,
+  ChartColumn,
+  ChevronLeft,
+  ChevronRight,
+  ClipboardList,
+  FileClock,
+  FileText,
+  Handshake,
+  LayoutDashboard,
+  LogOut,
+  Mail,
+  Settings,
+  ShoppingCart,
+  Shield,
+  SquareUser,
+  UserCog,
+  Users,
+  Wrench,
+  X,
+  type LucideIcon,
+  Ruler,
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import clsx from 'clsx'
@@ -18,34 +39,35 @@ interface NavItem {
   label: string
   roles?: UserRole[]
   menuKey?: string
+  icon: LucideIcon
 }
 
 const NAV: NavItem[] = [
-  { href: '/dashboard', label: '📊 Dashboard', menuKey: 'dashboard' },
-  { href: '/quotations', label: ' 📋 Quotation', menuKey: 'quotations' },
-  { href: '/workorders', label: ' 🔧 Work Order', menuKey: 'workorders' },
-  { href: '/workorders/email', label: ' ✉️ Send email work orders', menuKey: 'workorder-email', roles: ['admin', 'sales', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
-  { href: '/handovers', label: ' 🤝 Handover', menuKey: 'handovers' },
-  { href: '/pr', label: ' 🛒 Purchase Request', menuKey: 'pr' },
-  { href: '/approvals', label: ' ✅ Pending Approvals', menuKey: 'approvals' },
-  { href: '/reports', label: ' 📊 Reports', menuKey: 'reports', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'] },
+  { href: '/dashboard', label: 'Dashboard', menuKey: 'dashboard', icon: LayoutDashboard },
+  { href: '/quotations', label: 'Quotation', menuKey: 'quotations', icon: FileText },
+  { href: '/workorders', label: 'Work Order', menuKey: 'workorders', icon: Wrench },
+  { href: '/workorders/email', label: 'Send email work orders', menuKey: 'workorder-email', roles: ['admin', 'sales', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'], icon: Mail },
+  { href: '/handovers', label: 'Handover', menuKey: 'handovers', icon: Handshake },
+  { href: '/pr', label: 'Purchase Request', menuKey: 'pr', icon: ShoppingCart },
+  { href: '/approvals', label: 'Pending Approvals', menuKey: 'approvals', icon: BadgeCheck },
+  { href: '/reports', label: 'Reports', menuKey: 'reports', roles: ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'], icon: ChartColumn },
 ]
 
 const MASTER: NavItem[] = [
-  { href: '/customers', label: '👥 Customers', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'customers' },
-  { href: '/products', label: '📦 Products', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'products' },
-  { href: '/units', label: '📏 Units', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'units' },
+  { href: '/customers', label: 'Customers', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'customers', icon: Users },
+  { href: '/products', label: 'Products', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'products', icon: Boxes },
+  { href: '/units', label: 'Units', roles: ['admin', 'sale_mgr', 'admin_mgr', 'director'], menuKey: 'units', icon: Ruler },
 ]
 
 const ADMIN_MENU: NavItem[] = [
-  { href: '/users',                label: '👤 Users', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'users' },
-  { href: '/admin/approval-flow',  label: '🏢 Approval Flow', roles: ['admin', 'director'], menuKey: 'approval-flow' },
-  { href: '/admin/pr-types',       label: '🛒 PR Types', roles: ['admin', 'director'], menuKey: 'pr-types' },
-  { href: '/admin/roles',          label: '🔒 Roles & Permissions', roles: ['admin', 'director'], menuKey: 'roles' },
-  { href: '/admin/audit-log',      label: '📜 Audit Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'audit-log' },
-  { href: '/admin/activity-log',   label: '📋 Activity Log', roles: ['admin', 'director'], menuKey: 'activity-log' },
-  { href: '/admin/email-log',      label: '📧 Email Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'email-log' },
-  { href: '/settings',             label: '⚙️ System Settings', roles: ['admin', 'director'], menuKey: 'settings' },
+  { href: '/users',                label: 'Users', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'users', icon: SquareUser },
+  { href: '/admin/approval-flow',  label: 'Approval Flow', roles: ['admin', 'director'], menuKey: 'approval-flow', icon: FileClock },
+  { href: '/admin/pr-types',       label: 'PR Types', roles: ['admin', 'director'], menuKey: 'pr-types', icon: ClipboardList },
+  { href: '/admin/roles',          label: 'Roles & Permissions', roles: ['admin', 'director'], menuKey: 'roles', icon: Shield },
+  { href: '/admin/audit-log',      label: 'Audit Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'audit-log', icon: FileClock },
+  { href: '/admin/activity-log',   label: 'Activity Log', roles: ['admin', 'director'], menuKey: 'activity-log', icon: ClipboardList },
+  { href: '/admin/email-log',      label: 'Email Log', roles: ['admin', 'admin_mgr', 'director'], menuKey: 'email-log', icon: Mail },
+  { href: '/settings',             label: 'System Settings', roles: ['admin', 'director'], menuKey: 'settings', icon: Settings },
 ]
 
 export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
@@ -162,6 +184,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
               title={item.label}
               className={navClass(active)}
             >
+              <item.icon size={18} className="shrink-0" />
               {!collapsed && <span>{item.label}</span>}
             </Link>
           )
@@ -186,6 +209,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                   title={item.label}
                   className={navClass(active)}
                 >
+                  <item.icon size={18} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               )
@@ -212,6 +236,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
                   title={item.label}
                   className={navClass(active)}
                 >
+                  <item.icon size={18} className="shrink-0" />
                   {!collapsed && <span>{item.label}</span>}
                 </Link>
               )
