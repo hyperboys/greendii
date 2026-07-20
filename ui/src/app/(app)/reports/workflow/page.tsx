@@ -537,7 +537,7 @@ export default function WorkflowTrackingReportPage() {
 
   // ─── Funnel & KPI stats ────────────────────────────────────────────────────
   const stats = useMemo(() => {
-    const all = dateFilteredChains
+    const all = filteredChains
     const stageCounts = Object.fromEntries(
       STAGE_ORDER.map(s => [s, all.filter(c => c.currentStage === s).length])
     ) as Record<Stage, number>
@@ -584,11 +584,11 @@ export default function WorkflowTrackingReportPage() {
       conversionRates, bottleneck,
       total: all.length,
     }
-  }, [dateFilteredChains])
+  }, [filteredChains])
 
   // Monthly completion trend (last 12 months)
   const monthlyTrend = useMemo(() => {
-    const completed = allChains.filter(c => c.currentStage === 'complete' && c.completedDate)
+    const completed = filteredChains.filter(c => c.currentStage === 'complete' && c.completedDate)
     const buckets: Record<string, number> = {}
     for (const c of completed) {
       const d = new Date(c.completedDate!)
@@ -604,7 +604,7 @@ export default function WorkflowTrackingReportPage() {
       result.push({ month: k, completed: buckets[k] ?? 0, target: 3 })
     }
     return result
-  }, [allChains])
+  }, [filteredChains])
 
   // Stage bar chart data
   const stageBarData = useMemo(() =>
@@ -680,6 +680,97 @@ export default function WorkflowTrackingReportPage() {
 
   const TARGET_TOTAL = 45
 
+  const filterBar = (
+    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+      <div className="flex flex-wrap gap-3 items-end">
+        <div className="relative flex-1 min-w-[200px] max-w-xs">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+          <input
+            className="form-input pl-9 py-2 w-full text-sm"
+            placeholder="ค้นหาเลขที่เอกสาร / ลูกค้า"
+            value={search}
+            onChange={e => { setSearch(e.target.value); setPage(1) }}
+          />
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-gray-500 block mb-1">ขั้นตอน</label>
+          <select className="form-input py-2 text-sm" value={stageFilter}
+            onChange={e => { setStageFilter(e.target.value as Stage | ''); setPage(1) }}>
+            <option value="">ทั้งหมด</option>
+            {STAGE_ORDER.map(s => (
+              <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
+          <select className="form-input py-2 text-sm" value={salesFilter}
+            onChange={e => { setSalesFilter(e.target.value); setPage(1) }}>
+            <option value="">ทั้งหมด</option>
+            {salesUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-gray-500 block mb-1">ลูกค้า</label>
+          <select className="form-input py-2 text-sm" value={customerFilter}
+            onChange={e => { setCustomerFilter(e.target.value); setPage(1) }}>
+            <option value="">ทั้งหมด</option>
+            {uniqueCustomers.slice(0, 50).map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </div>
+
+        <div>
+          <label className="text-[11px] font-medium text-gray-500 block mb-1">
+            <Calendar size={10} className="inline mr-1" />ช่วงเวลา
+          </label>
+          <select className="form-input py-2 text-sm" value={datePreset}
+            onChange={e => { setDatePreset(e.target.value); setPage(1) }}>
+            {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+          </select>
+        </div>
+
+        {datePreset === 'custom' && (
+          <div className="flex items-end gap-3 shrink-0">
+            <div className="min-w-[180px]">
+              <label className="text-[11px] font-medium text-gray-500 block mb-1">จากวันที่</label>
+              <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(1) }} />
+            </div>
+            <div className="min-w-[180px]">
+              <label className="text-[11px] font-medium text-gray-500 block mb-1">ถึงวันที่</label>
+              <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(1) }} />
+            </div>
+          </div>
+        )}
+
+        <div className="self-end">
+          <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
+                           bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
+            {sortedChains.length.toLocaleString()} โปรเจกต์
+          </span>
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <button onClick={load} title="ค้นหา"
+            className="w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
+                       flex items-center justify-center text-gray-500 hover:text-gray-800
+                       transition-all duration-150 shadow-sm">
+            <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <button onClick={exportExcel} disabled={exporting || sortedChains.length === 0}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
+                       bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
+                       disabled:opacity-50 transition-all duration-150 shadow-sm">
+            <Download size={15} />
+            {exporting ? 'กำลัง Export…' : 'Export Excel'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
   // ────────────────────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 pb-10">
@@ -716,6 +807,8 @@ export default function WorkflowTrackingReportPage() {
           </Link>
         </div>
       </div>
+
+      {filterBar}
 
       {/* ══════ KPI CARDS ═══════════════════════════════════════════════════════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-5 gap-4">
@@ -886,102 +979,6 @@ export default function WorkflowTrackingReportPage() {
                     strokeWidth={2.5} dot={{ r: 3, fill: '#059669' }} activeDot={{ r: 5 }} />
             </LineChart>
           </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* ══════ FILTER BAR ══════════════════════════════════════════════════════ */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-        <div className="flex flex-wrap gap-3 items-end">
-          {/* Search */}
-          <div className="relative flex-1 min-w-[200px] max-w-xs">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input
-              className="form-input pl-9 py-2 w-full text-sm"
-              placeholder="ค้นหาเลขที่เอกสาร / ลูกค้า"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-            />
-          </div>
-
-          {/* Stage */}
-          <div>
-            <label className="text-[11px] font-medium text-gray-500 block mb-1">ขั้นตอน</label>
-            <select className="form-input py-2 text-sm" value={stageFilter}
-              onChange={e => { setStageFilter(e.target.value as Stage | ''); setPage(1) }}>
-              <option value="">ทั้งหมด</option>
-              {STAGE_ORDER.map(s => (
-                <option key={s} value={s}>{STAGE_CONFIG[s].label}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Salesperson */}
-          <div>
-            <label className="text-[11px] font-medium text-gray-500 block mb-1">พนักงานขาย</label>
-            <select className="form-input py-2 text-sm" value={salesFilter}
-              onChange={e => setSalesFilter(e.target.value)}>
-              <option value="">ทั้งหมด</option>
-              {salesUsers.map(u => <option key={u.id} value={u.id}>{u.fullName}</option>)}
-            </select>
-          </div>
-
-          {/* Customer */}
-          <div>
-            <label className="text-[11px] font-medium text-gray-500 block mb-1">ลูกค้า</label>
-            <select className="form-input py-2 text-sm" value={customerFilter}
-              onChange={e => setCustomerFilter(e.target.value)}>
-              <option value="">ทั้งหมด</option>
-              {uniqueCustomers.slice(0, 50).map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-
-          {/* Date preset */}
-          <div>
-            <label className="text-[11px] font-medium text-gray-500 block mb-1">
-              <Calendar size={10} className="inline mr-1" />ช่วงเวลา
-            </label>
-            <select className="form-input py-2 text-sm" value={datePreset}
-              onChange={e => { setDatePreset(e.target.value); setPage(1) }}>
-              {DATE_PRESETS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
-            </select>
-          </div>
-
-          {datePreset === 'custom' && (
-            <div className="flex items-end gap-3 shrink-0">
-              <div className="min-w-[180px]">
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">จากวันที่</label>
-                <DateInput value={dateFrom} onChange={(v) => { setDateFrom(v); setPage(1) }} />
-              </div>
-              <div className="min-w-[180px]">
-                <label className="text-[11px] font-medium text-gray-500 block mb-1">ถึงวันที่</label>
-                <DateInput value={dateTo} onChange={(v) => { setDateTo(v); setPage(1) }} />
-              </div>
-            </div>
-          )}
-
-          {/* Count badge */}
-          <div className="self-end">
-            <span className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full
-                             bg-blue-50 text-blue-700 text-xs font-semibold border border-blue-200">
-              {sortedChains.length.toLocaleString()} โปรเจกต์
-            </span>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            <button onClick={load} title="ค้นหา"
-              className="w-9 h-9 rounded-xl border border-gray-200 bg-white hover:bg-gray-50
-                         flex items-center justify-center text-gray-500 hover:text-gray-800
-                         transition-all duration-150 shadow-sm">
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
-            <button onClick={exportExcel} disabled={exporting || sortedChains.length === 0}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl
-                         bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium
-                         disabled:opacity-50 transition-all duration-150 shadow-sm">
-              <Download size={15} />
-              {exporting ? 'กำลัง Export…' : 'Export Excel'}
-            </button>
-          </div>
         </div>
       </div>
 
