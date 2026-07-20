@@ -92,6 +92,24 @@ function getPenultimateApprovalLog(doc: PurchaseRequest) {
   return approvedLogs[approvedLogs.length - 2] ?? approvedLogs[approvedLogs.length - 1]
 }
 
+function getLatestSubmitDate(doc: PurchaseRequest): string {
+  const historyLogs = [...(doc.approvalLogs ?? [])]
+    .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
+
+  const latestSubmitAt = [...historyLogs]
+    .reverse()
+    .find(log => log.action === 'submit')?.actedAt
+
+  if (!latestSubmitAt) return ''
+
+  const d = new Date(latestSubmitAt)
+  const day = String(d.getDate()).padStart(2, '0')
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const year = d.getFullYear()
+  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+  return `${day}/${month}/${year} ${time}`
+}
+
 const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
 
 interface Props {
@@ -135,13 +153,15 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     return showMoneyCode ? `${moneyCode} ${value}` : value
   }
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
-  const requesterDate = fmtDateTH(doc.dateIssue || doc.createdAt)
+  const requesterDate = getLatestSubmitDate(doc) || fmtDateTH(doc.dateIssue || doc.createdAt)
   const approvalSignatureLog = getPenultimateApprovalLog(doc)
   const approvalSignature = formatSignatureText(
     approvalSignatureLog?.approver?.signatureText,
     approvalSignatureLog?.approver?.fullName,
   )
-  const approvalDate = fmtDateTH(approvalSignatureLog?.actedAt)
+  const approvalDate = approvalSignatureLog?.actedAt
+    ? fmtDateTH(approvalSignatureLog.actedAt) + ' ' + new Date(approvalSignatureLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    : ''
   const attachmentSheets = (Array.isArray(doc.attachments) ? doc.attachments : []).filter(att => {
     const hasSource = Boolean((att.fileUrl && String(att.fileUrl).trim()) || (att.filename && String(att.filename).trim()))
     if (!hasSource) return false

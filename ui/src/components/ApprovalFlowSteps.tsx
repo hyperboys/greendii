@@ -107,6 +107,16 @@ export default function ApprovalFlowSteps({
   const stepLogs = buildStepLatestLogMap(cycleLogs)
   const stages = normalizeStages(steps)
 
+  // Find latest submit log for creator timestamp
+  const latestSubmitLog = cycleLogs.find(log => log.action === 'submit')
+  const creatorActedAt = latestSubmitLog?.actedAt ? new Date(latestSubmitLog.actedAt).toLocaleString('th-TH', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  }) : ''
+
   if (stages.length === 0) return null
 
   return (
@@ -118,6 +128,7 @@ export default function ApprovalFlowSteps({
             <span className="font-semibold">ผู้สร้าง</span>
             <span className="mt-1 min-h-[14px]">✓</span>
             <span className="mt-0.5 text-[11px] text-gray-600">{creatorName}</span>
+            {creatorActedAt && <span className="mt-0.5 text-[10px] text-gray-500">{creatorActedAt}</span>}
           </div>
         )}
         {stages.map((stage) => {
@@ -132,6 +143,13 @@ export default function ApprovalFlowSteps({
           const isRejected = log?.action === 'reject'
           const isSubmitted = log?.action === 'submit'
           const displayName = log?.approver?.fullName ?? ''
+          const actedAt = log?.actedAt ? new Date(log.actedAt).toLocaleString('th-TH', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+          }) : ''
 
           return (
             <div
@@ -153,6 +171,7 @@ export default function ApprovalFlowSteps({
                 {isApproved ? '✓' : isRejected ? '✕' : showSubmitState && isSubmitted ? 'ส่งอนุมัติ' : isCurrent ? 'รออนุมัติ' : ''}
               </span>
               {displayName && <span className="mt-0.5 text-[11px] text-gray-600">{displayName}</span>}
+              {actedAt && <span className="mt-0.5 text-[10px] text-gray-500">{actedAt}</span>}
             </div>
           )
         })}

@@ -673,26 +673,31 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         role: 'Sales',
         name: doc.sales?.fullName ?? '',
         signature: formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName),
+        date: latestSubmitAt ? new Date(latestSubmitAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(latestSubmitAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
       },
       {
         role: 'Review by',
         name: reviewLog?.approver?.fullName ?? '',
         signature: formatSignatureText(reviewLog?.approver?.signatureText, reviewLog?.approver?.fullName),
+        date: reviewLog?.actedAt ? new Date(reviewLog.actedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(reviewLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
       },
       {
         role: 'Sales Manager',
         name: salesManagerLog?.approver?.fullName ?? '',
         signature: formatSignatureText(salesManagerLog?.approver?.signatureText, salesManagerLog?.approver?.fullName),
+        date: salesManagerLog?.actedAt ? new Date(salesManagerLog.actedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(salesManagerLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
       },
       {
         role: 'Managing Director',
         name: managingDirectorLog?.approver?.fullName ?? '',
         signature: formatSignatureText(managingDirectorLog?.approver?.signatureText, managingDirectorLog?.approver?.fullName),
+        date: managingDirectorLog?.actedAt ? new Date(managingDirectorLog.actedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(managingDirectorLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
       },
       {
         role: 'Project Manager',
         name: managerLog?.approver?.fullName ?? '',
         signature: formatSignatureText(managerLog?.approver?.signatureText, managerLog?.approver?.fullName),
+        date: managerLog?.actedAt ? new Date(managerLog.actedAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' + new Date(managerLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '',
       },
     ]
     const teamOptions = [
@@ -766,7 +771,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <tbody>
             <tr>
-              {sigCols.map(({ role, name, signature }) => (
+              {sigCols.map(({ role, name, signature, date }) => (
                 <td key={role} style={{ border: borderHeavy, borderTop: 'none', padding: '8px 6px 6px', textAlign: 'center', width: `${100 / sigCols.length}%`, verticalAlign: 'top' }}>
                   <div style={{ fontSize: '9pt', fontWeight: 'bold', minHeight: '16px', marginBottom: '10px' }}>{role}</div>
                   <div style={{
@@ -781,6 +786,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
                   }}>{signature || '\u00A0'}</div>
                   <div style={{ borderTop: '1px dotted #555', width: '80%', margin: '0 auto 4px' }} />
                   <div style={{ fontSize: '8.4pt', minHeight: '14px' }}>{name || '(…………………………)'}</div>
+                  {date && <div style={{ fontSize: '7.5pt', marginTop: '2px', color: '#555' }}>{date}</div>}
                 </td>
               ))}
             </tr>
