@@ -89,7 +89,7 @@ export default function NewPRPage() {
   })
 
   useEffect(() => {
-    Promise.all([WorkOrdersAPI.list({ status: 'approved' }), UnitsAPI.list(), PrTypesAPI.list({ active: 'true' }), SettingsAPI.get()])
+    Promise.all([WorkOrdersAPI.list(), UnitsAPI.list(), PrTypesAPI.list({ active: 'true' }), SettingsAPI.get()])
       .then(([wo, u, t, s]) => {
         const currencies = sanitizeCurrencies(s.approvalFlowConfig?.prCurrencies)
         setWorkOrders(wo)

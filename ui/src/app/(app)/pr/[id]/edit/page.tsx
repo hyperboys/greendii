@@ -93,7 +93,7 @@ export default function EditPRPage() {
 
   useEffect(() => {
     Promise.all([
-      WorkOrdersAPI.list({ status: 'approved' }),
+      WorkOrdersAPI.list(),
       UnitsAPI.list(),
       PrTypesAPI.list({ active: 'true' }),
       SettingsAPI.get(),
