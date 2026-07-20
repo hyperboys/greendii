@@ -124,6 +124,42 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
             border-top: 0 !important;
             padding-top: 0 !important;
           }
+
+          .print-sheet.pr-print {
+            width: 100% !important;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+
+          .print-sheet.pr-print .pr-page {
+            box-sizing: border-box !important;
+            width: 100% !important;
+            min-height: 281mm !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+
+          .print-sheet.pr-print .pr-page + .pr-page {
+            margin-top: 20mm !important;
+            border-top: 0 !important;
+            padding-top: 0 !important;
+          }
+
+          .pr-linked-workorder-break {
+            display: block !important;
+            height: 20mm !important;
+            break-before: page !important;
+            page-break-before: always !important;
+          }
+
+          .pr-linked-workorder {
+            display: block !important;
+            width: 100% !important;
+            margin-top: 0 !important;
+            padding-top: 0 !important;
+          }
         }
 
         /* Map legacy font names used in print templates to local embedded fonts. */

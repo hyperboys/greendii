@@ -245,18 +245,21 @@
     break-inside: avoid;
   }
 
+  /* The checklist, dates, remarks, and signatures are one footer block. */
+  .print-sheet.workorder-print .workorder-bottom-sections {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   /* Each manual page = exactly one A4 content area (297 − 6 − 10 = 281mm). */
   .print-sheet.workorder-print .workorder-page {
     box-sizing: border-box !important;
     width: 100% !important;
-    height: 281mm;
-    overflow: hidden;
+    min-height: 281mm !important;
+    height: auto !important;
+    overflow: visible !important;
     display: flex !important;
     flex-direction: column !important;
-  }
-  .print-sheet.workorder-print .workorder-page:last-child {
-    height: 281mm !important;
-    overflow: hidden !important;
   }
 
   /* HandOver: use static flow in print to prevent bottom clipping */
@@ -283,6 +286,58 @@
   .print-sheet.handover-print .handover-page:last-child {
     height: 281mm !important;
     overflow: hidden !important;
+  }
+
+  /* PR: use static flow in print (not the generic fixed single-page rule above).
+     Fixed positioning repeats the PR sheet on every printed page, which collided
+     with PR attachment sheets and with the appended WorkOrder pages when a
+     linked WorkOrder is shown in the PR print/preview. */
+  .print-sheet.pr-print {
+    display: block !important;
+    position: static !important;
+    transform: none !important;
+    min-height: auto !important;
+    height: auto !important;
+    width: 100% !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
+  }
+
+  .print-sheet.pr-print thead {
+    display: table-header-group !important;
+  }
+
+  .print-sheet.pr-print tr {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .print-sheet.pr-print .pr-page {
+    box-sizing: border-box !important;
+    width: 100% !important;
+    height: 281mm !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+  }
+
+  .print-sheet.pr-print .pr-page:last-child {
+    height: 281mm !important;
+    overflow: hidden !important;
+  }
+
+  .pr-linked-workorder {
+    display: block !important;
+    break-before: page !important;
+    page-break-before: always !important;
+  }
+
+  .pr-linked-workorder-break {
+    display: block !important;
+    height: 0 !important;
+    break-before: page !important;
+    page-break-before: always !important;
   }
 }
 

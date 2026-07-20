@@ -11,7 +11,7 @@ import {
   parseWorkOrderDetailBeforeNote,
 } from '@/lib/workOrderItems'
 
-const PACK_CAP_NON_LAST = 60
+const PACK_CAP_NON_LAST = 80
 const PACK_CAP_LAST = 25
 const FRAGMENT_CAP = PACK_CAP_LAST
 
@@ -212,21 +212,27 @@ function packByHeight(items: WorkOrderItemFragment[], heights: number[], availNo
   type Entry = { item: WorkOrderItemFragment; height: number }
   const entries: Entry[] = items.map((item, index) => ({ item, height: heights[index] ?? 0 }))
 
-  const rawPages: Entry[][] = []
-  let current: Entry[] = []
-  let used = 0
+  const packEntries = (sourceEntries: Entry[], cap: number): Entry[][] => {
+    const pages: Entry[][] = []
+    let current: Entry[] = []
+    let used = 0
 
-  for (const entry of entries) {
-    if (current.length > 0 && used + entry.height > availNonLast) {
-      rawPages.push(current)
-      current = [entry]
-      used = entry.height
-    } else {
-      current.push(entry)
-      used += entry.height
+    for (const entry of sourceEntries) {
+      if (current.length > 0 && used + entry.height > cap) {
+        pages.push(current)
+        current = [entry]
+        used = entry.height
+      } else {
+        current.push(entry)
+        used += entry.height
+      }
     }
+
+    if (current.length > 0) pages.push(current)
+    return pages
   }
-  if (current.length > 0) rawPages.push(current)
+
+  const rawPages = packEntries(entries, availNonLast)
 
   const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
   if (lastPageHeight <= availLast) {
@@ -243,7 +249,8 @@ function packByHeight(items: WorkOrderItemFragment[], heights: number[], availNo
 
   const mutablePages = rawPages.map((page) => [...page])
   const tailEntries = moveTrailingToTail(mutablePages, (entry) => entry.height, availLast)
-  const remainingPages = mutablePages.filter((page) => page.length > 0)
+  const remainingEntries = mutablePages.flat()
+  const remainingPages = packEntries(remainingEntries, availNonLast)
   const pages = remainingPages.map((pageItems) => ({
     items: pageItems.map(entry => entry.item),
     isLast: false,
@@ -582,7 +589,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           ))}
           {!item.desc && item.detailRows.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
-            <div style={{ marginTop: '1mm', display: 'flex', flexDirection: 'column', gap: '1mm' }}>
+            <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 34mm)', gap: '1mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -724,7 +731,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     ]
 
     return (
-      <div style={{ flex: '0 0 auto' }}>
+      <div className="workorder-bottom-sections" style={{ flex: '0 0 auto' }}>
         <div style={{ marginBottom: 0, padding: '7px 9px', border: borderHeavy, borderBottom: 'none' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '18px', rowGap: '7px' }}>
             {teamOptions.map(({ label, key }) => <Checkbox key={key} label={label} checked={chk(key)} />)}

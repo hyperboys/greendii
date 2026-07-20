@@ -4,6 +4,9 @@ import { useEffect } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 
+const PACK_CAP_NON_LAST = 20
+const PACK_CAP_LAST = 11
+
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
   return new Intl.NumberFormat('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)
@@ -112,6 +115,72 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
 
 const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
 
+type PRItem = PurchaseRequest['items'][number]
+
+interface PageChunk {
+  items: PRItem[]
+  isLast: boolean
+  tail: boolean
+}
+
+function itemWeight(item: PRItem): number {
+  const { noteText, detailLines } = parseNoteParts(item.note)
+  const noteLines = splitDescriptionLines(noteText)
+  const nonEmptyNoteLines = noteLines.filter(line => line.trim().length > 0).length
+  const blankNoteLines = noteLines.length - nonEmptyNoteLines
+  const nonEmptyDetailLines = detailLines.filter(line => line.trim().length > 0).length
+  const blankDetailLines = detailLines.length - nonEmptyDetailLines
+  const imageWeight = Array.isArray(item.images) ? item.images.length * 3 : 0
+
+  return (
+    1 +
+    nonEmptyNoteLines * 0.6 +
+    blankNoteLines * 0.3 +
+    nonEmptyDetailLines * 0.6 +
+    blankDetailLines * 0.3 +
+    imageWeight
+  )
+}
+
+function paginateItems(items: PRItem[]): PageChunk[] {
+  if (items.length === 0) return [{ items: [], isLast: true, tail: true }]
+
+  const rawPages: PRItem[][] = []
+  let current: PRItem[] = []
+  let currentWeight = 0
+
+  for (const item of items) {
+    const weight = itemWeight(item)
+    if (current.length > 0 && currentWeight + weight > PACK_CAP_NON_LAST) {
+      rawPages.push(current)
+      current = [item]
+      currentWeight = weight
+    } else {
+      current.push(item)
+      currentWeight += weight
+    }
+  }
+  if (current.length > 0) rawPages.push(current)
+
+  const last = rawPages[rawPages.length - 1]
+  let lastWeight = last.reduce((sum, item) => sum + itemWeight(item), 0)
+  if (lastWeight > PACK_CAP_LAST && last.length > 1) {
+    const overflow: PRItem[] = []
+    while (lastWeight > PACK_CAP_LAST && last.length > 1) {
+      const moved = last.pop() as PRItem
+      overflow.unshift(moved)
+      lastWeight -= itemWeight(moved)
+    }
+    if (overflow.length > 0) rawPages.push(overflow)
+  }
+
+  return rawPages.map((pageItems, pageIndex) => ({
+    items: pageItems,
+    isLast: pageIndex === rawPages.length - 1,
+    tail: pageIndex === rawPages.length - 1,
+  }))
+}
+
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
@@ -169,6 +238,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     if (att.mimeType === 'application/pdf') return embedPdfAttachments
     return false
   })
+  const pages = paginateItems(Array.isArray(doc.items) ? doc.items : [])
+  const totalPages = pages.length + attachmentSheets.length
 
   const thS: React.CSSProperties = {
     border,
@@ -205,23 +276,252 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     borderTop: '0',
   }
 
+  function renderFlexibleFillerRow(key: number) {
+    const fillerTd: React.CSSProperties = {
+      ...tdS,
+      height: '100%',
+      paddingTop: 0,
+      paddingBottom: 0,
+      lineHeight: 0,
+      fontSize: 0,
+    }
+
+    return (
+      <tr key={key} style={{ height: '100%' }}>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+        <td style={fillerTd}>&nbsp;</td>
+      </tr>
+    )
+  }
+
+  function renderItemsTable(chunk: PageChunk, pageIndex: number) {
+    const itemOffset = pages.slice(0, pageIndex).reduce((sum, page) => sum + page.items.length, 0)
+    return (
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
+        <colgroup>
+          {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={{ ...thS }}>รหัส<br />P/N</th>
+            <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
+            <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
+            <th style={{ ...thS }}>จำนวน<br />QTY</th>
+            <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
+            <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
+            <th style={{ ...thS }}>หมายเหตุ</th>
+          </tr>
+        </thead>
+        <tbody style={{ height: '100%' }}>
+          {chunk.items.map((item, i) => {
+            const noteParts = parseNoteParts(item.note)
+            const globalIndex = itemOffset + i
+            return (
+              <tr key={item.id ?? globalIndex}>
+                <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
+                <td style={{ ...tdS }}>
+                  {item?.desc ?? ''}
+                  {splitDescriptionLines(noteParts.noteText).map((line, idx) => (
+                    <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                      {line || '\u00a0'}
+                    </div>
+                  ))}
+                  {noteParts.detailLines.map((line, idx) => (
+                    <div key={`detail-${idx}`} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                      {line || '\u00a0'}
+                    </div>
+                  ))}
+                  {Array.isArray(item.images) && item.images.length > 0 && (
+                    <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                      {item.images.map((url, imgIdx) => (
+                        <img
+                          key={`pr-item-img-${globalIndex}-${imgIdx}`}
+                          src={resolveFileUrl(url)}
+                          alt=""
+                          style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px' }}
+                        />
+                      ))}
+                    </div>
+                  )}
+                </td>
+                <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
+                <td style={{ ...tdS }}></td>
+              </tr>
+            )
+          })}
+          {renderFlexibleFillerRow(chunk.items.length)}
+        </tbody>
+      </table>
+    )
+  }
+
+  function renderSummaryAndSignatures() {
+    return (
+      <div style={{ marginTop: 'auto' }}>
+        <div style={{ pageBreakInside: 'avoid' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px' }}>
+            <colgroup>
+              {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
+            </colgroup>
+            <tbody>
+              {hasSpecialDiscount && (
+                <tr>
+                  <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                  <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
+                  <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
+                  <td style={{ border: 'none' }}>&nbsp;</td>
+                </tr>
+              )}
+              <tr>
+                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
+                <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtMoneyWithCode(doc.subTotal)}</td>
+                <td style={{ border: 'none' }}>&nbsp;</td>
+              </tr>
+              <tr>
+                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
+                <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
+                <td style={{ border: 'none' }}>&nbsp;</td>
+              </tr>
+              <tr>
+                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
+                <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtMoneyWithCode(doc.netTotal)}</td>
+                <td style={{ border: 'none' }}>&nbsp;</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '14px', fontSize: '11pt' }}>
+            <tbody>
+              <tr>
+                <td style={{
+                  width: '44%',
+                  border,
+                  padding: '10px 12px 28px',
+                  verticalAlign: 'top',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        borderBottom: '1px dotted #666',
+                        minHeight: '1.15em',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        fontFamily: 'var(--font-signature)',
+                        fontStyle: 'italic',
+                        fontSize: '14pt',
+                        lineHeight: 1,
+                        paddingBottom: '1px',
+                      }}
+                    >
+                      {requesterSignature || '\u00A0'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        borderBottom: '1px dotted #666',
+                        minHeight: '0.9em',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        paddingBottom: '1px',
+                      }}
+                    >
+                      {requesterDate || '\u00A0'}
+                    </span>
+                  </div>
+                </td>
+                <td style={{ width: '12%' }}></td>
+                <td style={{
+                  width: '44%',
+                  border,
+                  padding: '10px 12px 28px',
+                  verticalAlign: 'top',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        borderBottom: '1px dotted #666',
+                        minHeight: '1.15em',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        fontFamily: 'var(--font-signature)',
+                        fontStyle: 'italic',
+                        fontSize: '14pt',
+                        lineHeight: 1,
+                        paddingBottom: '1px',
+                      }}
+                    >
+                      {approvalSignature || '\u00A0'}
+                    </span>
+                  </div>
+                  <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
+                    <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
+                    <span
+                      style={{
+                        flex: 1,
+                        borderBottom: '1px dotted #666',
+                        minHeight: '0.9em',
+                        display: 'flex',
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                        lineHeight: 1,
+                        paddingBottom: '1px',
+                      }}
+                    >
+                      {approvalDate || '\u00A0'}
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
-      className="print-sheet"
+      className="print-sheet pr-print"
       style={{
         fontFamily: 'var(--font-body)',
         color: '#000',
         fontSize: '11pt',
       }}
     >
+      {pages.map((page, pageIndex) => (
       <div
+        key={`pr-page-${pageIndex}`}
+        className="pr-page"
         style={{
-          height: '277mm',
+          minHeight: '277mm',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          pageBreakAfter: attachmentSheets.length > 0 ? 'always' : 'auto',
-          breakAfter: attachmentSheets.length > 0 ? 'page' : 'auto',
+          pageBreakAfter: pageIndex < totalPages - 1 ? 'always' : 'auto',
+          breakAfter: pageIndex < totalPages - 1 ? 'page' : 'auto',
+          position: 'relative',
         }}
       >
 
@@ -299,206 +599,23 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
       </table>
 
       {/* ═══ Items Table ( fills remaining space down to Summary ) ═══ */}
-      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
-        <colgroup>
-          {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
-        </colgroup>
-        <thead>
-          <tr>
-            <th style={{ ...thS }}>รหัส<br />P/N</th>
-            <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
-            <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
-            <th style={{ ...thS }}>จำนวน<br />QTY</th>
-            <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
-            <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
-            <th style={{ ...thS }}>หมายเหตุ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {doc.items.map((item, i) => (
-            <tr key={i}>
-              <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
-              <td style={{ ...tdS }}>
-                {item?.desc ?? ''}
-                {item && splitDescriptionLines(parseNoteParts(item.note).noteText).map((line, idx) => (
-                  <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
-                    {line || '\u00a0'}
-                  </div>
-                ))}
-                {item && parseNoteParts(item.note).detailLines.map((line, idx) => (
-                  <div key={`detail-${idx}`} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
-                    {line || '\u00a0'}
-                  </div>
-                ))}
-                {item && Array.isArray(item.images) && item.images.length > 0 && (
-                  <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                    {item.images.map((url, imgIdx) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        key={`pr-item-img-${i}-${imgIdx}`}
-                        src={resolveFileUrl(url)}
-                        alt=""
-                        style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px' }}
-                      />
-                    ))}
-                  </div>
-                )}
-              </td>
-              <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtQty(item.qty) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtMoneyWithCode(item.price) : ''}</td>
-              <td style={{ ...tdS, textAlign: 'right' }}>{item ? fmtMoneyWithCode(item.amount) : ''}</td>
-              <td style={{ ...tdS }}></td>
-            </tr>
-          ))}
-          {/* Flexible filler row — stretches column lines down to summary */}
-          <tr style={{ height: '100%' }}>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-            <td style={{ ...tdS, height: '100%' }}>&nbsp;</td>
-          </tr>
-        </tbody>
-      </table>
+      {renderItemsTable(page, pageIndex)}
 
-      {/* ═══ Summary ( continues the frame, closed at bottom ) ═══ */}
-      <div style={{ pageBreakInside: 'avoid' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px' }}>
-          <colgroup>
-            {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
-          </colgroup>
-          <tbody>
-            {hasSpecialDiscount && (
-              <tr>
-                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-                <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
-                <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
-                <td style={{ border: 'none' }}>&nbsp;</td>
-              </tr>
-            )}
-            <tr>
-              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-              <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
-              <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtMoneyWithCode(doc.subTotal)}</td>
-              <td style={{ border: 'none' }}>&nbsp;</td>
-            </tr>
-            <tr>
-              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-              <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
-              <td style={{ border: 'none' }}>&nbsp;</td>
-            </tr>
-            <tr>
-              <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
-              <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
-              <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtMoneyWithCode(doc.netTotal)}</td>
-              <td style={{ border: 'none' }}>&nbsp;</td>
-            </tr>
-          </tbody>
-        </table>
-
-        {/* ═══ Signatures ═══ */}
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: '14px', fontSize: '11pt' }}>
-          <tbody>
-            <tr>
-              <td style={{
-                width: '44%',
-                border,
-                padding: '10px 12px 28px',
-                verticalAlign: 'top',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>ผู้ขออนุมัติสั่งซื้อ / Request by</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      borderBottom: '1px dotted #666',
-                      minHeight: '1.15em',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      fontFamily: 'var(--font-signature)',
-                      fontStyle: 'italic',
-                      fontSize: '14pt',
-                      lineHeight: 1,
-                      paddingBottom: '1px',
-                    }}
-                  >
-                    {requesterSignature || '\u00A0'}
-                  </span>
-                </div>
-                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      borderBottom: '1px dotted #666',
-                      minHeight: '0.9em',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                      paddingBottom: '1px',
-                    }}
-                  >
-                    {requesterDate || '\u00A0'}
-                  </span>
-                </div>
-              </td>
-              <td style={{ width: '12%' }}></td>
-              <td style={{
-                width: '44%',
-                border,
-                padding: '10px 12px 28px',
-                verticalAlign: 'top',
-              }}>
-                <div style={{ display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>ผู้อนุมัติ / Approval</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      borderBottom: '1px dotted #666',
-                      minHeight: '1.15em',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      fontFamily: 'var(--font-signature)',
-                      fontStyle: 'italic',
-                      fontSize: '14pt',
-                      lineHeight: 1,
-                      paddingBottom: '1px',
-                    }}
-                  >
-                    {approvalSignature || '\u00A0'}
-                  </span>
-                </div>
-                <div style={{ marginTop: '20px', display: 'flex', alignItems: 'flex-end', gap: '8px' }}>
-                  <span style={{ whiteSpace: 'nowrap' }}>วันที่ / Date</span>
-                  <span
-                    style={{
-                      flex: 1,
-                      borderBottom: '1px dotted #666',
-                      minHeight: '0.9em',
-                      display: 'flex',
-                      alignItems: 'flex-end',
-                      justifyContent: 'center',
-                      lineHeight: 1,
-                      paddingBottom: '1px',
-                    }}
-                  >
-                    {approvalDate || '\u00A0'}
-                  </span>
-                </div>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {page.tail && renderSummaryAndSignatures()}
+      {!page.tail && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            borderTop: border,
+          }}
+        />
+      )}
 
       </div>
+      ))}
 
       {attachmentSheets.map((att, ai) => {
         const isLastSheet = ai === attachmentSheets.length - 1
@@ -507,12 +624,13 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         return (
           <div
             key={`pr-att-${att.id || att.filename || ai}`}
+            className="pr-page pr-attachment-page"
             style={{
               minHeight: '277mm',
               display: 'flex',
               flexDirection: 'column',
-              pageBreakAfter: isLastSheet ? 'auto' : 'always',
-              breakAfter: isLastSheet ? 'auto' : 'page',
+              pageBreakAfter: pages.length + ai < totalPages - 1 ? 'always' : 'auto',
+              breakAfter: pages.length + ai < totalPages - 1 ? 'page' : 'auto',
             }}
           >
             {isImage ? (

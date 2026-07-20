@@ -78,14 +78,17 @@ export default function PrintPRPage() {
     <>
       <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} />
       {!pdfMode && workOrderDoc && (
-        <div style={{ pageBreakBefore: 'always', breakBefore: 'page' }}>
-          <WorkOrderPrint
-            doc={workOrderDoc}
-            settings={settings}
-            embedPdfAttachments={false}
-            onReady={() => setWorkOrderReady(true)}
-          />
-        </div>
+        <>
+          <div className="pr-linked-workorder-break" aria-hidden />
+          <div className="pr-linked-workorder" style={{ pageBreakBefore: 'always', breakBefore: 'page' }}>
+            <WorkOrderPrint
+              doc={workOrderDoc}
+              settings={settings}
+              embedPdfAttachments={false}
+              onReady={() => setWorkOrderReady(true)}
+            />
+          </div>
+        </>
       )}
     </>
   )
