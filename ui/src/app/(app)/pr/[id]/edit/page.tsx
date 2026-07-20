@@ -9,6 +9,7 @@ import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import AttachmentsSection from '@/components/AttachmentsSection'
+import SearchableSelect from '@/components/SearchableSelect'
 
 interface FormData {
   workOrderId: string
@@ -288,10 +289,18 @@ export default function EditPRPage() {
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิงใบสั่งงาน</label>
-          <select className="form-input" value={form.workOrderId} onChange={e => handleWO(e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
-            {workOrders.map(w => <option key={w.id} value={w.id}>{w.woNo} — {w.customerName}</option>)}
-          </select>
+          <SearchableSelect
+            options={workOrders.map(w => ({
+              value: w.id,
+              label: `${w.woNo} — ${w.customerName}`,
+              description: w.project ? `Project: ${w.project}` : undefined,
+            }))}
+            value={form.workOrderId}
+            onChange={handleWO}
+            placeholder="ค้นหา/เลือกเลข WO หรือลูกค้า (เว้นว่าง = ไม่ระบุ)"
+            searchPlaceholder="พิมพ์ค้นหาเลข WO / ลูกค้า / Project"
+            emptyText="ไม่พบใบสั่งงานที่ตรงคำค้น"
+          />
         </div>
         <div className="md:col-span-2">
           <label className="form-label">ประเภทใบขอซื้อ *</label>
