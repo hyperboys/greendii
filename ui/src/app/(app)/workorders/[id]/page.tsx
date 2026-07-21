@@ -116,9 +116,18 @@ export default function WorkOrderDetailPage() {
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
   const canEdit = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canRevise = isMine
+    && doc.status === 'approved'
+    && doc.active !== false
+    && !doc.isClosed
+  const canCancelRevision = isMine
+    && doc.active !== false
+    && (doc.revisionNo ?? 0) > 0
+    && ['draft', 'rejected'].includes(doc.status)
+  const isRevisionEditableDoc = (doc.revisionNo ?? 0) > 0 && isEditableApprovalDocStatus(doc.status)
   const canSubmit = isMine && doc.status === 'draft'
   const canResubmit = isMine && doc.status === 'rejected'
-  const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canDelete = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status) && !isRevisionEditableDoc
   const canManageAttachments = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
   const approvedPoAttachRolesRaw = settings?.approvalFlowConfig?.[WO_APPROVED_PO_ATTACH_ROLES_KEY]
   const approvedPoAttachRoles = (
@@ -173,15 +182,24 @@ export default function WorkOrderDetailPage() {
   ]
   const previewAttachments = doc.attachments ?? []
 
-  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete' | 'close') => {
+  const act = async (action: 'submit' | 'approve' | 'reject' | 'delete' | 'close' | 'cancelRevision') => {
     if (action === 'delete' && !confirm('ยืนยันการลบ/ยกเลิกเอกสารนี้?')) return
     if (action === 'close' && !confirm('ยืนยันการปิดงานนี้?')) return
+    if (action === 'cancelRevision' && !confirm('ยืนยันการยกเลิก Revision นี้?')) return
     setActing(true)
     try {
       if (action === 'submit') await WorkOrdersAPI.submit(id, comment)
       else if (action === 'approve') await WorkOrdersAPI.approve(id, comment, canEditTeamChecklistOnApprove ? checklist : undefined)
       else if (action === 'reject') await WorkOrdersAPI.reject(id, comment)
       else if (action === 'close') await WorkOrdersAPI.close(id, closeComment)
+      else if (action === 'cancelRevision') {
+        const result = await WorkOrdersAPI.cancelRevision(id)
+        toast.success('ยกเลิก Revision สำเร็จ')
+        if (result.reactivatedId) {
+          router.push(`/workorders/${result.reactivatedId}`)
+          return
+        }
+      }
       else if (action === 'delete') { await WorkOrdersAPI.cancel(id); router.push('/workorders'); return }
       toast.success('ดำเนินการสำเร็จ')
       load()
@@ -189,6 +207,20 @@ export default function WorkOrderDetailPage() {
       if (action === 'close') setCloseComment('')
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'เกิดข้อผิดพลาด')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const createRevision = async () => {
+    if (!canRevise || acting) return
+    setActing(true)
+    try {
+      const revised = await WorkOrdersAPI.revise(id)
+      toast.success('สร้างฉบับ Revision สำเร็จ')
+      router.push(`/workorders/${revised.id}/edit`)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'สร้าง Revision ไม่สำเร็จ')
     } finally {
       setActing(false)
     }
@@ -225,6 +257,16 @@ export default function WorkOrderDetailPage() {
         {canEdit && (
           <button className="btn-outline btn-sm" onClick={() => router.push(`/workorders/${id}/edit`)}>
             <Pencil size={14} /> แก้ไข
+          </button>
+        )}
+        {canRevise && (
+          <button className="btn-outline btn-sm" onClick={createRevision} disabled={acting}>
+            <Pencil size={14} /> สร้าง Revision
+          </button>
+        )}
+        {canCancelRevision && (
+          <button className="btn-danger btn-sm" onClick={() => act('cancelRevision')} disabled={acting}>
+            <X size={14} /> ยกเลิก Revision
           </button>
         )}
         {canDelete && (

@@ -18,15 +18,18 @@ const METHOD_COLORS: Record<string, string> = {
 function parsePathMeta(value: string) {
   const src = String(value || '')
   const ridMatch = src.match(/\[rid:([^\]]+)\]/)
+  const actMatch = src.match(/\[act:([^\]]+)\]/)
   const errMatch = src.match(/\[err:([^\]]+)\]/)
   let cleanPath = src
     .replace(/\s*\[rid:[^\]]+\]/g, '')
+    .replace(/\s*\[act:[^\]]+\]/g, '')
     .replace(/\s*\[err:[^\]]+\]/g, '')
     .trim()
   if (!cleanPath) cleanPath = '-'
   return {
     cleanPath,
     requestId: ridMatch?.[1] || null,
+    action: actMatch?.[1] || null,
     errorSummary: errMatch?.[1] || null,
   }
 }
@@ -166,6 +169,7 @@ export default function ActivityLogPage() {
                 <th>User</th>
                 <th>Role</th>
                 <th>Method</th>
+                <th>Action</th>
                 <th>Path</th>
                 <th>Status</th>
                 <th>Request ID</th>
@@ -177,11 +181,11 @@ export default function ActivityLogPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-10 text-gray-400">กำลังโหลด…</td>
+                  <td colSpan={11} className="text-center py-10 text-gray-400">กำลังโหลด…</td>
                 </tr>
               ) : rows.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td>
+                  <td colSpan={11} className="text-center py-10 text-gray-400">ไม่มีข้อมูล</td>
                 </tr>
               ) : rows.map(row => {
                 const meta = parsePathMeta(row.path)
@@ -213,6 +217,9 @@ export default function ActivityLogPage() {
                         {row.method}
                       </span>
                     </td>
+                    <td className="font-mono text-[11px] text-gray-600 max-w-[180px] truncate" title={meta.action || ''}>
+                      {meta.action ?? '—'}
+                    </td>
                     <td className="font-mono text-xs text-gray-700 max-w-xs truncate" title={row.path}>
                       {meta.cleanPath}
                     </td>
@@ -236,8 +243,12 @@ export default function ActivityLogPage() {
                   </tr>,
                   expanded ? (
                     <tr key={`${row.id}-detail`} className="bg-gray-50/60">
-                      <td colSpan={10} className="px-3 py-3">
+                      <td colSpan={11} className="px-3 py-3">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+                          <div>
+                            <div className="text-gray-500 mb-1">Action</div>
+                            <div className="font-mono break-all text-gray-700">{meta.action ?? '—'}</div>
+                          </div>
                           <div>
                             <div className="text-gray-500 mb-1">Path เต็ม</div>
                             <div className="font-mono break-all text-gray-700">{meta.cleanPath}</div>

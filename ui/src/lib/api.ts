@@ -298,6 +298,10 @@ export const WorkOrdersAPI = {
   create: (data: Partial<WorkOrder>) => http.post<WorkOrder>('/workorders', data).then(r => r.data),
   update: (id: string, data: Partial<WorkOrder>) =>
     http.put<WorkOrder>(`/workorders/${id}`, data).then(r => r.data),
+  revise: (id: string) =>
+    http.post<WorkOrder>(`/workorders/${id}/revise`, {}).then(r => r.data),
+  cancelRevision: (id: string) =>
+    http.post<{ ok: boolean; cancelledId: string; reactivatedId: string | null }>(`/workorders/${id}/revision-cancel`, {}).then(r => r.data),
   submit: (id: string, comment?: string) =>
     http.post<WorkOrder>(`/workorders/${id}/submit`, { comment }).then(r => r.data),
   approve: (id: string, comment?: string, docChecklist?: Record<string, boolean>) =>

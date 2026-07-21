@@ -887,6 +887,9 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     if (wo.salesId !== req.user.id && !canDeleteOthersDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ลบเอกสารของผู้อื่น' });
     }
+    if ((wo.revisionNo || 0) > 0 && ['draft', 'rejected'].includes(wo.status)) {
+      return res.status(400).json({ message: 'เอกสาร Revision ให้ใช้ปุ่มยกเลิก Revision เท่านั้น' });
+    }
     if (!['draft', 'rejected'].includes(wo.status)) {
       return res.status(400).json({ message: 'ลบได้เฉพาะเอกสารที่อยู่ในสถานะ Draft หรือ Rejected เท่านั้น' });
     }
@@ -917,6 +920,131 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
     });
     await notifyStep(firstStep, `ใบสั่งงาน ${wo.woNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id, sendLine: true }).catch(() => {});
     res.json(updated);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/revise
+router.post('/:id/revise', authenticate, async (req, res, next) => {
+  try {
+    const source = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+    });
+    if (source.salesId !== req.user.id) {
+      return res.status(403).json({ message: 'เฉพาะผู้สร้างใบสั่งงานเท่านั้นที่ทำ Revision ได้' });
+    }
+
+    if (source.status !== 'approved') {
+      return res.status(400).json({ message: 'ทำ Revision ได้เฉพาะใบสั่งงานที่อนุมัติแล้วเท่านั้น' });
+    }
+    if (!source.active) {
+      return res.status(400).json({ message: 'ใบสั่งงานนี้ไม่ใช่ฉบับที่ active ล่าสุด' });
+    }
+    if (source.isClosed) {
+      return res.status(400).json({ message: 'ใบสั่งงานนี้ปิดงานแล้ว ไม่สามารถทำ Revision ได้' });
+    }
+
+    const rootId = source.rootWorkOrderId || source.id;
+    const revisionNo = (source.revisionNo || 0) + 1;
+    const revisedNo = buildRevisionDocNo(source.woNo, revisionNo);
+
+    const revised = await prisma.$transaction(async (tx) => {
+      await tx.workOrder.update({ where: { id: source.id }, data: { active: false } });
+
+      return tx.workOrder.create({
+        data: {
+          woNo: revisedNo,
+          active: true,
+          revisionNo,
+          rootWorkOrderId: rootId,
+          quotationId: source.quotationId,
+          salesId: source.salesId,
+          project: source.project,
+          location: source.location,
+          products: source.products,
+          items: source.items,
+          responsibility: source.responsibility,
+          customerName: source.customerName,
+          contactName: source.contactName,
+          contactTel: source.contactTel,
+          teamAssignment: source.teamAssignment,
+          qcDate: source.qcDate,
+          installDate: source.installDate,
+          remark: source.remark,
+          docChecklist: source.docChecklist,
+          status: 'draft',
+          approvalStep: 0,
+          isClosed: false,
+          closedAt: null,
+        },
+        include: INCLUDE_FULL,
+      });
+    });
+
+    res.status(201).json(revised);
+  } catch (e) { next(e); }
+});
+
+// POST /api/workorders/:id/revision-cancel
+// Cancel the latest mistaken WO revision and reactivate the previous active candidate.
+router.post('/:id/revision-cancel', authenticate, async (req, res, next) => {
+  try {
+    res.locals.activityAction = 'workorder.revision-cancel';
+
+    const source = await prisma.workOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+    });
+
+    if (source.salesId !== req.user.id) {
+      return res.status(403).json({ message: 'เฉพาะผู้สร้างใบสั่งงานเท่านั้นที่ยกเลิก Revision ได้' });
+    }
+    if (!source.active) {
+      return res.status(400).json({ message: 'ใบสั่งงานนี้ไม่ใช่ฉบับ active ล่าสุด' });
+    }
+    if ((source.revisionNo || 0) <= 0 || !source.rootWorkOrderId) {
+      return res.status(400).json({ message: 'เอกสารนี้ไม่ใช่ฉบับ Revision ที่ยกเลิกได้' });
+    }
+    if (!['draft', 'rejected'].includes(source.status)) {
+      return res.status(400).json({ message: 'ยกเลิก Revision ได้เฉพาะสถานะ Draft หรือ Rejected เท่านั้น' });
+    }
+
+    const rootId = source.rootWorkOrderId;
+    const result = await prisma.$transaction(async (tx) => {
+      const previous = await tx.workOrder.findFirst({
+        where: {
+          id: { not: source.id },
+          active: false,
+          status: { not: 'cancelled' },
+          OR: [
+            { id: rootId },
+            { rootWorkOrderId: rootId },
+          ],
+        },
+        orderBy: [{ revisionNo: 'desc' }, { createdAt: 'desc' }],
+      });
+
+      await tx.workOrder.update({
+        where: { id: source.id },
+        data: {
+          status: 'cancelled',
+          active: false,
+        },
+      });
+
+      if (previous) {
+        await tx.workOrder.update({
+          where: { id: previous.id },
+          data: { active: true },
+        });
+      }
+
+      return {
+        ok: true,
+        cancelledId: source.id,
+        reactivatedId: previous?.id || null,
+      };
+    });
+
+    res.json(result);
   } catch (e) { next(e); }
 });
 

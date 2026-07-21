@@ -25,9 +25,14 @@ function activityLogger(req, res, next) {
       res.statusCode >= 400 && res.locals.activityErrorMessage
         ? String(res.locals.activityErrorMessage).replace(/\s+/g, ' ').slice(0, 200)
         : '';
+    const activityAction =
+      typeof res.locals.activityAction === 'string'
+        ? res.locals.activityAction.trim().slice(0, 80)
+        : '';
     const pathWithMeta = [
       requestPath,
       requestId ? `[rid:${requestId}]` : '',
+      activityAction ? `[act:${activityAction}]` : '',
       errorSummary ? `[err:${errorSummary}]` : '',
     ].filter(Boolean).join(' ');
 
