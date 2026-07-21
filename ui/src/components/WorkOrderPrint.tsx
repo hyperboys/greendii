@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
 import { parseColoredLine } from '@/lib/coloredText'
 import {
   getWorkOrderDetailNoteText,
@@ -386,15 +387,9 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     requestAnimationFrame(() => { onReady?.() })
   }, [pages, onReady])
 
-  const dateStr = doc.createdAt
-    ? new Date(doc.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : ''
-  const installDateStr = doc.installDate
-    ? new Date(doc.installDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : '-'
-  const qcDateStr = doc.qcDate
-    ? new Date(doc.qcDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
-    : '-'
+  const dateStr = formatBangkokDate(doc.createdAt)
+  const installDateStr = formatBangkokDate(doc.installDate) || '-'
+  const qcDateStr = formatBangkokDate(doc.qcDate) || '-'
   const fpt = (n: number) => `${n}pt`
 
   function formatSignatureText(signatureText?: string | null, fullName?: string | null): string {

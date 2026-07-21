@@ -1,3 +1,5 @@
+// Keep server-side calendar logic (running numbers, reports, and date boundaries) in UTC+7.
+process.env.TZ = 'Asia/Bangkok';
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');

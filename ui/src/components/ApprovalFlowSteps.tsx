@@ -1,6 +1,7 @@
 'use client'
 
 import type { ApprovalLog, DocStatus } from '@/types'
+import { formatBangkokDateTime } from '@/lib/timezone'
 
 type StageInput = number | number[]
 
@@ -109,13 +110,7 @@ export default function ApprovalFlowSteps({
 
   // Find latest submit log for creator timestamp
   const latestSubmitLog = cycleLogs.find(log => log.action === 'submit')
-  const creatorActedAt = latestSubmitLog?.actedAt ? new Date(latestSubmitLog.actedAt).toLocaleString('th-TH', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  }) : ''
+  const creatorActedAt = formatBangkokDateTime(latestSubmitLog?.actedAt, 'th-TH')
 
   if (stages.length === 0) return null
 
@@ -143,13 +138,7 @@ export default function ApprovalFlowSteps({
           const isRejected = log?.action === 'reject'
           const isSubmitted = log?.action === 'submit'
           const displayName = log?.approver?.fullName ?? ''
-          const actedAt = log?.actedAt ? new Date(log.actedAt).toLocaleString('th-TH', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }) : ''
+          const actedAt = formatBangkokDateTime(log?.actedAt, 'th-TH')
 
           return (
             <div

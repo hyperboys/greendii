@@ -5,6 +5,7 @@ const { canViewAllReports } = require('../lib/roles');
 const { getPrCurrentStageSteps, getStepRoleMapping } = require('../lib/approvalFlow');
 const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
+const { bangkokDateRange } = require('../lib/timezone');
 
 function parseSalesIds(raw) {
   if (!raw) return [];
@@ -24,10 +25,7 @@ function parseDocStatuses(raw) {
 }
 
 function normalizeDateRange(rawFrom, rawTo) {
-  const where = {};
-  if (rawFrom) where.gte = new Date(rawFrom);
-  if (rawTo) where.lte = new Date(`${rawTo}T23:59:59.999Z`);
-  return Object.keys(where).length > 0 ? where : undefined;
+  return bangkokDateRange(rawFrom, rawTo);
 }
 
 function calcAgeDays(isoDate) {

@@ -5,6 +5,7 @@ import { AdminAPI } from '@/lib/api'
 import { ROLE_LABELS, type ApprovalLogEntry, type UserRole } from '@/types'
 import { RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { formatBangkokDateTime } from '@/lib/timezone'
 
 const ACTION_LABELS: Record<string, { label: string; cls: string }> = {
   submit:  { label: 'ส่งอนุมัติ', cls: 'badge bg-blue-100 text-blue-700' },
@@ -110,7 +111,7 @@ export default function AuditLogPage() {
                 return (
                   <tr key={row.id}>
                     <td className="whitespace-nowrap text-xs text-gray-500">
-                      {new Date(row.actedAt).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+                      {formatBangkokDateTime(row.actedAt)}
                     </td>
                     <td className="font-medium">{row.approver?.fullName ?? row.approverId}</td>
                     <td>

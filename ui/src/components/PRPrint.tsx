@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
 
 const PACK_CAP_NON_LAST = 20
 const PACK_CAP_LAST = 11
@@ -29,12 +30,7 @@ function currencyCode(code?: string): string {
 }
 
 function fmtDateTH(dateStr?: string): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  return `${day}/${month}/${year}`
+  return formatBangkokDate(dateStr)
 }
 
 function formatSignatureText(signatureText?: string | null, fullName?: string | null): string {
@@ -105,12 +101,7 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
 
   if (!latestSubmitAt) return ''
 
-  const d = new Date(latestSubmitAt)
-  const day = String(d.getDate()).padStart(2, '0')
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const year = d.getFullYear()
-  const time = d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-  return `${day}/${month}/${year} ${time}`
+  return formatBangkokDateTime(latestSubmitAt)
 }
 
 const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
@@ -229,7 +220,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     approvalSignatureLog?.approver?.fullName,
   )
   const approvalDate = approvalSignatureLog?.actedAt
-    ? fmtDateTH(approvalSignatureLog.actedAt) + ' ' + new Date(approvalSignatureLog.actedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+    ? formatBangkokDateTime(approvalSignatureLog.actedAt)
     : ''
   const attachmentSheets = (Array.isArray(doc.attachments) ? doc.attachments : []).filter(att => {
     const hasSource = Boolean((att.fileUrl && String(att.fileUrl).trim()) || (att.filename && String(att.filename).trim()))

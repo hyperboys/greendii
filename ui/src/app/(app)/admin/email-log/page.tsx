@@ -10,6 +10,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useRouter } from 'next/navigation'
 import DateInput from '@/components/DateInput'
 import { decodeDisplayFileName } from '@/lib/filename'
+import { formatBangkokDateTime } from '@/lib/timezone'
 
 const LIMIT = 40
 
@@ -162,7 +163,7 @@ export default function EmailLogPage() {
                 return (
                   <Fragment key={row.id}>
                     <tr key={row.id} className={row.status === 'failed' ? 'bg-red-50/50' : ''}>
-                      <td className="text-xs text-gray-500 whitespace-nowrap">{new Date(row.sentAt).toLocaleString('en-GB')}</td>
+                      <td className="text-xs text-gray-500 whitespace-nowrap">{formatBangkokDateTime(row.sentAt)}</td>
                       <td>
                         <div className="font-mono text-xs text-blue-700">{row.workOrder?.woNo || '-'}</div>
                         <div className="text-xs text-gray-500 truncate max-w-[220px]">{row.workOrder?.project || '-'}</div>

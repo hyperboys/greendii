@@ -56,8 +56,8 @@ model User {
   active              Boolean  @default(true)
   mustChangePassword  Boolean  @default(false)
   docCounters         Json?    // { "mmyy": floorSeq } เช่น { "0626": 3 }
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
 
   quotations       Quotation[]
   workOrders       WorkOrder[]
@@ -83,8 +83,8 @@ model QuotationCounter {
   sales     User     @relation(fields: [salesId], references: [id], onDelete: Cascade)
   yy        String
   lastSeq   Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@unique([salesId, yy])
   @@map("quotation_counters")
@@ -95,9 +95,9 @@ model RefreshToken {
   tokenHash String    @unique
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  expiresAt DateTime @db.Timestamptz(3)
+  revokedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([userId])
   @@map("refresh_tokens")
@@ -119,8 +119,8 @@ model Customer {
   taxId         String?
   type          String   @default("นิติบุคคล")
   active        Boolean  @default(true)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
   quotations Quotation[]
   emailHistory EmailHistory[]
@@ -132,12 +132,12 @@ model EmailHistory {
   id         String    @id @default(cuid())
   email      String
   name       String?
-  lastUsedAt DateTime  @default(now())
+  lastUsedAt DateTime  @default(now()) @db.Timestamptz(3)
   useCount   Int       @default(1)
   customerId String?
   customer   Customer? @relation(fields: [customerId], references: [id])
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  createdAt  DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @db.Timestamptz(3)
 
   @@unique([email, customerId])
   @@index([customerId])
@@ -155,8 +155,8 @@ model Product {
   cost        Decimal  @default(0) @db.Decimal(12, 2)
   description String?
   active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("products")
 }
@@ -165,8 +165,8 @@ model Unit {
   id        String   @id @default(cuid())
   name      String   @unique
   active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("units")
 }
@@ -182,8 +182,8 @@ model PrType {
   approvalSteps Json     @default("[]")
   active        Boolean  @default(true)
   sortOrder     Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
 
   purchaseRequests PurchaseRequest[]
 
@@ -204,7 +204,7 @@ model Settings {
   approvalFlowConfig      Json?    // { quotation:[1,2,3,4,5], workOrder:[3,4,5], pr:[3,4,5,6], handover:[3,4,5] }
   menuAccessConfig      Json?    // { quotations:['admin','sales',...], workorders:[...], ... }
   rolePermissionsConfig Json?    // { roles:[{key,label,description}], permissions:[{key,label,roles[]}] }
-  updatedAt           DateTime @updatedAt
+  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("settings")
 }
@@ -242,8 +242,8 @@ model Quotation {
   status        DocStatus @default(draft)
   approvalStep  Int       @default(0)
   remark        String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
 
   items        QuotationItem[]
   workOrders   WorkOrder[]
@@ -299,19 +299,19 @@ model WorkOrder {
   contactName    String?
   contactTel     String?
   teamAssignment String?
-  qcDate         DateTime?
-  installDate    DateTime?
+  qcDate         DateTime? @db.Timestamptz(3)
+  installDate    DateTime? @db.Timestamptz(3)
   remark         String?
   docChecklist   Json      @default("{}")
   hasPo          Boolean   @default(false) @map("has_po")
-  poAttachedDate DateTime? @map("po_attached_date")
+  poAttachedDate DateTime? @map("po_attached_date") @db.Timestamptz(3)
   poStatus       String    @default("ยังไม่มี PO") @map("po_status")
   status         DocStatus @default(draft)
   approvalStep   Int       @default(0)
   isClosed       Boolean   @default(false)
-  closedAt       DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  closedAt       DateTime? @db.Timestamptz(3)
+  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 
   handOverJobs     HandOverJob[]
   purchaseRequests PurchaseRequest[]
@@ -331,7 +331,7 @@ model WorkOrderReadLog {
   workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  readAt      DateTime  @default(now()) @map("read_at")
+  readAt      DateTime  @default(now()) @map("read_at") @db.Timestamptz(3)
 
   @@unique([workOrderId, userId])
   @@index([userId, readAt])
@@ -347,7 +347,7 @@ model WorkOrderPoAudit {
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   action      String
   filename    String
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([workOrderId, createdAt])
   @@index([userId, createdAt])
@@ -361,7 +361,7 @@ model WorkOrderCloseLog {
   userId      String
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   comment     String?
-  closedAt    DateTime  @default(now())
+  closedAt    DateTime  @default(now()) @db.Timestamptz(3)
 
   @@index([workOrderId, closedAt])
   @@index([userId, closedAt])
@@ -389,15 +389,15 @@ model HandOverJob {
   product        String?
   items          Json       @default("[]")
   responsibility String?
-  serviceDate    DateTime?
+  serviceDate    DateTime? @db.Timestamptz(3)
   qualityProduct Int        @default(0)
   qualitySales   Int        @default(0)
   qualityInstall Int        @default(0)
   comment        String?
   status         DocStatus  @default(draft)
   approvalStep   Int        @default(0)
-  createdAt      DateTime   @default(now())
-  updatedAt      DateTime   @updatedAt
+  createdAt      DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
 
   attachments  Attachment[]
   approvalLogs ApprovalLog[]
@@ -426,8 +426,8 @@ model PurchaseRequest {
   sales        User       @relation(fields: [salesId], references: [id])
   customer     String
   projectRef   String?
-  dateIssue    DateTime?
-  dateRequired DateTime?
+  dateIssue    DateTime? @db.Timestamptz(3)
+  dateRequired DateTime? @db.Timestamptz(3)
   currency     String     @default("THB")
   subTotal        Decimal    @default(0) @db.Decimal(12, 2)
   specialDiscount Decimal    @default(0) @db.Decimal(12, 2)
@@ -436,8 +436,8 @@ model PurchaseRequest {
   remarks         String?
   status       DocStatus  @default(draft)
   approvalStep Int        @default(0)
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
 
   items        PurchaseRequestItem[]
   approvalLogs ApprovalLog[]
@@ -483,7 +483,7 @@ model ApprovalLog {
   step        Int
   action      ApprovalAction
   comment     String?
-  actedAt     DateTime       @default(now())
+  actedAt     DateTime       @default(now()) @db.Timestamptz(3)
 
   @@map("approval_logs")
 }
@@ -498,7 +498,7 @@ model Notification {
   user      User     @relation(fields: [userId], references: [id])
   text      String
   read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@map("notifications")
 }
@@ -522,10 +522,10 @@ model EmailLog {
   attachments   Json?
   status        String     @default("sent")
   errorMessage  String?
-  sentAt        DateTime   @default(now())
+  sentAt        DateTime   @default(now()) @db.Timestamptz(3)
   ipAddress     String?
   userAgent     String?
-  createdAt     DateTime   @default(now())
+  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
 
   @@index([workOrderId])
   @@index([quotationId])
@@ -550,7 +550,7 @@ model ActivityLog {
   ipAddress  String?
   userAgent  String?
   durationMs Int      // milliseconds
-  createdAt  DateTime @default(now())
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([userId])
   @@index([createdAt])
@@ -579,7 +579,7 @@ model Attachment {
   handOverJob     HandOverJob?     @relation(fields: [handOverJobId], references: [id])
   purchaseRequestId String?
   purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-  uploadedAt      DateTime         @default(now())
+  uploadedAt      DateTime         @default(now()) @db.Timestamptz(3)
 
   @@map("attachments")
 }

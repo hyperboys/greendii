@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
+const { parseBangkokDate } = require('../lib/timezone');
 const { authenticate } = require('../middleware/auth');
 const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
@@ -809,8 +810,8 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           contactName: contactNameValue,
           contactTel: contactTelValue,
           teamAssignment: teamAssignmentValue,
-          qcDate: qcDateValue ? new Date(qcDateValue) : null,
-          installDate: installDateValue ? new Date(installDateValue) : null,
+          qcDate: parseBangkokDate(qcDateValue),
+          installDate: parseBangkokDate(installDateValue),
           remark: remarkValue,
           docChecklist: checklistValue,
           salesId: req.user.id,
@@ -865,8 +866,8 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
         data: {
           project, location, products, items: normalizedItems, responsibility,
           customerName, contactName, contactTel, teamAssignment,
-          qcDate: qcDate ? new Date(qcDate) : null,
-          installDate: installDate ? new Date(installDate) : null,
+          qcDate: parseBangkokDate(qcDate),
+          installDate: parseBangkokDate(installDate),
           remark, docChecklist: normalizeDocChecklist(docChecklist, existing.docChecklist || {}, canEditTeamChecklist),
           ...(quotationRelation ? { quotation: quotationRelation } : {}),
         },

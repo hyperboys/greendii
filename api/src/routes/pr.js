@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
+const { parseBangkokDate } = require('../lib/timezone');
 const { authenticate } = require('../middleware/auth');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { validate } = require('../lib/validate');
@@ -451,8 +452,8 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
     const item = await prisma.purchaseRequest.create({
       data: {
         prNo, workOrderId: workOrderId || null, prTypeId: prTypeId || null, customer, projectRef,
-        dateIssue: dateIssue ? new Date(dateIssue) : null,
-        dateRequired: dateRequired ? new Date(dateRequired) : null,
+        dateIssue: parseBangkokDate(dateIssue),
+        dateRequired: parseBangkokDate(dateRequired),
         currency: requestedCurrency,
         subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
         remarks, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
@@ -553,8 +554,8 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
         data: {
           customer, projectRef,
           prTypeId: prTypeId !== undefined ? (prTypeId || null) : undefined,
-          dateIssue: dateIssue ? new Date(dateIssue) : null,
-          dateRequired: dateRequired ? new Date(dateRequired) : null,
+          dateIssue: parseBangkokDate(dateIssue),
+          dateRequired: parseBangkokDate(dateRequired),
           currency: normalizedCurrency,
           subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
           remarks,

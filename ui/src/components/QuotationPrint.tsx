@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
+import { formatBangkokDate } from '@/lib/timezone'
 import { parseColoredLine, parseQuotationNoteMultiline } from '@/lib/coloredText'
 
 function fmtAmt(n: number | null | undefined): string {
@@ -264,7 +265,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     }
   }, [doc.quoNo])
 
-  const dateStr = new Date(doc.updatedAt || doc.createdAt).toLocaleDateString('en-GB')
+  const dateStr = formatBangkokDate(doc.updatedAt || doc.createdAt)
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
   const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'

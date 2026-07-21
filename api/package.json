@@ -16,7 +16,9 @@
     "db:merge-customers": "node scripts/merge-duplicate-customers.js",
     "db:merge-customers:dry": "node scripts/merge-duplicate-customers.js --dry-run",
     "db:seed:quotation-running": "node scripts/set-quotation-running-floor.js",
-    "db:seed:doc-running": "node scripts/set-doc-running-floor.js"
+    "db:seed:doc-running": "node scripts/set-doc-running-floor.js",
+    "db:timezone:dry": "node scripts/migrate-timestamps-to-bangkok.js --dry-run",
+    "db:timezone:apply": "node scripts/migrate-timestamps-to-bangkok.js --apply"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1038.0",

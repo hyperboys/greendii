@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs/promises');
 const nodemailer = require('nodemailer');
 const prisma = require('../lib/prisma');
+const { bangkokDateRange } = require('../lib/timezone');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
 const { assertDocAccessible, canManageAllDocs } = require('../lib/roles');
@@ -444,10 +445,7 @@ router.get('/workorders', authenticate, async (req, res, next) => {
         : {}),
       ...(dateFrom || dateTo
         ? {
-            createdAt: {
-              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00.000Z`) } : {}),
-              ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
-            },
+            createdAt: bangkokDateRange(dateFrom, dateTo),
           }
         : {}),
     };
@@ -644,10 +642,7 @@ router.get('/logs', authenticate, requireRole(...ADMIN_ROLES), async (req, res, 
         : {}),
       ...(dateFrom || dateTo
         ? {
-            sentAt: {
-              ...(dateFrom ? { gte: new Date(`${dateFrom}T00:00:00.000Z`) } : {}),
-              ...(dateTo ? { lte: new Date(`${dateTo}T23:59:59.999Z`) } : {}),
-            },
+            sentAt: bangkokDateRange(dateFrom, dateTo),
           }
         : {}),
     };

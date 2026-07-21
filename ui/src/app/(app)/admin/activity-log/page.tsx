@@ -5,6 +5,7 @@ import { AdminAPI, UsersAPI } from '@/lib/api'
 import { ROLE_LABELS, type ActivityLog, type User, type UserRole } from '@/types'
 import { RefreshCw, ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { formatBangkokDate, formatBangkokTime } from '@/lib/timezone'
 
 const METHOD_COLORS: Record<string, string> = {
   GET:    'bg-blue-100 text-blue-700',
@@ -193,8 +194,8 @@ export default function ActivityLogPage() {
                     onClick={() => toggleExpanded(row.id)}
                   >
                     <td className="whitespace-nowrap text-xs text-gray-500">
-                      <div>{new Date(row.createdAt).toLocaleDateString('th-TH')}</div>
-                      <div className="font-mono text-[11px]">{new Date(row.createdAt).toLocaleTimeString('th-TH')}</div>
+                      <div>{formatBangkokDate(row.createdAt, 'th-TH')}</div>
+                      <div className="font-mono text-[11px]">{formatBangkokTime(row.createdAt, 'th-TH')}</div>
                     </td>
                     <td>
                       <div className="font-medium text-sm">{row.user?.fullName ?? row.username ?? '—'}</div>

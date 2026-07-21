@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const prisma = require('../lib/prisma');
+const { parseBangkokDate } = require('../lib/timezone');
 const { authenticate } = require('../middleware/auth');
 const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { validate } = require('../lib/validate');
@@ -263,7 +264,7 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
         workOrderId: resolvedWorkOrderId,
         project, contractor, location,
         contactName, contactTel, product, items: itemsSnapshot, responsibility,
-        serviceDate: serviceDate ? new Date(serviceDate) : null,
+        serviceDate: parseBangkokDate(serviceDate),
         qualityProduct: qualityProduct || 0,
         qualitySales: qualitySales || 0,
         qualityInstall: qualityInstall || 0,
@@ -302,7 +303,7 @@ router.put('/:id', authenticate, handoverValidators, validate, async (req, res, 
         project, contractor, location, contactName, contactTel,
         product, responsibility,
         ...(nextItemsSnapshot !== undefined ? { items: nextItemsSnapshot } : {}),
-        serviceDate: serviceDate ? new Date(serviceDate) : undefined,
+        serviceDate: serviceDate ? parseBangkokDate(serviceDate) : undefined,
         qualityProduct, qualitySales, qualityInstall, comment,
         ...(quotationRelation ? { quotation: quotationRelation } : {}),
         ...(workOrderRelation ? { workOrder: workOrderRelation } : {}),
