@@ -7,7 +7,7 @@ const { validate } = require('../lib/validate');
 const { getPagination, paginated } = require('../lib/pagination');
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep, getFlowSteps, getStepRoleMapping } = require('../lib/approvalFlow');
-const { canManageAllQuotations, canViewAllReports, assertQuotationAccessible } = require('../lib/roles');
+const { canManageAllQuotations, canManageAllDocs, canViewAllReports, assertQuotationAccessible } = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
 
@@ -213,6 +213,64 @@ async function assertQuotationAccessibleWithBypass(req, quotation) {
   assertQuotationAccessible(req, quotation);
 }
 
+async function canReadQuotationViaLinkedWorkOrder(req, quotationId) {
+  if (!quotationId) return false;
+  if (await canBypassDocApproval('workOrder', req.user.role)) return true;
+
+  const role = normalizeRole(req.user.role);
+  const workOrders = await prisma.workOrder.findMany({
+    where: {
+      quotationId,
+      active: true,
+      status: { not: 'cancelled' },
+    },
+    select: {
+      id: true,
+      salesId: true,
+      status: true,
+      approvalStep: true,
+      approvalLogs: {
+        where: {
+          approverId: req.user.id,
+          action: { in: ['approve', 'reject'] },
+        },
+        select: { id: true },
+        take: 1,
+      },
+    },
+    orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+    take: 30,
+  });
+
+  if (workOrders.length === 0) return false;
+
+  const { stepRole } = await getStepRoleMapping();
+  for (const wo of workOrders) {
+    if (canManageAllDocs(req.user.role) || wo.salesId === req.user.id) return true;
+
+    if (wo.status === 'pending') {
+      const requiredRole = normalizeRole(stepRole[wo.approvalStep]);
+      if (requiredRole && requiredRole === role) return true;
+    }
+
+    if (Array.isArray(wo.approvalLogs) && wo.approvalLogs.length > 0) return true;
+  }
+
+  return false;
+}
+
+async function assertQuotationReadableForApproval(req, quotation) {
+  if (await canBypassDocApproval('quotation', req.user.role)) return;
+  if (canManageAllQuotations(req.user.role) || quotation.salesId === req.user.id) return;
+
+  const readableViaWorkOrder = await canReadQuotationViaLinkedWorkOrder(req, quotation.id);
+  if (readableViaWorkOrder) return;
+
+  const error = new Error('ไม่มีสิทธิ์เข้าถึงใบเสนอราคานี้');
+  error.status = 403;
+  throw error;
+}
+
 async function assertQuotationCurrentApprover(req, quotation) {
   if (await canBypassDocApproval('quotation', req.user.role)) return;
 
@@ -284,7 +342,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
-    await assertQuotationAccessibleWithBypass(req, item);
+    await assertQuotationReadableForApproval(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -297,7 +355,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
     const uiBase = getUiBaseUrl(req);
     const url = `${uiBase}/print/quotation/${req.params.id}?token=${encodeURIComponent(token)}`;
     const item = await prisma.quotation.findUniqueOrThrow({ where: { id: req.params.id }, select: { quoNo: true, salesId: true } });
-    await assertQuotationAccessibleWithBypass(req, item);
+    await assertQuotationReadableForApproval(req, item);
     const pdf = await renderUrlToPdf(url);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.quoNo || 'quotation'}.pdf"`);

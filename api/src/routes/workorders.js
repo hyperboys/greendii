@@ -624,6 +624,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: INCLUDE_FULL,
     });
+    await assertWorkOrderAccessible(req, item);
     res.json(item);
   } catch (e) { next(e); }
 });
@@ -652,6 +653,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
         },
       },
     });
+    await assertWorkOrderAccessible(req, item);
 
     const workOrderUrl = `${uiBase}/print/workorder/${item.id}?token=${encodeURIComponent(token)}&mode=pdf`;
     const buffers = [await renderUrlToPdf(workOrderUrl)];
