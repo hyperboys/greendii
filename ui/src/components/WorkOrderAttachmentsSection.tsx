@@ -52,6 +52,39 @@ function fmtSize(bytes: number) {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+function formatThousands(intPart: string) {
+  const normalized = intPart.replace(/^0+(\d)/, '$1') || '0'
+  return normalized.replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+function sanitizePoAmountInput(value: string) {
+  const cleaned = value.replace(/,/g, '').replace(/[^\d.]/g, '')
+  const dotIndex = cleaned.indexOf('.')
+  if (dotIndex < 0) return cleaned
+  const intPart = cleaned.slice(0, dotIndex)
+  const decPart = cleaned.slice(dotIndex + 1).replace(/\./g, '')
+  return `${intPart}.${decPart}`
+}
+
+function formatPoAmountInput(value: string, forceTwoDecimals = false) {
+  const raw = sanitizePoAmountInput(value)
+  if (!raw) return ''
+
+  const hasDot = raw.includes('.')
+  const endsWithDot = raw.endsWith('.')
+  const [intRaw, decRaw = ''] = raw.split('.')
+  const intFormatted = formatThousands(intRaw || '0')
+
+  if (forceTwoDecimals) {
+    const dec = decRaw.slice(0, 2).padEnd(2, '0')
+    return `${intFormatted}.${dec}`
+  }
+
+  if (!hasDot) return intFormatted
+  if (endsWithDot) return `${intFormatted}.`
+  return `${intFormatted}.${decRaw.slice(0, 2)}`
+}
+
 let pendingSeq = 0
 
 export default function AttachmentsSection({
@@ -171,12 +204,12 @@ export default function AttachmentsSection({
                 <div>
                   <label className="text-xs text-gray-500">ยอดเงิน PO (บาท) *</label>
                   <input
-                    type="number"
-                    min="0"
-                    step="0.01"
+                    type="text"
+                    inputMode="decimal"
                     value={poAmount}
-                    onChange={e => onPoAmountChange?.(e.target.value)}
-                    placeholder="เช่น 150000.00"
+                    onChange={e => onPoAmountChange?.(formatPoAmountInput(e.target.value))}
+                    onBlur={e => onPoAmountChange?.(formatPoAmountInput(e.target.value, true))}
+                    placeholder="เช่น 1,500,000.00"
                     disabled={readOnly || categoryLocked}
                     className="form-input mt-1"
                   />
