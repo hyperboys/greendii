@@ -200,7 +200,7 @@ function paginateItems(items: Item[]): PageChunk[] {
   }))
 }
 
-const COL_WIDTHS = ['5%', '47%', '8%', '7%', '11%', '11%', '11%']
+const COL_WIDTHS = ['5%', '47%', '8%', '6.5%', '11%', '11%', '11.5%']
 
 // Measurement-based pagination: assign items to pages using their real rendered
 // heights (in px) instead of heuristic weights. `availNonLast` is the usable
@@ -693,13 +693,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     return (
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
         <colgroup>
-          <col style={{ width: '5%' }} />
-          <col style={{ width: '47%' }} />
-          <col style={{ width: '8%' }} />
-          <col style={{ width: '7%' }} />
-          <col style={{ width: '11%' }} />
-          <col style={{ width: '11%' }} />
-          <col style={{ width: '11%' }} />
+          {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
         </colgroup>
         <thead>{itemsHeadRows()}</thead>
         <tbody style={{ height: '100%' }}>
@@ -756,17 +750,16 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
       paddingRight: '10px',
       lineHeight: 1,
       whiteSpace: 'nowrap',
+      // Use fixed-width numerals so each row ends at the same visual right edge.
+      fontFamily: 'Consolas, "Courier New", monospace',
+      fontVariantNumeric: 'tabular-nums',
+      fontFeatureSettings: '"tnum" 1, "lnum" 1',
+      letterSpacing: 0,
     }
     return (
       <table style={{ width: '100%', flex: '0 0 auto', borderCollapse: 'collapse', tableLayout: 'fixed', borderLeft: tableFrameBorder, borderRight: tableFrameBorder, borderBottom: tableFrameBorder }}>
         <colgroup>
-          <col style={{ width: '5%' }} />
-          <col style={{ width: '47%' }} />
-          <col style={{ width: '8%' }} />
-          <col style={{ width: '7%' }} />
-          <col style={{ width: '11%' }} />
-          <col style={{ width: '11%' }} />
-          <col style={{ width: '11%' }} />
+          {COL_WIDTHS.map((w, i) => <col key={i} style={{ width: w }} />)}
         </colgroup>
         <tbody>
           <tr>
