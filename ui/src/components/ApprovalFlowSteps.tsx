@@ -15,6 +15,7 @@ type Props = {
   getRoleLabel: (roleKey: string) => string
   creatorName?: string
   showSubmitState?: boolean
+  showStageComments?: boolean
 }
 
 function getLatestCycleLogs(approvalLogs?: ApprovalLog[]) {
@@ -93,6 +94,16 @@ function pickStageLatestLog(stage: number[], stepLogs: Map<number, ApprovalLog>)
   })[0]
 }
 
+function getActionBadge(action?: ApprovalLog['action']) {
+  if (action === 'approve') {
+    return { label: 'อนุมัติ', cls: 'bg-green-pale text-green-dark border-green-main/40' }
+  }
+  if (action === 'reject') {
+    return { label: 'ปฏิเสธ', cls: 'bg-red-50 text-red-700 border-red-300' }
+  }
+  return { label: 'ดำเนินการ', cls: 'bg-gray-100 text-gray-600 border-gray-200' }
+}
+
 export default function ApprovalFlowSteps({
   title,
   steps,
@@ -103,10 +114,39 @@ export default function ApprovalFlowSteps({
   getRoleLabel,
   creatorName,
   showSubmitState = false,
+  showStageComments = false,
 }: Props) {
   const cycleLogs = getLatestCycleLogs(approvalLogs)
   const stepLogs = buildStepLatestLogMap(cycleLogs)
   const stages = normalizeStages(steps)
+  const stageCommentRows = stages
+    .map((stage) => {
+      const log = pickStageLatestLog(stage, stepLogs)
+      const comment = (log?.comment ?? '').trim()
+      if (!comment) return null
+
+      const labels = stage.map(step => {
+        const roleKey = stepRoleConfig[String(step)]
+        return roleKey ? getRoleLabel(roleKey) : `Step ${step}`
+      })
+
+      return {
+        key: stage.join('-'),
+        stageLabel: labels.join(' / '),
+        comment,
+        actedAt: formatBangkokDateTime(log?.actedAt, 'th-TH'),
+        approverName: log?.approver?.fullName ?? '',
+        action: log?.action,
+      }
+    })
+    .filter((row): row is {
+      key: string
+      stageLabel: string
+      comment: string
+      actedAt: string
+      approverName: string
+      action?: ApprovalLog['action']
+    } => !!row)
 
   // Find latest submit log for creator timestamp
   const latestSubmitLog = cycleLogs.find(log => log.action === 'submit')
@@ -165,6 +205,30 @@ export default function ApprovalFlowSteps({
           )
         })}
       </div>
+      {showStageComments && stageCommentRows.length > 0 && (
+        <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3">
+          <div className="mb-2 text-xs font-semibold text-gray-700">ความคิดเห็นแต่ละขั้น</div>
+          <div className="space-y-2">
+            {stageCommentRows.map((row) => {
+              const badge = getActionBadge(row.action)
+              return (
+                <div key={row.key} className="rounded-md border border-gray-200 bg-white p-2.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs font-semibold text-gray-800">{row.stageLabel}</span>
+                    <span className={`rounded border px-1.5 py-0.5 text-[10px] font-medium ${badge.cls}`}>{badge.label}</span>
+                  </div>
+                  <div className="mt-1.5 whitespace-pre-line break-words text-xs text-gray-800">{row.comment}</div>
+                  {(row.approverName || row.actedAt) && (
+                    <div className="mt-1.5 text-[10px] text-gray-500">
+                      {row.approverName || '—'}{row.actedAt ? ` · ${row.actedAt}` : ''}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
