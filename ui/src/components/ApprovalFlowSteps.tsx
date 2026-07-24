@@ -5,6 +5,15 @@ import { formatBangkokDateTime } from '@/lib/timezone'
 
 type StageInput = number | number[]
 
+type StageCommentRow = {
+  key: string
+  stageLabel: string
+  comment: string
+  actedAt: string
+  approverName: string
+  action: ApprovalLog['action'] | undefined
+}
+
 type Props = {
   title: string
   steps: StageInput[]
@@ -139,14 +148,7 @@ export default function ApprovalFlowSteps({
         action: log?.action,
       }
     })
-    .filter((row): row is {
-      key: string
-      stageLabel: string
-      comment: string
-      actedAt: string
-      approverName: string
-      action?: ApprovalLog['action']
-    } => !!row)
+    .filter((row): row is StageCommentRow => !!row)
 
   // Find latest submit log for creator timestamp
   const latestSubmitLog = cycleLogs.find(log => log.action === 'submit')
