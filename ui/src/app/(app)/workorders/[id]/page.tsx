@@ -481,6 +481,7 @@ export default function WorkOrderDetailPage() {
           getRoleLabel={getRoleLabel}
           creatorName={doc.sales?.fullName ?? doc.salesId}
           showSubmitState
+          showStageComments
         />
         {doc.approvalLogs && doc.approvalLogs.length > 0 && (
           <div className="mt-3 space-y-1">
