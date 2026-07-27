@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { WorkOrder, Settings, QuotationItem, WorkOrderItem } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
-import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
+import { formatBangkokDate } from '@/lib/timezone'
 import { parseColoredLine } from '@/lib/coloredText'
 import {
   getWorkOrderDetailNoteText,
@@ -12,9 +12,13 @@ import {
   parseWorkOrderDetailBeforeNote,
 } from '@/lib/workOrderItems'
 
-const PACK_CAP_NON_LAST = 80
+const PACK_CAP_NON_LAST = 58
 const PACK_CAP_LAST = 25
-const FRAGMENT_CAP = PACK_CAP_LAST
+const FIRST_FRAGMENT_CAP = 7
+const CONTINUATION_FRAGMENT_CAP = 9
+const MAX_DETAIL_ROWS_FIRST_FRAGMENT = 5
+const MAX_DETAIL_ROWS_CONTINUATION = 7
+const MAX_IMAGES_PER_FRAGMENT = 1
 
 const HEADER_GAP = 12
 const SAFETY = 10
@@ -92,18 +96,22 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): WorkOrderI
     const detailRowChunk: Array<{ desc: string; qty: number | null; unit: string; color?: string }> = []
     const imageChunk: string[] = []
     let weight = 1
+    const fragmentCap = fragmentIndex === 0 ? FIRST_FRAGMENT_CAP : CONTINUATION_FRAGMENT_CAP
+    const maxDetailRows = fragmentIndex === 0 ? MAX_DETAIL_ROWS_FIRST_FRAGMENT : MAX_DETAIL_ROWS_CONTINUATION
 
     while (remainingRows.length > 0) {
       const nextRow = remainingRows[0]
       const nextWeight = nextRow.desc || nextRow.qty != null || nextRow.unit ? 1 : 0.35
-      if (weight + nextWeight > FRAGMENT_CAP && detailRowChunk.length > 0) break
+      if (detailRowChunk.length >= maxDetailRows) break
+      if (weight + nextWeight > fragmentCap && detailRowChunk.length > 0) break
       detailRowChunk.push(remainingRows.shift() as { desc: string; qty: number | null; unit: string })
       weight += nextWeight
     }
 
     while (remainingImages.length > 0) {
       const nextWeight = 3
-      if (weight + nextWeight > FRAGMENT_CAP && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
+      if (imageChunk.length >= MAX_IMAGES_PER_FRAGMENT) break
+      if (weight + nextWeight > fragmentCap && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
       imageChunk.push(remainingImages.shift() as string)
       weight += nextWeight
     }
@@ -301,6 +309,8 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     }
   }, [doc.woNo])
 
+  void settings
+
   
 
   const border = '1px solid #555'
@@ -465,7 +475,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     )
   }
 
-  function renderHeader(currentPage: number) {
+  function renderHeader() {
     const leftInfo = [
       { label: 'PROJECT / โครงการ', value: doc.project },
       { label: 'LOCATION / สถานที่', value: doc.location },
@@ -814,7 +824,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         }}
       >
         <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
-        <div ref={headerMeasRef}>{renderHeader(1)}</div>
+        <div ref={headerMeasRef}>{renderHeader()}</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed', border: borderHeavy }}>
           {renderItemsColGroup()}
           <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
@@ -840,10 +850,11 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '281mm',
+            height: '281mm',
+            overflow: 'hidden',
           }}
         >
-          {renderHeader(pi + 1)}
+          {renderHeader()}
           {renderItemsTable(page)}
           {page.tail && renderBottomSections()}
         </div>
@@ -862,7 +873,8 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
-              minHeight: '281mm',
+              height: '281mm',
+              overflow: 'hidden',
             }}
           >
             {isImage ? (

@@ -595,7 +595,7 @@ export default function WorkOrderDetailPage() {
             </ul>
           </div>
           <div className="mx-auto w-full max-w-[210mm] bg-white">
-            <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} fastPreview />
+            <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} />
           </div>
           <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-semibold text-gray-800">เอกสารอ้างอิงที่ผูกไว้</div>

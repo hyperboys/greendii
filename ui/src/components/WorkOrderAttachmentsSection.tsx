@@ -32,9 +32,9 @@ interface Props {
 }
 
 const CATEGORIES = [
-  { key: 'po',      label: 'PO (Purchase Order)',   accept: '.pdf,.jpg,.jpeg,.png',                           hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
-  { key: 'drawing', label: 'Drawing / แบบ',         accept: '.pdf,.dwg,.dxf,image/*',  hint: 'PDF, รูปภาพ, CAD',      Icon: PenTool         },
-  { key: 'mom',     label: 'Minutes of Meeting',    accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: ClipboardList   },
+  { key: 'po',      label: 'PO (Purchase Order)', accept: '.pdf,.jpg,.jpeg,.png',                           hint: 'PDF, JPG, PNG',         Icon: FileSpreadsheet },
+  { key: 'drawing', label: 'Drawing / แบบ',       accept: '.pdf,.dwg,.dxf,image/*',  hint: 'PDF, รูปภาพ, CAD',      Icon: PenTool         },
+  { key: 'mom',     label: 'Min',                 accept: '.pdf,.doc,.docx,image/*', hint: 'PDF, รูปภาพ, Word',     Icon: ClipboardList   },
   { key: 'other',   label: 'อื่นๆ (Other)',         accept: '.pdf,.doc,.docx,.xls,.xlsx,.zip,.rar,image/*', hint: 'PDF, รูปภาพ, Office, ZIP', Icon: File },
 ] as const
 

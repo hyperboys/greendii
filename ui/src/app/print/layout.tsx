@@ -147,6 +147,28 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
             padding-top: 0 !important;
           }
 
+          .print-sheet.workorder-print {
+            width: 198mm !important;
+            max-width: 198mm !important;
+            margin: 0 auto !important;
+            padding: 0 !important;
+          }
+
+          .print-sheet.workorder-print .workorder-page {
+            box-sizing: border-box !important;
+            width: 198mm !important;
+            height: 281mm !important;
+            overflow: hidden !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+
+          .print-sheet.workorder-print .workorder-page + .workorder-page {
+            margin-top: 10mm !important;
+            border-top: 0 !important;
+            padding-top: 0 !important;
+          }
+
           .pr-linked-workorder-break {
             display: block !important;
             height: 20mm !important;
