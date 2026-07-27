@@ -90,6 +90,43 @@ function normalizeQuotationItem(item) {
   }
 }
 
+function parseDetailRows(raw) {
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      return Array.isArray(parsed) ? parsed : []
+    } catch {
+      return []
+    }
+  }
+  return []
+}
+
+function roundMoney(value) {
+  return Math.round((Number(value) || 0) * 100) / 100
+}
+
+function calcQuotationTotals(items, specialDiscount, includeVat) {
+  const subTotal = roundMoney(
+    items.reduce((sum, item) => {
+      const itemAmount = Number(item?.amount ?? 0) || 0
+      const detailTotal = parseDetailRows(item?.detailRows).reduce((detailSum, row) => {
+        const qty = Number(row?.qty ?? 0) || 0
+        const materialPrice = Number(row?.materialPrice ?? 0) || 0
+        const labourPrice = Number(row?.labourPrice ?? 0) || 0
+        return detailSum + qty * (materialPrice + labourPrice)
+      }, 0)
+      return sum + itemAmount + detailTotal
+    }, 0)
+  )
+  const discount = roundMoney(Number(specialDiscount) || 0)
+  const afterDiscount = roundMoney(subTotal - discount)
+  const vat = includeVat ? roundMoney(afterDiscount * 0.07) : 0
+  const grandTotal = roundMoney(afterDiscount + vat)
+  return { subTotal, specialDiscount: discount, vat, grandTotal }
+}
+
 function stripRevisionSuffix(docNo = '') {
   return String(docNo).replace(/-R\d+$/i, '')
 }
@@ -291,6 +328,16 @@ async function assertQuotationCurrentApprover(req, quotation) {
   }
 }
 
+function assertQuotationDuplicateAllowed(req, quotation) {
+  const actorRole = normalizeRole(req.user.role)
+  const isSalesOwner = actorRole === 'sales' && quotation.salesId === req.user.id
+  if (isSalesOwner) return
+
+  const error = new Error('เฉพาะ Sale เจ้าของใบเสนอราคาเท่านั้นที่ทำสำเนาได้')
+  error.status = 403
+  throw error
+}
+
 // GET /api/quotations
 router.get('/', authenticate, async (req, res, next) => {
   try {
@@ -451,6 +498,53 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
     })
 
     res.status(201).json(revised)
+  } catch (e) { next(e) }
+})
+
+// POST /api/quotations/:id/duplicate
+router.post('/:id/duplicate', authenticate, async (req, res, next) => {
+  try {
+    const source = await prisma.quotation.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: { items: { orderBy: { seq: 'asc' } } },
+    })
+    assertQuotationDuplicateAllowed(req, source)
+
+    const normalizedItems = source.items.map((it) => normalizeQuotationItem(it))
+    const includeVat = Number(source.vat ?? 0) !== 0
+    const totals = calcQuotationTotals(normalizedItems, source.specialDiscount, includeVat)
+
+    const duplicated = await createQuotationWithCounter(req, {
+      salesId: req.user.id,
+      customerId: null,
+      customerName: '',
+      attn: '',
+      project: source.project,
+      address: '',
+      tel: '',
+      customerHp: '',
+      conditionTerm: source.conditionTerm,
+      validityDays: source.validityDays || 30,
+      leadTime: source.leadTime,
+      paymentTerm: source.paymentTerm,
+      subTotal: totals.subTotal,
+      specialDiscount: totals.specialDiscount,
+      vat: totals.vat,
+      grandTotal: totals.grandTotal,
+      remark: source.remark,
+      status: 'draft',
+      active: true,
+      revisionNo: 0,
+      approvalStep: 0,
+      items: {
+        create: normalizedItems.map((it, i) => ({
+          seq: i,
+          ...it,
+        })),
+      },
+    }, INCLUDE_FULL)
+
+    res.status(201).json(duplicated)
   } catch (e) { next(e) }
 })
 

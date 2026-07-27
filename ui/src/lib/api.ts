@@ -268,6 +268,8 @@ export const QuotationsAPI = {
   create: (data: Partial<Quotation>) => http.post<Quotation>('/quotations', data).then(r => r.data),
   update: (id: string, data: Partial<Quotation>) =>
     http.put<Quotation>(`/quotations/${id}`, data).then(r => r.data),
+  duplicate: (id: string) =>
+    http.post<Quotation>(`/quotations/${id}/duplicate`, {}).then(r => r.data),
   revise: (id: string) =>
     http.post<Quotation>(`/quotations/${id}/revise`, {}).then(r => r.data),
   submit: (id: string, comment?: string) =>
@@ -276,7 +278,9 @@ export const QuotationsAPI = {
     http.post<Quotation>(`/quotations/${id}/approve`, { comment }).then(r => r.data),
   reject: (id: string, comment?: string) =>
     http.post<Quotation>(`/quotations/${id}/reject`, { comment }).then(r => r.data),
-  cancel: (id: string) => http.delete(`/quotations/${id}`).then(r => r.data),  pdf: (id: string) => http.get(`/quotations/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),}
+  cancel: (id: string) => http.delete(`/quotations/${id}`).then(r => r.data),
+  pdf: (id: string) => http.get(`/quotations/${id}/pdf`, { responseType: 'blob' }).then(r => r.data as Blob),
+}
 
 // ─── WORK ORDERS ──────────────────────────────────────────────────────────────
 

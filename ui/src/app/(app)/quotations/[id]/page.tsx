@@ -9,7 +9,8 @@ import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { Quotation, Settings } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
-import { ArrowLeft, CheckCircle, Trash2, Pencil, Loader2, Eye, X, Download } from 'lucide-react'
+import { normalizeUserRole } from '@/lib/roleAliases'
+import { ArrowLeft, CheckCircle, Trash2, Pencil, Loader2, Eye, X, Download, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 
@@ -121,6 +122,7 @@ export default function QuotationDetailPage() {
   const canSubmit = isMine && doc.status === 'draft'
   const canCancel = isMine && isEditableApprovalDocStatus(doc.status)
   const canRevise = isMine && doc.status === 'approved' && (doc.active ?? true)
+  const canDuplicate = isMine && normalizeUserRole(user?.role) === 'sales'
 
   const act = async (action: 'submit' | 'approve' | 'reject' | 'cancel') => {
     setActing(true)
@@ -178,6 +180,20 @@ export default function QuotationDetailPage() {
     }
   }
 
+  const duplicateQuotation = async () => {
+    if (acting) return
+    setActing(true)
+    try {
+      const copied = await QuotationsAPI.duplicate(id)
+      toast.success('ทำสำเนาใบเสนอราคาสำเร็จ')
+      router.push(`/quotations/${copied.id}/edit`)
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'ทำสำเนาไม่สำเร็จ')
+    } finally {
+      setActing(false)
+    }
+  }
+
   return (
     <>
     <div className="screen-only w-full max-w-6xl mx-auto px-3 sm:px-4 lg:px-6 space-y-5">
@@ -194,6 +210,11 @@ export default function QuotationDetailPage() {
           <p className="page-sub">{doc.project}</p>
         </div>
         <div className="flex flex-wrap justify-end gap-2">
+          {canDuplicate && (
+            <button className="btn-outline btn-sm" onClick={duplicateQuotation} disabled={acting}>
+              <Copy size={14} /> ทำสำเนา
+            </button>
+          )}
           {canEdit && (
             <button className="btn-outline btn-sm" onClick={() => router.push(`/quotations/${id}/edit`)}>
               <Pencil size={14} /> แก้ไข

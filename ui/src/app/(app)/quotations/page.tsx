@@ -7,7 +7,8 @@ import type { Quotation, DocStatus } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { useSettingsStore } from '@/store/settings'
-import { Plus, Search, RefreshCw } from 'lucide-react'
+import { normalizeUserRole } from '@/lib/roleAliases'
+import { Plus, Search, RefreshCw, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ListPager from '@/components/ListPager'
 
@@ -40,6 +41,7 @@ export default function QuotationsPage() {
   const [sortDir, setSortDir] = useState<SortDir>('desc')
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
+  const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'updatedAt' || key === 'quoNo' ? 'desc' : 'asc')
 
@@ -79,6 +81,21 @@ export default function QuotationsPage() {
   }
 
   const canCreate = hasPerm('quo_create', user?.role ?? '')
+
+  const duplicateQuotation = async (e: React.MouseEvent, quotationId: string) => {
+    e.stopPropagation()
+    if (duplicatingId) return
+    setDuplicatingId(quotationId)
+    try {
+      const copied = await QuotationsAPI.duplicate(quotationId)
+      toast.success('ทำสำเนาใบเสนอราคาสำเร็จ')
+      router.push(`/quotations/${copied.id}/edit`)
+    } catch {
+      toast.error('ทำสำเนาไม่สำเร็จ')
+    } finally {
+      setDuplicatingId(null)
+    }
+  }
 
   return (
     <div>
@@ -161,13 +178,14 @@ export default function QuotationsPage() {
                   วันที่{sortIcon('updatedAt')}
                 </button>
               </th>
+              <th className="text-right">ทำสำเนา</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
+              <tr><td colSpan={8} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
+              <tr><td colSpan={8} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(q => (
               <tr
                 key={q.id}
@@ -182,6 +200,20 @@ export default function QuotationsPage() {
                 <td><span className={STATUS_COLORS[q.status]}>{STATUS_LABELS[q.status]}</span></td>
                 <td className="text-xs text-gray-500">
                   {new Date(q.updatedAt || q.createdAt).toLocaleDateString('en-GB')}
+                </td>
+                <td className="text-right">
+                  {normalizeUserRole(user?.role) === 'sales' && q.salesId === user?.id ? (
+                    <button
+                      type="button"
+                      className="btn-outline btn-sm"
+                      onClick={(e) => duplicateQuotation(e, q.id)}
+                      disabled={duplicatingId === q.id}
+                    >
+                      <Copy size={14} /> {duplicatingId === q.id ? 'กำลังคัดลอก…' : 'ทำสำเนา'}
+                    </button>
+                  ) : (
+                    <span className="text-xs text-gray-400">-</span>
+                  )}
                 </td>
               </tr>
             ))}
