@@ -11,9 +11,15 @@ import { getTokenFromQuery, apiGet, signalPrintReady } from '../../_lib'
 function buildLinkedWorkOrderPreview(workOrder: PurchaseRequest['workOrder']): WorkOrder | null {
   if (!workOrder) return null
 
+  const approvalLogs = (workOrder.approvalLogs || []).map((log) => ({
+    ...log,
+    docType: 'workorder',
+  }))
+
   return {
     ...workOrder,
     items: mapWorkOrderItems(workOrder.items ?? []),
+    approvalLogs,
     quotation: undefined,
     handOverJob: undefined,
     handOverJobs: [],
