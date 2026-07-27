@@ -594,7 +594,7 @@ export default function WorkOrderDetailPage() {
               ))}
             </ul>
           </div>
-          <div className="mx-auto w-full max-w-[210mm] bg-white">
+          <div className="workorder-preview-sheet-wrap mx-auto w-full max-w-[210mm] bg-white">
             <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} />
           </div>
           <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">

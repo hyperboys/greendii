@@ -400,30 +400,58 @@
 
   .quotation-preview-modal .print-sheet.workorder-print {
     display: block !important;
-    width: 198mm;
-    max-width: 198mm;
+    width: 210mm;
+    max-width: 210mm;
     margin: 0 auto;
     background: transparent;
   }
 
+  .quotation-preview-modal .workorder-preview-sheet-wrap {
+    width: 210mm;
+    max-width: 210mm;
+    margin: 0 auto;
+    padding: 0;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
   .quotation-preview-modal .print-sheet.workorder-print .workorder-page {
     box-sizing: border-box;
-    width: 198mm;
-    height: 281mm;
-    overflow: hidden;
+    width: 210mm;
+    height: 297mm !important;
+    padding: 6mm 6mm 10mm;
+    overflow: hidden !important;
     background: #fff;
-    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.22);
+    border: 1px solid #d6dde8;
+    border-radius: 2px;
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
   }
 
   .quotation-preview-modal .print-sheet.workorder-print .workorder-page:last-child {
-    height: 281mm;
-    overflow: hidden;
+    height: 297mm !important;
+    overflow: hidden !important;
   }
 
   .quotation-preview-modal .print-sheet.workorder-print .workorder-page + .workorder-page {
     margin-top: 10mm;
     border-top: 0;
-    padding: 0;
+  }
+
+  /* Preview-only tuning: make Description column text slightly smaller. */
+  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) {
+    font-size: 11.2pt !important;
+  }
+
+  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) div,
+  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) span {
+    font-size: 10.4pt !important;
+  }
+
+  .quotation-preview-modal .quotation-preview-frame {
+    background: radial-gradient(circle at top, #e5e7eb 0%, #dbe2ea 55%, #d5dbe5 100%);
   }
 }
 

@@ -12,7 +12,7 @@ import {
   parseWorkOrderDetailBeforeNote,
 } from '@/lib/workOrderItems'
 
-const PACK_CAP_NON_LAST = 58
+const PACK_CAP_NON_LAST = 55
 const PACK_CAP_LAST = 25
 const FIRST_FRAGMENT_CAP = 7
 const CONTINUATION_FRAGMENT_CAP = 9
@@ -21,8 +21,10 @@ const MAX_DETAIL_ROWS_CONTINUATION = 7
 const MAX_IMAGES_PER_FRAGMENT = 1
 
 const HEADER_GAP = 12
-const SAFETY = 10
-const TAIL_GAP = 10
+const SAFETY = 14
+const TAIL_GAP = 14
+const MEASURE_BUFFER_NON_LAST = 12
+const MEASURE_BUFFER_LAST = 16
 const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
 function splitDescriptionLines(note?: string): string[] {
@@ -373,8 +375,9 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         const theadHeight = theadMeasRef.current?.getBoundingClientRect().height ?? 0
         const tailHeight = tailMeasRef.current?.getBoundingClientRect().height ?? 0
         const heights = renderItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
-        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY
-        const availLast = availNonLast - tailHeight - TAIL_GAP
+        // Add extra buffers because print layout can be slightly taller than screen measurements.
+        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY - MEASURE_BUFFER_NON_LAST
+        const availLast = availNonLast - tailHeight - TAIL_GAP - MEASURE_BUFFER_LAST
 
         if (!pagePx || availNonLast < 20 || (renderItems.length > 0 && heights.every(height => height <= 0))) {
           setPages(paginateItems(renderItems))
