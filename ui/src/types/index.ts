@@ -392,6 +392,40 @@ export interface WorkOrder {
   updatedAt: string
 }
 
+export interface PurchaseRequestLinkedWorkOrder {
+  id: string
+  woNo: string
+  salesId: string
+  sales?: { id: string; fullName: string; role?: string; signatureText?: string }
+  project: string
+  location?: string
+  products?: string
+  responsibility?: string
+  customerName: string
+  contactName?: string
+  contactTel?: string
+  installDate?: string
+  qcDate?: string
+  remark?: string
+  docChecklist: Record<string, boolean>
+  status: DocStatus
+  approvalStep: number
+  isClosed: boolean
+  createdAt: string
+  updatedAt: string
+  items?: WorkOrderItem[]
+  approvalLogs?: Array<{
+    id: string
+    approverId: string
+    approver?: { id: string; fullName: string; role: string; signatureText?: string }
+    step: number
+    action: 'approve' | 'reject' | 'submit'
+    comment?: string
+    actedAt: string
+  }>
+  attachments?: Attachment[]
+}
+
 export interface WorkOrderCloseLog {
   id: string
   userId: string
@@ -537,7 +571,7 @@ export interface PurchaseRequest {
   revisionNo?: number
   rootPurchaseRequestId?: string | null
   workOrderId?: string
-  workOrder?: { id: string; woNo: string }
+  workOrder?: PurchaseRequestLinkedWorkOrder | null
   prTypeId?: string
   prType?: { id: string; name: string; approvalSteps?: ApprovalFlowStages }
   salesId: string

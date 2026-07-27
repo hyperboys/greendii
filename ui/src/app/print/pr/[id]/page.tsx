@@ -8,6 +8,19 @@ import type { PurchaseRequest, Settings, WorkOrder } from '@/types'
 import { mapWorkOrderItems } from '@/lib/workOrderItems'
 import { getTokenFromQuery, apiGet, signalPrintReady } from '../../_lib'
 
+function buildLinkedWorkOrderPreview(workOrder: PurchaseRequest['workOrder']): WorkOrder | null {
+  if (!workOrder) return null
+
+  return {
+    ...workOrder,
+    items: mapWorkOrderItems(workOrder.items ?? []),
+    quotation: undefined,
+    handOverJob: undefined,
+    handOverJobs: [],
+    attachments: [],
+  }
+}
+
 export default function PrintPRPage() {
   const { id } = useParams<{ id: string }>()
   const [doc, setDoc] = useState<PurchaseRequest | null>(null)
@@ -35,33 +48,16 @@ export default function PrintPRPage() {
         setDoc(d)
         setSettings(s)
 
-        const shouldLoadWorkOrderPreview = !isPdfMode && Boolean(d.workOrderId)
-        if (!shouldLoadWorkOrderPreview) {
-          setWorkOrderResolved(true)
-          return
-        }
-
-        try {
-          const wo = await apiGet<WorkOrder>(`/workorders/${d.workOrderId}`, token)
-          const workOrderOnlyDoc: WorkOrder = {
-            ...wo,
-            items: mapWorkOrderItems(wo.items),
-            quotation: undefined,
-            attachments: [],
-          }
-          setWorkOrderDoc(workOrderOnlyDoc)
-        } catch {
-          setWorkOrderDoc(null)
-        } finally {
-          setWorkOrderResolved(true)
-        }
+        const linkedWorkOrder = buildLinkedWorkOrderPreview(d.workOrder)
+        setWorkOrderDoc(linkedWorkOrder)
+        setWorkOrderResolved(true)
       })
       .catch((e) => setError(String(e)))
   }, [id])
 
   useEffect(() => {
     if (!doc) return
-    const shouldWaitWorkOrder = !pdfMode && Boolean(doc.workOrderId)
+    const shouldWaitWorkOrder = Boolean(doc.workOrder)
     if (!shouldWaitWorkOrder) {
       void signalPrintReady()
       return
@@ -77,7 +73,7 @@ export default function PrintPRPage() {
   return (
     <>
       <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} />
-      {!pdfMode && workOrderDoc && (
+      {workOrderDoc && (
         <>
           <div className="pr-linked-workorder-break" aria-hidden />
           <div className="pr-linked-workorder" style={{ pageBreakBefore: 'always', breakBefore: 'page' }}>

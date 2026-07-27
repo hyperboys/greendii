@@ -33,7 +33,36 @@ const prValidators = [
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
   prType: { select: { id: true, name: true, approvalSteps: true } },
-  workOrder: { select: { id: true, woNo: true } },
+  workOrder: {
+    select: {
+      id: true,
+      woNo: true,
+      salesId: true,
+      sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
+      project: true,
+      location: true,
+      products: true,
+      responsibility: true,
+      customerName: true,
+      contactName: true,
+      contactTel: true,
+      installDate: true,
+      qcDate: true,
+      remark: true,
+      docChecklist: true,
+      status: true,
+      approvalStep: true,
+      isClosed: true,
+      createdAt: true,
+      updatedAt: true,
+      items: true,
+      approvalLogs: {
+        include: { approver: { select: { id: true, fullName: true, role: true, signatureText: true } } },
+        orderBy: { actedAt: 'asc' },
+      },
+      attachments: true,
+    },
+  },
   items: { orderBy: { seq: 'asc' } },
   approvalLogs: {
     include: { approver: { select: { id: true, fullName: true, role: true, signatureText: true } } },
@@ -405,19 +434,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
       },
     });
     await assertPrAccessible(req, item);
-    const buffers = [await renderUrlToPdf(url)];
-
-    if (item.workOrderId) {
-      const workOrderUrl = `${uiBase}/print/workorder-email/${item.workOrderId}?token=${encodeURIComponent(token)}&mode=pdf`;
-      try {
-        const workOrderPdf = await renderUrlToPdf(workOrderUrl);
-        buffers.push(workOrderPdf);
-      } catch {
-        // Skip linked WorkOrder PDF if rendering fails.
-      }
-    }
-
-    const mergedMain = await mergePdfBuffers(buffers);
+    const mergedMain = await renderUrlToPdf(url);
     const finalPdf = await appendPrintableAttachments(mergedMain, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
