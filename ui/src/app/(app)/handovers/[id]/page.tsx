@@ -63,8 +63,11 @@ export default function HandoverDetailPage() {
     : (doc.quotation?.items?.length
         ? doc.quotation.items
         : (doc.workOrder?.quotation?.items || []))
-  const handoverFlowSteps = settings?.approvalFlowConfig?.handover?.length
-    ? settings.approvalFlowConfig.handover
+  // An explicit empty array means "no approval steps configured" (auto-approve);
+  // only fall back to the default flow when handover isn't configured at all.
+  const configuredHandoverSteps = settings?.approvalFlowConfig?.handover
+  const handoverFlowSteps = Array.isArray(configuredHandoverSteps)
+    ? configuredHandoverSteps
     : DEFAULT_APPROVAL_FLOW.handover
 
   const actDelete = async () => {

@@ -347,18 +347,23 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
         resumeStep = currentStep;
       }
     }
+    // If no approval steps configured, auto-approve immediately
+    const autoApprove = resumeStep === null;
     const updated = await prisma.handOverJob.update({
       where: { id: req.params.id },
-      data: { status: 'pending', approvalStep: resumeStep },
+      data: { status: autoApprove ? 'approved' : 'pending', approvalStep: resumeStep ?? 0 },
     });
     await prisma.approvalLog.create({
       data: {
         docType: 'handover', handOverJobId: ho.id,
         approverId: req.user.id, step: 0,
-        action: 'submit', comment: req.body.comment || 'ส่งเข้าอนุมัติ',
+        action: autoApprove ? 'approve' : 'submit',
+        comment: req.body.comment || (autoApprove ? 'อนุมัติอัตโนมัติ' : 'ส่งเข้าอนุมัติ'),
       },
     });
-    await notifyStep(resumeStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+    if (!autoApprove) {
+      await notifyStep(resumeStep, `ใบส่งมอบงาน ${ho.hoNo} รอการอนุมัติจากคุณ`, { excludeUserId: req.user.id }).catch(() => {});
+    }
     res.json(updated);
   } catch (e) { next(e); }
 });
