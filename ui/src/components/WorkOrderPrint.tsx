@@ -145,25 +145,6 @@ interface PageChunk {
   tail: boolean
 }
 
-function moveTrailingToTail<T>(pages: T[][], getSize: (item: T) => number, cap: number): T[] {
-  const tail: T[] = []
-  let used = 0
-
-  for (let pageIdx = pages.length - 1; pageIdx >= 0; pageIdx -= 1) {
-    const page = pages[pageIdx]
-    while (page.length > 0) {
-      const candidate = page[page.length - 1]
-      const size = getSize(candidate)
-      if (used + size > cap) return tail
-      page.pop()
-      tail.unshift(candidate)
-      used += size
-    }
-  }
-
-  return tail
-}
-
 function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
   if (items.length === 0) {
     return [{ items: [], isLast: true, tail: true }]
@@ -199,17 +180,20 @@ function paginateItems(items: WorkOrderItemFragment[]): PageChunk[] {
     return pages
   }
 
-  const mutablePages = rawPages.map((page) => [...page])
-  const tailItems = moveTrailingToTail(mutablePages, itemWeight, PACK_CAP_LAST)
-  const remainingPages = mutablePages.filter((page) => page.length > 0)
-  const pages = remainingPages.map((pageItems) => ({
-    items: pageItems,
+  const pages = rawPages.map((pageItems) => ({
+    items: [...pageItems],
     isLast: false,
     tail: false,
   }))
+  const lastPage = pages[pages.length - 1]
+  const finalItem = lastPage.items[lastPage.items.length - 1]
 
-  if (tailItems.length > 0) {
-    pages.push({ items: tailItems, isLast: true, tail: true })
+  // Keep the current items page filled to its normal capacity. Only the final
+  // trailing item moves with the footer when it fits there; otherwise the
+  // footer receives its own final page.
+  if (finalItem && itemWeight(finalItem) <= PACK_CAP_LAST) {
+    lastPage.items.pop()
+    pages.push({ items: [finalItem], isLast: true, tail: true })
   } else {
     pages.push({ items: [], isLast: true, tail: true })
   }
@@ -258,18 +242,20 @@ function packByHeight(items: WorkOrderItemFragment[], heights: number[], availNo
     return pages
   }
 
-  const mutablePages = rawPages.map((page) => [...page])
-  const tailEntries = moveTrailingToTail(mutablePages, (entry) => entry.height, availLast)
-  const remainingEntries = mutablePages.flat()
-  const remainingPages = packEntries(remainingEntries, availNonLast)
-  const pages = remainingPages.map((pageItems) => ({
+  const pages = rawPages.map((pageItems) => ({
     items: pageItems.map(entry => entry.item),
     isLast: false,
     tail: false,
   }))
+  const lastEntries = [...rawPages[rawPages.length - 1]]
+  const finalEntry = lastEntries[lastEntries.length - 1]
 
-  if (tailEntries.length > 0) {
-    pages.push({ items: tailEntries.map(entry => entry.item), isLast: true, tail: true })
+  // The preceding page already fits the full item area. Move only its final
+  // row to the footer page, which uses otherwise unused space above the tail.
+  if (finalEntry && finalEntry.height <= availLast) {
+    lastEntries.pop()
+    pages[pages.length - 1].items = lastEntries.map(entry => entry.item)
+    pages.push({ items: [finalEntry.item], isLast: true, tail: true })
   } else {
     pages.push({ items: [], isLast: true, tail: true })
   }
