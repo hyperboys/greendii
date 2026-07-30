@@ -55,10 +55,13 @@ function itemWeight(fragment: HandoverItemFragment): number {
   return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
 }
 
-type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'qty' | 'unit' | 'images'>
+type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'remark' | 'qty' | 'unit' | 'images'>
 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
-  const noteLines = splitDescriptionLines(item.note)
+  const noteLines = [
+    ...splitDescriptionLines(item.note),
+    ...splitDescriptionLines(item.remark).map((line, index) => index === 0 ? `หมายเหตุ: ${line}` : line),
+  ]
   const remainingLines = [...noteLines]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: HandoverItemFragment[] = []

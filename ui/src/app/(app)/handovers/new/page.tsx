@@ -9,7 +9,7 @@ import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 
-const createEmptyItem = (seq: number): HandOverItem => ({ seq, desc: '', note: '', qty: 1, unit: '', images: [] })
+const createEmptyItem = (seq: number): HandOverItem => ({ seq, desc: '', note: '', remark: '', qty: 1, unit: '', images: [] })
 const DEFAULT_RESPONSIBILITY = 'K.Sarayut'
 const parseDescLines = (note?: string): string[] => {
   const lines = (note ?? '').split('\n')
@@ -63,6 +63,7 @@ export default function NewHandoverPage() {
             seq: item.seq ?? index,
         desc: toPlainColoredLine(item.desc),
         note: toPlainColoredMultiline(item.note),
+            remark: '',
             qty: Number(item.qty ?? 0),
             unit: item.unit ?? '',
             images: Array.isArray(item.images) ? item.images : [],
@@ -161,6 +162,7 @@ export default function NewHandoverPage() {
         seq: index,
         desc: String(item.desc ?? '').trim(),
         note: String(item.note ?? ''),
+        remark: String(item.remark ?? ''),
         qty: Number(item.qty ?? 0),
         unit: String(item.unit ?? '').trim(),
         images: Array.isArray(item.images) ? item.images : [],
@@ -295,6 +297,12 @@ export default function NewHandoverPage() {
                           <Plus size={12} /> เพิ่มบรรทัด
                         </button>
                       </div>
+                      <textarea
+                        className="form-input mt-2 min-h-18 w-full py-1.5 text-xs text-gray-700"
+                        value={item.remark ?? ''}
+                        onChange={e => setItemField(i, 'remark', e.target.value)}
+                        placeholder="หมายเหตุเพิ่มเติม (ไม่บังคับ)"
+                      />
                       <div className="mt-2">
                         {item.images && item.images.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 mb-1.5">

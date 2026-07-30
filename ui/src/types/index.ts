@@ -544,6 +544,7 @@ export interface HandOverItem {
   seq?: number
   desc: string
   note?: string
+  remark?: string
   qty: number
   unit: string
   images?: string[]
