@@ -135,12 +135,12 @@ export default function WorkOrderDetailPage() {
       ? approvedPoAttachRolesRaw
       : DEFAULT_WO_APPROVED_PO_ATTACH_ROLES
   ).map(role => normalizeUserRole(String(role)))
-  const canUploadPoAfterApproved = doc.status === 'approved'
+  const canManageAttachmentsAfterApproved = doc.status === 'approved'
     && approvedPoAttachRoles.includes(normalizeUserRole(user?.role))
-  const canManageAttachmentsInCurrentState = canManageAttachments || canUploadPoAfterApproved
+  const canManageAttachmentsInCurrentState = canManageAttachments || canManageAttachmentsAfterApproved
   const editableAttachmentCategories: Array<'other' | 'drawing' | 'mom' | 'po'> | undefined = canManageAttachments
     ? undefined
-    : (canUploadPoAfterApproved ? ['po'] : [])
+    : (canManageAttachmentsAfterApproved ? undefined : [])
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
   const closeAccessRaw = settings?.approvalFlowConfig?.[WO_CLOSE_ACCESS_KEY]
   const closeAccessRoles = Array.isArray((closeAccessRaw as { roles?: unknown })?.roles)
@@ -370,7 +370,7 @@ export default function WorkOrderDetailPage() {
         docId={id}
         onRefresh={load}
         readOnly={!canManageAttachmentsInCurrentState}
-        readOnlyMessage={canUploadPoAfterApproved ? 'แนบเพิ่มได้เฉพาะ PO ตามสิทธิ์ role ที่ตั้งค่าไว้' : undefined}
+        readOnlyMessage={canManageAttachmentsAfterApproved ? 'แนบและลบเอกสารได้ตามสิทธิ์ role ที่ตั้งค่าไว้' : undefined}
         allowedCategories={editableAttachmentCategories}
         poAmount={poAmount}
         onPoAmountChange={setPoAmount}

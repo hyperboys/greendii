@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef, useState } from 'react'
-import { UploadAPI } from '@/lib/api'
+import { useEffect, useRef, useState } from 'react'
+import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import { APPROVAL_ATTACHMENT_LOCK_MESSAGE } from '@/lib/approvalFlowRules'
 import { decodeDisplayFileName } from '@/lib/filename'
 import type { Attachment } from '@/types'
@@ -12,6 +12,14 @@ export interface PendingAttachment {
   id: string
   category: string
   file: File
+}
+
+interface DeleteDialogState {
+  id: string
+  displayName: string
+  isPending: boolean
+  downloadUrl: string
+  hasDownloaded: boolean
 }
 
 interface Props {
@@ -86,6 +94,7 @@ function formatPoAmountInput(value: string, forceTwoDecimals = false) {
 }
 
 let pendingSeq = 0
+const DELETE_COMMIT_DELAY_MS = 5000
 
 export default function AttachmentsSection({
   attachments = [],
@@ -101,13 +110,22 @@ export default function AttachmentsSection({
   onPoAmountChange,
 }: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
+  const deleteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const [uploading, setUploading] = useState<CategoryKey | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null)
+  const [stagedDeleteIds, setStagedDeleteIds] = useState<string[]>([])
 
   const deferred = !docId
   const isCategoryAllowed = (key: CategoryKey) => !allowedCategories || allowedCategories.includes(key)
   const parsedPoAmount = Number(String(poAmount || '').replace(/,/g, '').trim())
   const isPoAmountValid = Number.isFinite(parsedPoAmount) && parsedPoAmount > 0
+
+  useEffect(() => {
+    return () => {
+      Object.values(deleteTimersRef.current).forEach(clearTimeout)
+    }
+  }, [])
 
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return
@@ -147,24 +165,95 @@ export default function AttachmentsSection({
     }
   }
 
-  const handleDelete = async (id: string) => {
+  const requestDelete = (id: string) => {
     if (readOnly) return
     const target = attachments.find(a => a.id === id)
+    const pendingTarget = pending.find(p => p.id === id)
     if (target && !isCategoryAllowed(target.category as CategoryKey)) return
-    if (deferred) {
-      onPendingChange?.(pending.filter(p => p.id !== id))
-      return
-    }
-    setDeleting(id)
-    try {
-      await UploadAPI.delete(id)
-      toast.success('ลบไฟล์สำเร็จ')
-      onRefresh?.()
-    } catch {
-      toast.error('ลบไม่สำเร็จ')
-    } finally {
-      setDeleting(null)
-    }
+    const displayName = target
+      ? decodeDisplayFileName(target.originalName || target.filename)
+      : (pendingTarget?.file?.name || '')
+    const downloadUrl = target ? resolveFileUrl(target.fileUrl || (target.filename ? `/uploads/${target.filename}` : '')) : ''
+    setDeleteDialog({
+      id,
+      displayName,
+      isPending: Boolean(pendingTarget),
+      downloadUrl,
+      hasDownloaded: Boolean(pendingTarget),
+    })
+  }
+
+  const handleDialogDownload = () => {
+    if (!deleteDialog?.downloadUrl) return
+    const link = document.createElement('a')
+    link.href = deleteDialog.downloadUrl
+    link.download = deleteDialog.displayName || 'attachment'
+    link.target = '_blank'
+    link.rel = 'noopener noreferrer'
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    setDeleteDialog(prev => (prev ? { ...prev, hasDownloaded: true } : prev))
+  }
+
+  const handleDeleteConfirmed = async () => {
+    if (!deleteDialog) return
+    if (readOnly) return
+    const { id, isPending, displayName } = deleteDialog
+    setDeleteDialog(null)
+    setStagedDeleteIds(prev => (prev.includes(id) ? prev : [...prev, id]))
+
+    const toastId = toast((toastInstance) => (
+      <div className="flex items-center gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-gray-900">ย้ายไฟล์ออกจากรายการชั่วคราว</p>
+          <p className="text-xs text-gray-500 truncate">
+            {displayName || 'ไฟล์นี้'} จะถูกลบถาวรในอีก {DELETE_COMMIT_DELAY_MS / 1000} วินาที
+          </p>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
+          onClick={() => {
+            const timer = deleteTimersRef.current[id]
+            if (timer) {
+              clearTimeout(timer)
+              delete deleteTimersRef.current[id]
+            }
+            setStagedDeleteIds(prev => prev.filter(item => item !== id))
+            toast.dismiss(toastInstance.id)
+            toast.success('คืนค่าไฟล์กลับมาแล้ว')
+          }}
+        >
+          Undo
+        </button>
+      </div>
+    ), { duration: DELETE_COMMIT_DELAY_MS })
+
+    deleteTimersRef.current[id] = setTimeout(async () => {
+      delete deleteTimersRef.current[id]
+      if (isPending || deferred) {
+        onPendingChange?.(pending.filter(p => p.id !== id))
+        setStagedDeleteIds(prev => prev.filter(item => item !== id))
+        toast.dismiss(toastId)
+        toast.success('ลบไฟล์สำเร็จ')
+        return
+      }
+
+      setDeleting(id)
+      try {
+        await UploadAPI.delete(id)
+        toast.dismiss(toastId)
+        toast.success('ลบไฟล์สำเร็จ')
+        onRefresh?.()
+      } catch {
+        toast.dismiss(toastId)
+        toast.error('ลบไม่สำเร็จ')
+        setStagedDeleteIds(prev => prev.filter(item => item !== id))
+      } finally {
+        setDeleting(null)
+      }
+    }, DELETE_COMMIT_DELAY_MS)
   }
 
   return (
@@ -191,8 +280,8 @@ export default function AttachmentsSection({
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
         {CATEGORIES.map(({ key, label, accept, hint, Icon }) => {
-          const savedFiles = attachments.filter(a => a.category === key)
-          const pendingFiles = pending.filter(p => p.category === key)
+          const savedFiles = attachments.filter(a => a.category === key && !stagedDeleteIds.includes(a.id))
+          const pendingFiles = pending.filter(p => p.category === key && !stagedDeleteIds.includes(p.id))
           const isUploading = uploading === key
           const categoryLocked = !isCategoryAllowed(key)
 
@@ -292,7 +381,7 @@ export default function AttachmentsSection({
                         <button
                           type="button"
                           className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                          onClick={() => handleDelete(att.id)}
+                          onClick={() => requestDelete(att.id)}
                           disabled={deleting === att.id}
                         >
                           <Trash2 size={13} />
@@ -317,7 +406,7 @@ export default function AttachmentsSection({
                         <button
                           type="button"
                           className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500 transition-colors shrink-0"
-                          onClick={() => handleDelete(p.id)}
+                          onClick={() => requestDelete(p.id)}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -330,6 +419,54 @@ export default function AttachmentsSection({
           )
         })}
       </div>
+
+      {deleteDialog && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 px-4" role="dialog" aria-modal="true" aria-label="ยืนยันการลบไฟล์แนบ">
+          <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl ring-1 ring-black/5 overflow-hidden">
+            <div className="px-5 py-4 border-b border-gray-100">
+              <h4 className="text-base font-semibold text-gray-900">ยืนยันการลบเอกสารแนบ</h4>
+              <p className="mt-1 text-sm text-gray-500">
+                คุณกำลังจะลบไฟล์
+                {deleteDialog.displayName ? ` "${deleteDialog.displayName}"` : ' นี้'}
+              </p>
+            </div>
+            <div className="px-5 py-4 bg-gray-50/80 text-sm text-gray-600 space-y-3">
+              <p>หากลบแล้วจะไม่สามารถเรียกคืนไฟล์เดิมได้</p>
+              {!deleteDialog.isPending && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3">
+                  <p className="text-sm font-medium text-amber-900">ต้องดาวน์โหลดไฟล์ก่อนจึงจะลบได้</p>
+                  <p className="mt-1 text-xs text-amber-700">กดดาวน์โหลดเพื่อตรวจสอบไฟล์และปลดล็อกปุ่มลบ</p>
+                  <button
+                    type="button"
+                    className="mt-3 rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-medium text-amber-900 hover:bg-amber-100"
+                    onClick={handleDialogDownload}
+                  >
+                    {deleteDialog.hasDownloaded ? 'ดาวน์โหลดอีกครั้ง' : 'ดาวน์โหลดไฟล์นี้ก่อน'}
+                  </button>
+                </div>
+              )}
+            </div>
+            <div className="px-5 py-4 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                onClick={() => setDeleteDialog(null)}
+                disabled={deleting === deleteDialog.id}
+              >
+                ยกเลิก
+              </button>
+              <button
+                type="button"
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={handleDeleteConfirmed}
+                disabled={deleting === deleteDialog.id || (!deleteDialog.isPending && !deleteDialog.hasDownloaded)}
+              >
+                {deleting === deleteDialog.id ? 'กำลังลบ...' : 'ลบไฟล์'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

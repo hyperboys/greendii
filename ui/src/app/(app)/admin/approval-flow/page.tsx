@@ -515,9 +515,9 @@ export default function ApprovalFlowPage() {
         </div>
 
         <div className="card p-5">
-          <h3 className="font-semibold text-gray-800 mb-1">สิทธิ์แนบ PO หลัง Work Order อนุมัติ</h3>
+          <h3 className="font-semibold text-gray-800 mb-1">สิทธิ์จัดการเอกสารหลัง Work Order อนุมัติ</h3>
           <p className="text-xs text-gray-500 mb-4">
-            เลือก Role ที่สามารถแนบเอกสารหมวด PO ได้ แม้เอกสารจะอยู่สถานะ approved แล้ว
+            เลือก Role ที่สามารถแนบและลบเอกสารทุกหมวดได้ แม้เอกสารจะอยู่สถานะ approved แล้ว
           </p>
           <div className="max-h-56 overflow-y-auto rounded-lg border border-gray-200 p-2 space-y-1">
             {allRoles.map(role => {

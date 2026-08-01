@@ -106,10 +106,9 @@ async function getApprovedWorkOrderPoAttachRoles() {
   return DEFAULT_WO_APPROVED_PO_ATTACH_ROLES;
 }
 
-async function canAttachApprovedWorkOrderPo(req, workOrder, category) {
+async function canManageApprovedWorkOrderAttachments(req, workOrder) {
   if (!workOrder) return false;
   if (workOrder.status !== 'approved') return false;
-  if (normalizeAttachmentCategory(category) !== 'po') return false;
 
   const allowedRoles = await getApprovedWorkOrderPoAttachRoles();
   const actorRole = normalizeRole(req.user.role);
@@ -128,9 +127,9 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
     throw error;
   }
 
-  // Exception: after WO is approved, configured roles may attach/delete only PO
-  // attachments across documents, even when they are not the owner.
-  if (await canAttachApprovedWorkOrderPo(req, workOrder, category)) return;
+  // Exception: after WO is approved, configured roles may manage attachments
+  // across document categories, even when they are not the owner.
+  if (await canManageApprovedWorkOrderAttachments(req, workOrder)) return;
 
   assertDocAccessible(req, workOrder);
   if (isEditableApprovalDocStatus(workOrder.status)) return;
