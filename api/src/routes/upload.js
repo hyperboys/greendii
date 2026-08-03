@@ -61,7 +61,7 @@ function normalizeAttachmentCategory(category) {
 }
 
 function normalizeOriginalFileName(name) {
-  const raw = String(name || '').trim();
+  const raw = sanitizeEscapedUnicode(String(name || '')).trim();
   if (!raw) return 'attachment';
 
   const hasThai = /[\u0E00-\u0E7F]/.test(raw);
@@ -80,6 +80,15 @@ function normalizeOriginalFileName(name) {
   }
 
   return raw;
+}
+
+function sanitizeEscapedUnicode(input) {
+  if (!input) return '';
+  const unescaped = String(input)
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/[\u00A0\u2007\u202F]/g, ' ');
+  return unescaped.replace(/[\u0000-\u001F\u007F]/g, '').trim();
 }
 
 function parsePoAmount(value) {

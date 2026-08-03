@@ -1,0 +1,2918 @@
+{
+  "createdAt": "2026-08-03T17:01:30.729Z",
+  "type": "workorder-items-cleanup-backup",
+  "totalScanned": 82,
+  "changedCount": 26,
+  "rows": [
+    {
+      "id": "cmsd5g7qy0iomb2exb0d28j2x",
+      "woNo": "WO26557",
+      "items": [
+        {
+          "qty": 90,
+          "seq": 0,
+          "desc": "Repair forbo conductive tile on raise floor",
+          "note": "Forbo Conductive floor tile\n-  Size 615 x 615mm. Thick 2mm. / Cutting size 600 x 600 mm.\n- Color : Evereat\n- Total 240 pcs",
+          "unit": "sqm.",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Forbo Conductive floor tile",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "-  Size 615 x 615mm. Thick 2mm. / Cutting size 600 x 600 mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Color : Evereat",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Total 240 pcs",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 240,
+          "seq": 1,
+          "desc": "Material and labor cost to repair top tile (Solid type)",
+          "note": "Scope of work\n- Remove existing forbo tile on raise floor\n- Install New conductive tile on raise floor\n- Cleanning\n- Resistance test PTG, PTP",
+          "unit": "pcs",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Scope of work",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Remove existing forbo tile on raise floor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Install New conductive tile on raise floor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Cleanning",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Resistance test PTG, PTP",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 2,
+          "seq": 2,
+          "desc": "Material loading raise floor @240pcs.",
+          "note": "- Remove raise floor from WDB to GD\n- Remove raise floor from GD to WDB",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Remove raise floor from WDB to GD",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Remove raise floor from GD to WDB",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nMaterial transfer\nTransportation",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cms73sknq0bjro3qeanug5s9y",
+      "woNo": "WO26546",
+      "items": [
+        {
+          "qty": 18,
+          "seq": 0,
+          "desc": "Conductive floor tile",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- \\\"GreenFloor\\\"  Model GS-601\\n- Size : 610 x 610 x 2mm\\n- Total 50 pcs\"]}",
+          "unit": "sqm",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Remove existing tile @ 50 pcs.",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"(Garbage disposal fee is not included)\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Installation conductive tile @ 50 pcs.",
+          "note": "- Surface scrubbing and clean\n- Apply ESD adhesive\n- Apply copper tape 1.8x1.8m.\n- Install conductive tile and welding finishing\n- Test point to point\n- Test point to ground\n- Test report",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Surface scrubbing and clean",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Apply ESD adhesive",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Apply copper tape 1.8x1.8m.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Install conductive tile and welding finishing",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Test point to point",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Test point to ground",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Test report",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 100,
+          "seq": 3,
+          "desc": "Repair welding rod @ 100m.",
+          "note": "- Take off exsiting welding rod\n- Install new welding finishing",
+          "unit": "m",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Take off exsiting welding rod",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Install new welding finishing",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 4,
+          "desc": "Indirect cost",
+          "note": "Site expenses\nTransportation and material transfer",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Site expenses",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation and material transfer",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cms92drqc0bc7ad9hur8s493k",
+      "woNo": "WO26552",
+      "items": [
+        {
+          "qty": 3,
+          "seq": 0,
+          "desc": "\"G-TEK\" Auto double slide door system with frame",
+          "note": "Safety sensor 400 mm. and 700 mm.\nMotion sensor (IN)\nMotion sensor (OUT)\nAluminum double slide door 1,800 x 2,200mm (WxH)\n- Door Size : 950 x 2,235mm (WxH)  (2 pcs/set)\n- Stainless with temper clear glass 6mm.\nDoor frame  (SUS 100 mm.)\nDoor Key \"MIWA\"\nDoor guide\nAccessories (Puk, Screw, Sealant, etc.,)\nInstallation work",
+          "unit": "sets",
+          "images": [
+            "https://files.greendii.app/1785509599152-877854372.png"
+          ],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Safety sensor 400 mm. and 700 mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Motion sensor (IN)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Motion sensor (OUT)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Aluminum double slide door 1,800 x 2,200mm (WxH)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door Size : 950 x 2,235mm (WxH)  (2 pcs/set)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless with temper clear glass 6mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door frame  (SUS 100 mm.)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door Key \"MIWA\"",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door guide",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accessories (Puk, Screw, Sealant, etc.,)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Installation work",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Site expense\nMaterial transfer\nTransportation\n**EXCLUDE* Temporary partition , Main Power , and Wall Opening \"By CLIENT\"",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**EXCLUDE* Temporary partition , Main Power , and Wall Opening \"By CLIENT\"",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmscvktv60c3db2exb7pt2hgw",
+      "woNo": "WO26554",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Service  Garment Stocker on-44",
+          "note": "Change PLC of  Garment Stocker on-44\n- PLC \"Mitsubishi\"\n- Power supply 220VAC / 24VDC\n- CB10Amp\n- Relay \"Omron\" with socket\n- Wiring control\n- Programmable controller\n- Tower Lamp G/Y/R\n- Accessories to support\n- Labor cost to improve",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Change PLC of  Garment Stocker on-44",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- PLC \"Mitsubishi\"",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Power supply 220VAC / 24VDC",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- CB10Amp",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Relay \"Omron\" with socket",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wiring control",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Programmable controller",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Tower Lamp G/Y/R",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor cost to improve",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nAccommodation\nMaterial transfer\nTransportation\nExclude : Temporary partition and Electrical work",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accommodation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude : Temporary partition and Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmscwhidn0db3b2ex3tmvqjq3",
+      "woNo": "WO26555",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Service  Garment Stocker on-31",
+          "note": "Change PLC of  Garment Stocker on-31\n- PLC \"Mitsubishi\"\n- Power supply 220VAC / 24VDC\n- CB10Amp\n- Relay \"Omron\" with socket\n- Wiring control\n- Programmable controller\n- Tower Lamp G/Y/R\n- Accessories to support\n- Labor cost to improve",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Change PLC of  Garment Stocker on-31",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- PLC \"Mitsubishi\"",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Power supply 220VAC / 24VDC",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- CB10Amp",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Relay \"Omron\" with socket",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wiring control",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Programmable controller",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Tower Lamp G/Y/R",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor cost to improve",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Indirect cost\nForeman follow up\nSite expense\nAccommodation\nMaterial transfer\nTransportation\nExclude :  Temporary partition and Main Electrical",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Indirect cost",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accommodation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude :  Temporary partition and Main Electrical",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cms2ntygv0k411205eicbezjp",
+      "woNo": "WO26540",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "NEW Auto Swing สำหรับประตู ขาเข้า AS",
+          "note": "Exclude :\n- Temporary partition\n- Wall opening\n- Electrical work\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\" - Safety sensor\\n - No touch switch\\n - Door : Single slide door W1,200 x H2,000mm. \\n    Aluminum composite half temper  glass 6mm.\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Exclude :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wall opening",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrvohcaq0545elfchmj3auqf",
+      "woNo": "WO26531",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Relocate Air shower and modify door",
+          "note": "- Take off existing AS 2 module\n- Reinstall AS 2 module at new area and commissioning\n- Stainless sheet 1.5mm. (Floor area)\n- Finishing work\n- Accessories (puk, screws, sealant)",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Take off existing AS 2 module",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Reinstall AS 2 module at new area and commissioning",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless sheet 1.5mm. (Floor area)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Finishing work",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories (puk, screws, sealant)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Modifyประตูขาเข้า AS :\"G-TEK\" Auto single slide door (Use existing)",
+          "note": "- Safety sensor (Use existing)\n- No touch switch (Use existing)\n- Door : Single slide door W1,200 x H2,000mm.     Aluminum composite half temper  glass 6mm.\n- Door guide",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Safety sensor (Use existing)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- No touch switch (Use existing)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door : Single slide door W1,200 x H2,000mm.     Aluminum composite half temper  glass 6mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door guide",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Additional : Close wall",
+          "note": "- PIP panel size:W2,000 x H1,000mm. @ 2 set\n- Aluminum and accessories  support\n- Labor to install",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- PIP panel size:W2,000 x H1,000mm. @ 2 set",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Aluminum and accessories  support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to install",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Additional  : Close wall",
+          "note": "Open and Install Service Door Size : 800 X 700mm.",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Open and Install Service Door Size : 800 X 700mm.",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 4,
+          "desc": "New : \"G-TEK\" Auto single slide door",
+          "note": "- Safety sensor\n- No touch switch\n- Door : Single slide door W1,200 x H2,000mm.Aluminum composite half temper  glass 6mm.\n- Door guide\nRepair door frame of Air shower\nAccessories (Puk, Screw, Sealant, etc.,)\nLabor to install double slide door",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Safety sensor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- No touch switch",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door : Single slide door W1,200 x H2,000mm.Aluminum composite half temper  glass 6mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door guide",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Repair door frame of Air shower",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accessories (Puk, Screw, Sealant, etc.,)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Labor to install double slide door",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 5,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nAccommodation\nMaterial transfer\nTransportation\nExclude : Electrical work",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accommodation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude : Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cms76jru40dxwo3qehj1qyleh",
+      "woNo": "WO26547",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "\"G-TEK\" Auto Single Slide Door  1,500 x 2,100mm",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Motion sensor In-Out\\nWireless touch switch\\nSelector switch\\nSafety sensor \\nAluminum Single slide door\\nDoor frame Size W1,500x H2,100mm  \\nClean panel with temper glass 6mm.\\nDoor frame\\nDoor guide\\nAccessories\\nInstallation\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "\"G-TEK\" Auto Double Slide Door  1,800 x 2,100mm.",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Motion sensor In-Out\\nWireless touch switch\\nSelector swithch\\nSafety sensor \\nAluminum double slide door\\nDoor frame Size W1,800x H2,100mm  \\nClean panel with temper glass 6mm.\\nDoor frame\\nDoor guide\\nAccessories\\nInstallation\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Steel Emergency single swing door",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Door frame Size W900x H2,100mm  \\nSteel with temper glass 6mm.\\nStainless hinge \\nDoor closer \\\"NewStar\\\" P182\\nSteel door frame\\nPanic bar \\\"Glory\\\"\\nAccessories (Screw, Puk, Selant, etc.,)\\nInstallation\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Indirect cost",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Site expense\\nMaterial transfer \\nTransportation\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cms31k0bw0qxl12054f2arrg7",
+      "woNo": "WO26520-R1",
+      "items": [
+        {
+          "qty": 0,
+          "seq": 0,
+          "desc": "Relocate  auto single slide door",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Take off Auto single slide door\\n- Install auto single slide door at new area\\n- Accessories (Sealant, screw, rivet, etc)\"]}",
+          "unit": "",
+          "images": [
+            "https://files.greendii.app/1784684826954-24918319.jpg",
+            "https://files.greendii.app/1784684839825-900841351.jpg"
+          ],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Relocate install manual single slide door",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Install manual slide door (Use existing door)\\n- Accessories (Sealant, screw, rivet, etc.)\\n- Labor to service\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 3,
+          "seq": 2,
+          "desc": "Aluminum frame (Color : White) @ 3 m",
+          "note": "",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Indirect cost",
+          "note": "Exclude :\n- Temporary partition\n- Electrical work\n- Wall opening\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Foreman follow up\\nSite expense\\nMaterial transfer \\nTransportation\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Exclude :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Electrical work",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wall opening",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cms2nnezt0jye1205pyottvwt",
+      "woNo": "WO26539",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "\"G-TEK\" AS 1,400-1 [EG]",
+          "note": "Ext. Dim : 1,400 x 1,000 x 2,100mm (W x D x H)\nInt. Dim : 800 x 900 x 1,960mm (W x D x H)\nExt. structure : Electro-galvanized steel sheet\nFinishing : Powder coating\nInt. structure :  Electro-galvanized steel sheet\nSystem activity : Magnet switch\nJet side : 2 side blow\nAir velocity : >25 m/s./500.64 ACH.\nBlower : EBM 2 pcs.\nHepa filterFilter : Hepa Eff.99.95% (H13) 2 pcs.\nNozzle: Stainless steel 16 pcs.\nDoor : Aluminum tempered glass Thk 5.0mm.,\n\"G-Tek\" manual single swing door  2 sets.\nController : PLC (Programmable Logic Controllers) -Mitsubishi\n: Display touch screen\nSystem Interlock : Interlock program\nLighting : 15W LED light-circle type   1 set.\nElectrical Power : 1 Phase -220V/50Hz. (10A)\nOpening dimension : 1,420 (W) x 2,120(H)\nInstallation  (Include)",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Ext. Dim : 1,400 x 1,000 x 2,100mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. Dim : 800 x 900 x 1,960mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Ext. structure : Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Finishing : Powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. structure :  Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System activity : Magnet switch",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Jet side : 2 side blow",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Air velocity : >25 m/s./500.64 ACH.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Blower : EBM 2 pcs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Hepa filterFilter : Hepa Eff.99.95% (H13) 2 pcs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Nozzle: Stainless steel 16 pcs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door : Aluminum tempered glass Thk 5.0mm.,",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "\"G-Tek\" manual single swing door  2 sets.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Controller : PLC (Programmable Logic Controllers) -Mitsubishi",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": ": Display touch screen",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System Interlock : Interlock program",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Lighting : 15W LED light-circle type   1 set.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Electrical Power : 1 Phase -220V/50Hz. (10A)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Opening dimension : 1,420 (W) x 2,120(H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Installation  (Include)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "\"G-TEK\" AL 1,300-1 [EG]",
+          "note": "Ext. Dim : 1,300 x 1,000 x 2,100mm (W x D x H)\nInt. Dim : 900 x 900 x 2,000mm (W x D x H)\nExt. structure : Electro-galvanized steel sheet\nFinishing : Powder coating\nInt. structure :  Electro-galvanized steel sheet\nSystem activity : Magnet switch\nDoor : Aluminum tempered glass Thk 5.0mm.,\n\"G-Tek\" manual single swing door  2 sets.\nController : Programmable Logic Controllers board\nSystem Interlock : Interlock program\nLighting : 15W LED light-circle type   1 set.\nElectrical Power : 1 Phase -220V/50Hz. (5A)\nOpening dimension : 1,320 (W) x 2,120(H)\nInstallation  (Include)",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Ext. Dim : 1,300 x 1,000 x 2,100mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. Dim : 900 x 900 x 2,000mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Ext. structure : Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Finishing : Powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. structure :  Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System activity : Magnet switch",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door : Aluminum tempered glass Thk 5.0mm.,",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "\"G-Tek\" manual single swing door  2 sets.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Controller : Programmable Logic Controllers board",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System Interlock : Interlock program",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Lighting : 15W LED light-circle type   1 set.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Electrical Power : 1 Phase -220V/50Hz. (5A)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Opening dimension : 1,320 (W) x 2,120(H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Installation  (Include)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "\"G-TEK\" Pass Box Electrical",
+          "note": "Ext.Dimension : 760 x 690 x 700mm (W x D x H)\nExt.Dimension : 600 x 600 x 600mm (W x D x H)\nExt. structure : Electro-galvanized steel sheet\nFinishing : Powder coating\nInt. structure :  Stainless Steel 304\nSystem activity : Magnet switch\nDoor : Electro-galvanized steel sheet Tempered glass Thk 5mm\n\"G-Tek\" manual single swing door  2 sets.\nController : Programmable Logic Controllers board\nSystem Interlock : Interlock program\nElectrical Power : 1 Phase -220V/50Hz. (5A)\nOpening dimension : 780 (W) x 710(H)\nInstallation  (Include)",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Ext.Dimension : 760 x 690 x 700mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Ext.Dimension : 600 x 600 x 600mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Ext. structure : Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Finishing : Powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. structure :  Stainless Steel 304",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System activity : Magnet switch",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door : Electro-galvanized steel sheet Tempered glass Thk 5mm",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "\"G-Tek\" manual single swing door  2 sets.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Controller : Programmable Logic Controllers board",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System Interlock : Interlock program",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Electrical Power : 1 Phase -220V/50Hz. (5A)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Opening dimension : 780 (W) x 710(H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Installation  (Include)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Indirect cost",
+          "note": "- Transportation\n- Material Transfer'\n- Foreman Follow up\n- Site Expenses\nExclude\n- Temporary partition\n- Wall opening\n- Main power",
+          "unit": "Lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Material Transfer'",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Foreman Follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Site Expenses",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wall opening",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Main power",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrncm10x07f66p6q8lptbg7u",
+      "woNo": "WO26520",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Remove auto slide door + Install auto slide door (New Location)",
+          "note": "Relocate  auto single slide door\n- Take off existing  auto slide door\n- Reinstall auto slide door at new area and commissioning\n- Accessories (Sealant, screw, rivet, etc.)",
+          "unit": "set",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Relocate  auto single slide door",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Take off existing  auto slide door",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Reinstall auto slide door at new area and commissioning",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories (Sealant, screw, rivet, etc.)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nMaterial transfer and Transportation\nExclude\n- Temporary partition\n- Wall opening\n- Main power",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer and Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wall opening",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Main power",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrx24a890if9elfc1db04jwi",
+      "woNo": "WO26536",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Repairing magnetic with in air shower",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Take off existing  Electro magnetic 300lb\\n- Install new  Electro magnetic 300lb\\n- Accessories to support\\n- Labor to service\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Exclude :\n- Temporary partition\n- Electrical work\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Site expense\\nMaterial transfer \\nTransportation\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Exclude :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrwyjz630gj4elfcmessjii3",
+      "woNo": "WO26535",
+      "items": [
+        {
+          "qty": 5,
+          "seq": 0,
+          "desc": "Pressure Damper 900CMH (Material only)",
+          "note": "External size : 555x355mm. (WxH)\nInternal size : 495x295mm. (WxH)\nMain body : Electro Galvanized steel with powder coating\nAir Flow : 900CMH\nWall Thickness : 42-50mm.",
+          "unit": "units",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "External size : 555x355mm. (WxH)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Internal size : 495x295mm. (WxH)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Main body : Electro Galvanized steel with powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Air Flow : 900CMH",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Wall Thickness : 42-50mm.",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Material Delivery",
+          "note": "",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmrmw9ikk0a8048tcrv374am7",
+      "woNo": "WO26517",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Relocate  auto single slide door",
+          "note": "- Take off existing  auto slide door\n- Reinstall auto slide door at new area and commissioning\n- Accessories (Sealant, screw, rivet, etc.)",
+          "unit": "lot",
+          "images": [
+            "https://files.greendii.app/1784685450678-459130476.jpg",
+            "https://files.greendii.app/1784685455924-711709479.jpg"
+          ],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Take off existing  auto slide door",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Reinstall auto slide door at new area and commissioning",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories (Sealant, screw, rivet, etc.)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nMaterial transfer and Transportation\nExclude\n- Temporary partition\n- Main power",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer and Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Main power",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrvfn2o00294elfcr0ghzgyg",
+      "woNo": "WO26530",
+      "items": [
+        {
+          "qty": 16,
+          "seq": 0,
+          "desc": "Install window W1,500 xH940mm. (กระจกเป็นของ AKA)",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Temper glass 2 hours fire rate 47mm. thick\\n- Steel support \\n- Aluminum frame support with finishing \\n- Accessories \\n- Installation\"]}",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "\"G-TEK\" Auto single slide door (D13)",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Aluminum rail way with cover and heavy wheel\\n - Safety sensor\\n - No touch switch (IN/Out)\\nDoor Size  : 2,200mm. X 2,400mm.(WxH) \\n - Clean panel 42 mm. with half temper glass 6mm. \\n- Aluminum frame\\n - Door guide\\n - Accessories to support [screw, sealant ipa, etc]\\n - Installation work\"]}",
+          "unit": "Set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Indirect cost",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Forman follow up\\nSite expense\\nAccommodation\\nMaterial transfer\\nTransportation support\"]}",
+          "unit": "Lot",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmreazpba08oft3qrsh0fo4lp",
+      "woNo": "WO26493",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Temporary partition (Install and take off)",
+          "note": "- C Line with \"Achilles\" seiden-F curtain\n- Accessories to support\n- Labor to install",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- C Line with \"Achilles\" seiden-F curtain",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to install",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Change Door at Air shower",
+          "note": "@Area Air Shower NO. AL 2-7 Changing Room P2\n- Take off existing manual single swing door\n- Install new manual single swing door\n- Door size : 780x1,940mm. (WxH)\n- Clean panel with temper glass 6mm. Thick.\n- Stainless hinge and handle\n- Door frame\n- Door closer \"NewStar\" P182\n- Accessories to support [screw, sealant ipa, etc]\n- Labor to service",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "@Area Air Shower NO. AL 2-7 Changing Room P2",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Take off existing manual single swing door",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Install new manual single swing door",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door size : 780x1,940mm. (WxH)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Clean panel with temper glass 6mm. Thick.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless hinge and handle",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door frame",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door closer \"NewStar\" P182",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support [screw, sealant ipa, etc]",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to service",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up , Site expense, Accommodation,Material transfer ,Transportation\nExclude :Temporary partition , Wall opening, Electrical work",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up , Site expense, Accommodation,Material transfer ,Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude :Temporary partition , Wall opening, Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrmvc5m009kn48tc3pq3wue9",
+      "woNo": "WO26514",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Change and convert raise floor @ 600 sqm : จัดเรียงแผ่นใหม่",
+          "note": "- Accessories to support\n- Labor to Service",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to Service",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Move raise floor  : ขนแผ่นพื้นยก ลงไปเก็บ 1,298 sqm.",
+          "note": "- Take off raise floor move to 1st floor\n- Accessories to support\n- Labor to Service",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Take off raise floor move to 1st floor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to Service",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Install raise floor & Loading : โหลดพื้นยก และ ติดตั้งพื้นยกใหม่ 1,298 sqm.",
+          "note": "- Installation and level adjust\n- Accessories to support\n- Labor to Service\nRemark\n* วางบน Beam ไม่มีการใช้กาว\n* ใช้ flat pad เดิมในติดตั้ง  และ มี pad ใหม่มากับพื้นใหม่ด้วย",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Installation and level adjust",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories to support",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Labor to Service",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Remark",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "* วางบน Beam ไม่มีการใช้กาว",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "* ใช้ flat pad เดิมในติดตั้ง  และ มี pad ใหม่มากับพื้นใหม่ด้วย",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up , Site expense,Accommodation, Material transfer , Transportation\nExclude : Temporary partition",
+          "unit": "",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up , Site expense,Accommodation, Material transfer , Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude : Temporary partition",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrmvh6tk09o848tcgi2xen2n",
+      "woNo": "WO26515",
+      "items": [
+        {
+          "qty": 88,
+          "seq": 0,
+          "desc": "Repair forbo conductive tile on raise floor",
+          "note": "\"Forbo\" Conductive floor tile\n-  Size 615 x 615mm. Thick 2mm.\n- Model Everest (EC)",
+          "unit": "sqm",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "\"Forbo\" Conductive floor tile",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "-  Size 615 x 615mm. Thick 2mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Model Everest (EC)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Material and labor cost to repair top tile @ 80sqm",
+          "note": "Scope of work\n- Remove existing forbo tile on raise floor\n- Install New Forbo conductive tile on raise floor\n- Cleaning\n- Resistance test PTG, PTP\nLocation : ตำแหน่งที่ซ่อม ตามแบบ แนบ\n1) Size : 360 x 600 mm. = 120 pcs\n2) Size : 500 x 600 mm. = 21 pcs\n3) Size : 600 x 200 mm. = 52 pcs\n4) Size : 550 x 600 mm. = 17 pcs\n5) Size : 600 x 200 mm. = 23 pcs",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Scope of work",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Remove existing forbo tile on raise floor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Install New Forbo conductive tile on raise floor",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Cleaning",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Resistance test PTG, PTP",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Location : ตำแหน่งที่ซ่อม ตามแบบ แนบ",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "1) Size : 360 x 600 mm. = 120 pcs",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "2) Size : 500 x 600 mm. = 21 pcs",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "3) Size : 600 x 200 mm. = 52 pcs",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "4) Size : 550 x 600 mm. = 17 pcs",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "5) Size : 600 x 200 mm. = 23 pcs",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nMaterial transfer\nTransportation",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrn6brxa03ai6p6qvn3zocxi",
+      "woNo": "WO26519",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "\"G-TEK\" Service single swing door",
+          "note": "Door Size : 900mm. X 1,500mm.\n- Rockwool panel 50mm.\n- Stainless handle\n- SUS hinge\n- Aluminum frame\n- Door closer \"GU\"  OTS 634(F)\n- Door key \"Deadlock\" VVP Brand (Master key)\n- Accessories (puk, screws, sealant)",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Door Size : 900mm. X 1,500mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Rockwool panel 50mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless handle",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- SUS hinge",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Aluminum frame",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door closer \"GU\"  OTS 634(F)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Door key \"Deadlock\" VVP Brand (Master key)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Accessories (puk, screws, sealant)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Installation",
+          "note": "",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Indirect cost",
+          "note": "Foreman follow up\nSite expense\nMaterial transfer\nTransportation\nExclude :\n- Temporary partition",
+          "unit": "Lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partition",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrdgvtzk05sat3qrn0f3u1bm",
+      "woNo": "WO26492",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Belt for Auto slide door for Air Shower ( L = 7m.)",
+          "note": "",
+          "unit": "roll",
+          "images": [
+            "https://files.greendii.app/1783599101028-993779468.png"
+          ],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmriwcc5805stpndeig0bu75d",
+      "woNo": "WO26503",
+      "items": [
+        {
+          "qty": 4,
+          "seq": 0,
+          "desc": "\"G-TEK\" Pass Blow",
+          "note": "Ext. Dim : 600 x850 x 640mm (W x D x H)\nInt. Dim : 596 x 846 x 640mm (W x D x H)\nExt. structure  : Electro-galvanized steel sheet\nFinishing : Powder coating\nMain Body : Electro-galvanized steel sheet\nSystem activity : switch\nJet side : Top side blow\nAir velocity : >25 m/s.\nBlower : EBM  1 pcs.\nNozzle: Stainless steel 5 pcs.\nDoor : Electro-galvanized steel sheet Tempered glass Thk 5.0mm. 1 set",
+          "unit": "units",
+          "images": [
+            "https://files.greendii.app/1783927315645-953438828.png"
+          ],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Ext. Dim : 600 x850 x 640mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Int. Dim : 596 x 846 x 640mm (W x D x H)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Ext. structure  : Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Finishing : Powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Main Body : Electro-galvanized steel sheet",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "System activity : switch",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Jet side : Top side blow",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Air velocity : >25 m/s.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Blower : EBM  1 pcs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Nozzle: Stainless steel 5 pcs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Door : Electro-galvanized steel sheet Tempered glass Thk 5.0mm. 1 set",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Site expense\nMaterial transfer\nTransportation",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Site expense",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmrkafu7i08ep13xh6gqptjh0",
+      "woNo": "WO26507",
+      "items": [
+        {
+          "qty": 2,
+          "seq": 0,
+          "desc": "\"G-TEK\" Air Shower 1,800 - 2 (EG)",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Ext. Dim : 1,800 x 2,000 x 2,100mm (W x D x H)\\nInt. Dim : 1,200 x 1,900 x 1,960mm (W x D x H)\\nExt. Structure : Electro-galvanized steel sheet\\nFinishing : Powder coating\\nInt.structure : Electro-galvanized steel sheet\\nSystem activity : Magnet switch\\nJet side : 2 side blow\\nAir velocity : >25 m/s. / 280.36 ACH\\nBlower : EBM / Ziehl-Abeg  4 pcs.\\nFilter : Hepa Eff.99.95%(H13) 4 pcs.\\nNozzle : Stainless steel 32 pcs.\\nDoor : Aluminum, Tempered glass Thk 6.0 mm.,  \\\"G-TEK\\\" manual single swing door with AL.Drop seal 2 sets.\\nController : PLC (Programmable Logic Controllers) -Mitsubishi : Display touch screen\\nSystem Interlock : Interlock program\\nLighting : 15W. LED light-circle type 2 sets.\\nElectrical power : 1 Phase - 220V./50Hz.(10A.)\\nOpening dimension : 1,820 (W) x 2,120 (H)\\nInstallation at TKC  warehouse\"]}",
+          "unit": "Unit",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmrf4ro1c06gwigrfn1lt41qp",
+      "woNo": "WO26500",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Demolish work Wall & Ceiling",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Take off cleanroom ceiling panel\\n- Take off cleanroom wall panel\\n- Take off single door\\n- Take off window\\n\\n\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 35,
+          "seq": 1,
+          "desc": "Install cleanroom wall panel",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"- Aluminum accessories \\n- Other fitting part (Sealant, Bolt, nut, Rivet,Etc.,)\"]}",
+          "unit": "sq.m",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Move material",
+          "note": "",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Protection and cleaning work",
+          "note": "",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 4,
+          "desc": "Aluminum manual single swing door D1 บานช่อง Service",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Door internal size : (W)1000 x (H)1200\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 5,
+          "desc": "Aluminum manual single swing door D2 บานช่อง Service",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Door internal size : (W)600 x (H)620\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 6,
+          "desc": "Stainless Stair ทางขึ้นช่อง Service",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Size : (W)500 x (H)3,050mm\\n                (W)500 x (H)685mm\"]}",
+          "unit": "set",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 11,
+          "seq": 7,
+          "desc": "Ceiling Panel ปิดตรงระหว่าง Dry Coil",
+          "note": "",
+          "unit": "ช่อง",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 8,
+          "desc": "Indirect cost",
+          "note": "\n\n__WO_NOTE_META__\n\n{\"noteBlocks\":[\"Foreman follow up\\nSite expense\\nAccommodation\\nMaterial transfer \\nTransportation\"]}",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmrbudchx00mw11nwkwacqh8k",
+      "woNo": "WO26489",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Repairing ESD.5 Conductive Tile @7.39 sqm.",
+          "note": "ESD.5 Conductive Tile : Model 4200\nConductive Tile ESD.5\nSize : 608 x 608 x 2mm. (Thk)\nPacking : 7.39 sqm./ 20 pcs/box",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "ESD.5 Conductive Tile : Model 4200",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Conductive Tile ESD.5",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Size : 608 x 608 x 2mm. (Thk)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Packing : 7.39 sqm./ 20 pcs/box",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Demolish existing tile",
+          "note": "(Garbage disposal fee is not include)",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "(Garbage disposal fee is not include)",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 2,
+          "desc": "Labor to install conductive floor tile @ 7.2sqm.",
+          "note": "หมายเหตุ :\n1. คลุมเครื่องจักรขณะทำงาน ด้วยผ้าคลีนรูม\n2. การทำงานแบ่งออกเป็น 2 พื้นที่\n- พื้นที่ : VX9121 = 12 แผ่น\n- พื้นที่ : Walkway = 8 แผ่น\nScope of work\n1) Surface scrubbing and clean\n2) Apply moisture\n3) Apply ESD adhesive\n4) Apply copper tape grid line 1.8m x 1.8m.\n5) Install conductive tile and welding finishing",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "หมายเหตุ :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "1. คลุมเครื่องจักรขณะทำงาน ด้วยผ้าคลีนรูม",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "2. การทำงานแบ่งออกเป็น 2 พื้นที่",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- พื้นที่ : VX9121 = 12 แผ่น",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- พื้นที่ : Walkway = 8 แผ่น",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Scope of work",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "1) Surface scrubbing and clean",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "2) Apply moisture",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "3) Apply ESD adhesive",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "4) Apply copper tape grid line 1.8m x 1.8m.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "5) Install conductive tile and welding finishing",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 3,
+          "desc": "Cleaning and ESD Wax",
+          "note": "",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        },
+        {
+          "qty": 1,
+          "seq": 4,
+          "desc": "Indirect cost (Transportation & Site Expend)",
+          "note": "",
+          "unit": "lot",
+          "images": [],
+          "detailRows": []
+        }
+      ]
+    },
+    {
+      "id": "cmra4n83u04jlkazogwazqoo6",
+      "woNo": "WO26482",
+      "items": [
+        {
+          "qty": 2,
+          "seq": 0,
+          "desc": "\"G-TEK\" Steel double swing door (D6)",
+          "note": "- Door Size :  W1800 x H2,400 mm.\n- Steel EG sheet with powder coating\n- Hinge\n- Door closer\n- Door frame (Steel with powder coating)\n- Door key \"Miwa\" OMW ST Knob lock\n- Bottom plate SUS Plate 3mm.\n- Accessories (Sealant, screw, rivet, etc)\n- Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Door Size :  W1800 x H2,400 mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Steel EG sheet with powder coating",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Hinge",
+              "unit": ""
+            },
+            {
+              "qty": 4,
+              "desc": "- Door closer",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door frame (Steel with powder coating)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door key \"Miwa\" OMW ST Knob lock",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Bottom plate SUS Plate 3mm.",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Accessories (Sealant, screw, rivet, etc)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Labor to Installation",
+              "unit": "Sets"
+            }
+          ]
+        },
+        {
+          "qty": 2,
+          "seq": 1,
+          "desc": "\"G-TEK\" Manual Double swing door  (D15)",
+          "note": "Door Size 1,400 x 2,400mm.\n- Rockwool panel with temper glass 6 mm (T)\n- Stainless handle\n- SUS hinge\n- Aluminum frame\n- Door closer \"New star\" P183 (สำหรับบานใหญ่)\n- Door closer \"New star\" P181 (สำหรับบานเล็ก)\n- Door key\"Deadlock Miwa\"\n- Bottom plate SUS plate 3mm\n-Accessories(Sealant,screw,rivet,etc)\n-Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Door Size 1,400 x 2,400mm.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Rockwool panel with temper glass 6 mm (T)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless handle",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- SUS hinge",
+              "unit": ""
+            },
+            {
+              "qty": 2,
+              "desc": "- Aluminum frame",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door closer \"New star\" P183 (สำหรับบานใหญ่)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door closer \"New star\" P181 (สำหรับบานเล็ก)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door key\"Deadlock Miwa\"",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Bottom plate SUS plate 3mm",
+              "unit": "Set"
+            },
+            {
+              "qty": 2,
+              "desc": "-Accessories(Sealant,screw,rivet,etc)",
+              "unit": "Lot"
+            },
+            {
+              "qty": 2,
+              "desc": "-Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 2,
+          "seq": 2,
+          "desc": "\"G-TEK\" Steel auto Single Slide door (Heavy type) (D19)",
+          "note": "- Steel Railway with cover and heavy wheel\n-Safety sensor\n- No touch switch (In/Out)\n- Steel single slide door Size: W2,500xH2,500mm\n- Steel EG Sheet with powder coating and temper glass 6mm\n- Door frame (Steel with powder coating)\n- Accessories (Sealant,Screw,rivet,etc)\n- Labor to installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Steel Railway with cover and heavy wheel",
+              "unit": ""
+            },
+            {
+              "qty": 2,
+              "desc": "-Safety sensor",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- No touch switch (In/Out)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Steel single slide door Size: W2,500xH2,500mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": null,
+              "desc": "- Steel EG Sheet with powder coating and temper glass 6mm",
+              "unit": ""
+            },
+            {
+              "qty": 2,
+              "desc": "- Door frame (Steel with powder coating)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Accessories (Sealant,Screw,rivet,etc)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Labor to installation",
+              "unit": "Sets"
+            }
+          ]
+        },
+        {
+          "qty": 12,
+          "seq": 3,
+          "desc": "\"G-TEK\" Manual double swing door (D20)",
+          "note": "- Door Size : 1,800 x 2,400 mm\n- Rock wool panel with temper glass 6mm (T)\n- Stainless handle\n- SUS hinge\n- Aluminium frame\n- Door Closer \"NewStar\"P184\n- Door key \"Deadlock\" MIWA\n- Bottom plate SUS Plate 3mm\n- Accessories (Sealant,Screw,rivet,etc)\n- Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Door Size : 1,800 x 2,400 mm",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Rock wool panel with temper glass 6mm (T)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless handle",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- SUS hinge",
+              "unit": ""
+            },
+            {
+              "qty": 12,
+              "desc": "- Aluminium frame",
+              "unit": "Sets"
+            },
+            {
+              "qty": 24,
+              "desc": "- Door Closer \"NewStar\"P184",
+              "unit": "ea"
+            },
+            {
+              "qty": 12,
+              "desc": "- Door key \"Deadlock\" MIWA",
+              "unit": "Sets"
+            },
+            {
+              "qty": 12,
+              "desc": "- Bottom plate SUS Plate 3mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": 12,
+              "desc": "- Accessories (Sealant,Screw,rivet,etc)",
+              "unit": "Lot"
+            },
+            {
+              "qty": 12,
+              "desc": "- Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 4,
+          "seq": 4,
+          "desc": "\"G-TEK\" Emergency manual double swing door (D21)",
+          "note": "- Door Size: 1,800mm x 2,400mm\n- Rock wool panel with temper glass 6mm (T)\n- Stainless handle\n- SUS hinge\n- Aluminium frame\n- Door closer \"Newstar\" P184\n- Panic bar\"GU\"double swing\n- Bottom plate SUS plate 3 mm\n- Accessories (Sealant,screw,rivet,etc)\n- Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Door Size: 1,800mm x 2,400mm",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Rock wool panel with temper glass 6mm (T)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless handle",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- SUS hinge",
+              "unit": ""
+            },
+            {
+              "qty": 4,
+              "desc": "- Aluminium frame",
+              "unit": "Sets"
+            },
+            {
+              "qty": 8,
+              "desc": "- Door closer \"Newstar\" P184",
+              "unit": "ea"
+            },
+            {
+              "qty": 8,
+              "desc": "- Panic bar\"GU\"double swing",
+              "unit": "Sets"
+            },
+            {
+              "qty": 4,
+              "desc": "- Bottom plate SUS plate 3 mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": 4,
+              "desc": "- Accessories (Sealant,screw,rivet,etc)",
+              "unit": "Set"
+            },
+            {
+              "qty": 4,
+              "desc": "- Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 2,
+          "seq": 5,
+          "desc": "\"G-TEK\" Manual single swing door (D24)",
+          "note": "- Door Size: 1,000mm x 2,400mm\n- Rock wool panel with temper glass 6 mm(T)\n- Stainless hinge and handle\n- Door closer\"New Star\"182\n- Door frame\n- Door key \"Dead lock MIWA\"\n- Bottom plate SUS plate 3mm\n- Accessories (Sealant,Screw,rivet,etc)\n- Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Door Size: 1,000mm x 2,400mm",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Rock wool panel with temper glass 6 mm(T)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Stainless hinge and handle",
+              "unit": ""
+            },
+            {
+              "qty": 2,
+              "desc": "- Door closer\"New Star\"182",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door frame",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Door key \"Dead lock MIWA\"",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Bottom plate SUS plate 3mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": 2,
+              "desc": "- Accessories (Sealant,Screw,rivet,etc)",
+              "unit": "Lot"
+            },
+            {
+              "qty": 2,
+              "desc": "- Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 3,
+          "seq": 6,
+          "desc": "\"G-TEK\" Auto Single Slide door (D25)",
+          "note": "- Aluminium rail way heavy wheel\n- Safety Sensor\n- No touch switch (In/Out)\n- Door Size: 1,800mm x 2,400mm\n- Rock wool panel with temper glass 6mm(T)\n- Aluminium door frame\n- Door guide\n- Bottom plate SUS plate3mm\n- Accessories (Sealant,Screw,rivet,etc)\n- Labor to Installation",
+          "unit": "Sets",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Aluminium rail way heavy wheel",
+              "unit": ""
+            },
+            {
+              "qty": 3,
+              "desc": "- Safety Sensor",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- No touch switch (In/Out)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- Door Size: 1,800mm x 2,400mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": null,
+              "desc": "- Rock wool panel with temper glass 6mm(T)",
+              "unit": ""
+            },
+            {
+              "qty": 3,
+              "desc": "- Aluminium door frame",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- Door guide",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- Bottom plate SUS plate3mm",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- Accessories (Sealant,Screw,rivet,etc)",
+              "unit": "Sets"
+            },
+            {
+              "qty": 3,
+              "desc": "- Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 7,
+          "desc": "\"G-TEK\" Auto Single Slide door (D29)",
+          "note": "- Aluminium rail way with heavy wheel\n- Safety sensor\n- No Touch switch (In/Out)\n- Door Size :1,500 x 2,400mm\n- Rock wool panel with temper glass6mm(T)\n- Aluminium Door frame\n- Door guide\n- Bottom plate SUS Plate 3mm\n- Accessories (Sealant,Screw,rivet,etc)\n- Labor to Installation",
+          "unit": "Set",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "- Aluminium rail way with heavy wheel",
+              "unit": ""
+            },
+            {
+              "qty": 1,
+              "desc": "- Safety sensor",
+              "unit": "Set"
+            },
+            {
+              "qty": 1,
+              "desc": "- No Touch switch (In/Out)",
+              "unit": "Set"
+            },
+            {
+              "qty": 1,
+              "desc": "- Door Size :1,500 x 2,400mm",
+              "unit": "Set"
+            },
+            {
+              "qty": null,
+              "desc": "- Rock wool panel with temper glass6mm(T)",
+              "unit": ""
+            },
+            {
+              "qty": 1,
+              "desc": "- Aluminium Door frame",
+              "unit": "Set"
+            },
+            {
+              "qty": 1,
+              "desc": "- Door guide",
+              "unit": "Lot"
+            },
+            {
+              "qty": 1,
+              "desc": "- Bottom plate SUS Plate 3mm",
+              "unit": "Set"
+            },
+            {
+              "qty": 1,
+              "desc": "- Accessories (Sealant,Screw,rivet,etc)",
+              "unit": "Set"
+            },
+            {
+              "qty": 1,
+              "desc": "- Labor to Installation",
+              "unit": "Lot"
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 8,
+          "desc": "Indirect Cost",
+          "note": "Foreman follow up\nSite Expenses\nAccommodation\nMaterial transfer\nTransportation\nExclude\n- Temporary partiton\n- Wall Opening\n- Electrical work",
+          "unit": "Lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman follow up",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Site Expenses",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Accommodation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Material transfer",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Transportation",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Exclude",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Temporary partiton",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Wall Opening",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "- Electrical work",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "cmr8okbyw04znkcutmk3fb4fw",
+      "woNo": "WO26479",
+      "items": [
+        {
+          "qty": 1,
+          "seq": 0,
+          "desc": "Certify Monitoring (ISO7)",
+          "note": "1. Particle Count Test\n2. Airflow Velocity Test\n(Filter 82 units) (Test 2 points / unit)\n3. Scan Leak Test Hepa\nRemark :\n**** For the room hight over 3 m - Client must provide scaffolding\n**** Exclude : Covid test /Scaffolding / Stair Case\n**** ถ้ามีตะแกรง กรุณาแกะก่อนที่จะทำการเทส\nNote :\n**** Before Certification, Cleanroom system should be operating for about 12-24 hrs.\n**** Certification report will be provided other the data may pass or not pass specification.\n**** Certify period must be completely checked and finished within 1 day only",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "1. Particle Count Test",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "2. Airflow Velocity Test",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "(Filter 82 units) (Test 2 points / unit)",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "3. Scan Leak Test Hepa",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Remark :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** For the room hight over 3 m - Client must provide scaffolding",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** Exclude : Covid test /Scaffolding / Stair Case",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** ถ้ามีตะแกรง กรุณาแกะก่อนที่จะทำการเทส",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "Note :",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** Before Certification, Cleanroom system should be operating for about 12-24 hrs.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** Certification report will be provided other the data may pass or not pass specification.",
+              "unit": ""
+            },
+            {
+              "qty": null,
+              "desc": "**** Certify period must be completely checked and finished within 1 day only",
+              "unit": ""
+            }
+          ]
+        },
+        {
+          "qty": 1,
+          "seq": 1,
+          "desc": "Indirect cost",
+          "note": "Foreman Follow up,Site expenses,Transportation  Support",
+          "unit": "lot",
+          "images": [],
+          "detailRows": [
+            {
+              "qty": null,
+              "desc": "Foreman Follow up,Site expenses,Transportation  Support",
+              "unit": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

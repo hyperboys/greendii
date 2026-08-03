@@ -137,8 +137,19 @@ function normalizeWorkOrderItems(items) {
 
   const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n';
 
+  const sanitizeWorkOrderText = (value, options = {}) => {
+    const trim = options.trim !== false;
+    const raw = String(value ?? '');
+    const unescaped = raw
+      .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+      .replace(/[\u00A0\u2007\u202F]/g, ' ');
+    const normalized = unescaped.replace(/[\u0000-\u001F\u007F]/g, '');
+    return trim ? normalized.trim() : normalized;
+  };
+
   const parseWorkOrderNote = (rawNote) => {
-    const note = String(rawNote ?? '');
+    const note = sanitizeWorkOrderText(rawNote, { trim: false });
     if (!note.includes(WORKORDER_NOTE_META_SEPARATOR)) {
       return { detailNote: note, noteBlocks: [] };
     }
@@ -147,7 +158,7 @@ function normalizeWorkOrderItems(items) {
     try {
       const parsed = JSON.parse(rawMeta || '{}');
       const noteBlocks = Array.isArray(parsed?.noteBlocks)
-        ? parsed.noteBlocks.map((block) => String(block ?? ''))
+        ? parsed.noteBlocks.map((block) => sanitizeWorkOrderText(block, { trim: false }))
         : [];
       return { detailNote, noteBlocks };
     } catch {
@@ -165,10 +176,10 @@ function normalizeWorkOrderItems(items) {
     if (!Array.isArray(rows)) return [];
     return rows
       .map((row) => {
-        const desc = String(row?.desc ?? '').trim();
+        const desc = sanitizeWorkOrderText(row?.desc);
         const qtyRaw = row?.qty;
         const qty = qtyRaw === '' || qtyRaw == null ? null : Number(qtyRaw);
-        const unit = String(row?.unit ?? '').trim();
+        const unit = sanitizeWorkOrderText(row?.unit);
         return {
           desc,
           qty: Number.isFinite(qty) ? qty : null,
@@ -180,21 +191,21 @@ function normalizeWorkOrderItems(items) {
 
   const fallbackDetailRowsFromNote = (note) => parseWorkOrderNote(note).detailNote
     .split('\n')
-    .map((line) => String(line).trim())
+    .map((line) => sanitizeWorkOrderText(line))
     .filter(Boolean)
     .map((desc) => ({ desc, qty: null, unit: '' }));
 
   return items
     .map((item, index) => {
-      const desc = String(item?.desc ?? '').trim();
+      const desc = sanitizeWorkOrderText(item?.desc);
       if (!desc) return null;
       const qtyRaw = Number(item?.qty);
       const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
-      const unit = String(item?.unit ?? '').trim();
-      const note = item?.note == null ? '' : String(item.note);
+      const unit = sanitizeWorkOrderText(item?.unit);
+      const note = item?.note == null ? '' : sanitizeWorkOrderText(item.note, { trim: false });
       const noteInfo = parseWorkOrderNote(note);
       const images = Array.isArray(item?.images)
-        ? item.images.map(v => String(v || '')).filter(Boolean)
+        ? item.images.map(v => sanitizeWorkOrderText(v)).filter(Boolean)
         : [];
       const detailRows = normalizeDetailRows(item?.detailRows);
       const normalizedDetailRows = detailRows.length > 0 ? detailRows : fallbackDetailRowsFromNote(note);

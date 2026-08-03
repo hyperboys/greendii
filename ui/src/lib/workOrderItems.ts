@@ -3,6 +3,17 @@ import { parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColo
 
 const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n'
 
+function sanitizeWorkOrderText(value?: unknown, options?: { trim?: boolean }): string {
+  const trim = options?.trim !== false
+  const raw = String(value ?? '')
+  const unescaped = raw
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/[\u00A0\u2007\u202F]/g, ' ')
+  const normalized = unescaped.replace(/[\u0000-\u001F\u007F]/g, '')
+  return trim ? normalized.trim() : normalized
+}
+
 type WorkOrderNoteMeta = {
   noteBlocks?: string[]
   detailBeforeNote?: boolean
@@ -14,7 +25,7 @@ export type WorkOrderNoteBlock = {
 }
 
 function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; meta: WorkOrderNoteMeta } {
-  const note = String(rawNote ?? '')
+  const note = sanitizeWorkOrderText(rawNote, { trim: false })
   if (!note.includes(WORKORDER_NOTE_META_SEPARATOR)) {
     return { detailNote: note, meta: {} }
   }
@@ -26,7 +37,7 @@ function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; 
       detailNote,
       meta: {
         noteBlocks: Array.isArray(parsed.noteBlocks)
-          ? parsed.noteBlocks.map((block) => String(block ?? ''))
+          ? parsed.noteBlocks.map((block) => sanitizeWorkOrderText(block, { trim: false }))
           : [],
         detailBeforeNote: parsed.detailBeforeNote === true,
       },
@@ -84,8 +95,8 @@ function normalizeDetailRows(
   if (!Array.isArray(rows)) return []
   const normalized = rows
     .map((row) => {
-      const descRaw = String(row?.desc ?? '')
-      const unitRaw = String(row?.unit ?? '')
+      const descRaw = sanitizeWorkOrderText(row?.desc, { trim: false })
+      const unitRaw = sanitizeWorkOrderText(row?.unit, { trim: false })
       const desc = trimText ? descRaw.trim() : descRaw
       const rawQty = row?.qty as unknown
       const qty = rawQty == null || rawQty === '' ? null : Number(rawQty)
@@ -102,7 +113,7 @@ function normalizeDetailRows(
 
 function fallbackRowsFromNote(note?: string): WorkOrderDetailRow[] {
   const { detailNote } = parseWorkOrderNoteMeta(note)
-  const lines = detailNote.split('\n').map((line) => line.trim())
+  const lines = detailNote.split('\n').map((line) => sanitizeWorkOrderText(line))
   const rows = lines
     .map((line) => ({ desc: line, qty: null, unit: '' }))
     .filter((row) => row.desc)
@@ -117,7 +128,7 @@ export function parseWorkOrderColoredNoteBlocks(note?: string): WorkOrderNoteBlo
   const { meta } = parseWorkOrderNoteMeta(note)
   if (!Array.isArray(meta.noteBlocks)) return []
   return meta.noteBlocks.map((block) => {
-    const parsed = parseColoredLine(String(block ?? ''))
+    const parsed = parseColoredLine(sanitizeWorkOrderText(block, { trim: false }))
     return { text: parsed.text, color: parsed.color }
   })
 }
@@ -152,11 +163,13 @@ export function mapQuotationItemsToWorkOrderItems(items?: QuotationItem[] | null
   if (!Array.isArray(items) || items.length === 0) return []
   return items.map((item, index) => ({
     seq: item.seq ?? index,
-    desc: toPlainColoredLine(item.desc),
+    desc: sanitizeWorkOrderText(toPlainColoredLine(item.desc), { trim: false }),
     ...stringifyWorkOrderDetailRows(fallbackRowsFromNote(toPlainColoredMultiline(item.note))),
     qty: Number(item.qty ?? 0),
-    unit: item.unit ?? '',
-    images: Array.isArray(item.images) ? item.images : [],
+    unit: sanitizeWorkOrderText(item.unit, { trim: false }),
+    images: Array.isArray(item.images)
+      ? item.images.map((url) => sanitizeWorkOrderText(url)).filter(Boolean)
+      : [],
   }))
 }
 
@@ -168,10 +181,12 @@ export function mapWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrderItem
       detailBeforeNote: parseWorkOrderDetailBeforeNote(item.note),
     }),
     seq: item.seq ?? index,
-    desc: item.desc ?? '',
+    desc: sanitizeWorkOrderText(item.desc, { trim: false }),
     qty: Number(item.qty ?? 0),
-    unit: item.unit ?? '',
-    images: Array.isArray(item.images) ? item.images : [],
+    unit: sanitizeWorkOrderText(item.unit, { trim: false }),
+    images: Array.isArray(item.images)
+      ? item.images.map((url) => sanitizeWorkOrderText(url)).filter(Boolean)
+      : [],
   }))
 }
 
@@ -183,10 +198,12 @@ export function normalizeWorkOrderItems(items?: WorkOrderItem[] | null): WorkOrd
         detailBeforeNote: parseWorkOrderDetailBeforeNote(item.note),
       }),
       seq: index,
-      desc: String(item.desc ?? '').trim(),
+      desc: sanitizeWorkOrderText(item.desc),
       qty: Number(item.qty ?? 0),
-      unit: String(item.unit ?? '').trim(),
-      images: Array.isArray(item.images) ? item.images.filter(Boolean) : [],
+      unit: sanitizeWorkOrderText(item.unit),
+      images: Array.isArray(item.images)
+        ? item.images.map((url) => sanitizeWorkOrderText(url)).filter(Boolean)
+        : [],
     }))
     .filter(item => toPlainColoredLine(item.desc))
 }
