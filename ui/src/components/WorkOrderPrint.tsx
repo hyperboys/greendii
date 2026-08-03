@@ -746,7 +746,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             </tr>
             <tr>
               <td style={{ ...tdS, fontWeight: 'bold', whiteSpace: 'nowrap', verticalAlign: 'middle', fontSize: '10pt', padding: '4px 8px' }}>
-                Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ติดตั้งแล้ว)</span>
+                Installation Date<br /><span style={{ fontWeight: 'normal', fontSize: '10pt' }}>(วันที่ติดตั้ง)</span>
               </td>
               <td style={{ ...tdS, minHeight: '16px', verticalAlign: 'middle', fontSize: '12pt', padding: '4px 8px' }}>{installDateStr || '\u00A0'}</td>
             </tr>

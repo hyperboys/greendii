@@ -5,7 +5,7 @@ import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import { APPROVAL_ATTACHMENT_LOCK_MESSAGE } from '@/lib/approvalFlowRules'
 import { decodeDisplayFileName } from '@/lib/filename'
 import type { Attachment } from '@/types'
-import { Paperclip, Trash2, FileText, Image, File, FileSpreadsheet, PenTool, ClipboardList, CheckCircle2, Clock } from 'lucide-react'
+import { Paperclip, Trash2, FileText, Image as ImageIcon, File, FileSpreadsheet, PenTool, ClipboardList, CheckCircle2, Clock } from 'lucide-react'
 import toast from 'react-hot-toast'
 
 export interface PendingAttachment {
@@ -49,7 +49,7 @@ const CATEGORIES = [
 type CategoryKey = typeof CATEGORIES[number]['key']
 
 function fileIcon(mime: string) {
-  if (mime.startsWith('image/')) return <Image size={13} className="text-blue-400 shrink-0" />
+  if (mime.startsWith('image/')) return <ImageIcon size={13} className="text-blue-400 shrink-0" />
   if (mime === 'application/pdf') return <FileText size={13} className="text-red-400 shrink-0" />
   return <File size={13} className="text-gray-400 shrink-0" />
 }
@@ -110,8 +110,10 @@ export default function AttachmentsSection({
   onPoAmountChange,
 }: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
+  const dragDepthRef = useRef<Partial<Record<CategoryKey, number>>>({})
   const deleteTimersRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
   const [uploading, setUploading] = useState<CategoryKey | null>(null)
+  const [draggingCategory, setDraggingCategory] = useState<CategoryKey | null>(null)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [deleteDialog, setDeleteDialog] = useState<DeleteDialogState | null>(null)
   const [stagedDeleteIds, setStagedDeleteIds] = useState<string[]>([])
@@ -122,8 +124,9 @@ export default function AttachmentsSection({
   const isPoAmountValid = Number.isFinite(parsedPoAmount) && parsedPoAmount > 0
 
   useEffect(() => {
+    const timers = deleteTimersRef.current
     return () => {
-      Object.values(deleteTimersRef.current).forEach(clearTimeout)
+      Object.values(timers).forEach(clearTimeout)
     }
   }, [])
 
@@ -163,6 +166,46 @@ export default function AttachmentsSection({
       const el = inputRefs.current[catKey]
       if (el) el.value = ''
     }
+  }
+
+  const clearDragState = (catKey: CategoryKey) => {
+    dragDepthRef.current[catKey] = 0
+    setDraggingCategory(prev => (prev === catKey ? null : prev))
+  }
+
+  const onDragEnterCategory = (catKey: CategoryKey, categoryLocked: boolean) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (readOnly || categoryLocked) return
+    dragDepthRef.current[catKey] = (dragDepthRef.current[catKey] || 0) + 1
+    setDraggingCategory(catKey)
+  }
+
+  const onDragOverCategory = (catKey: CategoryKey, categoryLocked: boolean) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (readOnly || categoryLocked) return
+    event.dataTransfer.dropEffect = 'copy'
+    if (draggingCategory !== catKey) setDraggingCategory(catKey)
+  }
+
+  const onDragLeaveCategory = (catKey: CategoryKey, categoryLocked: boolean) => (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    if (readOnly || categoryLocked) return
+    const nextDepth = Math.max((dragDepthRef.current[catKey] || 1) - 1, 0)
+    dragDepthRef.current[catKey] = nextDepth
+    if (nextDepth === 0) setDraggingCategory(prev => (prev === catKey ? null : prev))
+  }
+
+  const onDropCategory = (catKey: CategoryKey, categoryLocked: boolean) => async (event: React.DragEvent<HTMLDivElement>) => {
+    event.preventDefault()
+    event.stopPropagation()
+    clearDragState(catKey)
+    if (readOnly || categoryLocked) return
+    const files = Array.from(event.dataTransfer.files || [])
+    if (!files.length) return
+    await handleUpload(catKey, files)
   }
 
   const requestDelete = (id: string) => {
@@ -278,7 +321,7 @@ export default function AttachmentsSection({
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {CATEGORIES.map(({ key, label, accept, hint, Icon }) => {
           const savedFiles = attachments.filter(a => a.category === key && !stagedDeleteIds.includes(a.id))
           const pendingFiles = pending.filter(p => p.category === key && !stagedDeleteIds.includes(p.id))
@@ -286,12 +329,10 @@ export default function AttachmentsSection({
           const categoryLocked = !isCategoryAllowed(key)
 
           return (
-            <div key={key} className="space-y-1.5 md:space-y-2">
-              <p className="text-sm font-medium text-gray-700">{label}</p>
-
+            <div key={key} className="space-y-2.5 md:space-y-3">
               {key === 'po' && (
                 <div>
-                  <label className="text-xs text-gray-500">ยอดเงิน PO (บาท) *</label>
+                  <label className="text-sm font-semibold text-slate-600">ยอดเงิน PO (บาท) *</label>
                   <input
                     type="text"
                     inputMode="decimal"
@@ -300,33 +341,36 @@ export default function AttachmentsSection({
                     onBlur={e => onPoAmountChange?.(formatPoAmountInput(e.target.value, true))}
                     placeholder="เช่น 1,500,000.00"
                     disabled={readOnly || categoryLocked}
-                    className="form-input mt-1"
+                    className="form-input mt-2"
                   />
                 </div>
               )}
 
               {(key === 'drawing' || key === 'mom') && (
                 <div className="hidden md:block invisible" aria-hidden="true">
-                  <label className="text-xs text-gray-500">ยอดเงิน PO (บาท) *</label>
+                  <label className="text-sm font-semibold text-slate-600">ยอดเงิน PO (บาท) *</label>
                   <input
                     type="text"
                     disabled
                     tabIndex={-1}
-                    className="form-input mt-1"
+                    className="form-input mt-2"
                   />
                 </div>
               )}
 
               {/* Drop zone */}
               {readOnly || categoryLocked ? (
-                <div className="border-2 border-dashed border-gray-200 rounded-lg p-3 md:p-4 flex flex-col items-center gap-1 bg-gray-50 text-center select-none">
-                  <Icon size={28} className="text-gray-300" />
-                  <span className="text-sm text-gray-500">เพิ่มไฟล์ไม่ได้</span>
-                  <span className="text-xs text-gray-400">{categoryLocked ? 'หมวดนี้ยังไม่อนุญาตในสถานะปัจจุบัน' : 'ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้'}</span>
+                <div className="min-h-[184px] border-2 border-dashed border-slate-200 rounded-xl p-4 bg-slate-50 text-center select-none">
+                  <p className="mb-2 text-[18px] leading-6 font-semibold text-slate-700 tracking-[0.01em]">{label}</p>
+                  <div className="flex min-h-[122px] flex-col items-center justify-center gap-1.5">
+                    <Icon size={31} className="text-slate-300" />
+                    <span className="text-sm font-medium text-slate-500">เพิ่มไฟล์ไม่ได้</span>
+                    <span className="text-xs text-slate-400">{categoryLocked ? 'หมวดนี้ยังไม่อนุญาตในสถานะปัจจุบัน' : 'ต้องถูก reject ก่อนจึงจะแนบเพิ่มได้'}</span>
+                  </div>
                 </div>
               ) : (
                 <div
-                  className="border-2 border-dashed border-gray-200 rounded-lg p-3 md:p-4 flex flex-col items-center gap-1 cursor-pointer hover:border-green-400 hover:bg-green-50/30 transition-colors select-none"
+                  className={`min-h-[184px] border-2 border-dashed rounded-xl p-4 cursor-pointer transition-colors select-none ${draggingCategory === key ? 'border-emerald-500 bg-emerald-50/70' : 'border-slate-200 hover:border-emerald-400 hover:bg-emerald-50/40'}`}
                   onClick={() => {
                     if (isUploading) return
                     if (key === 'po' && !isPoAmountValid) {
@@ -335,12 +379,20 @@ export default function AttachmentsSection({
                     }
                     inputRefs.current[key]?.click()
                   }}
+                  onDragEnter={onDragEnterCategory(key, categoryLocked)}
+                  onDragOver={onDragOverCategory(key, categoryLocked)}
+                  onDragLeave={onDragLeaveCategory(key, categoryLocked)}
+                  onDrop={onDropCategory(key, categoryLocked)}
                 >
-                  <Icon size={28} className="text-gray-300" />
-                  <span className="text-sm text-blue-500">
-                    {isUploading ? 'กำลังอัพโหลด…' : 'คลิกไฟล์'}
-                  </span>
-                  <span className="text-xs text-gray-400">{hint}</span>
+                  <p className="mb-2 text-[18px] leading-6 font-semibold text-slate-700 tracking-[0.01em]">{label}</p>
+                  <div className="flex min-h-[122px] flex-col items-center justify-center gap-1.5">
+                    <Icon size={31} className="text-slate-300" />
+                    <span className="text-sm font-medium text-blue-600">
+                      {isUploading ? 'กำลังอัพโหลด…' : (draggingCategory === key ? 'ปล่อยไฟล์เพื่ออัปโหลด' : 'คลิกไฟล์')}
+                    </span>
+                    <span className="text-xs text-slate-400">{hint}</span>
+                    <span className="text-[11px] text-slate-400">ลากไฟล์มาวางได้เช่นกัน</span>
+                  </div>
                 </div>
               )}
 
@@ -355,9 +407,9 @@ export default function AttachmentsSection({
 
               {/* Saved file list (immediate mode) */}
               {savedFiles.length > 0 && (
-                <ul className="space-y-0.5 md:space-y-1">
+                <ul className="space-y-1.5 pt-1">
                   {savedFiles.map(att => (
-                    <li key={att.id} className="flex items-center gap-1.5 md:gap-2">
+                    <li key={att.id} className="flex items-center gap-2 rounded-lg px-1 py-1">
                       {fileIcon(att.mimeType)}
                       <div className="flex-1 min-w-0">
                         {att.fileUrl ? (
@@ -372,7 +424,7 @@ export default function AttachmentsSection({
                         ) : (
                           <span className="text-sm text-gray-700 truncate block">{decodeDisplayFileName(att.originalName)}</span>
                         )}
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-slate-400">
                           {fmtSize(att.size)}
                           {key === 'po' && typeof att.poAmount === 'number' ? ` · ยอด PO ${att.poAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท` : ''}
                         </span>
@@ -394,13 +446,13 @@ export default function AttachmentsSection({
 
               {/* Pending file list (deferred mode) */}
               {pendingFiles.length > 0 && (
-                <ul className="space-y-0.5 md:space-y-1">
+                <ul className="space-y-1.5 pt-1">
                   {pendingFiles.map(p => (
-                    <li key={p.id} className="flex items-center gap-1.5 md:gap-2">
+                    <li key={p.id} className="flex items-center gap-2 rounded-lg px-1 py-1">
                       {fileIcon(p.file.type)}
                       <div className="flex-1 min-w-0">
                         <span className="text-sm text-gray-700 truncate block">{p.file.name}</span>
-                        <span className="text-xs text-gray-400">{fmtSize(p.file.size)} · รอบันทึก</span>
+                        <span className="text-xs text-slate-400">{fmtSize(p.file.size)} · รอบันทึก</span>
                       </div>
                       {!readOnly && (
                         <button
