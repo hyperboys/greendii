@@ -631,6 +631,9 @@ router.post('/:id/mark-read', authenticate, async (req, res, next) => {
 // GET /api/workorders/:id
 router.get('/:id', authenticate, async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     const item = await prisma.workOrder.findUniqueOrThrow({
       where: { id: req.params.id },
       include: INCLUDE_FULL,
@@ -643,6 +646,9 @@ router.get('/:id', authenticate, async (req, res, next) => {
 // GET /api/workorders/:id/pdf
 router.get('/:id/pdf', authenticate, async (req, res, next) => {
   try {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
     const { renderUrlToPdf, getUiBaseUrl } = require('../lib/pdf');
     const token = (req.headers.authorization || '').replace(/^Bearer\s+/i, '');
     const uiBase = getUiBaseUrl(req);

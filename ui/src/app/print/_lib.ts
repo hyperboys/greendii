@@ -13,6 +13,7 @@ export function getTokenFromQuery(): string {
 
 export async function apiGet<T>(path: string, token: string): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
+    cache: 'no-store',
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   if (!res.ok) throw new Error(`API ${path} failed: ${res.status}`)

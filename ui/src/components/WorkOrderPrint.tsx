@@ -27,6 +27,21 @@ const MEASURE_BUFFER_NON_LAST = 12
 const MEASURE_BUFFER_LAST = 16
 const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
+function normalizePrintableText(value: unknown, options?: { trim?: boolean }): string {
+  const trim = options?.trim !== false
+  const raw = String(value ?? '')
+  const decoded = raw
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/[\u00A0\u2007\u202F]/g, ' ')
+
+  const collapsed = decoded.replace(/[\u0000-\u001F\u007F]/g, '')
+  const normalized = trim ? collapsed.trim() : collapsed
+
+  if (/^\\+u00a0$/i.test(normalized) || /^\\+x[a0A0]$/i.test(normalized)) return ''
+  return normalized
+}
+
 function splitDescriptionLines(note?: string): string[] {
   const detailNote = getWorkOrderDetailNoteText(note)
   const lines = detailNote.split('\n').map(v => v.trim())
@@ -571,17 +586,19 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
       return `${numeric}`
     }
 
+    const safeDesc = normalizePrintableText(item.desc, { trim: false })
+
     return (
       <tr key={item.key} ref={rowRef} style={{ height: '24px' }}>
         <td style={itemCellS}>{item.displaySeq ?? ''}</td>
         <td style={{ ...itemCellS, textAlign: 'left' }}>
-          {item.desc && <div style={{ whiteSpace: 'pre-wrap', color: item.descColor || '#000' }}>{item.desc}</div>}
+          {safeDesc && <div style={{ whiteSpace: 'pre-wrap', color: item.descColor || '#000' }}>{safeDesc}</div>}
           {item.detailRows.map((row, idx) => (
             <span key={idx} style={{ color: row.color || '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
-              {row.desc || '\u00A0'}
+              {normalizePrintableText(row.desc) || '\u00A0'}
             </span>
           ))}
-          {!item.desc && item.detailRows.length === 0 && <span>\u00A0</span>}
+          {!safeDesc && item.detailRows.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
             <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 34mm)', gap: '1mm' }}>
               {item.images.map((url, idx) => (
@@ -606,10 +623,10 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           ))}
         </td>
         <td style={{ ...itemCellS, textAlign: 'center', borderRight: borderRightStrong }}>
-          <div>{item.unit ?? ''}</div>
+          <div>{normalizePrintableText(item.unit, { trim: false }) || ''}</div>
           {item.detailRows.map((row, idx) => (
             <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
-              {row.unit || '\u00A0'}
+              {normalizePrintableText(row.unit) || '\u00A0'}
             </span>
           ))}
         </td>
