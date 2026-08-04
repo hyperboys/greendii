@@ -19,6 +19,8 @@
     "db:seed:doc-running": "node scripts/set-doc-running-floor.js",
     "db:cleanup:workorders:dry": "node scripts/cleanup-workorder-items.js --dry-run",
     "db:cleanup:workorders:apply": "node scripts/cleanup-workorder-items.js --apply --confirm=APPLY_WORKORDER_ITEMS_CLEANUP",
+    "db:repair:wo-notes:dry": "node scripts/repair-all-workorder-notes.js --dry-run",
+    "db:repair:wo-notes:apply": "node scripts/repair-all-workorder-notes.js --apply --confirm=REPAIR_ALL_WO_NOTES",
     "db:timezone:dry": "node scripts/migrate-timestamps-to-bangkok.js --dry-run",
     "db:timezone:apply": "node scripts/migrate-timestamps-to-bangkok.js --apply"
   },

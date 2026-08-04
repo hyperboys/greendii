@@ -44,9 +44,9 @@ function normalizePrintableText(value: unknown, options?: { trim?: boolean }): s
 
 function splitDescriptionLines(note?: string): string[] {
   const detailNote = getWorkOrderDetailNoteText(note)
-  const lines = detailNote.split('\n').map(v => v.trim())
-  if (lines.length === 1 && lines[0] === '') return []
-  return lines
+  const lines = detailNote.split('\n').map(v => normalizePrintableText(v))
+  const nonEmpty = lines.filter(Boolean)
+  return nonEmpty
 }
 
 interface WorkOrderItemFragment {
@@ -598,7 +598,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
               {normalizePrintableText(row.desc) || '\u00A0'}
             </span>
           ))}
-          {!safeDesc && item.detailRows.length === 0 && <span>\u00A0</span>}
+          {!safeDesc && item.detailRows.length === 0 && item.images.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
             <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 34mm)', gap: '1mm' }}>
               {item.images.map((url, idx) => (
