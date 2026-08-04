@@ -35,7 +35,7 @@ function normalizePrintableText(value: unknown, options?: { trim?: boolean }): s
     .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/[\u00A0\u2007\u202F]/g, ' ')
 
-  const collapsed = decoded.replace(/[\u0000-\u001F\u007F]/g, '')
+  const collapsed = decoded.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
   const normalized = trim ? collapsed.trim() : collapsed
 
   if (/^\\+u00a0$/i.test(normalized) || /^\\+x[a0A0]$/i.test(normalized)) return ''

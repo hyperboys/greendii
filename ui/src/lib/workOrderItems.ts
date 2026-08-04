@@ -2,6 +2,7 @@ import type { QuotationItem, WorkOrder, WorkOrderDetailRow, WorkOrderItem } from
 import { parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 
 const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n'
+const WORKORDER_NOTE_META_TOKEN = '__WO_NOTE_META__'
 
 function sanitizeWorkOrderText(value?: unknown, options?: { trim?: boolean }): string {
   const trim = options?.trim !== false
@@ -10,7 +11,8 @@ function sanitizeWorkOrderText(value?: unknown, options?: { trim?: boolean }): s
     .replace(/\\u([0-9a-fA-F]{4})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/\\x([0-9a-fA-F]{2})/g, (_m, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/[\u00A0\u2007\u202F]/g, ' ')
-  const normalized = unescaped.replace(/[\u0000-\u001F\u007F]/g, '')
+  // Keep newline/tab characters so note blocks can still be parsed and rendered.
+  const normalized = unescaped.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g, '')
   return trim ? normalized.trim() : normalized
 }
 
@@ -26,11 +28,15 @@ export type WorkOrderNoteBlock = {
 
 function parseWorkOrderNoteMeta(rawNote?: string | null): { detailNote: string; meta: WorkOrderNoteMeta } {
   const note = sanitizeWorkOrderText(rawNote, { trim: false })
-  if (!note.includes(WORKORDER_NOTE_META_SEPARATOR)) {
+  if (!note.includes(WORKORDER_NOTE_META_TOKEN)) {
     return { detailNote: note, meta: {} }
   }
 
-  const [detailNote, rawMeta] = note.split(WORKORDER_NOTE_META_SEPARATOR, 2)
+  const tokenIndex = note.indexOf(WORKORDER_NOTE_META_TOKEN)
+  const detailNote = note.slice(0, tokenIndex).replace(/[\n\r\s]*$/, '')
+  const rawMeta = note
+    .slice(tokenIndex + WORKORDER_NOTE_META_TOKEN.length)
+    .replace(/^[\n\r\s]*/, '')
   try {
     const parsed = JSON.parse(rawMeta || '{}') as WorkOrderNoteMeta
     return {
