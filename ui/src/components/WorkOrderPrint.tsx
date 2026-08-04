@@ -14,17 +14,18 @@ import {
 
 const PACK_CAP_NON_LAST = 55
 const PACK_CAP_LAST = 25
-const FIRST_FRAGMENT_CAP = 7
-const CONTINUATION_FRAGMENT_CAP = 9
+const FIRST_FRAGMENT_CAP = 10
+const CONTINUATION_FRAGMENT_CAP = 12
 const MAX_DETAIL_ROWS_FIRST_FRAGMENT = 5
 const MAX_DETAIL_ROWS_CONTINUATION = 7
-const MAX_IMAGES_PER_FRAGMENT = 1
+const MAX_IMAGES_PER_FRAGMENT = 3
 
 const HEADER_GAP = 12
-const SAFETY = 14
-const TAIL_GAP = 14
-const MEASURE_BUFFER_NON_LAST = 12
-const MEASURE_BUFFER_LAST = 16
+const SAFETY = 20
+const TAIL_GAP = 18
+const MEASURE_BUFFER_NON_LAST = 24
+const MEASURE_BUFFER_LAST = 30
+const PAGE_CONTENT_HEIGHT = '278mm'
 const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
 function normalizePrintableText(value: unknown, options?: { trim?: boolean }): string {
@@ -600,7 +601,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           ))}
           {!safeDesc && item.detailRows.length === 0 && item.images.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
-            <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 34mm)', gap: '1mm' }}>
+            <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 31mm)', gap: '1mm' }}>
               {item.images.map((url, idx) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -608,7 +609,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
                   src={resolveFileUrl(url)}
                   alt=""
                   loading={fastPreview ? 'lazy' : 'eager'}
-                  style={{ width: '34mm', height: 'auto', objectFit: 'contain', display: 'block' }}
+                  style={{ width: '31mm', height: 'auto', objectFit: 'contain', display: 'block' }}
                 />
               ))}
             </div>
@@ -829,7 +830,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           zIndex: -1,
         }}
       >
-        <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
+        <div ref={probeRef} style={{ height: PAGE_CONTENT_HEIGHT, width: '1px' }} />
         <div ref={headerMeasRef}>{renderHeader()}</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: sectionGap, tableLayout: 'fixed', border: borderHeavy }}>
           {renderItemsColGroup()}
@@ -856,7 +857,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            height: '281mm',
+            height: PAGE_CONTENT_HEIGHT,
             overflow: 'hidden',
           }}
         >
@@ -879,7 +880,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
               position: 'relative',
               display: 'flex',
               flexDirection: 'column',
-              height: '281mm',
+              height: PAGE_CONTENT_HEIGHT,
               overflow: 'hidden',
             }}
           >
@@ -888,13 +889,13 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
                 src={url}
                 alt={att.originalName ?? ''}
                 loading={fastPreview ? 'lazy' : 'eager'}
-                style={{ maxWidth: '100%', maxHeight: '281mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
+                style={{ maxWidth: '100%', maxHeight: PAGE_CONTENT_HEIGHT, objectFit: 'contain', margin: 'auto', display: 'block' }}
               />
             ) : (
               <iframe
                 src={url}
                 title={att.originalName ?? `attachment-${ai + 1}`}
-                style={{ flex: '1 1 auto', width: '100%', height: '281mm', border: 'none', background: '#fff' }}
+                style={{ flex: '1 1 auto', width: '100%', height: PAGE_CONTENT_HEIGHT, border: 'none', background: '#fff' }}
               />
             )}
           </div>
