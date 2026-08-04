@@ -156,7 +156,7 @@ export default function HandoverDetailPage() {
                 <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {toPlainColoredLine(item.desc)}</div>
                 <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
                 {'remark' in item && item.remark && (
-                  <div className="mb-2 whitespace-pre-line text-xs text-gray-600">หมายเหตุ: {item.remark}</div>
+                  <div className="mb-2 whitespace-pre-line text-xs text-gray-600">{item.remark}</div>
                 )}
                 {item.images && item.images.length > 0 && (
                   <div className="flex flex-wrap gap-2">

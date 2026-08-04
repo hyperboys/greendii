@@ -60,7 +60,7 @@ type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'remark' | 'qty' 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
   const noteLines = [
     ...splitDescriptionLines(item.note),
-    ...splitDescriptionLines(item.remark).map((line, index) => index === 0 ? `หมายเหตุ: ${line}` : line),
+    ...splitDescriptionLines(item.remark),
   ]
   const remainingLines = [...noteLines]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
