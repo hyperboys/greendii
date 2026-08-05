@@ -14,6 +14,7 @@ const { canBypassDocApproval } = require('../lib/approvalBypass');
 const { getPrCurrencies, normalizeCurrencyCode } = require('../lib/prCurrency');
 
 const prValidators = [
+  body('workOrderId').optional({ nullable: true }).isString(),
   body('prTypeId').trim().notEmpty().withMessage('กรุณาเลือกประเภทใบขอซื้อ'),
   body('customer').trim().notEmpty().withMessage('กรุณาระบุลูกค้า'),
   body('projectRef').optional({ nullable: true }).isString(),
@@ -553,7 +554,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
       return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
-      customer, projectRef, dateIssue, dateRequired, prTypeId,
+      workOrderId, customer, projectRef, dateIssue, dateRequired, prTypeId,
       currency, items = [], subTotal, specialDiscount, vat, netTotal, remarks,
     } = req.body;
     let normalizedCurrency;
@@ -569,6 +570,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
       return tx.purchaseRequest.update({
         where: { id: req.params.id },
         data: {
+          workOrderId: workOrderId !== undefined ? (workOrderId || null) : undefined,
           customer, projectRef,
           prTypeId: prTypeId !== undefined ? (prTypeId || null) : undefined,
           dateIssue: parseBangkokDate(dateIssue),
