@@ -278,7 +278,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
 
   const summaryAmountS: React.CSSProperties = {
     ...summaryLabelS,
-    width: '24%',
+    width: '22%',
     textAlign: 'right',
     whiteSpace: 'nowrap',
   }
@@ -377,8 +377,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         <div style={{ pageBreakInside: 'avoid' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px', border }}>
             <colgroup>
-              <col style={{ width: '76%' }} />
-              <col style={{ width: '24%' }} />
+              <col style={{ width: '78%' }} />
+              <col style={{ width: '22%' }} />
             </colgroup>
             <tbody>
               {hasSpecialDiscount && (
