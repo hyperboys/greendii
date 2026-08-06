@@ -71,6 +71,42 @@ async function renderUrlToPdf(url, opts = {}) {
     await page.waitForFunction('window.__printReady === true', { timeout: timeoutMs })
       .catch(() => { /* fall through with whatever is rendered */ });
 
+    // Multi-page React print views can flip from a hidden measurement layer to
+    // the real page set just before signaling ready. Wait for those page nodes
+    // to exist and survive a couple of paint cycles so Puppeteer captures the
+    // final rendered content instead of blank white pages.
+    await page.waitForFunction(
+      () => {
+        const selectors = ['.workorder-page', '.quotation-page', '.handover-page', '.pr-page'];
+        const pageNodes = selectors.flatMap((selector) => Array.from(document.querySelectorAll(selector)));
+        if (pageNodes.length === 0) return document.body?.innerText?.trim()?.length > 0;
+        return pageNodes.some((node) => {
+          const text = (node.textContent || '').replace(/\s+/g, ' ').trim();
+          const rect = node.getBoundingClientRect();
+          return text.length > 0 && rect.height > 0;
+        });
+      },
+      { timeout: Math.min(timeoutMs, 10000) },
+    ).catch(() => { /* continue with best-effort render */ });
+
+    await page.evaluate(async () => {
+      if (document.fonts?.ready) {
+        try {
+          await document.fonts.ready;
+        } catch {
+          // Ignore font readiness failures and keep the current render.
+        }
+      }
+
+      await new Promise((resolve) => {
+        if (typeof requestAnimationFrame !== 'function') {
+          setTimeout(resolve, 0);
+          return;
+        }
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+    });
+
     const pdf = await page.pdf({
       format,
       printBackground: true,
