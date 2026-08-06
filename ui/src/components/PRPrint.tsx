@@ -104,7 +104,7 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
   return formatBangkokDateTime(latestSubmitAt)
 }
 
-const prColumnWidths = ['5%', '40%', '8%', '8%', '13%', '13%', '13%'] as const
+const prColumnWidths = ['6%', '34%', '22%', '8%', '8%', '11%', '11%'] as const
 
 type PRItem = PurchaseRequest['items'][number]
 
@@ -301,11 +301,11 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
           <tr>
             <th style={{ ...thS }}>รหัส<br />P/N</th>
             <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
+            <th style={{ ...thS }}>หมายเหตุ<br />REMARK</th>
             <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
             <th style={{ ...thS }}>จำนวน<br />QTY</th>
             <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
             <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
-            <th style={{ ...thS }}>หมายเหตุ</th>
           </tr>
         </thead>
         <tbody style={{ height: '100%' }}>
@@ -317,11 +317,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
                 <td style={{ ...tdS }}>
                   {item?.desc ?? ''}
-                  {splitDescriptionLines(noteParts.noteText).map((line, idx) => (
-                    <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
-                      {line || '\u00a0'}
-                    </div>
-                  ))}
                   {noteParts.detailLines.map((line, idx) => (
                     <div key={`detail-${idx}`} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
                       {line || '\u00a0'}
@@ -340,11 +335,17 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                     </div>
                   )}
                 </td>
+                <td style={{ ...tdS }}>
+                  {splitDescriptionLines(noteParts.noteText).map((line, idx) => (
+                    <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
+                      {line || '\u00a0'}
+                    </div>
+                  ))}
+                </td>
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
-                <td style={{ ...tdS }}></td>
               </tr>
             )
           })}
@@ -365,29 +366,25 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
             <tbody>
               {hasSpecialDiscount && (
                 <tr>
-                  <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                  <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
                   <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
                   <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
-                  <td style={{ border: 'none' }}>&nbsp;</td>
                 </tr>
               )}
               <tr>
-                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
                 <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
                 <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtMoneyWithCode(doc.subTotal)}</td>
-                <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
               <tr>
-                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
                 <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
                 <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
-                <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
               <tr>
-                <td colSpan={3} style={{ border: 'none' }}>&nbsp;</td>
+                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
                 <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
                 <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtMoneyWithCode(doc.netTotal)}</td>
-                <td style={{ border: 'none' }}>&nbsp;</td>
               </tr>
             </tbody>
           </table>
