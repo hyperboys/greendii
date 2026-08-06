@@ -267,6 +267,22 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     borderTop: '0',
   }
 
+  const summaryLabelS: React.CSSProperties = {
+    border,
+    padding: '5px 10px',
+    fontSize: '12pt',
+    textAlign: 'right',
+    verticalAlign: 'middle',
+    backgroundColor: '#fff',
+  }
+
+  const summaryAmountS: React.CSSProperties = {
+    ...summaryLabelS,
+    width: '24%',
+    textAlign: 'right',
+    whiteSpace: 'nowrap',
+  }
+
   function renderFlexibleFillerRow(key: number) {
     const fillerTd: React.CSSProperties = {
       ...tdS,
@@ -357,34 +373,31 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
 
   function renderSummaryAndSignatures() {
     return (
-      <div style={{ marginTop: 'auto' }}>
+      <div>
         <div style={{ pageBreakInside: 'avoid' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginTop: '0px', border }}>
             <colgroup>
-              {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
+              <col style={{ width: '76%' }} />
+              <col style={{ width: '24%' }} />
             </colgroup>
             <tbody>
               {hasSpecialDiscount && (
                 <tr>
-                  <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-                  <td colSpan={2} style={{ ...tdTotalFirstS, textAlign: 'right' }}>ส่วนลดพิเศษ</td>
-                  <td style={{ ...tdTotalFirstS, textAlign: 'right' }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
+                  <td style={{ ...summaryLabelS, ...tdTotalFirstS }}>ส่วนลดพิเศษ</td>
+                  <td style={{ ...summaryAmountS, ...tdTotalFirstS }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
                 </tr>
               )}
               <tr>
-                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-                <td colSpan={2} style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right', fontWeight: 'bold' }}>รวมเงิน Sub Total</td>
-                <td style={{ ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), textAlign: 'right' }}>{fmtMoneyWithCode(doc.subTotal)}</td>
+                <td style={{ ...summaryLabelS, ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
+                <td style={{ ...summaryAmountS, ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS) }}>{fmtMoneyWithCode(doc.subTotal)}</td>
               </tr>
               <tr>
-                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right' }}>ภาษีมูลค่าเพิ่ม 7 % ( VAT)</td>
-                <td style={{ ...tdTotalS, textAlign: 'right' }}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
+                <td style={summaryLabelS}>ภาษีมูลค่าเพิ่ม 7% (VAT)</td>
+                <td style={summaryAmountS}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
               </tr>
               <tr>
-                <td colSpan={4} style={{ border: 'none' }}>&nbsp;</td>
-                <td colSpan={2} style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>ยอดเงินสุทธิ Net Total</td>
-                <td style={{ ...tdTotalS, textAlign: 'right', fontWeight: 'bold' }}>{fmtMoneyWithCode(doc.netTotal)}</td>
+                <td style={{ ...summaryLabelS, fontWeight: 'bold', backgroundColor: '#eef6e7', borderTop: '1.5px solid #000', borderBottom: '1.5px solid #000' }}>ยอดรวมสุทธิ (Net Total)</td>
+                <td style={{ ...summaryAmountS, fontWeight: 'bold', backgroundColor: '#eef6e7', borderTop: '1.5px solid #000', borderBottom: '1.5px solid #000' }}>{fmtMoneyWithCode(doc.netTotal)}</td>
               </tr>
             </tbody>
           </table>
