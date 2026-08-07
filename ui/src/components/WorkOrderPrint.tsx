@@ -23,9 +23,11 @@ const MAX_IMAGES_PER_FRAGMENT = 3
 const HEADER_GAP = 12
 const SAFETY = 20
 const TAIL_GAP = 18
-const MEASURE_BUFFER_NON_LAST = 24
-const MEASURE_BUFFER_LAST = 30
-const PAGE_CONTENT_HEIGHT = '278mm'
+const MEASURE_BUFFER_NON_LAST = 48
+const MEASURE_BUFFER_LAST = 80
+const PAGE_CONTENT_HEIGHT = '271mm'
+const MAX_REFIT_PASSES = 12
+const OVERFLOW_TOLERANCE_PX = 2
 const SIGNATURE_FONT_FAMILY = "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)"
 
 function normalizePrintableText(value: unknown, options?: { trim?: boolean }): string {
@@ -289,12 +291,17 @@ interface Props {
 
 export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachments = true, fastPreview = false }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const [layoutSettled, setLayoutSettled] = useState(false)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
   const headerMeasRef = useRef<HTMLDivElement>(null)
   const theadMeasRef = useRef<HTMLTableSectionElement>(null)
   const tailMeasRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
+  const lastRowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const tailRefs = useRef<(HTMLDivElement | null)[]>([])
+  const refitPassRef = useRef(0)
   const readyRef = useRef(false)
 
   useEffect(() => {
@@ -340,7 +347,12 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
 
   useEffect(() => {
     setPages(null)
+    setLayoutSettled(false)
     rowRefs.current = []
+    pageRefs.current = []
+    lastRowRefs.current = []
+    tailRefs.current = []
+    refitPassRef.current = 0
     readyRef.current = false
   }, [doc])
 
@@ -396,11 +408,66 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     return () => { cancelled = true }
   }, [pages, doc, renderItems, fastPreview])
 
+  // Measured row heights can still be slightly off after the real page renders
+  // (fonts, borders, table shrinking), so verify the rendered result and push
+  // any row that crosses the page bottom onto the next page.
   useEffect(() => {
-    if (pages === null || readyRef.current) return
+    if (pages === null || layoutSettled) return
+    if (fastPreview) { setLayoutSettled(true); return }
+
+    const frame = requestAnimationFrame(() => {
+      if (refitPassRef.current >= MAX_REFIT_PASSES) { setLayoutSettled(true); return }
+
+      const overflowIndex = pages.findIndex((_, index) => {
+        const pageEl = pageRefs.current[index]
+        const rowEl = lastRowRefs.current[index]
+        if (!pageEl || !rowEl || !rowEl.isConnected) return false
+        const tailEl = tailRefs.current[index]
+        const limit = tailEl
+          ? tailEl.getBoundingClientRect().top
+          : pageEl.getBoundingClientRect().bottom - parseFloat(getComputedStyle(pageEl).paddingBottom || '0')
+        return rowEl.getBoundingClientRect().bottom > limit + OVERFLOW_TOLERANCE_PX
+      })
+
+      if (overflowIndex < 0) { setLayoutSettled(true); return }
+
+      const next = pages.map(page => ({ ...page, items: [...page.items] }))
+      const overflowing = next[overflowIndex]
+      if (overflowing.items.length === 0) { setLayoutSettled(true); return }
+
+      if (overflowing.tail) {
+        // The footer must stay on the last page, so split the items instead.
+        const kept = overflowing.items.slice(-1)
+        const moved = overflowing.items.slice(0, -1)
+        overflowing.items = moved.length > 0 ? kept : []
+        next.splice(overflowIndex, 0, {
+          items: moved.length > 0 ? moved : kept,
+          isLast: false,
+          tail: false,
+        })
+      } else {
+        const moved = overflowing.items.pop()
+        const following = next[overflowIndex + 1]
+        if (!moved) { setLayoutSettled(true); return }
+        if (following) following.items.unshift(moved)
+        else next.push({ items: [moved], isLast: true, tail: true })
+      }
+
+      refitPassRef.current += 1
+      pageRefs.current = []
+      lastRowRefs.current = []
+      tailRefs.current = []
+      setPages(next)
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [pages, layoutSettled, fastPreview])
+
+  useEffect(() => {
+    if (!layoutSettled || readyRef.current) return
     readyRef.current = true
     requestAnimationFrame(() => { onReady?.() })
-  }, [pages, onReady])
+  }, [layoutSettled, onReady])
 
   const dateStr = formatBangkokDate(doc.createdAt)
   const installDateStr = formatBangkokDate(doc.installDate) || '-'
@@ -635,7 +702,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     )
   }
 
-  function renderItemsTable(chunk: PageChunk) {
+  function renderItemsTable(chunk: PageChunk, pageIndex: number) {
     return (
       <table
         className="workorder-items-table"
@@ -653,7 +720,12 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         {renderItemsColGroup()}
         <thead>{itemsHeadRow()}</thead>
         <tbody>
-          {chunk.items.map(item => renderItemRow(item))}
+          {chunk.items.map((item, index) => renderItemRow(
+            item,
+            index === chunk.items.length - 1
+              ? (element) => { lastRowRefs.current[pageIndex] = element }
+              : undefined,
+          ))}
           <tr className="workorder-flex-filler" style={{ height: '100%' }}>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
             <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
@@ -665,7 +737,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     )
   }
 
-  function renderBottomSections() {
+  function renderBottomSections(tailRef?: (element: HTMLDivElement | null) => void) {
     const historyLogs = [...(doc.approvalLogs ?? [])]
       .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
 
@@ -743,7 +815,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     ]
 
     return (
-      <div className="workorder-bottom-sections" style={{ flex: '0 0 auto' }}>
+      <div className="workorder-bottom-sections" ref={tailRef} style={{ flex: '0 0 auto' }}>
         <div style={{ marginBottom: 0, padding: '7px 9px', border: borderHeavy, borderBottom: 'none' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', columnGap: '18px', rowGap: '7px' }}>
             {teamOptions.map(({ label, key }) => <Checkbox key={key} label={label} checked={chk(key)} />)}
@@ -825,6 +897,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           top: 0,
           left: 0,
           width: '100%',
+          maxWidth: '198mm', // pin to print width so modal's 210mm container doesn't skew measurements
           visibility: 'hidden',
           pointerEvents: 'none',
           zIndex: -1,
@@ -851,6 +924,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
         <div
           key={pi}
           className="workorder-page"
+          ref={(element) => { pageRefs.current[pi] = element }}
           style={{
             pageBreakAfter: pi < totalPages - 1 || attachmentSheets.length > 0 ? 'always' : 'auto',
             breakAfter: pi < totalPages - 1 || attachmentSheets.length > 0 ? 'page' : 'auto',
@@ -862,8 +936,8 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           }}
         >
           {renderHeader()}
-          {renderItemsTable(page)}
-          {page.tail && renderBottomSections()}
+          {renderItemsTable(page, pi)}
+          {page.tail && renderBottomSections((element) => { tailRefs.current[pi] = element })}
         </div>
       ))}
       {attachmentSheets.map((att, ai) => {

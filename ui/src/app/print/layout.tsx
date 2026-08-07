@@ -157,7 +157,7 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
           .print-sheet.workorder-print .workorder-page {
             box-sizing: border-box !important;
             width: 198mm !important;
-            height: 281mm !important;
+            height: 271mm !important;
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;

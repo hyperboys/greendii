@@ -251,19 +251,19 @@
     break-inside: avoid !important;
   }
 
-  /* Each manual page = exactly one A4 content area (297 − 6 − 10 = 281mm). */
+  /* Content height must stay in sync with PAGE_CONTENT_HEIGHT in WorkOrderPrint.tsx. */
   .print-sheet.workorder-print .workorder-page {
     box-sizing: border-box !important;
     width: 100% !important;
-    min-height: 281mm !important;
-    height: 281mm !important;
+    min-height: 271mm !important;
+    height: 271mm !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
   }
 
   .print-sheet.workorder-print .workorder-page:last-child {
-    height: 281mm !important;
+    height: 271mm !important;
     overflow: hidden !important;
   }
 
@@ -422,7 +422,8 @@
     box-sizing: border-box;
     width: 210mm;
     height: 297mm !important;
-    padding: 6mm 6mm 10mm;
+    /* 6 + 20 padding keeps the content box at 271mm, same as print. */
+    padding: 6mm 6mm 20mm;
     overflow: hidden !important;
     background: #fff;
     border: 1px solid #d6dde8;
@@ -438,16 +439,6 @@
   .quotation-preview-modal .print-sheet.workorder-print .workorder-page + .workorder-page {
     margin-top: 10mm;
     border-top: 0;
-  }
-
-  /* Preview-only tuning: make Description column text slightly smaller. */
-  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) {
-    font-size: 11.2pt !important;
-  }
-
-  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) div,
-  .quotation-preview-modal .workorder-items-table tbody tr td:nth-child(2) span {
-    font-size: 10.4pt !important;
   }
 
   .quotation-preview-modal .quotation-preview-frame {
