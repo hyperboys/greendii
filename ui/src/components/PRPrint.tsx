@@ -104,7 +104,7 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
   return formatBangkokDateTime(latestSubmitAt)
 }
 
-const prColumnWidths = ['6%', '34%', '22%', '8%', '8%', '11%', '11%'] as const
+const prColumnWidths = ['6%', '34%', '8%', '8%', '11%', '11%', '22%'] as const
 
 type PRItem = PurchaseRequest['items'][number]
 
@@ -317,11 +317,11 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
           <tr>
             <th style={{ ...thS }}>รหัส<br />P/N</th>
             <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
-            <th style={{ ...thS }}>หมายเหตุ<br />REMARK</th>
             <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
             <th style={{ ...thS }}>จำนวน<br />QTY</th>
             <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
             <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
+            <th style={{ ...thS }}>หมายเหตุ<br />REMARK</th>
           </tr>
         </thead>
         <tbody style={{ height: '100%' }}>
@@ -351,6 +351,10 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                     </div>
                   )}
                 </td>
+                <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
                 <td style={{ ...tdS }}>
                   {splitDescriptionLines(noteParts.noteText).map((line, idx) => (
                     <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
@@ -358,10 +362,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                     </div>
                   ))}
                 </td>
-                <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
               </tr>
             )
           })}
