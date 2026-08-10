@@ -18,7 +18,7 @@ const FIRST_FRAGMENT_CAP = 10
 const CONTINUATION_FRAGMENT_CAP = 12
 const MAX_DETAIL_ROWS_FIRST_FRAGMENT = 5
 const MAX_DETAIL_ROWS_CONTINUATION = 7
-const MAX_IMAGES_PER_FRAGMENT = 3
+const MAX_IMAGES_PER_FRAGMENT = 6
 
 const HEADER_GAP = 12
 const SAFETY = 20
@@ -292,6 +292,7 @@ interface Props {
 export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachments = true, fastPreview = false }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const [layoutSettled, setLayoutSettled] = useState(false)
+  const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
   const headerMeasRef = useRef<HTMLDivElement>(null)
@@ -348,6 +349,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
   useEffect(() => {
     setPages(null)
     setLayoutSettled(false)
+    setImageOrientation({})
     rowRefs.current = []
     pageRefs.current = []
     lastRowRefs.current = []
@@ -646,6 +648,16 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     )
   }
 
+  function getImageKey(item: WorkOrderItemFragment, imageIndex: number, url: string): string {
+    return `${item.key}::${imageIndex}::${url}`
+  }
+
+  function onImageLoad(imageKey: string, naturalWidth: number, naturalHeight: number) {
+    if (!naturalWidth || !naturalHeight) return
+    const next: 'landscape' | 'portrait' = naturalWidth > naturalHeight ? 'landscape' : 'portrait'
+    setImageOrientation(prev => (prev[imageKey] === next ? prev : { ...prev, [imageKey]: next }))
+  }
+
   function renderItemRow(item: WorkOrderItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
     const formatQty = (value: number | null | undefined): string => {
       if (value == null) return ''
@@ -668,17 +680,23 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           ))}
           {!safeDesc && item.detailRows.length === 0 && item.images.length === 0 && <span>\u00A0</span>}
           {item.images.length > 0 && (
-            <div style={{ marginTop: '1mm', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, 31mm)', gap: '1mm' }}>
-              {item.images.map((url, idx) => (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  key={idx}
-                  src={resolveFileUrl(url)}
-                  alt=""
-                  loading={fastPreview ? 'lazy' : 'eager'}
-                  style={{ width: '31mm', height: 'auto', objectFit: 'contain', display: 'block' }}
-                />
-              ))}
+            <div style={{ marginTop: '1.8mm', display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gridAutoFlow: 'dense', gap: '1.6mm', alignItems: 'start', width: '100%' }}>
+              {item.images.map((url, idx) => {
+                const imageKey = getImageKey(item, idx, url)
+                const orientation = imageOrientation[imageKey]
+                const isLandscape = orientation === 'landscape'
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={idx}
+                    src={resolveFileUrl(url)}
+                    alt=""
+                    loading={fastPreview ? 'lazy' : 'eager'}
+                    onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                    style={{ width: '100%', height: 'auto', maxHeight: '42mm', objectFit: 'contain', display: 'block', gridColumn: isLandscape ? 'span 2' : 'span 1' }}
+                  />
+                )
+              })}
             </div>
           )}
         </td>
