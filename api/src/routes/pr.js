@@ -342,6 +342,7 @@ router.get('/', authenticate, async (req, res, next) => {
       andWhere.push({
         OR: [
           { prNo: { contains: q, mode: 'insensitive' } },
+          { workOrder: { woNo: { contains: q, mode: 'insensitive' } } },
           { customer: { contains: q, mode: 'insensitive' } },
           { projectRef: { contains: q, mode: 'insensitive' } },
           { prType: { name: { contains: q, mode: 'insensitive' } } },
@@ -352,6 +353,7 @@ router.get('/', authenticate, async (req, res, next) => {
     const listInclude = {
       sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
       prType: { select: { id: true, name: true, approvalSteps: true } },
+      workOrder: { select: { id: true, woNo: true } },
       approvalLogs: {
         select: { approverId: true, action: true },
       },

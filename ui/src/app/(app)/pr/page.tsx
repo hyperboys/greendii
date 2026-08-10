@@ -78,7 +78,7 @@ export default function PRPage() {
       <div className="toolbar">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ / ลูกค้า"
+          <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ PR / WO / ลูกค้า"
             value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load(1)} />
         </div>
         <select className="form-input w-auto py-1.5" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -94,9 +94,9 @@ export default function PRPage() {
             <tr>
               <th className="w-[120px]">เลขที่ PR</th>
               <th className="w-[260px]">ประเภท PR</th>
+              <th className="w-[110px]">WO</th>
               <th className="w-[360px]">ลูกค้า</th>
               <th className="w-[170px]">ผู้สร้าง</th>
-              <th className="w-[110px]">อ้างอิง WO</th>
               <th className="w-[170px] text-right">ยอดสุทธิ</th>
               <th className="w-[120px]">สถานะ</th>
               <th className="w-[120px]">วันที่</th>
@@ -111,13 +111,13 @@ export default function PRPage() {
               <tr key={p.id} className="cursor-pointer" onClick={() => router.push(`/pr/${p.id}`)}>
                 <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
                 <td>{p.prType?.name || '-'}</td>
+                <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
                 <td>
                   <div className="truncate" title={p.customer}>{p.customer}</div>
                 </td>
                 <td>
                   <div className="truncate" title={p.sales?.fullName || '-'}>{p.sales?.fullName || '-'}</div>
                 </td>
-                <td className="text-xs text-gray-500">{p.workOrder?.woNo || '-'}</td>
                 <td className="text-right font-medium">{currencyPrefix(p.currency)}{fmtMoney(p.netTotal)}</td>
                 <td><span className={STATUS_COLORS[p.status]}>{STATUS_LABELS[p.status]}</span></td>
                 <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('en-GB')}</td>
