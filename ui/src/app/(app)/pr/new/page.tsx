@@ -208,7 +208,7 @@ export default function NewPRPage() {
     e.preventDefault()
     if (saving) return
     if (!form.prTypeId) { toast.error('กรุณาเลือกประเภทใบขอซื้อ'); return }
-    if (!form.customer) { toast.error('กรุณากรอกชื่อลูกค้า'); return }
+    if (!form.customer) { toast.error('กรุณากรอกชื่อ Supplier'); return }
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการ'); return }
     setSaving(true)
     try {
@@ -274,8 +274,8 @@ export default function NewPRPage() {
             }))}
             value={form.workOrderId}
             onChange={handleWO}
-            placeholder="ค้นหา/เลือกเลข WO หรือลูกค้า (เว้นว่าง = ไม่ระบุ)"
-            searchPlaceholder="พิมพ์ค้นหาเลข WO / ลูกค้า / Project"
+            placeholder="ค้นหา/เลือกเลข WO หรือ Supplier (เว้นว่าง = ไม่ระบุ)"
+            searchPlaceholder="พิมพ์ค้นหาเลข WO / Supplier / Project"
             emptyText="ไม่พบใบสั่งงานที่ตรงคำค้น"
           />
         </div>

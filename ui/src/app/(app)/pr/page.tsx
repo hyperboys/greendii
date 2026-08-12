@@ -78,7 +78,7 @@ export default function PRPage() {
       <div className="toolbar">
         <div className="relative flex-1 min-w-[200px] max-w-xs">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ PR / WO / ลูกค้า"
+          <input className="form-input pl-8 py-1.5" placeholder="ค้นหา เลขที่ PR / WO / Supplier"
             value={search} onChange={e => setSearch(e.target.value)} onKeyDown={e => e.key === 'Enter' && load(1)} />
         </div>
         <select className="form-input w-auto py-1.5" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
@@ -95,7 +95,7 @@ export default function PRPage() {
               <th className="w-[120px]">เลขที่ PR</th>
               <th className="w-[260px]">ประเภท PR</th>
               <th className="w-[110px]">WO</th>
-              <th className="w-[360px]">ลูกค้า</th>
+              <th className="w-[360px]">Supplier</th>
               <th className="w-[170px]">ผู้สร้าง</th>
               <th className="w-[170px] text-right">ยอดสุทธิ</th>
               <th className="w-[120px]">สถานะ</th>
