@@ -725,6 +725,7 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
     const createdAt = normalizeDateRange(req.query.from, req.query.to);
     const where = {
       active: true,
+      poRequirement: 'required',
       status: statuses.length > 0
         ? { in: statuses }
         : { not: 'cancelled' },
@@ -763,6 +764,8 @@ router.get('/workorders/no-po-by-sales', authenticate, async (req, res, next) =>
         amount: Number(wo.quotation?.grandTotal || 0),
         ageDays: calcAgeDays(wo.createdAt),
         status: wo.status,
+        poRequirement: wo.poRequirement || 'required',
+        noPoReason: wo.noPoReason || null,
         salesId,
         salesName,
       };
@@ -864,6 +867,7 @@ router.get('/work-status', authenticate, async (req, res, next) => {
 
     const customer = String(req.query.customer || '').trim();
     const poStatus = String(req.query.poStatus || 'all').trim().toLowerCase();
+    const workStatus = String(req.query.workStatus || 'all').trim().toLowerCase();
     const agingRange = String(req.query.agingRange || 'all').trim().toLowerCase();
     const page = parsePageInt(req.query.page, 1, { min: 1, max: 100000 });
     const limit = parsePageInt(req.query.limit, 50, { min: 1, max: 500 });
@@ -871,6 +875,8 @@ router.get('/work-status', authenticate, async (req, res, next) => {
     const where = {
       active: true,
       createdAt: { gte: dateFrom, lte: dateTo },
+      ...(workStatus === 'open' ? { isClosed: false } : {}),
+      ...(workStatus === 'closed' ? { isClosed: true } : {}),
       ...(customer ? { customerName: { contains: customer, mode: 'insensitive' } } : {}),
     };
 
@@ -888,6 +894,20 @@ router.get('/work-status', authenticate, async (req, res, next) => {
         project: true,
         createdAt: true,
         status: true,
+        isClosed: true,
+        closedAt: true,
+        dueDate: true,
+        completedAt: true,
+        poRequirement: true,
+        noPoReason: true,
+        noPoRemark: true,
+        issueStatus: true,
+        issueType: true,
+        issueDetail: true,
+        issueOwner: true,
+        issueExpectedAt: true,
+        issueBlockedAt: true,
+        issueResolvedAt: true,
         customerName: true,
         salesId: true,
         sales: { select: { id: true, fullName: true } },
@@ -925,17 +945,17 @@ router.get('/work-status', authenticate, async (req, res, next) => {
         const hasPo = poFiles.length > 0;
         const qtAmount = Number(wo.quotation?.grandTotal || 0);
 
-        let poStatusLabel = 'Pending';
-        if (hasPo && qtAmount > 0 && poAmount < qtAmount) poStatusLabel = 'Partial';
-        else if (hasPo) poStatusLabel = 'Received';
+        let poStatusLabel = wo.poRequirement === 'not_required' ? 'N/A' : 'Pending';
+        if (wo.poRequirement !== 'not_required' && hasPo && qtAmount > 0 && poAmount < qtAmount) poStatusLabel = 'Partial';
+        else if (wo.poRequirement !== 'not_required' && hasPo) poStatusLabel = 'Received';
 
-        const poStatusKey = hasPo ? 'has' : 'pending';
+        const poStatusKey = wo.poRequirement === 'not_required' ? 'not_required' : (hasPo ? 'has' : 'pending');
 
         const firstPo = poFiles[0] || null;
         const workDate = new Date(wo.createdAt);
         workDate.setHours(0, 0, 0, 0);
         const agingDaysRaw = Math.max(0, Math.floor((today.getTime() - workDate.getTime()) / 86400000));
-        const agingDays = hasPo ? 0 : agingDaysRaw;
+        const agingDays = poStatusKey === 'pending' ? agingDaysRaw : 0;
 
         return {
           id: wo.id,
@@ -955,6 +975,20 @@ router.get('/work-status', authenticate, async (req, res, next) => {
           agingDays,
           agingRange: mapAgingRange(agingDays),
           expectedPoDate: null,
+          workStatus: wo.isClosed ? 'closed' : wo.status,
+          closedAt: wo.closedAt,
+          dueDate: wo.dueDate,
+          completedAt: wo.completedAt,
+          poRequirement: wo.poRequirement || 'required',
+          noPoReason: wo.noPoReason,
+          noPoRemark: wo.noPoRemark,
+          issueStatus: wo.issueStatus || 'none',
+          issueType: wo.issueType,
+          issueDetail: wo.issueDetail,
+          issueOwner: wo.issueOwner,
+          issueExpectedAt: wo.issueExpectedAt,
+          issueBlockedAt: wo.issueBlockedAt,
+          issueResolvedAt: wo.issueResolvedAt,
         };
       });
 
@@ -963,6 +997,8 @@ router.get('/work-status', authenticate, async (req, res, next) => {
       filteredRows = filteredRows.filter(r => r.poStatusKey === 'has');
     } else if (poStatus === 'pending') {
       filteredRows = filteredRows.filter(r => r.poStatusKey === 'pending');
+    } else if (poStatus === 'not_required') {
+      filteredRows = filteredRows.filter(r => r.poStatusKey === 'not_required');
     }
 
     if (agingRange !== 'all') {
@@ -975,6 +1011,11 @@ router.get('/work-status', authenticate, async (req, res, next) => {
     const totalWorks = filteredRows.length;
     const worksWithPo = filteredRows.filter(r => r.poStatusKey === 'has').length;
     const worksPendingPo = filteredRows.filter(r => r.poStatusKey === 'pending').length;
+    const worksNotRequiredPo = filteredRows.filter(r => r.poStatusKey === 'not_required').length;
+    const worksOpen = filteredRows.filter(r => r.workStatus !== 'closed').length;
+    const worksClosed = filteredRows.filter(r => r.workStatus === 'closed').length;
+    const worksOverdue = filteredRows.filter(r => r.workStatus !== 'closed' && r.dueDate && new Date(r.dueDate) < now).length;
+    const worksBlocked = filteredRows.filter(r => r.issueStatus === 'blocked').length;
     const withPoPct = totalWorks > 0 ? (worksWithPo / totalWorks) * 100 : 0;
     const pendingPoPct = totalWorks > 0 ? (worksPendingPo / totalWorks) * 100 : 0;
     const totalQtAmountAtRisk = filteredRows
@@ -998,6 +1039,7 @@ router.get('/work-status', authenticate, async (req, res, next) => {
     const poSplit = [
       { key: 'has', label: 'Has PO', value: worksWithPo },
       { key: 'pending', label: 'Pending PO', value: worksPendingPo },
+      { key: 'not_required', label: 'N/A PO', value: worksNotRequiredPo },
     ];
 
     const total = filteredRows.length;
@@ -1013,6 +1055,11 @@ router.get('/work-status', authenticate, async (req, res, next) => {
         worksWithPo,
         worksWithPoPct: withPoPct,
         worksPendingPo,
+        worksNotRequiredPo,
+        worksOpen,
+        worksClosed,
+        worksOverdue,
+        worksBlocked,
         worksPendingPoPct: pendingPoPct,
         totalQtAmountAtRisk,
         averagePendingAging,

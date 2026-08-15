@@ -54,6 +54,7 @@ function rowClass(row: WorkStatusRow) {
 function poBadge(poStatus: WorkStatusRow['poStatus']) {
   if (poStatus === 'Received') return 'bg-emerald-100 text-emerald-800 border-emerald-200'
   if (poStatus === 'Partial') return 'bg-amber-100 text-amber-800 border-amber-200'
+  if (poStatus === 'N/A') return 'bg-slate-100 text-slate-700 border-slate-200'
   return 'bg-red-100 text-red-700 border-red-200'
 }
 
@@ -73,6 +74,7 @@ export default function WorkStatusReportPage() {
     return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : []
   })
   const [poStatus, setPoStatus] = useState<WorkStatusPoFilter>((searchParams.get('poStatus') as WorkStatusPoFilter) || 'all')
+  const [workStatus, setWorkStatus] = useState<'all' | 'open' | 'closed'>((searchParams.get('workStatus') as 'all' | 'open' | 'closed') || 'all')
   const [customer, setCustomer] = useState(searchParams.get('customer') || '')
   const [agingRange, setAgingRange] = useState<WorkStatusAgingFilter>((searchParams.get('agingRange') as WorkStatusAgingFilter) || 'all')
   const [page, setPage] = useState(() => {
@@ -92,6 +94,7 @@ export default function WorkStatusReportPage() {
       from,
       to,
       poStatus,
+      workStatus,
       agingRange,
       page: String(page),
       limit: String(PAGE_SIZE),
@@ -100,19 +103,20 @@ export default function WorkStatusReportPage() {
     if (customer.trim()) params.customer = customer.trim()
     if (overrides) Object.assign(params, overrides)
     return params
-  }, [from, to, poStatus, agingRange, page, salesIds, customer])
+  }, [from, to, poStatus, workStatus, agingRange, page, salesIds, customer])
 
   const syncUrl = useCallback(() => {
     const q = new URLSearchParams()
     q.set('from', from)
     q.set('to', to)
     q.set('poStatus', poStatus)
+    q.set('workStatus', workStatus)
     q.set('agingRange', agingRange)
     if (salesIds.length > 0) q.set('salesIds', salesIds.join(','))
     if (customer.trim()) q.set('customer', customer.trim())
     if (page > 1) q.set('page', String(page))
     router.replace(`${pathname}?${q.toString()}`)
-  }, [router, pathname, from, to, poStatus, agingRange, salesIds, customer, page])
+  }, [router, pathname, from, to, poStatus, workStatus, agingRange, salesIds, customer, page])
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -142,7 +146,7 @@ export default function WorkStatusReportPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [from, to, poStatus, salesIds, customer, agingRange])
+  }, [from, to, poStatus, workStatus, salesIds, customer, agingRange])
 
   const pendingBySales = report?.charts.pendingBySales || []
   const pieData = report?.charts.poSplit || []
@@ -169,6 +173,14 @@ export default function WorkStatusReportPage() {
         'PO No.': r.poNo || '-',
         'PO Amount': Number(r.poAmount || 0),
         'PO Status': r.poStatus,
+        'Work Status': r.workStatus === 'closed' ? 'ปิดแล้ว' : r.workStatus,
+        'PO Requirement': r.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : 'ต้องมี PO',
+        'No PO Reason': r.noPoReason || '-',
+        'Issue Status': r.issueStatus === 'blocked' ? 'ติดปัญหา' : (r.issueStatus || '-'),
+        'Issue Type': r.issueType || '-',
+        'Issue Detail': r.issueDetail || '-',
+        'Due Date': r.dueDate ? fmtDate(r.dueDate) : '-',
+        'Closed Date': r.closedAt ? fmtDate(r.closedAt) : '-',
         'Aging (Days)': r.poStatusKey === 'pending' ? r.agingDays : 0,
         'Expected PO Date': r.expectedPoDate ? fmtDate(r.expectedPoDate) : '-',
       }))
@@ -196,7 +208,7 @@ export default function WorkStatusReportPage() {
       autoTable(doc, {
         startY: 64,
         head: [[
-          '#', 'Work No', 'Date', 'Customer', 'Sales', 'Project', 'QT No', 'QT Amount', 'PO No', 'PO Amount', 'PO Status', 'Aging',
+          '#', 'Work No', 'Date', 'Customer', 'Sales', 'Project', 'QT No', 'QT Amount', 'PO No', 'PO Amount', 'PO Status', 'Work Status', 'PO Requirement', 'Issue', 'Aging',
         ]],
         body: data.map((r, i) => [
           i + 1,
@@ -210,6 +222,9 @@ export default function WorkStatusReportPage() {
           r.poNo || '-',
           fmtMoney(r.poAmount),
           r.poStatus,
+          r.workStatus === 'closed' ? 'Closed' : (r.workStatus || '-'),
+          r.poRequirement === 'not_required' ? 'N/A' : 'Required',
+          r.issueStatus === 'blocked' ? (r.issueType || 'Blocked') : '-',
           r.poStatusKey === 'pending' ? String(r.agingDays) : '-',
         ]),
         styles: { fontSize: 7, cellPadding: 2.5 },
@@ -284,7 +299,19 @@ export default function WorkStatusReportPage() {
                 <input type="radio" checked={poStatus === 'pending'} onChange={() => setPoStatus('pending')} />
                 <span>Pending PO</span>
               </label>
+              <label className="inline-flex items-center gap-2 text-sm cursor-pointer">
+                <input type="radio" checked={poStatus === 'not_required'} onChange={() => setPoStatus('not_required')} />
+                <span>ไม่ต้องมี PO</span>
+              </label>
             </div>
+          </div>
+          <div>
+            <label className="field-label">Work Status</label>
+            <select className="form-input" value={workStatus} onChange={e => setWorkStatus(e.target.value as typeof workStatus)}>
+              <option value="all">ทั้งหมด</option>
+              <option value="open">ยังไม่ปิด</option>
+              <option value="closed">ปิดแล้ว</option>
+            </select>
           </div>
         </div>
 
@@ -327,6 +354,10 @@ export default function WorkStatusReportPage() {
           <p className="text-xs text-gray-500">Average Aging (Pending)</p>
           <p className="text-2xl font-bold text-blue-700 mt-1">{(summary?.averagePendingAging || 0).toFixed(1)} days</p>
         </div>
+        <div className="card p-4 border-l-4 border-slate-500"><p className="text-xs text-gray-500">Work ยังไม่ปิด</p><p className="text-2xl font-bold mt-1">{summary?.worksOpen || 0}</p></div>
+        <div className="card p-4 border-l-4 border-gray-700"><p className="text-xs text-gray-500">Work ปิดแล้ว</p><p className="text-2xl font-bold mt-1">{summary?.worksClosed || 0}</p></div>
+        <div className="card p-4 border-l-4 border-amber-500"><p className="text-xs text-gray-500">Work ติดปัญหา</p><p className="text-2xl font-bold mt-1">{summary?.worksBlocked || 0}</p></div>
+        <div className="card p-4 border-l-4 border-slate-400"><p className="text-xs text-gray-500">ไม่ต้องมี PO</p><p className="text-2xl font-bold mt-1">{summary?.worksNotRequiredPo || 0}</p></div>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
@@ -380,6 +411,9 @@ export default function WorkStatusReportPage() {
                   <th>PO No.</th>
                   <th className="text-right">PO Amount</th>
                   <th>PO Status</th>
+                  <th>Work Status</th>
+                  <th>PO Requirement</th>
+                  <th>Issue</th>
                   <th className="text-right">Aging (Days)</th>
                   <th>Expected PO Date</th>
                 </tr>
@@ -392,6 +426,9 @@ export default function WorkStatusReportPage() {
                         {row.workNo}
                       </Link>
                     </td>
+                    <td>{row.workStatus === 'closed' ? 'ปิดแล้ว' : row.workStatus}</td>
+                    <td>{row.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : 'ต้องมี PO'}</td>
+                    <td>{row.issueStatus === 'blocked' ? row.issueType || 'ติดปัญหา' : '-'}</td>
                     <td>{fmtDate(row.workDate)}</td>
                     <td>{row.customerName}</td>
                     <td>{row.salesName}</td>

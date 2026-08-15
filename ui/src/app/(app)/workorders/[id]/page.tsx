@@ -311,8 +311,25 @@ export default function WorkOrderDetailPage() {
         <div><span className="form-label">ทีมงาน</span><p>{doc.teamAssignment || '-'}</p></div>
         <div><span className="form-label">วันติดตั้ง</span><p>{doc.installDate ? new Date(doc.installDate).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">วัน QC</span><p>{doc.qcDate ? new Date(doc.qcDate).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div><span className="form-label">กำหนดส่งงาน</span><p>{doc.dueDate ? new Date(doc.dueDate).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div><span className="form-label">สถานะ Work</span><p>{doc.isClosed ? 'ปิดงานแล้ว' : STATUS_LABELS[doc.status]}</p></div>
+        <div><span className="form-label">สถานะ PO</span><p>{doc.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : (doc.poStatus || 'ยังไม่มี PO')}</p></div>
+        {doc.poRequirement === 'not_required' && <div><span className="form-label">เหตุผลที่ไม่ต้องมี PO</span><p>{doc.noPoRemark || doc.noPoReason || '-'}</p></div>}
+        {doc.issueStatus && doc.issueStatus !== 'none' && <div className="col-span-full"><span className="form-label">ปัญหาปัจจุบัน</span><p>{doc.issueType || '-'} · {doc.issueDetail || '-'}{doc.issueOwner ? ` · ผู้รับผิดชอบ: ${doc.issueOwner}` : ''}</p></div>}
         {doc.remark && <div className="col-span-full"><span className="form-label">หมายเหตุ</span><p>{doc.remark}</p></div>}
       </div>
+
+      {!!doc.issueLogs?.length && (
+        <div className="card p-5 space-y-2">
+          <h3 className="font-semibold text-gray-800">ประวัติปัญหา</h3>
+          {doc.issueLogs.map(log => (
+            <div key={log.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
+              <div className="text-xs text-gray-500">{log.user?.fullName ?? log.user?.id ?? '-'} · {new Date(log.createdAt).toLocaleString('en-GB')} · {log.status}</div>
+              <div className="mt-1">{log.issueType || '-'} · {log.detail || '-'}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {doc.status === 'rejected' && latestRejectLog?.comment && (
         <div className="card border border-red-200 bg-red-50 p-5">

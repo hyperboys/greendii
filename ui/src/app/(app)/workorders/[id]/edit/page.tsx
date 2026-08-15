@@ -45,6 +45,8 @@ const DEFAULT_DOC_CHECKLIST: Record<string, boolean> = Object.fromEntries(
   [...CHECKLIST_GROUPS.team, ...CHECKLIST_GROUPS.docs].map(item => [item.key, false]),
 )
 const DEFAULT_RESPONSIBILITY = 'K.Sarayut'
+const NO_PO_REASONS = [['free_service', 'งาน Service ฟรี'], ['sample', 'งานตัวอย่าง'], ['warranty', 'งานรับประกัน'], ['free_repair', 'งานแก้ไขโดยไม่คิดค่าใช้จ่าย'], ['internal', 'งานภายใน'], ['customer_support', 'งานสนับสนุนลูกค้า'], ['other', 'อื่น ๆ']] as const
+const ISSUE_TYPES = ['รอลูกค้ายืนยัน', 'รอลูกค้าส่งข้อมูล', 'รอสินค้า', 'รออะไหล่', 'รอ Supplier', 'รอทีมภายใน', 'รอเข้าพื้นที่', 'รออนุมัติ', 'รอเอกสาร', 'ปัญหาด้านเทคนิค', 'กำลังดำเนินงาน', 'อื่น ๆ']
 
 interface FormData {
   handOverJobId: string
@@ -60,7 +62,16 @@ interface FormData {
   teamAssignment: string
   installDate: string
   qcDate: string
+  dueDate: string
   remark: string
+  poRequirement: 'required' | 'not_required'
+  noPoReason: string
+  noPoRemark: string
+  issueStatus: 'none' | 'blocked' | 'resolved'
+  issueType: string
+  issueDetail: string
+  issueOwner: string
+  issueExpectedAt: string
   docChecklist: Record<string, boolean>
 }
 
@@ -84,7 +95,7 @@ export default function EditWorkOrderPage() {
     handOverJobId: '',
     quotationId: '', customerName: '', contactName: '', contactTel: '',
     project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: DEFAULT_RESPONSIBILITY,
-    teamAssignment: '', installDate: '', qcDate: '', remark: '',
+    teamAssignment: '', installDate: '', qcDate: '', dueDate: '', remark: '', poRequirement: 'required', noPoReason: '', noPoRemark: '', issueStatus: 'none', issueType: '', issueDetail: '', issueOwner: '', issueExpectedAt: '',
     docChecklist: { ...DEFAULT_DOC_CHECKLIST },
   })
 
@@ -121,7 +132,12 @@ export default function EditWorkOrderPage() {
           teamAssignment: doc.teamAssignment ?? '',
           installDate: doc.installDate ? doc.installDate.slice(0, 10) : '',
           qcDate: doc.qcDate ? doc.qcDate.slice(0, 10) : '',
+          dueDate: doc.dueDate ? doc.dueDate.slice(0, 10) : '',
           remark: doc.remark ?? '',
+          poRequirement: doc.poRequirement === 'not_required' ? 'not_required' : 'required',
+          noPoReason: doc.noPoReason ?? '', noPoRemark: doc.noPoRemark ?? '',
+          issueStatus: doc.issueStatus === 'blocked' || doc.issueStatus === 'resolved' ? doc.issueStatus : 'none',
+          issueType: doc.issueType ?? '', issueDetail: doc.issueDetail ?? '', issueOwner: doc.issueOwner ?? '', issueExpectedAt: doc.issueExpectedAt ? doc.issueExpectedAt.slice(0, 10) : '',
           docChecklist: { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) },
         })
       })
@@ -297,6 +313,19 @@ export default function EditWorkOrderPage() {
           <DateInput value={form.qcDate}
             onChange={iso => setForm(prev => ({ ...prev, qcDate: iso }))} />
         </div>
+        <div><label className="form-label">กำหนดส่งงาน</label><DateInput value={form.dueDate} onChange={iso => setForm(prev => ({ ...prev, dueDate: iso }))} /></div>
+        <div><label className="form-label">เงื่อนไข PO</label><select className="form-input" value={form.poRequirement} onChange={e => setForm(prev => ({ ...prev, poRequirement: e.target.value as FormData['poRequirement'] }))}><option value="required">ต้องมี PO</option><option value="not_required">ไม่ต้องมี PO</option></select></div>
+        {form.poRequirement === 'not_required' && <>
+          <div><label className="form-label">เหตุผลที่ไม่ต้องมี PO *</label><select className="form-input" required value={form.noPoReason} onChange={e => setForm(prev => ({ ...prev, noPoReason: e.target.value }))}><option value="">เลือกเหตุผล</option>{NO_PO_REASONS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></div>
+          {form.noPoReason === 'other' && <div><label className="form-label">รายละเอียดเหตุผล *</label><input className="form-input" required value={form.noPoRemark} onChange={e => setForm(prev => ({ ...prev, noPoRemark: e.target.value }))} /></div>}
+        </>}
+        <div><label className="form-label">สถานะปัญหา</label><select className="form-input" value={form.issueStatus} onChange={e => setForm(prev => ({ ...prev, issueStatus: e.target.value as FormData['issueStatus'] }))}><option value="none">ไม่ติดปัญหา</option><option value="blocked">ติดปัญหา</option><option value="resolved">แก้ไขแล้ว</option></select></div>
+        {form.issueStatus !== 'none' && <>
+          <div><label className="form-label">ประเภทปัญหา *</label><select className="form-input" required value={form.issueType} onChange={e => setForm(prev => ({ ...prev, issueType: e.target.value }))}><option value="">เลือกประเภทปัญหา</option>{ISSUE_TYPES.map(type => <option key={type} value={type}>{type}</option>)}</select></div>
+          <div><label className="form-label">ผู้รับผิดชอบดำเนินการต่อ</label><input className="form-input" value={form.issueOwner} onChange={e => setForm(prev => ({ ...prev, issueOwner: e.target.value }))} /></div>
+          <div className="md:col-span-2"><label className="form-label">รายละเอียดปัญหา *</label><textarea className="form-input" required rows={2} value={form.issueDetail} onChange={e => setForm(prev => ({ ...prev, issueDetail: e.target.value }))} /></div>
+          <div><label className="form-label">คาดว่าแก้ไขเสร็จ</label><DateInput value={form.issueExpectedAt} onChange={iso => setForm(prev => ({ ...prev, issueExpectedAt: iso }))} /></div>
+        </>}
         <div className="md:col-span-2">
           <label className="form-label">หมายเหตุ</label>
           <textarea className="form-input" rows={2} {...f('remark')} />

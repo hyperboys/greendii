@@ -62,6 +62,7 @@ model User {
   quotations       Quotation[]
   workOrders       WorkOrder[]
   workOrderCloseLogs WorkOrderCloseLog[]
+  workOrderIssueLogs WorkOrderIssueLog[]
   handOverJobs     HandOverJob[]
   purchaseRequests PurchaseRequest[]
   approvalLogs     ApprovalLog[]
@@ -301,11 +302,23 @@ model WorkOrder {
   teamAssignment String?
   qcDate         DateTime? @db.Timestamptz(3)
   installDate    DateTime? @db.Timestamptz(3)
+  dueDate        DateTime? @db.Timestamptz(3)
+  completedAt    DateTime? @db.Timestamptz(3)
   remark         String?
   docChecklist   Json      @default("{}")
   hasPo          Boolean   @default(false) @map("has_po")
   poAttachedDate DateTime? @map("po_attached_date") @db.Timestamptz(3)
   poStatus       String    @default("ยังไม่มี PO") @map("po_status")
+  poRequirement  String    @default("required") @map("po_requirement")
+  noPoReason     String?   @map("no_po_reason")
+  noPoRemark     String?   @map("no_po_remark")
+  issueStatus    String    @default("none") @map("issue_status")
+  issueType      String?   @map("issue_type")
+  issueDetail    String?   @map("issue_detail")
+  issueOwner     String?   @map("issue_owner")
+  issueExpectedAt DateTime? @map("issue_expected_at") @db.Timestamptz(3)
+  issueBlockedAt DateTime? @map("issue_blocked_at") @db.Timestamptz(3)
+  issueResolvedAt DateTime? @map("issue_resolved_at") @db.Timestamptz(3)
   status         DocStatus @default(draft)
   approvalStep   Int       @default(0)
   isClosed       Boolean   @default(false)
@@ -319,6 +332,7 @@ model WorkOrder {
   attachments      Attachment[]
   poAuditLogs      WorkOrderPoAudit[]
   closeLogs        WorkOrderCloseLog[]
+  issueLogs        WorkOrderIssueLog[]
   emailLogs        EmailLog[]
   readLogs         WorkOrderReadLog[]
 
@@ -366,6 +380,23 @@ model WorkOrderCloseLog {
   @@index([workOrderId, closedAt])
   @@index([userId, closedAt])
   @@map("workorder_close_logs")
+}
+
+model WorkOrderIssueLog {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status      String
+  issueType   String?
+  detail      String?
+  owner       String?
+  expectedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@index([workOrderId, createdAt])
+  @@map("workorder_issue_logs")
 }
 
 // ─────────────────────────────────────────────

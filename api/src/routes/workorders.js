@@ -18,6 +18,9 @@ const DEFAULT_WO_CLOSE_ACCESS = {
   roles: ['admin'],
   userIds: [],
 };
+const PO_REQUIREMENTS = new Set(['required', 'not_required']);
+const NO_PO_REASONS = new Set(['free_service', 'sample', 'warranty', 'free_repair', 'internal', 'customer_support', 'other']);
+const ISSUE_STATUSES = new Set(['none', 'blocked', 'resolved']);
 const TEAM_CHECKLIST_KEYS = [
   'team_delivery_only',
   'team_floor',
@@ -66,6 +69,10 @@ const INCLUDE_FULL = {
     include: { user: { select: { id: true, fullName: true, role: true } } },
     orderBy: { closedAt: 'desc' },
   },
+  issueLogs: {
+    include: { user: { select: { id: true, fullName: true, role: true } } },
+    orderBy: { createdAt: 'desc' },
+  },
 };
 
 function stripRevisionSuffix(docNo = '') {
@@ -107,6 +114,51 @@ function normalizeOptionalId(value) {
   if (value === null) return null;
   const normalized = String(value).trim();
   return normalized ? normalized : null;
+}
+
+function normalizeWorkOrderTracking(input = {}, fallback = {}) {
+  const poRequirement = PO_REQUIREMENTS.has(String(input.poRequirement || ''))
+    ? String(input.poRequirement)
+    : String(fallback.poRequirement || 'required');
+  const noPoReason = input.noPoReason === undefined ? (fallback.noPoReason || null) : (String(input.noPoReason || '').trim() || null);
+  const noPoRemark = input.noPoRemark === undefined ? (fallback.noPoRemark || null) : (String(input.noPoRemark || '').trim() || null);
+  if (poRequirement === 'not_required' && !NO_PO_REASONS.has(noPoReason || '')) {
+    const error = new Error('กรุณาระบุเหตุผลที่ไม่ต้องมี PO');
+    error.status = 400;
+    throw error;
+  }
+  if (poRequirement === 'not_required' && noPoReason === 'other' && !noPoRemark) {
+    const error = new Error('กรุณาระบุรายละเอียดเหตุผลที่ไม่ต้องมี PO');
+    error.status = 400;
+    throw error;
+  }
+  const issueStatus = ISSUE_STATUSES.has(String(input.issueStatus || ''))
+    ? String(input.issueStatus)
+    : String(fallback.issueStatus || 'none');
+  const issueType = input.issueType === undefined ? (fallback.issueType || null) : (String(input.issueType || '').trim() || null);
+  const issueDetail = input.issueDetail === undefined ? (fallback.issueDetail || null) : (String(input.issueDetail || '').trim() || null);
+  if (issueStatus === 'blocked' && (!issueType || !issueDetail)) {
+    const error = new Error('กรุณาระบุประเภทและรายละเอียดปัญหา');
+    error.status = 400;
+    throw error;
+  }
+  return {
+    dueDate: input.dueDate === undefined ? (fallback.dueDate || null) : parseBangkokDate(input.dueDate),
+    poRequirement,
+    noPoReason,
+    noPoRemark,
+    issueStatus,
+    issueType,
+    issueDetail,
+    issueOwner: input.issueOwner === undefined ? (fallback.issueOwner || null) : (String(input.issueOwner || '').trim() || null),
+    issueExpectedAt: input.issueExpectedAt === undefined ? (fallback.issueExpectedAt || null) : parseBangkokDate(input.issueExpectedAt),
+    issueBlockedAt: issueStatus === 'blocked'
+      ? (fallback.issueStatus === 'blocked' && fallback.issueBlockedAt ? fallback.issueBlockedAt : new Date())
+      : (input.issueBlockedAt === undefined ? (fallback.issueBlockedAt || null) : parseBangkokDate(input.issueBlockedAt)),
+    issueResolvedAt: issueStatus === 'resolved'
+      ? (fallback.issueResolvedAt || new Date())
+      : (input.issueResolvedAt === undefined ? (fallback.issueResolvedAt || null) : parseBangkokDate(input.issueResolvedAt)),
+  };
 }
 
 function buildOptionalRelationUpdate(id) {
@@ -717,7 +769,8 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       handOverJobId,
       quotationId, project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
-      qcDate, installDate, remark, docChecklist,
+      qcDate, installDate, dueDate, remark, docChecklist,
+      poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
@@ -729,6 +782,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       ? await getQuotationItemsSnapshot(linkedQuotationId)
       : [];
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
+    const tracking = normalizeWorkOrderTracking({ dueDate, poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt });
 
     const linkedQuotation = linkedQuotationId
       ? await prisma.quotation.findUnique({
@@ -747,6 +801,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
 
     const wo = await prisma.$transaction(async (tx) => {
       let woNo = await nextWorkOrderBaseNo()
+      let trackingValue = tracking
       let rootWorkOrderId = null
       let revisionNo = 0
       let projectValue = project
@@ -801,6 +856,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           installDateValue = installDate || (prevActiveWo.installDate ? prevActiveWo.installDate.toISOString().slice(0, 10) : null)
           remarkValue = remark ?? prevActiveWo.remark
           checklistValue = normalizeDocChecklist(docChecklist, prevActiveWo.docChecklist || {}, canEditTeamChecklist)
+          trackingValue = normalizeWorkOrderTracking({ dueDate, poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt }, prevActiveWo)
 
           await tx.workOrder.update({ where: { id: prevActiveWo.id }, data: { active: false } })
         } else {
@@ -837,6 +893,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           teamAssignment: teamAssignmentValue,
           qcDate: parseBangkokDate(qcDateValue),
           installDate: parseBangkokDate(installDateValue),
+          ...trackingValue,
           remark: remarkValue,
           docChecklist: checklistValue,
           salesId: req.user.id,
@@ -845,6 +902,19 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       })
 
       await syncSelectedHandOverJob(created.id, normalizedHandOverJobId, linkedQuotationId, tx)
+      if (trackingValue.issueStatus !== 'none') {
+        await tx.workOrderIssueLog.create({
+          data: {
+            workOrderId: created.id,
+            userId: req.user.id,
+            status: trackingValue.issueStatus,
+            issueType: trackingValue.issueType,
+            detail: trackingValue.issueDetail,
+            owner: trackingValue.issueOwner,
+            expectedAt: trackingValue.issueExpectedAt,
+          },
+        });
+      }
       return created
     })
 
@@ -875,7 +945,8 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
       quotationId,
       project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
-      qcDate, installDate, remark, docChecklist,
+      qcDate, installDate, dueDate, remark, docChecklist,
+      poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt,
     } = req.body;
     const normalizedQuotationId = normalizeOptionalId(quotationId);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
@@ -885,6 +956,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationRelation = buildOptionalRelationUpdate(linkedQuotationId);
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
+    const tracking = normalizeWorkOrderTracking({ dueDate, poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt }, existing);
     const wo = await prisma.$transaction(async (tx) => {
       const updated = await tx.workOrder.update({
         where: { id: req.params.id },
@@ -893,10 +965,30 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
           customerName, contactName, contactTel, teamAssignment,
           qcDate: parseBangkokDate(qcDate),
           installDate: parseBangkokDate(installDate),
+          ...tracking,
           remark, docChecklist: normalizeDocChecklist(docChecklist, existing.docChecklist || {}, canEditTeamChecklist),
           ...(quotationRelation ? { quotation: quotationRelation } : {}),
         },
       });
+
+      const issueChanged = existing.issueStatus !== tracking.issueStatus
+        || existing.issueType !== tracking.issueType
+        || existing.issueDetail !== tracking.issueDetail
+        || existing.issueOwner !== tracking.issueOwner
+        || String(existing.issueExpectedAt || '') !== String(tracking.issueExpectedAt || '');
+      if (issueChanged) {
+        await tx.workOrderIssueLog.create({
+          data: {
+            workOrderId: existing.id,
+            userId: req.user.id,
+            status: tracking.issueStatus,
+            issueType: tracking.issueType,
+            detail: tracking.issueDetail,
+            owner: tracking.issueOwner,
+            expectedAt: tracking.issueExpectedAt,
+          },
+        });
+      }
 
       await syncSelectedHandOverJob(req.params.id, normalizedHandOverJobId, linkedQuotationId, tx)
       return updated

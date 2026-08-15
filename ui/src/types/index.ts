@@ -376,17 +376,39 @@ export interface WorkOrder {
   teamAssignment?: string
   qcDate?: string
   installDate?: string
+  dueDate?: string | null
+  completedAt?: string | null
   remark?: string
   docChecklist: Record<string, boolean>
   hasPo?: boolean
   poAttachedDate?: string | null
   poStatus?: string
+  poRequirement?: 'required' | 'not_required' | string
+  noPoReason?: string | null
+  noPoRemark?: string | null
+  issueStatus?: 'none' | 'blocked' | 'resolved' | string
+  issueType?: string | null
+  issueDetail?: string | null
+  issueOwner?: string | null
+  issueExpectedAt?: string | null
+  issueBlockedAt?: string | null
+  issueResolvedAt?: string | null
   status: DocStatus
   approvalStep: number
   isClosed: boolean
   closedAt?: string
   approvalLogs?: ApprovalLog[]
   closeLogs?: WorkOrderCloseLog[]
+  issueLogs?: Array<{
+    id: string
+    status: string
+    issueType?: string | null
+    detail?: string | null
+    owner?: string | null
+    expectedAt?: string | null
+    createdAt: string
+    user?: { id: string; fullName: string; role: string }
+  }>
   attachments?: Attachment[]
   createdAt: string
   updatedAt: string
@@ -780,7 +802,7 @@ export interface SalesPerformanceReport {
   rows: SalesPerformanceRow[]
 }
 
-export type WorkStatusPoFilter = 'all' | 'has' | 'pending'
+export type WorkStatusPoFilter = 'all' | 'has' | 'pending' | 'not_required'
 export type WorkStatusAgingFilter = 'all' | '0-7' | '8-15' | '16-30' | '30+'
 
 export interface WorkStatusRow {
@@ -796,11 +818,25 @@ export interface WorkStatusRow {
   qtAmount: number
   poNo: string | null
   poAmount: number
-  poStatus: 'Received' | 'Partial' | 'Pending'
-  poStatusKey: 'has' | 'pending'
+  poStatus: 'Received' | 'Partial' | 'Pending' | 'N/A'
+  poStatusKey: 'has' | 'pending' | 'not_required'
   agingDays: number
   agingRange: Exclude<WorkStatusAgingFilter, 'all'> | null
   expectedPoDate: string | null
+  poRequirement?: string
+  noPoReason?: string | null
+  noPoRemark?: string | null
+  workStatus?: string
+  closedAt?: string | null
+  dueDate?: string | null
+  completedAt?: string | null
+  issueStatus?: string
+  issueType?: string | null
+  issueDetail?: string | null
+  issueOwner?: string | null
+  issueExpectedAt?: string | null
+  issueBlockedAt?: string | null
+  issueResolvedAt?: string | null
 }
 
 export interface WorkStatusReport {
@@ -810,13 +846,18 @@ export interface WorkStatusReport {
     worksWithPo: number
     worksWithPoPct: number
     worksPendingPo: number
+    worksNotRequiredPo?: number
+    worksOpen?: number
+    worksClosed?: number
+    worksOverdue?: number
+    worksBlocked?: number
     worksPendingPoPct: number
     totalQtAmountAtRisk: number
     averagePendingAging: number
   }
   charts: {
     pendingBySales: Array<{ salesId: string; salesName: string; count: number }>
-    poSplit: Array<{ key: 'has' | 'pending'; label: string; value: number }>
+    poSplit: Array<{ key: 'has' | 'pending' | 'not_required'; label: string; value: number }>
   }
   pagination: {
     page: number

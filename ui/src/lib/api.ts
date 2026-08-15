@@ -429,7 +429,8 @@ export const ReportsAPI = {
     salesId?: string
     salesIds?: string
     customer?: string
-    poStatus?: 'all' | 'has' | 'pending'
+    poStatus?: 'all' | 'has' | 'pending' | 'not_required'
+    workStatus?: 'all' | 'open' | 'closed'
     agingRange?: 'all' | '0-7' | '8-15' | '16-30' | '30+'
     page?: string
     limit?: string
