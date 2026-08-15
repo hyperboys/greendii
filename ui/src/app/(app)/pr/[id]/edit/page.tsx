@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, SettingsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
+import { PRAPI, WorkOrdersAPI, UnitsAPI, PrTypesAPI, SettingsAPI, UploadAPI } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import type { Attachment, WorkOrder, PRItem, Unit, PrType } from '@/types'
-import { ArrowLeft, Plus, Trash2, ImagePlus, X } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import SearchableSelect from '@/components/SearchableSelect'
+import PRDescriptionEditor from '@/components/PRDescriptionEditor'
+import { compactPRDescription } from '@/lib/prDescription'
 
 interface FormData {
   workOrderId: string
@@ -42,7 +44,6 @@ function currencyPrefix(code?: string) {
 const emptyItem = (): PRItem => ({ partNo: '', desc: '', note: '', qty: 1, unit: '', price: 0, amount: 0, images: [] })
 const VAT_RATE = 0.07
 const roundMoney = (value: number) => Math.round(value * 100) / 100
-const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
 const formatMoneyInput = (value: number) => new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0)
 
 function parseMoneyInput(value: string): number {
@@ -54,24 +55,6 @@ function parseMoneyInput(value: string): number {
   if (!normalized || normalized === '.') return 0
   const parsed = Number(normalized)
   return Number.isFinite(parsed) ? roundMoney(parsed) : 0
-}
-
-function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
-  const raw = note ?? ''
-  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
-  if (markerIdx === -1) return { noteText: raw, detailLines: [''] }
-  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
-  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
-  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : ['']
-  return { noteText, detailLines: detailLines.length > 0 ? detailLines : [''] }
-}
-
-function composeNoteParts(noteText: string, detailLines: string[]): string {
-  const cleanNote = noteText
-  const normalizedLines = detailLines.length > 0 ? detailLines : ['']
-  const hasDetail = normalizedLines.some(line => line.trim() !== '')
-  if (!hasDetail) return cleanNote
-  return `${cleanNote}${cleanNote ? '\n' : ''}${DETAIL_ROWS_MARKER}\n${normalizedLines.join('\n')}`
 }
 
 export default function EditPRPage() {
@@ -115,6 +98,7 @@ export default function EditPRPage() {
           router.replace(`/pr/${id}`)
           return
         }
+        const loadedItems = doc.items && doc.items.length > 0 ? doc.items : [emptyItem()]
         setForm({
           workOrderId: doc.workOrderId ?? '',
           prTypeId: doc.prTypeId ?? '',
@@ -126,7 +110,7 @@ export default function EditPRPage() {
           remarks: doc.remarks ?? '',
           specialDiscount: Number(doc.specialDiscount ?? 0),
           includeVat: Number(doc.vat ?? 0) > 0,
-          items: doc.items && doc.items.length > 0 ? doc.items : [emptyItem()],
+          items: loadedItems,
         })
         setAttachments(doc.attachments ?? [])
       })
@@ -154,6 +138,10 @@ export default function EditPRPage() {
   const netTotal = roundMoney(afterDiscount + vat)
   const moneyPrefix = currencyPrefix(form.currency)
 
+  const addPRLine = () => {
+    setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))
+  }
+
   const setItem = (idx: number, key: keyof PRItem, val: string | number) => {
     setForm(f => {
       const items = [...f.items]
@@ -163,83 +151,22 @@ export default function EditPRPage() {
     })
   }
 
-  const setDetailLine = (itemIdx: number, lineIdx: number, value: string) => {
-    setForm(f => {
-      const items = [...f.items]
-      const target = items[itemIdx]
-      const parts = parseNoteParts(target.note)
-      const lines = [...parts.detailLines]
-      lines[lineIdx] = value
-      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
-      return { ...f, items }
-    })
-  }
-
-  const setMainNote = (itemIdx: number, value: string) => {
-    setForm(f => {
-      const items = [...f.items]
-      const target = items[itemIdx]
-      const parts = parseNoteParts(target.note)
-      items[itemIdx] = { ...target, note: composeNoteParts(value, parts.detailLines) }
-      return { ...f, items }
-    })
-  }
-
-  const addDetailLine = (itemIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const target = items[itemIdx]
-      const parts = parseNoteParts(target.note)
-      const lines = [...parts.detailLines]
-      lines.push('')
-      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
-      return { ...f, items }
-    })
-  }
-
-  const removeDetailLine = (itemIdx: number, lineIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const target = items[itemIdx]
-      const parts = parseNoteParts(target.note)
-      const lines = [...parts.detailLines]
-      if (lines.length <= 1) {
-        items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, ['']) }
-        return { ...f, items }
-      }
-      lines.splice(lineIdx, 1)
-      items[itemIdx] = { ...target, note: composeNoteParts(parts.noteText, lines) }
-      return { ...f, items }
-    })
-  }
-
-  const uploadItemImages = async (itemIdx: number, files: FileList | null) => {
-    if (!files || files.length === 0) return
-    const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'))
-    if (imageFiles.length === 0) return toast.error('รองรับเฉพาะไฟล์รูปภาพ')
+  const uploadDescriptionImages = async (files: FileList): Promise<string[]> => {
+    const imageFiles = Array.from(files).filter(file => file.type.startsWith('image/'))
+    if (imageFiles.length === 0) {
+      toast.error('รองรับเฉพาะไฟล์รูปภาพ')
+      return []
+    }
     const tId = toast.loading('กำลังอัปโหลดรูป...')
     try {
       const saved = await UploadAPI.upload(imageFiles, { category: 'pr-item', purchaseRequestId: id })
-      const urls = saved.map((a: any) => a.fileUrl).filter(Boolean)
-      setForm(f => {
-        const items = [...f.items]
-        items[itemIdx] = { ...items[itemIdx], images: [...(items[itemIdx].images || []), ...urls] }
-        return { ...f, items }
-      })
+      const urls = saved.map((a: { fileUrl?: string }) => a.fileUrl).filter((url): url is string => Boolean(url))
       toast.success('อัปโหลดรูปสำเร็จ', { id: tId })
+      return urls
     } catch {
       toast.error('อัปโหลดไม่สำเร็จ', { id: tId })
+      return []
     }
-  }
-
-  const removeItemImage = (itemIdx: number, urlIdx: number) => {
-    setForm(f => {
-      const items = [...f.items]
-      const imgs = [...(items[itemIdx].images || [])]
-      imgs.splice(urlIdx, 1)
-      items[itemIdx] = { ...items[itemIdx], images: imgs }
-      return { ...f, items }
-    })
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -262,7 +189,7 @@ export default function EditPRPage() {
 
       await PRAPI.update(id, {
         ...form, subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
-        items: form.items.map((item, i) => ({ ...item, seq: i + 1 })),
+        items: form.items.map((item, i) => ({ ...item, note: compactPRDescription(item.note), seq: i + 1 })),
       })
       toast.success('บันทึกสำเร็จ')
       router.push(`/pr/${id}`)
@@ -355,7 +282,7 @@ export default function EditPRPage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-semibold text-gray-800">รายการสินค้า/วัสดุ</h3>
           <button type="button" className="btn-outline btn-sm"
-            onClick={() => setForm(f => ({ ...f, items: [...f.items, emptyItem()] }))}>
+            onClick={addPRLine}>
             <Plus size={14} /> เพิ่มรายการ
           </button>
         </div>
@@ -383,79 +310,17 @@ export default function EditPRPage() {
                         onChange={e => setItem(i, 'partNo', e.target.value)} placeholder="รหัส P/N" />
                     </td>
                     <td className="py-2 px-2">
-                      <input className="form-input py-1 w-full" value={item.desc} required autoComplete="off"
-                        onChange={e => setItem(i, 'desc', e.target.value)} placeholder="ชื่อรายการ *" />
-                      <textarea
-                        className="form-input py-1 mt-1.5 text-xs resize-none w-full text-gray-600"
-                        rows={2}
-                        value={parseNoteParts(item.note).noteText}
-                        onChange={e => setMainNote(i, e.target.value)}
-                        placeholder="รายละเอียด/สเปค/หมายเหตุเพิ่มเติม (ไม่บังคับ)" />
-                      <div className="mt-2">
-                        {item.images && item.images.length > 0 && (
-                          <div className="mb-1.5 flex flex-wrap gap-1.5">
-                            {item.images.map((url, imgIdx) => (
-                              <div key={imgIdx} className="group relative">
-                                <img
-                                  src={resolveFileUrl(url)}
-                                  alt=""
-                                  className="h-14 w-14 rounded border border-gray-200 object-cover"
-                                />
-                                <button
-                                  type="button"
-                                  onClick={() => removeItemImage(i, imgIdx)}
-                                  className="absolute -right-1.5 -top-1.5 rounded-full bg-red-500 p-0.5 text-white opacity-0 transition-opacity group-hover:opacity-100 hover:bg-red-600"
-                                  title="ลบรูป"
-                                >
-                                  <X size={10} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                        <label className="inline-flex cursor-pointer items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-800">
-                          <ImagePlus size={12} /> เพิ่มรูปภาพ
-                          <input
-                            type="file"
-                            accept="image/*"
-                            multiple
-                            className="hidden"
-                            onChange={e => {
-                              void uploadItemImages(i, e.target.files)
-                              e.currentTarget.value = ''
-                            }}
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-1.5 space-y-1.5">
-                        {parseNoteParts(item.note).detailLines.map((line, lineIdx, lines) => (
-                          <div key={`${i}-detail-${lineIdx}`} className="flex items-center gap-1.5">
-                            <input
-                              className="form-input py-1 text-xs w-full text-gray-600"
-                              value={line}
-                              onChange={e => setDetailLine(i, lineIdx, e.target.value)}
-                              placeholder={`รายละเอียดบรรทัดที่ ${lineIdx + 1} (ไม่บังคับ)`}
-                            />
-                            {lines.length > 1 && (
-                              <button
-                                type="button"
-                                className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                                onClick={() => removeDetailLine(i, lineIdx)}
-                                title="ลบรายละเอียด"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          className="inline-flex items-center gap-1 text-xs text-green-700 hover:text-green-800 font-medium"
-                          onClick={() => addDetailLine(i)}
-                        >
-                          <Plus size={12} /> เพิ่มรายละเอียด
-                        </button>
-                      </div>
+                      <PRDescriptionEditor
+                        description={item.desc}
+                        note={item.note ?? ''}
+                        images={item.images ?? []}
+                        onDescriptionChange={value => setForm(f => ({ ...f, items: f.items.map((current, index) => index === i ? { ...current, desc: value } : current) }))}
+                        onNoteChange={value => setForm(f => ({ ...f, items: f.items.map((current, index) => index === i ? { ...current, note: value } : current) }))}
+                        onImagesChange={images => setForm(f => ({ ...f, items: f.items.map((current, index) => index === i ? { ...current, images } : current) }))}
+                        onUploadImages={uploadDescriptionImages}
+                        onAddItem={addPRLine}
+                        onFocus={() => undefined}
+                      />
                     </td>
                     <td className="py-2 px-2">
                       <input type="number" min={0} max={99999} step="any" className="form-input py-1 text-right"
@@ -475,7 +340,9 @@ export default function EditPRPage() {
                     <td className="py-2.5 px-2 pt-3">
                       {form.items.length > 1 && (
                         <button type="button" className="p-1 text-red-400 hover:text-red-600 transition-colors"
-                          onClick={() => setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))}>
+                          onClick={() => {
+                            setForm(f => ({ ...f, items: f.items.filter((_, j) => j !== i) }))
+                          }}>
                           <Trash2 size={14} />
                         </button>
                       )}

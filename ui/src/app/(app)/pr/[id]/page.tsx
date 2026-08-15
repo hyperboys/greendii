@@ -14,6 +14,7 @@ import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 import AttachmentsSection from '@/components/AttachmentsSection'
+import { parsePRDescription } from '@/lib/prDescription'
 
 type PRDetailDoc = PurchaseRequest & {
   sales?: (PurchaseRequest['sales'] & { role?: string })
@@ -29,8 +30,6 @@ function currencyPrefix(code?: string) {
   if (c === 'USD') return '$'
   return `${c} `
 }
-
-const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
 
 function normalizeApprovalStages(steps: unknown): number[][] {
   if (!Array.isArray(steps)) return []
@@ -60,16 +59,6 @@ function getEffectivePrStages(steps: unknown, creatorRole: string | undefined, s
     // that whole stage is treated as auto-approved (skip).
     return !stage.some((step) => normalizeUserRole(stepRoleConfig[String(step)]) === normalizedCreatorRole)
   })
-}
-
-function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
-  const raw = note ?? ''
-  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
-  if (markerIdx === -1) return { noteText: raw, detailLines: [] }
-  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
-  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
-  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : []
-  return { noteText, detailLines }
 }
 
 function getLatestSubmitterRole(approvalLogs?: ApprovalLog[]): string | undefined {
@@ -142,7 +131,6 @@ export default function PRDetailPage() {
     && !(currentStage.includes(1) && actorRole === 'sales' && isMine)
   const vatIncluded = Number(doc.vat ?? 0) > 0
   const moneyPrefix = currencyPrefix(doc.currency)
-  const prRemark = doc.remarks ?? (doc as PurchaseRequest & { remark?: string }).remark ?? ''
   const latestRejectLog = [...(doc.approvalLogs ?? [])]
     .filter((log: ApprovalLog) => log.action === 'reject')
     .sort((a, b) => new Date(b.actedAt).getTime() - new Date(a.actedAt).getTime())[0]
@@ -244,7 +232,6 @@ export default function PRDetailPage() {
         <div><span className="form-label">สกุลเงิน</span><p>{doc.currency || 'THB'}</p></div>
         <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
-        {prRemark && <div className="col-span-full"><span className="form-label">Remark</span><p className="whitespace-pre-line">{prRemark}</p></div>}
       </div>
 
       <AttachmentsSection
@@ -277,28 +264,13 @@ export default function PRDetailPage() {
                 <td className="text-gray-500 text-xs">{item.partNo || '-'}</td>
                 <td>
                   {item.desc}
-                  {parseNoteParts(item.note).noteText && (
-                    <p className="text-xs text-gray-400 mt-0.5">{parseNoteParts(item.note).noteText}</p>
-                  )}
-                  {parseNoteParts(item.note).detailLines.length > 0 && (
-                    <div className="mt-0.5 space-y-0.5 text-xs text-gray-400">
-                      {parseNoteParts(item.note).detailLines.map((line, lineIdx) => (
-                        <p key={`${item.id ?? i}-note-${lineIdx}`}>{line || '\u00a0'}</p>
-                      ))}
-                    </div>
-                  )}
-                  {Array.isArray(item.images) && item.images.length > 0 && (
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      {item.images.map((url, imgIdx) => (
-                        <img
-                          key={`${item.id || i}-img-${imgIdx}`}
-                          src={resolveFileUrl(url)}
-                          alt=""
-                          className="h-14 w-14 rounded border border-gray-200 object-cover"
-                        />
-                      ))}
-                    </div>
-                  )}
+                  <div className="mt-0.5 space-y-0.5 text-xs text-gray-400">
+                    {parsePRDescription(item.note, item.images?.length ?? 0).map((block, blockIdx) => block.type === 'image' ? (
+                      <img key={`${item.id ?? i}-img-${block.imageIndex}-${blockIdx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" className="mr-1 mt-2 inline-block h-14 w-14 rounded border border-gray-200 object-cover" />
+                    ) : (
+                      <p key={`${item.id ?? i}-description-${blockIdx}`} style={{ color: block.color || undefined }}>{block.text || '\u00a0'}</p>
+                    ))}
+                  </div>
                 </td>
                 <td className="text-right">{fmtMoney(item.qty)}</td>
                 <td>{item.unit}</td>

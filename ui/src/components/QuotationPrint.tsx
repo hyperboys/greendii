@@ -66,43 +66,6 @@ function splitDescriptionLines(note?: string) {
   return lines
 }
 
-function splitAddressLines(address?: string, maxLines: number = 3): string[] {
-  const trimmed = (address ?? '').trim()
-  if (!trimmed) return Array.from({ length: maxLines }, () => '')
-
-  const fromNewline = trimmed
-    .split(/\r?\n/)
-    .map(v => v.trim())
-    .filter(Boolean)
-
-  let lines = fromNewline
-  if (lines.length <= 1) {
-    const chunks = trimmed
-      .split(',')
-      .map(v => v.trim())
-      .filter(Boolean)
-
-    if (chunks.length > 1) {
-      lines = []
-      let current = ''
-      for (const chunk of chunks) {
-        const next = current ? `${current}, ${chunk}` : chunk
-        if (next.length > 34 && current) {
-          lines.push(current)
-          current = chunk
-        } else {
-          current = next
-        }
-      }
-      if (current) lines.push(current)
-    }
-  }
-
-  const result = lines.slice(0, maxLines)
-  while (result.length < maxLines) result.push('')
-  return result
-}
-
 function normalizeDetailRows(raw: unknown): DetailRow[] {
   if (Array.isArray(raw)) return raw as DetailRow[]
   if (typeof raw === 'string') {
@@ -402,6 +365,29 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   // Font-size helper that applies the auto-fit scale to the items + summary.
   const fpt = (n: number) => `${+(n * scale).toFixed(3)}pt`
 
+  function InfoField({ label, value, className = '' }: { label: string; value: string; className?: string }) {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '16% 4% minmax(0, 1fr)', alignItems: 'start' }}>
+        <div style={{ padding: '2px 6px', fontSize: '11pt', lineHeight: '1.2' }}>{label}</div>
+        <div style={{ padding: '2px 0', fontSize: '11pt', lineHeight: '1.2', textAlign: 'center' }}>{label ? ':' : ''}</div>
+        <div
+          className={className}
+          style={{
+            padding: '2px 6px',
+            minWidth: 0,
+            fontSize: '11pt',
+            lineHeight: '1.4',
+            whiteSpace: 'pre-wrap',
+            overflowWrap: 'break-word',
+            wordBreak: 'keep-all',
+          }}
+        >
+          {value}
+        </div>
+      </div>
+    )
+  }
+
   const border = '2px solid #000'
   const tableFrameBorder = '2px solid #000'
 
@@ -437,15 +423,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
   function renderHeader(currentPage: number) {
     const pageText = `${currentPage}/${totalPages}`
-    const addressLines = splitAddressLines(doc.address, 3)
-    const infoRows = [
-      { leftLabel: 'To', leftValue: doc.customerName || '', rightLabel: 'Date', rightValue: dateStr },
-      { leftLabel: 'Attn', leftValue: doc.attn || '', rightLabel: 'Page', rightValue: pageText },
-      { leftLabel: 'Address', leftValue: addressLines[0], rightLabel: 'Tel', rightValue: doc.tel || '' },
-      { leftLabel: '', leftValue: addressLines[1], rightLabel: 'Quo.No', rightValue: doc.quoNo },
-      { leftLabel: '', leftValue: addressLines[2], rightLabel: 'HP', rightValue: doc.customerHp || '' },
-      { leftLabel: 'Project', leftValue: doc.project || '', rightLabel: '', rightValue: '' },
-    ]
 
     return (
       <>
@@ -504,39 +481,21 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
 
         {/* ═══ Customer Info — Single box with 2 columns ═══ */}
         <div style={{ borderTop: '2px solid #000', borderLeft: '2px solid #000', borderRight: '2px solid #000', borderBottom: 'none', marginBottom: '0px', fontFamily: 'var(--font-thai)' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: '10%' }} />
-              <col style={{ width: '2%' }} />
-              <col style={{ width: '49%' }} />
-              <col style={{ width: '12%' }} />
-              <col style={{ width: '2%' }} />
-              <col style={{ width: '25%' }} />
-            </colgroup>
-            <tbody>
-              {infoRows.map((row, idx) => (
-                <tr key={idx}>
-                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '20px' : '16px', verticalAlign: 'middle' }}>{row.leftLabel}</td>
-                  <td style={{ textAlign: 'center', padding: idx === 0 ? '3px 0 1px' : '1px 0', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.leftLabel ? ':' : ''}</td>
-                  <td
-                    style={{
-                      padding: row.leftLabel === 'Address' ? '2px 6px' : idx === 0 ? '3px 6px 1px' : '1px 6px',
-                      fontSize: '11pt',
-                      lineHeight: row.leftLabel === 'Address' ? '1.2' : '0.8',
-                      height: row.leftLabel === 'Address' ? 'auto' : idx === 0 ? '18px' : '16px',
-                      verticalAlign: 'middle',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    {row.leftValue}
-                  </td>
-                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.rightLabel}</td>
-                  <td style={{ textAlign: 'center', padding: idx === 0 ? '3px 0 1px' : '1px 0', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle' }}>{row.rightLabel ? ':' : ''}</td>
-                  <td style={{ padding: idx === 0 ? '3px 6px 1px' : '1px 6px', fontSize: '11pt', lineHeight: '0.8', height: idx === 0 ? '18px' : '16px', verticalAlign: 'middle', wordBreak: 'break-word' }}>{row.rightValue}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div style={{ display: 'grid', gridTemplateColumns: '62% 38%', alignItems: 'start' }}>
+            <div style={{ minWidth: 0 }}>
+              <InfoField label="To" value={doc.customerName || ''} />
+              <InfoField label="Attn" value={doc.attn || ''} />
+              <InfoField label="Address" value={doc.address || ''} className="quotation-address-value" />
+              <InfoField label="Project" value={doc.project || ''} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <InfoField label="Date" value={dateStr} />
+              <InfoField label="Page" value={pageText} />
+              <InfoField label="Tel" value={doc.tel || ''} />
+              <InfoField label="Quo.No" value={doc.quoNo} />
+              <InfoField label="HP" value={doc.customerHp || ''} />
+            </div>
+          </div>
         </div>
       </>
     )

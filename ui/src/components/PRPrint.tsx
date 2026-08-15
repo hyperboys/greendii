@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
+import { parsePRDescription } from '@/lib/prDescription'
 
 const PACK_CAP_NON_LAST = 20
 const PACK_CAP_LAST = 11
@@ -15,13 +16,6 @@ function fmtAmt(n: number | null | undefined): string {
 
 function fmtQty(n: number): string {
   return new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 }).format(n)
-}
-
-function currencyPrefix(code?: string): string {
-  const c = String(code || 'THB').trim().toUpperCase()
-  if (c === 'THB') return '฿'
-  if (c === 'USD') return '$'
-  return `${c} `
 }
 
 function currencyCode(code?: string): string {
@@ -41,13 +35,6 @@ function formatSignatureText(signatureText?: string | null, fullName?: string | 
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
 }
 
-function splitDescriptionLines(note?: string): string[] {
-  if (note == null) return []
-  const lines = note.split('\n').map(v => v.trim())
-  if (lines.length === 1 && lines[0] === '') return []
-  return lines
-}
-
 function isImageAttachment(mimeType?: string, fileName?: string): boolean {
   if (String(mimeType || '').toLowerCase().startsWith('image/')) return true
   return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(fileName || ''))
@@ -57,18 +44,6 @@ function attachmentUrl(fileUrl?: string, filename?: string): string {
   if (fileUrl && String(fileUrl).trim()) return resolveFileUrl(fileUrl)
   if (filename && String(filename).trim()) return resolveFileUrl(`/uploads/${filename}`)
   return ''
-}
-
-const DETAIL_ROWS_MARKER = '__PR_DETAIL_ROWS__'
-
-function parseNoteParts(note?: string): { noteText: string; detailLines: string[] } {
-  const raw = note ?? ''
-  const markerIdx = raw.indexOf(DETAIL_ROWS_MARKER)
-  if (markerIdx === -1) return { noteText: raw, detailLines: [] }
-  const noteText = raw.slice(0, markerIdx).replace(/\n$/, '')
-  const detailBlock = raw.slice(markerIdx + DETAIL_ROWS_MARKER.length).replace(/^\n/, '')
-  const detailLines = detailBlock.length > 0 ? detailBlock.split('\n') : []
-  return { noteText, detailLines }
 }
 
 function getPenultimateApprovalLog(doc: PurchaseRequest) {
@@ -104,7 +79,7 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
   return formatBangkokDateTime(latestSubmitAt)
 }
 
-const prColumnWidths = ['6%', '34%', '8%', '8%', '11%', '11%', '22%'] as const
+const prColumnWidths = ['6%', '38%', '8%', '10%', '16%', '22%'] as const
 
 type PRItem = PurchaseRequest['items'][number]
 
@@ -115,18 +90,14 @@ interface PageChunk {
 }
 
 function itemWeight(item: PRItem): number {
-  const { noteText, detailLines } = parseNoteParts(item.note)
-  const noteLines = splitDescriptionLines(noteText)
-  const nonEmptyNoteLines = noteLines.filter(line => line.trim().length > 0).length
-  const blankNoteLines = noteLines.length - nonEmptyNoteLines
-  const nonEmptyDetailLines = detailLines.filter(line => line.trim().length > 0).length
-  const blankDetailLines = detailLines.length - nonEmptyDetailLines
+  const blocks = parsePRDescription(item.note, item.images?.length ?? 0)
+  const textLines = blocks.filter(block => block.type !== 'image')
+  const nonEmptyDetailLines = textLines.filter(block => block.text?.trim().length).length
+  const blankDetailLines = textLines.length - nonEmptyDetailLines
   const imageWeight = Array.isArray(item.images) ? item.images.length * 3 : 0
 
   return (
     1 +
-    nonEmptyNoteLines * 0.6 +
-    blankNoteLines * 0.3 +
     nonEmptyDetailLines * 0.6 +
     blankDetailLines * 0.3 +
     imageWeight
@@ -301,7 +272,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         <td style={fillerTd}>&nbsp;</td>
         <td style={fillerTd}>&nbsp;</td>
         <td style={fillerTd}>&nbsp;</td>
-        <td style={fillerTd}>&nbsp;</td>
       </tr>
     )
   }
@@ -321,21 +291,21 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
             <th style={{ ...thS }}>จำนวน<br />QTY</th>
             <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
             <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
-            <th style={{ ...thS }}>หมายเหตุ<br />REMARK</th>
           </tr>
         </thead>
         <tbody style={{ height: '100%' }}>
           {chunk.items.map((item, i) => {
-            const noteParts = parseNoteParts(item.note)
             const globalIndex = itemOffset + i
             return (
               <tr key={item.id ?? globalIndex}>
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
                 <td style={{ ...tdS }}>
                   {item?.desc ?? ''}
-                  {noteParts.detailLines.map((line, idx) => (
-                    <div key={`detail-${idx}`} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
-                      {line || '\u00a0'}
+                  {parsePRDescription(item.note, item.images?.length ?? 0).map((block, idx) => block.type === 'image' ? (
+                    <img key={`description-image-${idx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px', margin: '4px 4px 0 0', verticalAlign: 'middle' }} />
+                  ) : (
+                    <div key={`description-${idx}`} style={{ marginTop: '2px', whiteSpace: 'pre-wrap', color: block.color || undefined }}>
+                      {block.text || '\u00a0'}
                     </div>
                   ))}
                   {Array.isArray(item.images) && item.images.length > 0 && (
@@ -355,13 +325,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
-                <td style={{ ...tdS }}>
-                  {splitDescriptionLines(noteParts.noteText).map((line, idx) => (
-                    <div key={idx} style={{ marginTop: idx === 0 ? '2px' : '0', whiteSpace: 'pre-wrap' }}>
-                      {line || '\u00a0'}
-                    </div>
-                  ))}
-                </td>
               </tr>
             )
           })}
@@ -381,16 +344,16 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
               <col style={{ width: '22%' }} />
             </colgroup>
             <tbody>
+              <tr>
+                <td style={{ ...summaryLabelS, ...tdTotalFirstS, fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
+                <td style={{ ...summaryAmountS, ...tdTotalFirstS }}>{fmtMoneyWithCode(doc.subTotal)}</td>
+              </tr>
               {hasSpecialDiscount && (
                 <tr>
-                  <td style={{ ...summaryLabelS, ...tdTotalFirstS }}>ส่วนลดพิเศษ</td>
-                  <td style={{ ...summaryAmountS, ...tdTotalFirstS }}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
+                  <td style={summaryLabelS}>ส่วนลดพิเศษ</td>
+                  <td style={summaryAmountS}>{fmtMoneyWithCode(doc.specialDiscount)}</td>
                 </tr>
               )}
-              <tr>
-                <td style={{ ...summaryLabelS, ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS), fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
-                <td style={{ ...summaryAmountS, ...(hasSpecialDiscount ? tdTotalS : tdTotalFirstS) }}>{fmtMoneyWithCode(doc.subTotal)}</td>
-              </tr>
               <tr>
                 <td style={summaryLabelS}>ภาษีมูลค่าเพิ่ม 7% (VAT)</td>
                 <td style={summaryAmountS}>{fmtMoneyWithCode(vatIncluded ? doc.vat : 0)}</td>
@@ -589,11 +552,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
             </td>
           </tr>
           <tr>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
+            <td colSpan={2} style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
-            </td>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
-              <span style={{ fontWeight: 'bold' }}>Remarks : </span>{doc.remarks || ''}
             </td>
           </tr>
         </tbody>
@@ -619,7 +579,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
       ))}
 
       {attachmentSheets.map((att, ai) => {
-        const isLastSheet = ai === attachmentSheets.length - 1
         const isImage = isImageAttachment(att.mimeType, att.originalName || att.filename)
         const url = attachmentUrl(att.fileUrl, att.filename)
         return (
