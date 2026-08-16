@@ -179,9 +179,12 @@ export default function WorkStatusReportPage() {
         'Issue Status': r.issueStatus === 'blocked' ? 'ติดปัญหา' : (r.issueStatus || '-'),
         'Issue Type': r.issueType || '-',
         'Issue Detail': r.issueDetail || '-',
+        'Issue Owner': r.issueOwner || '-',
+        'Blocked Days': r.blockedDays || 0,
         'Due Date': r.dueDate ? fmtDate(r.dueDate) : '-',
         'Closed Date': r.closedAt ? fmtDate(r.closedAt) : '-',
-        'Aging (Days)': r.poStatusKey === 'pending' ? r.agingDays : 0,
+        'Work Age (Days)': r.workAgeDays ?? r.agingDays,
+        'Overdue Days': r.overdueDays || 0,
         'Expected PO Date': r.expectedPoDate ? fmtDate(r.expectedPoDate) : '-',
       }))
       const wb = XLSX.utils.book_new()
@@ -208,7 +211,7 @@ export default function WorkStatusReportPage() {
       autoTable(doc, {
         startY: 64,
         head: [[
-          '#', 'Work No', 'Date', 'Customer', 'Sales', 'Project', 'QT No', 'QT Amount', 'PO No', 'PO Amount', 'PO Status', 'Work Status', 'PO Requirement', 'Issue', 'Aging',
+          '#', 'Work No', 'Date', 'Customer', 'Sales', 'Project', 'QT No', 'QT Amount', 'PO No', 'PO Amount', 'PO Status', 'Work Status', 'PO Requirement', 'Issue', 'Work Age', 'Overdue', 'Blocked Days',
         ]],
         body: data.map((r, i) => [
           i + 1,
@@ -225,7 +228,9 @@ export default function WorkStatusReportPage() {
           r.workStatus === 'closed' ? 'Closed' : (r.workStatus || '-'),
           r.poRequirement === 'not_required' ? 'N/A' : 'Required',
           r.issueStatus === 'blocked' ? (r.issueType || 'Blocked') : '-',
-          r.poStatusKey === 'pending' ? String(r.agingDays) : '-',
+          String(r.workAgeDays ?? r.agingDays),
+          String(r.overdueDays || 0),
+          String(r.blockedDays || 0),
         ]),
         styles: { fontSize: 7, cellPadding: 2.5 },
         headStyles: { fillColor: [21, 128, 61] },
@@ -414,7 +419,9 @@ export default function WorkStatusReportPage() {
                   <th>Work Status</th>
                   <th>PO Requirement</th>
                   <th>Issue</th>
-                  <th className="text-right">Aging (Days)</th>
+                  <th className="text-right">อายุ Work (วัน)</th>
+                  <th className="text-right">เกินกำหนด (วัน)</th>
+                  <th className="text-right">ติดปัญหา (วัน)</th>
                   <th>Expected PO Date</th>
                 </tr>
               </thead>
@@ -426,9 +433,6 @@ export default function WorkStatusReportPage() {
                         {row.workNo}
                       </Link>
                     </td>
-                    <td>{row.workStatus === 'closed' ? 'ปิดแล้ว' : row.workStatus}</td>
-                    <td>{row.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : 'ต้องมี PO'}</td>
-                    <td>{row.issueStatus === 'blocked' ? row.issueType || 'ติดปัญหา' : '-'}</td>
                     <td>{fmtDate(row.workDate)}</td>
                     <td>{row.customerName}</td>
                     <td>{row.salesName}</td>
@@ -448,7 +452,12 @@ export default function WorkStatusReportPage() {
                         {row.poStatus}
                       </span>
                     </td>
-                    <td className="text-right tabular-nums">{row.poStatusKey === 'pending' ? row.agingDays : '-'}</td>
+                    <td>{row.workStatus === 'closed' ? 'ปิดแล้ว' : row.workStatus || '-'}</td>
+                    <td>{row.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : 'ต้องมี PO'}</td>
+                    <td title={row.issueDetail || undefined}>{row.issueStatus === 'blocked' ? row.issueType || 'ติดปัญหา' : '-'}</td>
+                    <td className="text-right tabular-nums">{row.workAgeDays ?? row.agingDays}</td>
+                    <td className="text-right tabular-nums">{row.overdueDays || 0}</td>
+                    <td className="text-right tabular-nums">{row.blockedDays || 0}</td>
                     <td>{fmtDate(row.expectedPoDate)}</td>
                   </tr>
                 ))}

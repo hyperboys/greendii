@@ -954,8 +954,17 @@ router.get('/work-status', authenticate, async (req, res, next) => {
         const firstPo = poFiles[0] || null;
         const workDate = new Date(wo.createdAt);
         workDate.setHours(0, 0, 0, 0);
-        const agingDaysRaw = Math.max(0, Math.floor((today.getTime() - workDate.getTime()) / 86400000));
-        const agingDays = poStatusKey === 'pending' ? agingDaysRaw : 0;
+        const closedDate = wo.closedAt ? new Date(wo.closedAt) : today;
+        closedDate.setHours(0, 0, 0, 0);
+        const workAgeDays = Math.max(0, Math.floor(((wo.isClosed ? closedDate : today).getTime() - workDate.getTime()) / 86400000));
+        const overdueDays = wo.dueDate && !wo.isClosed
+          ? Math.max(0, Math.floor((today.getTime() - new Date(wo.dueDate).setHours(0, 0, 0, 0)) / 86400000))
+          : 0;
+        const blockedStart = wo.issueBlockedAt ? new Date(wo.issueBlockedAt) : null;
+        const blockedEnd = wo.issueStatus === 'resolved' && wo.issueResolvedAt ? new Date(wo.issueResolvedAt) : today;
+        const blockedDays = wo.issueStatus !== 'none' && blockedStart
+          ? Math.max(0, Math.floor((blockedEnd.getTime() - blockedStart.getTime()) / 86400000))
+          : 0;
 
         return {
           id: wo.id,
@@ -972,8 +981,12 @@ router.get('/work-status', authenticate, async (req, res, next) => {
           poAmount,
           poStatus: poStatusLabel,
           poStatusKey,
-          agingDays,
-          agingRange: mapAgingRange(agingDays),
+          agingDays: workAgeDays,
+          workAgeDays,
+          overdueDays,
+          blockedDays,
+          isOverdue: overdueDays > 0,
+          agingRange: mapAgingRange(workAgeDays),
           expectedPoDate: null,
           workStatus: wo.isClosed ? 'closed' : wo.status,
           closedAt: wo.closedAt,
@@ -1003,7 +1016,7 @@ router.get('/work-status', authenticate, async (req, res, next) => {
 
     if (agingRange !== 'all') {
       filteredRows = filteredRows.filter(r => {
-        if (r.poStatusKey !== 'pending') return false;
+        if (r.workStatus === 'closed') return false;
         return r.agingRange === agingRange;
       });
     }
@@ -1014,7 +1027,7 @@ router.get('/work-status', authenticate, async (req, res, next) => {
     const worksNotRequiredPo = filteredRows.filter(r => r.poStatusKey === 'not_required').length;
     const worksOpen = filteredRows.filter(r => r.workStatus !== 'closed').length;
     const worksClosed = filteredRows.filter(r => r.workStatus === 'closed').length;
-    const worksOverdue = filteredRows.filter(r => r.workStatus !== 'closed' && r.dueDate && new Date(r.dueDate) < now).length;
+    const worksOverdue = filteredRows.filter(r => r.overdueDays > 0).length;
     const worksBlocked = filteredRows.filter(r => r.issueStatus === 'blocked').length;
     const withPoPct = totalWorks > 0 ? (worksWithPo / totalWorks) * 100 : 0;
     const pendingPoPct = totalWorks > 0 ? (worksPendingPo / totalWorks) * 100 : 0;

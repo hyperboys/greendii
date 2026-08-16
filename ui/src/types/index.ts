@@ -821,6 +821,10 @@ export interface WorkStatusRow {
   poStatus: 'Received' | 'Partial' | 'Pending' | 'N/A'
   poStatusKey: 'has' | 'pending' | 'not_required'
   agingDays: number
+  workAgeDays?: number
+  overdueDays?: number
+  blockedDays?: number
+  isOverdue?: boolean
   agingRange: Exclude<WorkStatusAgingFilter, 'all'> | null
   expectedPoDate: string | null
   poRequirement?: string
