@@ -1,10 +1,10 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
-import { parsePRDescription } from '@/lib/prDescription'
+import { parsePRDescription, type PRDescriptionBlock } from '@/lib/prDescription'
 
 const PACK_CAP_NON_LAST = 20
 const PACK_CAP_LAST = 11
@@ -81,6 +81,25 @@ function getLatestSubmitDate(doc: PurchaseRequest): string {
 
 const prColumnWidths = ['6%', '38%', '8%', '10%', '16%', '22%'] as const
 
+type PRDescriptionGroup =
+  | { type: 'images'; blocks: PRDescriptionBlock[] }
+  | { type: 'text'; block: PRDescriptionBlock }
+
+// Consecutive image blocks share one grid so landscape/portrait images can tile like WO/QT.
+function groupPRDescriptionBlocks(blocks: PRDescriptionBlock[]): PRDescriptionGroup[] {
+  const groups: PRDescriptionGroup[] = []
+  for (const block of blocks) {
+    if (block.type !== 'image') {
+      groups.push({ type: 'text', block })
+      continue
+    }
+    const last = groups[groups.length - 1]
+    if (last?.type === 'images') last.blocks.push(block)
+    else groups.push({ type: 'images', blocks: [block] })
+  }
+  return groups
+}
+
 type PRItem = PurchaseRequest['items'][number]
 
 interface PageChunk {
@@ -94,7 +113,9 @@ function itemWeight(item: PRItem): number {
   const textLines = blocks.filter(block => block.type !== 'image')
   const nonEmptyDetailLines = textLines.filter(block => block.text?.trim().length).length
   const blankDetailLines = textLines.length - nonEmptyDetailLines
-  const imageWeight = Array.isArray(item.images) ? item.images.length * 3 : 0
+  // Images tile 3 per grid row at ~34mm tall, so weight is per row rather than per image.
+  const imageCount = Array.isArray(item.images) ? item.images.length : 0
+  const imageWeight = Math.ceil(imageCount / 3) * 7
 
   return (
     1 +
@@ -150,6 +171,8 @@ interface Props {
 }
 
 export default function PRPrint({ doc, settings, embedPdfAttachments = true }: Props) {
+  const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
+
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0')
     const now = new Date()
@@ -185,6 +208,16 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     return showMoneyCode ? `${moneyCode} ${value}` : value
   }
   const fmtItemMoney = (amount: number | null | undefined) => (Number(amount) === 0 ? '' : fmtMoneyWithCode(amount))
+
+  function getImageKey(itemIndex: number, imageIndex: number, url: string): string {
+    return `${itemIndex}::${imageIndex}::${url}`
+  }
+
+  function onImageLoad(imageKey: string, naturalWidth: number, naturalHeight: number) {
+    if (!naturalWidth || !naturalHeight) return
+    const next: 'landscape' | 'portrait' = naturalWidth > naturalHeight ? 'landscape' : 'portrait'
+    setImageOrientation(prev => (prev[imageKey] === next ? prev : { ...prev, [imageKey]: next }))
+  }
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = getLatestSubmitDate(doc) || fmtDateTH(doc.dateIssue || doc.createdAt)
   const approvalSignatureLog = getPenultimateApprovalLog(doc)
@@ -303,11 +336,45 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
                 <td style={{ ...tdS }}>
                   {item?.desc ?? ''}
-                  {parsePRDescription(item.note, item.images?.length ?? 0).map((block, idx) => block.type === 'image' ? (
-                    <img key={`description-image-${idx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px', margin: '4px 4px 0 0', verticalAlign: 'middle' }} />
+                  {groupPRDescriptionBlocks(parsePRDescription(item.note, item.images?.length ?? 0)).map((group, groupIdx) => group.type === 'images' ? (
+                    <div
+                      key={`description-images-${groupIdx}`}
+                      style={{
+                        marginTop: '1.8mm',
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                        gridAutoFlow: 'dense',
+                        gap: '1.6mm',
+                        alignItems: 'start',
+                        width: '100%',
+                      }}
+                    >
+                      {group.blocks.map((block, idx) => {
+                        const url = item.images?.[block.imageIndex ?? -1] || ''
+                        const imageKey = getImageKey(globalIndex, block.imageIndex ?? idx, url)
+                        const isLandscape = imageOrientation[imageKey] === 'landscape'
+                        return (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={imageKey}
+                            src={resolveFileUrl(url)}
+                            alt=""
+                            onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                            style={{
+                              width: '100%',
+                              height: 'auto',
+                              maxHeight: '34mm',
+                              objectFit: 'contain',
+                              display: 'block',
+                              gridColumn: isLandscape ? 'span 2' : 'span 1',
+                            }}
+                          />
+                        )
+                      })}
+                    </div>
                   ) : (
-                    <div key={`description-${idx}`} style={{ marginTop: '2px', whiteSpace: 'pre-wrap', color: block.color || undefined }}>
-                      {block.text || '\u00a0'}
+                    <div key={`description-${groupIdx}`} style={{ marginTop: '2px', whiteSpace: 'pre-wrap', color: group.block.color || undefined }}>
+                      {group.block.text || '\u00a0'}
                     </div>
                   ))}
                 </td>

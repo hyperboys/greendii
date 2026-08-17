@@ -267,7 +267,7 @@ export default function PRDetailPage() {
                   {item.desc}
                   <div className="mt-0.5 space-y-0.5 text-xs text-gray-400">
                     {parsePRDescription(item.note, item.images?.length ?? 0).map((block, blockIdx) => block.type === 'image' ? (
-                      <img key={`${item.id ?? i}-img-${block.imageIndex}-${blockIdx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" className="mr-1 mt-2 inline-block h-14 w-14 rounded border border-gray-200 object-cover" />
+                      <img key={`${item.id ?? i}-img-${block.imageIndex}-${blockIdx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" className="mr-1 mt-2 inline-block h-14 w-14 rounded border border-gray-200 object-contain" />
                     ) : (
                       <p key={`${item.id ?? i}-description-${blockIdx}`} style={{ color: block.color || undefined }}>{block.text || '\u00a0'}</p>
                     ))}

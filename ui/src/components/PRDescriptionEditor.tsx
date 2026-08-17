@@ -100,7 +100,7 @@ export default function PRDescriptionEditor({ description, note, images, onDescr
           const imageUrl = images[block.imageIndex ?? -1]
           return (
             <div key={`image-${block.imageIndex}-${index}`} className="flex items-center gap-2">
-              {imageUrl && <img src={resolveFileUrl(imageUrl)} alt="" className="h-14 w-14 rounded border border-gray-200 object-cover" />}
+              {imageUrl && <img src={resolveFileUrl(imageUrl)} alt="" className="h-14 w-14 rounded border border-gray-200 object-contain" />}
               <button type="button" className="p-1 text-red-400 hover:text-red-600" onClick={() => removeBlock(index)} title="ลบรูปภาพ"><X size={14} /></button>
               <BlockOrderControls index={index} total={blocks.length} onMove={moveBlock} />
             </div>
