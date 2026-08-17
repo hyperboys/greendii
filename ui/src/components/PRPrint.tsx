@@ -345,25 +345,23 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
               <col style={{ width: '22%' }} />
             </colgroup>
             <tbody>
-              {remarksText && (
-                <tr>
-                  <td
-                    colSpan={2}
-                    style={{
-                      ...tdTotalFirstS,
-                      textAlign: 'left',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                    }}
-                  >
-                    <span style={{ fontWeight: 'bold' }}>หมายเหตุ / Remarks : </span>
-                    {remarksText}
-                  </td>
-                </tr>
-              )}
               <tr>
-                <td style={{ ...summaryLabelS, ...(remarksText ? {} : tdTotalFirstS), fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
-                <td style={{ ...summaryAmountS, ...(remarksText ? {} : tdTotalFirstS) }}>{fmtMoneyWithCode(doc.subTotal)}</td>
+                <td
+                  colSpan={2}
+                  style={{
+                    ...tdTotalFirstS,
+                    textAlign: 'left',
+                    whiteSpace: 'pre-wrap',
+                    wordBreak: 'break-word',
+                  }}
+                >
+                  <span style={{ fontWeight: 'bold' }}>หมายเหตุ / Remarks : </span>
+                  {remarksText || '\u00A0'}
+                </td>
+              </tr>
+              <tr>
+                <td style={{ ...summaryLabelS, fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
+                <td style={summaryAmountS}>{fmtMoneyWithCode(doc.subTotal)}</td>
               </tr>
               {hasSpecialDiscount && (
                 <tr>
