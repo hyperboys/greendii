@@ -78,7 +78,7 @@ export default function PrintPRPage() {
 
   return (
     <>
-      <PRPrint doc={doc} settings={settings} />
+      <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} />
       {workOrderDoc && (
         <>
           <div className="pr-linked-workorder-break" aria-hidden />

@@ -13,6 +13,41 @@ const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
 const { getPrCurrencies, normalizeCurrencyCode } = require('../lib/prCurrency');
 
+async function loadAttachmentBytes(att) {
+  const fileUrl = att.fileUrl || '';
+  if (/^https?:\/\//i.test(fileUrl)) {
+    const resp = await fetch(fileUrl);
+    if (!resp.ok) throw new Error(`fetch failed ${resp.status}`);
+    return Buffer.from(await resp.arrayBuffer());
+  }
+  const path = require('path');
+  const fs = require('fs/promises');
+  return fs.readFile(path.join(__dirname, '../../uploads', att.filename));
+}
+
+async function appendPdfAttachments(basePdf, attachments) {
+  const pdfAtts = (attachments || []).filter(a => a.mimeType === 'application/pdf');
+  if (pdfAtts.length === 0) return basePdf;
+  const { PDFDocument } = require('pdf-lib');
+  let merged;
+  try {
+    merged = await PDFDocument.load(basePdf);
+  } catch {
+    return basePdf;
+  }
+  for (const att of pdfAtts) {
+    try {
+      const bytes = await loadAttachmentBytes(att);
+      const src = await PDFDocument.load(bytes);
+      const copied = await merged.copyPages(src, src.getPageIndices());
+      copied.forEach(p => merged.addPage(p));
+    } catch {
+      // skip unreadable / encrypted PDF attachment
+    }
+  }
+  return Buffer.from(await merged.save());
+}
+
 const prValidators = [
   body('workOrderId').optional({ nullable: true }).isString(),
   body('prTypeId').trim().notEmpty().withMessage('กรุณาเลือกประเภทใบขอซื้อ'),
@@ -337,13 +372,18 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
         approvalLogs: {
           select: { approverId: true, action: true },
         },
+        attachments: {
+          select: { id: true, filename: true, fileUrl: true, mimeType: true, originalName: true },
+          orderBy: { uploadedAt: 'asc' },
+        },
       },
     });
     await assertPrAccessible(req, item);
     const mergedMain = await renderUrlToPdf(url);
+    const finalPdf = await appendPdfAttachments(mergedMain, item.attachments);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `inline; filename="${item.prNo || 'pr'}.pdf"`);
-    res.send(mergedMain);
+    res.send(finalPdf);
   } catch (e) { next(e); }
 });
 

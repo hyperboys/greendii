@@ -15,6 +15,7 @@ import PRPrint from '@/components/PRPrint'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import { parsePRDescription } from '@/lib/prDescription'
+import { parseColoredLine } from '@/lib/coloredText'
 
 type PRDetailDoc = PurchaseRequest & {
   sales?: (PurchaseRequest['sales'] & { role?: string })
@@ -264,7 +265,10 @@ export default function PRDetailPage() {
                 <td className="text-gray-400">{item.seq ?? i + 1}</td>
                 <td className="text-gray-500 text-xs">{item.partNo || '-'}</td>
                 <td>
-                  {item.desc}
+                  {(() => {
+                    const descLine = parseColoredLine(item.desc)
+                    return <span style={{ color: descLine.color || undefined }}>{descLine.text}</span>
+                  })()}
                   <div className="mt-0.5 space-y-0.5 text-xs text-gray-400">
                     {parsePRDescription(item.note, item.images?.length ?? 0).map((block, blockIdx) => block.type === 'image' ? (
                       <img key={`${item.id ?? i}-img-${block.imageIndex}-${blockIdx}`} src={resolveFileUrl(item.images?.[block.imageIndex ?? -1] || '')} alt="" className="mr-1 mt-2 inline-block h-14 w-14 rounded border border-gray-200 object-contain" />

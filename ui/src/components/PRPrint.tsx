@@ -5,6 +5,7 @@ import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
 import { parsePRDescription, type PRDescriptionBlock } from '@/lib/prDescription'
+import { parseColoredLine } from '@/lib/coloredText'
 
 const PACK_CAP_NON_LAST = 20
 const PACK_CAP_LAST = 11
@@ -154,10 +155,20 @@ function paginateItems(items: PRItem[]): PageChunk[] {
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
+  embedPdfAttachments?: boolean
 }
 
-export default function PRPrint({ doc, settings }: Props) {
+export default function PRPrint({ doc, settings, embedPdfAttachments = true }: Props) {
   const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
+
+  // PDF attachments are excluded from the print HTML in PDF-generation mode
+  // (embedPdfAttachments=false) because the backend merges the real PDF pages
+  // via pdf-lib instead; images are always rendered as attachment pages.
+  const attachmentSheets = (doc.attachments ?? []).filter(att => {
+    if (att.mimeType?.startsWith('image/')) return true
+    if (att.mimeType === 'application/pdf') return embedPdfAttachments
+    return false
+  })
 
   const getImageKey = (itemIndex: number, imageIndex: number, url: string) =>
     `${itemIndex}-${imageIndex}-${url}`
@@ -314,7 +325,10 @@ export default function PRPrint({ doc, settings }: Props) {
               <tr key={item.id ?? globalIndex}>
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
                 <td style={{ ...tdS }}>
-                  {item?.desc ?? ''}
+                  {(() => {
+                    const descLine = parseColoredLine(item?.desc)
+                    return <span style={{ color: descLine.color || undefined }}>{descLine.text}</span>
+                  })()}
                   {groupPRDescriptionBlocks(parsePRDescription(item.note, item.images?.length ?? 0)).map((group, groupIdx) => group.type === 'images' ? (
                     <div
                       key={`description-images-${groupIdx}`}
@@ -533,8 +547,8 @@ export default function PRPrint({ doc, settings }: Props) {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          pageBreakAfter: pageIndex < totalPages - 1 ? 'always' : 'auto',
-          breakAfter: pageIndex < totalPages - 1 ? 'page' : 'auto',
+          pageBreakAfter: pageIndex < totalPages - 1 || attachmentSheets.length > 0 ? 'always' : 'auto',
+          breakAfter: pageIndex < totalPages - 1 || attachmentSheets.length > 0 ? 'page' : 'auto',
           position: 'relative',
         }}
       >
@@ -627,6 +641,42 @@ export default function PRPrint({ doc, settings }: Props) {
 
       </div>
       ))}
+
+      {attachmentSheets.map((att, ai) => {
+        const isLastSheet = ai === attachmentSheets.length - 1
+        const url = resolveFileUrl(att.fileUrl)
+        const isImage = att.mimeType?.startsWith('image/')
+        return (
+          <div
+            key={`pr-att-${att.id ?? ai}`}
+            className="pr-page pr-attachment-page"
+            style={{
+              minHeight: '277mm',
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+              pageBreakAfter: isLastSheet ? 'auto' : 'always',
+              breakAfter: isLastSheet ? 'auto' : 'page',
+              position: 'relative',
+            }}
+          >
+            {isImage ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={url}
+                alt={att.originalName ?? ''}
+                style={{ maxWidth: '100%', maxHeight: '277mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
+              />
+            ) : (
+              <iframe
+                src={url}
+                title={att.originalName ?? `attachment-${ai + 1}`}
+                style={{ flex: '1 1 auto', width: '100%', height: '277mm', border: 'none', background: '#fff' }}
+              />
+            )}
+          </div>
+        )
+      })}
 
     </div>
   )
