@@ -338,11 +338,11 @@
     page-break-before: always !important;
   }
 
+  /* No break here: .pr-linked-workorder below already forces its own page break.
+     Adding one here too produced an extra blank page between PR and WorkOrder. */
   .pr-linked-workorder-break {
     display: block !important;
     height: 0 !important;
-    break-before: page !important;
-    page-break-before: always !important;
   }
 }
 

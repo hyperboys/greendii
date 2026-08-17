@@ -35,17 +35,6 @@ function formatSignatureText(signatureText?: string | null, fullName?: string | 
   return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : parts[0]
 }
 
-function isImageAttachment(mimeType?: string, fileName?: string): boolean {
-  if (String(mimeType || '').toLowerCase().startsWith('image/')) return true
-  return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(fileName || ''))
-}
-
-function attachmentUrl(fileUrl?: string, filename?: string): string {
-  if (fileUrl && String(fileUrl).trim()) return resolveFileUrl(fileUrl)
-  if (filename && String(filename).trim()) return resolveFileUrl(`/uploads/${filename}`)
-  return ''
-}
-
 function getPenultimateApprovalLog(doc: PurchaseRequest) {
   const historyLogs = [...(doc.approvalLogs ?? [])]
     .sort((a, b) => new Date(a.actedAt).getTime() - new Date(b.actedAt).getTime())
@@ -113,9 +102,7 @@ function itemWeight(item: PRItem): number {
   const textLines = blocks.filter(block => block.type !== 'image')
   const nonEmptyDetailLines = textLines.filter(block => block.text?.trim().length).length
   const blankDetailLines = textLines.length - nonEmptyDetailLines
-  // Images tile 3 per grid row at ~34mm tall, so weight is per row rather than per image.
-  const imageCount = Array.isArray(item.images) ? item.images.length : 0
-  const imageWeight = Math.ceil(imageCount / 3) * 7
+  const imageWeight = Array.isArray(item.images) ? item.images.length * 3 : 0
 
   return (
     1 +
@@ -167,11 +154,20 @@ function paginateItems(items: PRItem[]): PageChunk[] {
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
-  embedPdfAttachments?: boolean
 }
 
-export default function PRPrint({ doc, settings, embedPdfAttachments = true }: Props) {
+export default function PRPrint({ doc, settings }: Props) {
   const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
+
+  const getImageKey = (itemIndex: number, imageIndex: number, url: string) =>
+    `${itemIndex}-${imageIndex}-${url}`
+
+  const onImageLoad = (imageKey: string, width: number, height: number) => {
+    const orientation = width > height ? 'landscape' : 'portrait'
+    setImageOrientation(current => current[imageKey] === orientation
+      ? current
+      : { ...current, [imageKey]: orientation })
+  }
 
   useEffect(() => {
     const pad = (n: number) => String(n).padStart(2, '0')
@@ -208,16 +204,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     return showMoneyCode ? `${moneyCode} ${value}` : value
   }
   const fmtItemMoney = (amount: number | null | undefined) => (Number(amount) === 0 ? '' : fmtMoneyWithCode(amount))
-
-  function getImageKey(itemIndex: number, imageIndex: number, url: string): string {
-    return `${itemIndex}::${imageIndex}::${url}`
-  }
-
-  function onImageLoad(imageKey: string, naturalWidth: number, naturalHeight: number) {
-    if (!naturalWidth || !naturalHeight) return
-    const next: 'landscape' | 'portrait' = naturalWidth > naturalHeight ? 'landscape' : 'portrait'
-    setImageOrientation(prev => (prev[imageKey] === next ? prev : { ...prev, [imageKey]: next }))
-  }
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = getLatestSubmitDate(doc) || fmtDateTH(doc.dateIssue || doc.createdAt)
   const approvalSignatureLog = getPenultimateApprovalLog(doc)
@@ -228,15 +214,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   const approvalDate = approvalSignatureLog?.actedAt
     ? formatBangkokDateTime(approvalSignatureLog.actedAt)
     : ''
-  const attachmentSheets = (Array.isArray(doc.attachments) ? doc.attachments : []).filter(att => {
-    const hasSource = Boolean((att.fileUrl && String(att.fileUrl).trim()) || (att.filename && String(att.filename).trim()))
-    if (!hasSource) return false
-    if (isImageAttachment(att.mimeType, att.originalName || att.filename)) return true
-    if (att.mimeType === 'application/pdf') return embedPdfAttachments
-    return false
-  })
   const pages = paginateItems(Array.isArray(doc.items) ? doc.items : [])
-  const totalPages = pages.length + attachmentSheets.length
+  const totalPages = pages.length
 
   const thS: React.CSSProperties = {
     border,
@@ -648,39 +627,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
 
       </div>
       ))}
-
-      {attachmentSheets.map((att, ai) => {
-        const isImage = isImageAttachment(att.mimeType, att.originalName || att.filename)
-        const url = attachmentUrl(att.fileUrl, att.filename)
-        return (
-          <div
-            key={`pr-att-${att.id || att.filename || ai}`}
-            className="pr-page pr-attachment-page"
-            style={{
-              minHeight: '277mm',
-              display: 'flex',
-              flexDirection: 'column',
-              pageBreakAfter: pages.length + ai < totalPages - 1 ? 'always' : 'auto',
-              breakAfter: pages.length + ai < totalPages - 1 ? 'page' : 'auto',
-            }}
-          >
-            {isImage ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={url}
-                alt={att.originalName || att.filename || ''}
-                style={{ maxWidth: '100%', maxHeight: '277mm', objectFit: 'contain', margin: 'auto', display: 'block' }}
-              />
-            ) : (
-              <iframe
-                src={url}
-                title={att.originalName || `pr-attachment-${ai + 1}`}
-                style={{ width: '100%', height: '277mm', border: 'none', background: '#fff' }}
-              />
-            )}
-          </div>
-        )
-      })}
 
     </div>
   )

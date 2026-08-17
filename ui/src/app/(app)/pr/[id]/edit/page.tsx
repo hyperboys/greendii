@@ -159,7 +159,7 @@ export default function EditPRPage() {
     }
     const tId = toast.loading('กำลังอัปโหลดรูป...')
     try {
-      const saved = await UploadAPI.upload(imageFiles, { category: 'pr-item', purchaseRequestId: id })
+      const saved = await UploadAPI.upload(imageFiles, { category: 'pr-item' })
       const urls = saved.map((a: { fileUrl?: string }) => a.fileUrl).filter((url): url is string => Boolean(url))
       toast.success('อัปโหลดรูปสำเร็จ', { id: tId })
       return urls
