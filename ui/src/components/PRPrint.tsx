@@ -174,6 +174,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   const telDisplay    = tel.replace(/\s*(?:Fax|แฟกซ์|แฟ็กซ์)\s*[:：]?.*$/i, '').trim()
 
   const border = '1px solid #000'
+  const remarksText = String(doc.remarks || '').trim()
   const hasSpecialDiscount = Number(doc.specialDiscount) > 0
   const vatIncluded = Number(doc.vat) > 0
   const moneyCode = currencyCode(doc.currency)
@@ -344,9 +345,25 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
               <col style={{ width: '22%' }} />
             </colgroup>
             <tbody>
+              {remarksText && (
+                <tr>
+                  <td
+                    colSpan={2}
+                    style={{
+                      ...tdTotalFirstS,
+                      textAlign: 'left',
+                      whiteSpace: 'pre-wrap',
+                      wordBreak: 'break-word',
+                    }}
+                  >
+                    <span style={{ fontWeight: 'bold' }}>หมายเหตุ / Remarks : </span>
+                    {remarksText}
+                  </td>
+                </tr>
+              )}
               <tr>
-                <td style={{ ...summaryLabelS, ...tdTotalFirstS, fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
-                <td style={{ ...summaryAmountS, ...tdTotalFirstS }}>{fmtMoneyWithCode(doc.subTotal)}</td>
+                <td style={{ ...summaryLabelS, ...(remarksText ? {} : tdTotalFirstS), fontWeight: 'bold' }}>รวมเป็นเงิน (Sub Total)</td>
+                <td style={{ ...summaryAmountS, ...(remarksText ? {} : tdTotalFirstS) }}>{fmtMoneyWithCode(doc.subTotal)}</td>
               </tr>
               {hasSpecialDiscount && (
                 <tr>

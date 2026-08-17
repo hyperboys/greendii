@@ -232,6 +232,7 @@ export default function PRDetailPage() {
         <div><span className="form-label">สกุลเงิน</span><p>{doc.currency || 'THB'}</p></div>
         <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div className="col-span-2 md:col-span-3"><span className="form-label">Remarks</span><p className="whitespace-pre-line">{doc.remarks?.trim() || '-'}</p></div>
       </div>
 
       <AttachmentsSection
