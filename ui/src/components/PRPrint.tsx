@@ -184,6 +184,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     if (!value) return ''
     return showMoneyCode ? `${moneyCode} ${value}` : value
   }
+  const fmtItemMoney = (amount: number | null | undefined) => (Number(amount) === 0 ? '' : fmtMoneyWithCode(amount))
   const requesterSignature = formatSignatureText(doc.sales?.signatureText, doc.sales?.fullName)
   const requesterDate = getLatestSubmitDate(doc) || fmtDateTH(doc.dateIssue || doc.createdAt)
   const approvalSignatureLog = getPenultimateApprovalLog(doc)
@@ -309,23 +310,11 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                       {block.text || '\u00a0'}
                     </div>
                   ))}
-                  {Array.isArray(item.images) && item.images.length > 0 && (
-                    <div style={{ marginTop: '4px', display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                      {item.images.map((url, imgIdx) => (
-                        <img
-                          key={`pr-item-img-${globalIndex}-${imgIdx}`}
-                          src={resolveFileUrl(url)}
-                          alt=""
-                          style={{ width: '14mm', height: '14mm', objectFit: 'cover', border: '1px solid #d1d5db', borderRadius: '3px' }}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </td>
                 <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
                 <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.price)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtMoneyWithCode(item.amount)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtItemMoney(item.price)}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{fmtItemMoney(item.amount)}</td>
               </tr>
             )
           })}
