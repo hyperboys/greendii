@@ -93,8 +93,10 @@ function sanitizeEscapedUnicode(input) {
 
 function parsePoAmount(value) {
   if (value === undefined || value === null) return null;
-  const parsed = Number(String(value).replace(/,/g, '').trim());
-  if (!Number.isFinite(parsed) || parsed <= 0) return null;
+  const raw = String(value).replace(/,/g, '').trim();
+  if (!raw) return null;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 0) return null;
   return parsed;
 }
 
@@ -265,9 +267,9 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
       removeTempUploadedFiles(req.files || []);
       return res.status(400).json({ message: 'ไฟล์ PO อนุญาตเฉพาะ PDF, JPG, PNG' });
     }
-    if (normalizedCategory === 'po' && !parsedPoAmount) {
+    if (normalizedCategory === 'po' && parsedPoAmount === null) {
       removeTempUploadedFiles(req.files || []);
-      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์' });
+      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์' });
     }
     await assertQuotationAttachmentEditable(req, quotationId);
     await assertWorkOrderAttachmentEditable(req, workOrderId, normalizedCategory);

@@ -120,8 +120,9 @@ export default function AttachmentsSection({
 
   const deferred = !docId
   const isCategoryAllowed = (key: CategoryKey) => !allowedCategories || allowedCategories.includes(key)
-  const parsedPoAmount = Number(String(poAmount || '').replace(/,/g, '').trim())
-  const isPoAmountValid = Number.isFinite(parsedPoAmount) && parsedPoAmount > 0
+  const rawPoAmount = String(poAmount || '').replace(/,/g, '').trim()
+  const parsedPoAmount = Number(rawPoAmount)
+  const isPoAmountValid = rawPoAmount !== '' && Number.isFinite(parsedPoAmount) && parsedPoAmount >= 0
 
   useEffect(() => {
     const timers = deleteTimersRef.current
@@ -135,7 +136,7 @@ export default function AttachmentsSection({
     if (readOnly) return
     if (!isCategoryAllowed(catKey)) return
     if (catKey === 'po' && !isPoAmountValid) {
-      toast.error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+      toast.error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
       const el = inputRefs.current[catKey]
       if (el) el.value = ''
       return
@@ -374,7 +375,7 @@ export default function AttachmentsSection({
                   onClick={() => {
                     if (isUploading) return
                     if (key === 'po' && !isPoAmountValid) {
-                      toast.error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+                      toast.error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
                       return
                     }
                     inputRefs.current[key]?.click()

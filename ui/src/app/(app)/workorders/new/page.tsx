@@ -196,12 +196,13 @@ export default function NewWorkOrderPage() {
           return acc
         }, {})
         try {
-          const parsedPoAmount = Number(poAmount.replace(/,/g, '').trim())
+          const rawPoAmount = poAmount.replace(/,/g, '').trim()
+          const parsedPoAmount = Number(rawPoAmount)
           for (const [category, files] of Object.entries(byCategory)) {
             const uploadMeta: Record<string, string | number> = { workOrderId: created.id, category }
             if (category === 'po') {
-              if (!Number.isFinite(parsedPoAmount) || parsedPoAmount <= 0) {
-                throw new Error('กรุณากรอกยอดเงิน PO ให้มากกว่า 0 ก่อนแนบไฟล์')
+              if (rawPoAmount === '' || !Number.isFinite(parsedPoAmount) || parsedPoAmount < 0) {
+                throw new Error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
               }
               uploadMeta.poAmount = parsedPoAmount
             }
