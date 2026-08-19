@@ -199,7 +199,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   const companyName   = settings?.companyName   || 'บริษัท กรีนส์ดี จำกัด'
   const address       = settings?.address       || '98 Moo 6 T.Klongsii, A.KlongLuang, Pathumthani 12120'
   const addressTh     = '98 หมู่ 6 ต. คลองสี่ อ. คลองหลวง จ. ปทุมธานี  12120'
-  const tel           = settings?.tel           || '662 150 7694 - 7  662 577 0907'
+  const tel           = settings?.tel           || '+662 150 7694-5'
   // Per updated PR template the Fax segment is dropped from the Tel line.
   const telDisplay    = tel.replace(/\s*(?:Fax|แฟกซ์|แฟ็กซ์)\s*[:：]?.*$/i, '').trim()
 

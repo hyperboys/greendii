@@ -231,7 +231,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   const dateStr = formatBangkokDate(doc.updatedAt || doc.createdAt)
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
-  const address = settings?.address || '98 Moo 6 T.Klong Sii A.Klongluang Pathumthani 12120'
+  const address = settings?.address || '98 Moo 6 T.Klongsii A.Klongluang Pathumthani 12120'
   const taxId = settings?.taxId || '0135549009942'
   const tel = settings?.tel || '+662 150 7694-5'
   const email = doc.sales?.email || settings?.email || 'admin2gd@greendii.com'
