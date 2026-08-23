@@ -616,8 +616,11 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
             </td>
           </tr>
           <tr>
-            <td colSpan={2} style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
               <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
+            </td>
+            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
+              <span style={{ fontWeight: 'bold' }}>WO No. : </span>{doc.workOrder?.woNo || ''}
             </td>
           </tr>
         </tbody>
