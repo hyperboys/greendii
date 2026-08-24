@@ -19,6 +19,7 @@ import { useAuthStore } from '@/store/auth'
 import type { Quotation, WorkOrder, HandOverJob, PurchaseRequest, User } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 import DateInput from '@/components/DateInput'
+import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -64,6 +65,12 @@ const DATE_PRESETS  = [
   { value: 'this_year',    label: 'ปีนี้' },
   { value: 'custom',       label: 'กำหนดเอง' },
 ]
+const REPORT_WORKFLOW_DEFAULTS = {
+  filters: { search: '', stageFilter: '', salesFilter: '', customerFilter: '', datePreset: 'all', dateFrom: '', dateTo: '' },
+  pagination: { page: 1, pageSize: 25 },
+  sorting: { sortKey: 'startDate' as 'quoNo' | 'customer' | 'totalDays' | 'startDate', sortDir: 'desc' as 'asc' | 'desc' },
+  selectedTab: null, scrollPosition: 0, shouldRestore: true,
+}
 
 // ─── Domain model ────────────────────────────────────────────────────────────
 
@@ -427,18 +434,23 @@ export default function WorkflowTrackingReportPage() {
   const [loading,    setLoading]    = useState(true)
   const [exporting,  setExporting]  = useState(false)
 
-  const [search,        setSearch]        = useState('')
-  const [stageFilter,   setStageFilter]   = useState<Stage | ''>('')
-  const [salesFilter,   setSalesFilter]   = useState('')
-  const [customerFilter,setCustomerFilter] = useState('')
-  const [datePreset,    setDatePreset]    = useState('all')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
-
-  const [sortKey, setSortKey] = useState<'quoNo' | 'customer' | 'totalDays' | 'startDate'>('startDate')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
-  const [page,    setPage]    = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const { state: listState, setState: setListState, hydrated } = usePersistentListState('report-workflow', REPORT_WORKFLOW_DEFAULTS)
+  const { filters, pagination, sorting } = listState
+  const { search, stageFilter, salesFilter, customerFilter, datePreset, dateFrom, dateTo } = filters
+  const { sortKey, sortDir } = sorting
+  const page = pagination.page
+  const pageSize = pagination.pageSize
+  const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setStageFilter = (value: Stage | '') => setListState(prev => ({ ...prev, filters: { ...prev.filters, stageFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSalesFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, salesFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setCustomerFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, customerFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDatePreset = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, datePreset: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDateFrom = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, dateFrom: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDateTo = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, dateTo: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSortKey = (value: typeof sortKey) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortKey: value } }))
+  const setSortDir = (value: 'asc' | 'desc' | ((prev: 'asc' | 'desc') => 'asc' | 'desc')) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortDir: typeof value === 'function' ? value(prev.sorting.sortDir) : value } }))
+  const setPage = (value: number) => setListState(prev => ({ ...prev, pagination: { ...prev.pagination, page: Math.max(1, value) } }))
+  const setPageSize = (value: number) => setListState(prev => ({ ...prev, pagination: { page: 1, pageSize: value } }))
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set())
 
   const load = useCallback(() => {
@@ -461,7 +473,7 @@ export default function WorkflowTrackingReportPage() {
       .finally(() => setLoading(false))
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (hydrated) load() }, [hydrated, load])
 
   // All chains (unfiltered by date/stage/search)
   const allChains = useMemo(
@@ -1137,7 +1149,7 @@ export default function WorkflowTrackingReportPage() {
 
                     {/* Actions */}
                     <td className="px-4 py-3">
-                      <button onClick={() => router.push(`/quotations/${chain.quoId}`)} title="ดูใบเสนอราคา"
+                      <button onClick={() => { armPersistentListState('report-workflow'); router.push(`/quotations/${chain.quoId}`) }} title="ดูใบเสนอราคา"
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50
                                    transition-all duration-150">
                         <Eye size={14} />

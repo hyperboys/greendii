@@ -20,6 +20,7 @@ import type { WorkOrder, User } from '@/types'
 import { STATUS_LABELS, type DocStatus } from '@/types'
 import { hasRole } from '@/lib/roleAliases'
 import DateInput from '@/components/DateInput'
+import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtDate(iso: string | undefined | null) {
@@ -41,6 +42,12 @@ const DATE_PRESETS  = [
   { value: 'this_year',    label: 'ปีนี้' },
   { value: 'custom',       label: 'กำหนดเอง' },
 ]
+const REPORT_WORKORDER_DEFAULTS = {
+  filters: { search: '', statusFilter: '', salesFilter: '', priorityFilter: '', datePreset: 'all', dateFrom: '', dateTo: '' },
+  pagination: { page: 1, pageSize: 25 },
+  sorting: { sortKey: null as 'woNo' | 'customerName' | 'installDate' | 'createdAt' | null, sortDir: 'asc' as 'asc' | 'desc' },
+  selectedTab: null, scrollPosition: 0, shouldRestore: true,
+}
 
 // WO-specific status labels (friendlier display names)
 const WO_STATUS_DISPLAY: Record<string, { label: string; badge: string }> = {
@@ -320,18 +327,23 @@ export default function WorkOrderReportPage() {
   const [exporting, setExporting]     = useState(false)
   const [alertDismissed, setAlertDismissed] = useState(false)
 
-  const [search, setSearch]           = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [salesFilter, setSalesFilter] = useState('')
-  const [priorityFilter, setPriorityFilter] = useState('')
-  const [datePreset, setDatePreset]   = useState('all')
-  const [dateFrom, setDateFrom]       = useState('')
-  const [dateTo, setDateTo]           = useState('')
-
-  const [sortKey, setSortKey]   = useState<'woNo' | 'customerName' | 'installDate' | 'createdAt' | null>(null)
-  const [sortDir, setSortDir]   = useState<'asc' | 'desc'>('asc')
-  const [page, setPage]         = useState(1)
-  const [pageSize, setPageSize] = useState(25)
+  const { state: listState, setState: setListState, hydrated } = usePersistentListState('report-workorders', REPORT_WORKORDER_DEFAULTS)
+  const { filters, pagination, sorting } = listState
+  const { search, statusFilter, salesFilter, priorityFilter, datePreset, dateFrom, dateTo } = filters
+  const { sortKey, sortDir } = sorting
+  const page = pagination.page
+  const pageSize = pagination.pageSize
+  const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value } }))
+  const setStatusFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSalesFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, salesFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setPriorityFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, priorityFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDatePreset = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, datePreset: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDateFrom = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, dateFrom: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setDateTo = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, dateTo: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSortKey = (value: typeof sortKey) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortKey: value } }))
+  const setSortDir = (value: 'asc' | 'desc' | ((prev: 'asc' | 'desc') => 'asc' | 'desc')) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortDir: typeof value === 'function' ? value(prev.sorting.sortDir) : value } }))
+  const setPage = (value: number) => setListState(prev => ({ ...prev, pagination: { ...prev.pagination, page: Math.max(1, value) } }))
+  const setPageSize = (value: number) => setListState(prev => ({ ...prev, pagination: { page: 1, pageSize: value } }))
   const searchRef               = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -346,12 +358,12 @@ export default function WorkOrderReportPage() {
     if (search.trim())            params.q       = search.trim()
     if (salesFilter)              params.salesId = salesFilter
     WorkOrdersAPI.list(params)
-      .then(data => { setRows(data); setPage(1) })
+      .then(data => setRows(data))
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }, [search, salesFilter])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { if (hydrated) load() }, [hydrated, load])
 
   // Client-side filters
   const filteredRows = useMemo(() => {
@@ -967,12 +979,12 @@ export default function WorkOrderReportPage() {
                     {/* Actions */}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
-                        <button onClick={() => router.push(`/workorders/${wo.id}`)} title="ดูรายละเอียด"
+                        <button onClick={() => { armPersistentListState('report-workorders'); router.push(`/workorders/${wo.id}`) }} title="ดูรายละเอียด"
                           className="p-1.5 rounded-lg text-gray-400 hover:text-[#1B5E20] hover:bg-[#E8F5E9]
                                      transition-all duration-150">
                           <Eye size={14} />
                         </button>
-                        <button onClick={() => router.push(`/workorders/${wo.id}`)} title="แก้ไข"
+                        <button onClick={() => { armPersistentListState('report-workorders'); router.push(`/workorders/${wo.id}`) }} title="แก้ไข"
                           className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50
                                      transition-all duration-150">
                           <Edit3 size={14} />
