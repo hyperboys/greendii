@@ -11,8 +11,17 @@ import { normalizeUserRole } from '@/lib/roleAliases'
 import { Plus, Search, RefreshCw, Copy } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ListPager from '@/components/ListPager'
+import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 const PAGE_LIMIT = 20
+const QUOTATION_LIST_DEFAULTS = {
+  filters: { search: '', statusFilter: '' },
+  pagination: { page: 1, pageSize: PAGE_LIMIT },
+  sorting: { sortBy: 'quoNo' as SortKey, sortDir: 'desc' as SortDir },
+  selectedTab: null,
+  scrollPosition: 0,
+  shouldRestore: true,
+}
 
 type SortKey = 'quoNo' | 'customerName' | 'project' | 'salesId' | 'grandTotal' | 'status' | 'updatedAt'
 type SortDir = 'asc' | 'desc'
@@ -35,21 +44,26 @@ export default function QuotationsPage() {
   const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<Quotation[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [sortBy, setSortBy] = useState<SortKey>('quoNo')
-  const [sortDir, setSortDir] = useState<SortDir>('desc')
-  const [page, setPage] = useState(1)
+  const { state: listState, setState: setListState, hydrated, clear: clearListState } = usePersistentListState('quotations', QUOTATION_LIST_DEFAULTS)
+  const search = listState.filters.search
+  const statusFilter = listState.filters.statusFilter
+  const sortBy = listState.sorting.sortBy
+  const sortDir = listState.sorting.sortDir
+  const page = listState.pagination.page
+  const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value } }))
+  const setStatusFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSortBy = (value: SortKey) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortBy: value } }))
+  const setSortDir = (value: SortDir | ((prev: SortDir) => SortDir)) => setListState(prev => ({ ...prev, sorting: { ...prev.sorting, sortDir: typeof value === 'function' ? value(prev.sorting.sortDir) : value } }))
   const [totalPages, setTotalPages] = useState(1)
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null)
 
   const defaultDirFor = (key: SortKey): SortDir => (key === 'grandTotal' || key === 'updatedAt' || key === 'quoNo' ? 'desc' : 'asc')
 
-  const load = (nextPage = 1) => {
+  const load = (nextPage = 1, filters = { search, statusFilter }) => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.q = search
-    if (statusFilter) params.status = statusFilter
+    if (filters.search) params.q = filters.search
+    if (filters.statusFilter) params.status = filters.statusFilter
     params.orderBy = sortBy
     params.orderDir = sortDir
     params.page = String(nextPage)
@@ -57,14 +71,14 @@ export default function QuotationsPage() {
     QuotationsAPI.listPage(params)
       .then((data) => {
         setRows(data.rows)
-        setPage(data.page)
+        setListState(prev => ({ ...prev, pagination: { ...prev.pagination, page: Math.max(1, Math.min(data.page, data.totalPages || 1)) } }))
         setTotalPages(data.totalPages)
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { load(1) }, [statusFilter, sortBy, sortDir])
+  useEffect(() => { if (hydrated) load(listState.pagination.page) }, [hydrated, statusFilter, sortBy, sortDir])
 
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) {
@@ -87,6 +101,7 @@ export default function QuotationsPage() {
     if (duplicatingId) return
     setDuplicatingId(quotationId)
     try {
+      armPersistentListState('quotations')
       const copied = await QuotationsAPI.duplicate(quotationId)
       toast.success('ทำสำเนาใบเสนอราคาสำเร็จ')
       router.push(`/quotations/${copied.id}/edit`)
@@ -136,6 +151,7 @@ export default function QuotationsPage() {
         <button className="btn-outline btn-sm" onClick={() => load(1)}>
           <RefreshCw size={14} /> ค้นหา
         </button>
+        <button className="btn-outline btn-sm" onClick={() => { clearListState(); load(1, { search: '', statusFilter: '' }) }}>ล้าง</button>
       </div>
 
       {/* Table */}
@@ -190,7 +206,7 @@ export default function QuotationsPage() {
               <tr
                 key={q.id}
                 className="cursor-pointer"
-                onClick={() => router.push(`/quotations/${q.id}`)}
+                onClick={() => { armPersistentListState('quotations'); router.push(`/quotations/${q.id}`) }}
               >
                 <td className="font-mono text-xs font-semibold text-green-dark">{q.quoNo}</td>
                 <td>{q.customerName}</td>

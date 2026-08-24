@@ -11,8 +11,10 @@ import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ListPager from '@/components/ListPager'
+import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 const PAGE_LIMIT = 20
+const WORKORDER_LIST_DEFAULTS = { filters: { search: '', statusFilter: '', salesFilter: '' }, pagination: { page: 1, pageSize: PAGE_LIMIT }, sorting: {}, selectedTab: null, scrollPosition: 0, shouldRestore: true }
 
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft: 'badge-draft', pending: 'badge-pending', approved: 'badge-approved',
@@ -25,11 +27,15 @@ export default function WorkOrdersPage() {
   const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<WorkOrder[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [salesFilter, setSalesFilter] = useState('')
+  const { state: listState, setState: setListState, hydrated, clear: clearListState } = usePersistentListState('workorders', WORKORDER_LIST_DEFAULTS)
+  const search = listState.filters.search
+  const statusFilter = listState.filters.statusFilter
+  const salesFilter = listState.filters.salesFilter
+  const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value } }))
+  const setStatusFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSalesFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, salesFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
   const [salesOptions, setSalesOptions] = useState<Array<{ id: string; name: string }>>([])
-  const [page, setPage] = useState(1)
+  const page = listState.pagination.page
   const [totalPages, setTotalPages] = useState(1)
 
   const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
@@ -65,18 +71,18 @@ export default function WorkOrdersPage() {
     }
   }
 
-  const load = (nextPage = 1) => {
+  const load = (nextPage = 1, filters = { search, statusFilter, salesFilter }) => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.q = search
-    if (statusFilter) params.status = statusFilter
-    if (salesFilter) params.salesId = salesFilter
+    if (filters.search) params.q = filters.search
+    if (filters.statusFilter) params.status = filters.statusFilter
+    if (filters.salesFilter) params.salesId = filters.salesFilter
     params.page = String(nextPage)
     params.pageSize = String(PAGE_LIMIT)
     WorkOrdersAPI.listPage(params)
       .then((data) => {
         setRows(data.rows)
-        setPage(data.page)
+        setListState(prev => ({ ...prev, pagination: { ...prev.pagination, page: Math.max(1, Math.min(data.page, data.totalPages || 1)) } }))
         setTotalPages(data.totalPages)
         mergeSalesOptionsFromRows(data.rows)
       })
@@ -88,7 +94,7 @@ export default function WorkOrdersPage() {
     loadSalesUsers()
   }, [canLoadSalesUsers])
 
-  useEffect(() => { load(1) }, [statusFilter, salesFilter])
+  useEffect(() => { if (hydrated) load(listState.pagination.page) }, [hydrated, statusFilter, salesFilter])
 
   const canCreate = hasPerm('wo_create', user?.role ?? '')
   const canEmailWorkOrder = hasPerm('workorder_email_view', user?.role ?? '')
@@ -104,6 +110,7 @@ export default function WorkOrdersPage() {
       toast.error('อัปเดตสถานะอ่านแล้วไม่สำเร็จ')
     })
 
+    armPersistentListState('workorders')
     router.push(`/workorders/${workOrderId}`)
   }
 
@@ -143,6 +150,7 @@ export default function WorkOrdersPage() {
           {salesOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <button className="btn-outline btn-sm" onClick={() => load(1)}><RefreshCw size={14} /> ค้นหา</button>
+        <button className="btn-outline btn-sm" onClick={() => { clearListState(); load(1, { search: '', statusFilter: '', salesFilter: '' }) }}>ล้าง</button>
       </div>
 
       <div className="card overflow-x-auto">

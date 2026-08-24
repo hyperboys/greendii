@@ -11,8 +11,10 @@ import { useSettingsStore } from '@/store/settings'
 import { Plus, Search, RefreshCw } from 'lucide-react'
 import toast from 'react-hot-toast'
 import ListPager from '@/components/ListPager'
+import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 const PAGE_LIMIT = 20
+const HANDOVER_LIST_DEFAULTS = { filters: { search: '', statusFilter: '', salesFilter: '' }, pagination: { page: 1, pageSize: PAGE_LIMIT }, sorting: {}, selectedTab: null, scrollPosition: 0, shouldRestore: true }
 
 export default function HandoversPage() {
   const router = useRouter()
@@ -20,11 +22,15 @@ export default function HandoversPage() {
   const { hasPerm } = useSettingsStore()
   const [rows, setRows] = useState<HandOverJob[]>([])
   const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
-  const [salesFilter, setSalesFilter] = useState('')
+  const { state: listState, setState: setListState, hydrated, clear: clearListState } = usePersistentListState('handovers', HANDOVER_LIST_DEFAULTS)
+  const search = listState.filters.search
+  const statusFilter = listState.filters.statusFilter
+  const salesFilter = listState.filters.salesFilter
+  const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value } }))
+  const setStatusFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSalesFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, salesFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
   const [salesOptions, setSalesOptions] = useState<Array<{ id: string; name: string }>>([])
-  const [page, setPage] = useState(1)
+  const page = listState.pagination.page
   const [totalPages, setTotalPages] = useState(1)
 
   const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
@@ -60,18 +66,18 @@ export default function HandoversPage() {
     }
   }
 
-  const load = (nextPage = 1) => {
+  const load = (nextPage = 1, filters = { search, statusFilter, salesFilter }) => {
     setLoading(true)
     const params: Record<string, string> = {}
-    if (search) params.q = search
-    if (statusFilter) params.status = statusFilter
-    if (salesFilter) params.salesId = salesFilter
+    if (filters.search) params.q = filters.search
+    if (filters.statusFilter) params.status = filters.statusFilter
+    if (filters.salesFilter) params.salesId = filters.salesFilter
     params.page = String(nextPage)
     params.pageSize = String(PAGE_LIMIT)
     HandoversAPI.listPage(params)
       .then((data) => {
         setRows(data.rows)
-        setPage(data.page)
+        setListState(prev => ({ ...prev, pagination: { ...prev.pagination, page: Math.max(1, Math.min(data.page, data.totalPages || 1)) } }))
         setTotalPages(data.totalPages)
         mergeSalesOptionsFromRows(data.rows)
       })
@@ -83,7 +89,7 @@ export default function HandoversPage() {
     loadSalesUsers()
   }, [canLoadSalesUsers])
 
-  useEffect(() => { load(1) }, [statusFilter, salesFilter])
+  useEffect(() => { if (hydrated) load(listState.pagination.page) }, [hydrated, statusFilter, salesFilter])
 
   const canCreate = hasPerm('ho_create', user?.role ?? '')
 
@@ -116,6 +122,7 @@ export default function HandoversPage() {
           {salesOptions.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
         <button className="btn-outline btn-sm" onClick={() => load(1)}><RefreshCw size={14} /> ค้นหา</button>
+        <button className="btn-outline btn-sm" onClick={() => { clearListState(); load(1, { search: '', statusFilter: '', salesFilter: '' }) }}>ล้าง</button>
       </div>
 
       <div className="card overflow-x-auto">
@@ -137,7 +144,7 @@ export default function HandoversPage() {
             ) : rows.length === 0 ? (
               <tr><td colSpan={7} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(h => (
-              <tr key={h.id} className="cursor-pointer" onClick={() => router.push(`/handovers/${h.id}`)}>
+              <tr key={h.id} className="cursor-pointer" onClick={() => { armPersistentListState('handovers'); router.push(`/handovers/${h.id}`) }}>
                 <td className="font-mono text-xs font-semibold text-orange-600">{h.hoNo}</td>
                 <td className="max-w-[160px] truncate">{h.contractor || '-'}</td>
                 <td>{h.project}</td>
