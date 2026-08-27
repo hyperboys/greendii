@@ -40,21 +40,25 @@ export default function WorkOrdersPage() {
 
   const canLoadSalesUsers = ['admin', 'director', 'admin_mgr'].includes(normalizeUserRole(user?.role))
 
-  const mergeSalesOptionsFromRows = (list: WorkOrder[]) => {
-    const nextFromRows = list
-      .map((row) => ({ id: row.salesId, name: row.sales?.fullName || row.salesId }))
-      .filter((item) => item.id)
-
+  const mergeSalesOptions = (nextOptions: Array<{ id: string; name: string }>) => {
     setSalesOptions((prev) => {
       const map = new Map<string, string>()
       for (const item of prev) map.set(item.id, item.name)
-      for (const item of nextFromRows) {
+      for (const item of nextOptions) {
         if (!map.has(item.id) || map.get(item.id) === item.id) map.set(item.id, item.name)
       }
       return Array.from(map.entries())
         .map(([id, name]) => ({ id, name }))
         .sort((a, b) => a.name.localeCompare(b.name, 'th'))
     })
+  }
+
+  const mergeSalesOptionsFromRows = (list: WorkOrder[]) => {
+    const nextFromRows = list
+      .map((row) => ({ id: row.salesId, name: row.sales?.fullName || row.salesId }))
+      .filter((item) => item.id)
+
+    mergeSalesOptions(nextFromRows)
   }
 
   const loadSalesUsers = async () => {
@@ -65,7 +69,7 @@ export default function WorkOrdersPage() {
         .filter((u: User) => normalizeUserRole(u.role) === 'sales')
         .map((u: User) => ({ id: u.id, name: u.fullName || u.username }))
         .sort((a, b) => a.name.localeCompare(b.name, 'th'))
-      if (saleUsers.length > 0) setSalesOptions(saleUsers)
+      mergeSalesOptions(saleUsers)
     } catch {
       // Fallback to deriving options from currently loaded rows for non-admin roles.
     }
