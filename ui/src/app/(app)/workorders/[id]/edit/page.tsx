@@ -10,6 +10,7 @@ import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
 import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
+import SearchableSelect from '@/components/SearchableSelect'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
 import {
@@ -245,21 +246,33 @@ export default function EditWorkOrderPage() {
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิงใบเสนอราคา (ถ้ามี)</label>
-          <select className="form-input" value={form.quotationId} onChange={e => handleQuotation(e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
-            {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
-          </select>
+          <SearchableSelect
+            options={quotations.map(q => ({
+              value: q.id,
+              label: `${q.quoNo} — ${q.customerName}`,
+              description: q.project ? `Project: ${q.project}` : undefined,
+            }))}
+            value={form.quotationId}
+            onChange={handleQuotation}
+            placeholder="ค้นหา/เลือกเลขที่ใบเสนอราคา (เว้นว่าง = ไม่ระบุ)"
+            searchPlaceholder="พิมพ์ค้นหาเลขที่ใบเสนอราคา / ลูกค้า / Project"
+            emptyText="ไม่พบใบเสนอราคาที่ตรงคำค้น"
+          />
         </div>
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิง HandOver (ถ้ามี)</label>
-          <select className="form-input" value={form.handOverJobId} onChange={e => handleHandover(e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
-            {filteredHandovers.map(h => (
-              <option key={h.id} value={h.id}>
-                {h.hoNo} — {h.project}{h.quotationId ? '' : ' (ยังไม่ผูก Quotation)'}
-              </option>
-            ))}
-          </select>
+          <SearchableSelect
+            options={filteredHandovers.map(h => ({
+              value: h.id,
+              label: `${h.hoNo} — ${h.project}${h.quotationId ? '' : ' (ยังไม่ผูก Quotation)'}`,
+              description: h.location || undefined,
+            }))}
+            value={form.handOverJobId}
+            onChange={handleHandover}
+            placeholder="ค้นหา/เลือกเลข HandOver (เว้นว่าง = ไม่ระบุ)"
+            searchPlaceholder="พิมพ์ค้นหาเลข HandOver / Project / สถานที่"
+            emptyText="ไม่พบ HandOver ที่ตรงคำค้น"
+          />
           <p className="mt-1 text-xs text-gray-500">
             {form.quotationId
               ? `กำลังกรองตาม Quotation: ${selectedQuotation?.quoNo || '-'} (${filteredHandovers.length} รายการ)`
