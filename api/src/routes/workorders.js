@@ -83,6 +83,12 @@ function buildRevisionDocNo(baseNo, revisionNo) {
   return `${stripRevisionSuffix(baseNo)}-R${revisionNo}`
 }
 
+function createHttpError(status, message) {
+  const error = new Error(message)
+  error.status = status
+  return error
+}
+
 async function getDocNumberFloor(prefix) {
   const settings = await prisma.settings.findUnique({
     where: { id: 'main' },
@@ -1061,11 +1067,28 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
     }
 
     const rootId = source.rootWorkOrderId || source.id;
-    const revisionNo = (source.revisionNo || 0) + 1;
-    const revisedNo = buildRevisionDocNo(source.woNo, revisionNo);
 
     const revised = await prisma.$transaction(async (tx) => {
-      await tx.workOrder.update({ where: { id: source.id }, data: { active: false } });
+      const deactivated = await tx.workOrder.updateMany({
+        where: { id: source.id, active: true },
+        data: { active: false },
+      });
+      if (deactivated.count !== 1) {
+        throw createHttpError(409, 'ใบสั่งงานนี้ไม่ใช่ฉบับที่ active ล่าสุด');
+      }
+
+      const latestRevision = await tx.workOrder.findFirst({
+        where: {
+          OR: [
+            { id: rootId },
+            { rootWorkOrderId: rootId },
+          ],
+        },
+        select: { revisionNo: true },
+        orderBy: [{ revisionNo: 'desc' }, { createdAt: 'desc' }],
+      });
+      const revisionNo = Math.max(source.revisionNo || 0, latestRevision?.revisionNo || 0) + 1;
+      const revisedNo = buildRevisionDocNo(source.woNo, revisionNo);
 
       return tx.workOrder.create({
         data: {
