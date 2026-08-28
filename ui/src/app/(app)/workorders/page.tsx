@@ -62,16 +62,23 @@ export default function WorkOrdersPage() {
   }
 
   const loadSalesUsers = async () => {
-    if (!canLoadSalesUsers) return
     try {
-      const users = await UsersAPI.list({ active: 'true' })
-      const saleUsers = users
-        .filter((u: User) => normalizeUserRole(u.role) === 'sales')
-        .map((u: User) => ({ id: u.id, name: u.fullName || u.username }))
-        .sort((a, b) => a.name.localeCompare(b.name, 'th'))
-      mergeSalesOptions(saleUsers)
+      if (canLoadSalesUsers) {
+        const users = await UsersAPI.list({ active: 'true' })
+        const saleUsers = users
+          .filter((u: User) => normalizeUserRole(u.role) === 'sales')
+          .map((u: User) => ({ id: u.id, name: u.fullName || u.username }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'th'))
+        mergeSalesOptions(saleUsers)
+        return
+      }
+
+      // The paginated list only contains the current page, so derive options
+      // from the complete WO list for users who cannot list all users.
+      const workOrders = await WorkOrdersAPI.list()
+      mergeSalesOptionsFromRows(workOrders)
     } catch {
-      // Fallback to deriving options from currently loaded rows for non-admin roles.
+      // The current page still supplies a useful fallback in load().
     }
   }
 
