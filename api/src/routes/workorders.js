@@ -397,9 +397,20 @@ async function ensureHandOverSelectable(quotationId, handOverJobId, currentWorkO
   }
 
   if (handover.workOrderId && handover.workOrderId !== currentWorkOrderId) {
-    const error = new Error('เอกสารส่งมอบงานนี้ถูกผูกกับใบสั่งงานอื่นแล้ว');
-    error.status = 400;
-    throw error;
+    const workOrders = currentWorkOrderId
+      ? await prisma.workOrder.findMany({
+          where: { id: { in: [handover.workOrderId, currentWorkOrderId] } },
+          select: { id: true, rootWorkOrderId: true },
+        })
+      : [];
+    const revisionRoots = workOrders.map(workOrder => workOrder.rootWorkOrderId || workOrder.id);
+    const belongsToSameRevision = workOrders.length === 2 && revisionRoots[0] === revisionRoots[1];
+
+    if (!belongsToSameRevision) {
+      const error = new Error('เอกสารส่งมอบงานนี้ถูกผูกกับใบสั่งงานอื่นแล้ว');
+      error.status = 400;
+      throw error;
+    }
   }
 
   return handover;
@@ -1090,7 +1101,7 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
       const revisionNo = Math.max(source.revisionNo || 0, latestRevision?.revisionNo || 0) + 1;
       const revisedNo = buildRevisionDocNo(source.woNo, revisionNo);
 
-      return tx.workOrder.create({
+      const created = await tx.workOrder.create({
         data: {
           woNo: revisedNo,
           active: true,
@@ -1116,6 +1127,15 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           isClosed: false,
           closedAt: null,
         },
+      });
+
+      await tx.handOverJob.updateMany({
+        where: { workOrderId: source.id },
+        data: { workOrderId: created.id },
+      });
+
+      return tx.workOrder.findUniqueOrThrow({
+        where: { id: created.id },
         include: INCLUDE_FULL,
       });
     });
@@ -1174,6 +1194,10 @@ router.post('/:id/revision-cancel', authenticate, async (req, res, next) => {
         await tx.workOrder.update({
           where: { id: previous.id },
           data: { active: true },
+        });
+        await tx.handOverJob.updateMany({
+          where: { workOrderId: source.id },
+          data: { workOrderId: previous.id },
         });
       }
 
