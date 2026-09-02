@@ -229,7 +229,21 @@ export default function PRDetailPage() {
         <div><span className="form-label">คนสร้าง</span><p>{doc.sales?.fullName || doc.salesId || '-'}</p></div>
         <div><span className="form-label">ประเภท PR</span><p>{doc.prType?.name || '-'}</p></div>
         <div><span className="form-label">Project Ref</span><p>{doc.projectRef || '-'}</p></div>
-        <div><span className="form-label">อ้างอิง WO</span><p>{doc.workOrder?.woNo || '-'}</p></div>
+        <div>
+          <span className="form-label">อ้างอิง WO</span>
+          <p>
+            {doc.workOrder ? (
+              <a
+                href={`/workorders/${doc.workOrder.id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-600 hover:text-blue-800 hover:underline"
+              >
+                {doc.workOrder.woNo}
+              </a>
+            ) : '-'}
+          </p>
+        </div>
         <div><span className="form-label">สกุลเงิน</span><p>{doc.currency || 'THB'}</p></div>
         <div><span className="form-label">Date of Issue</span><p>{doc.dateIssue ? new Date(doc.dateIssue).toLocaleDateString('en-GB') : '-'}</p></div>
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
