@@ -461,6 +461,8 @@ export const UploadAPI = {
       headers: { 'Content-Type': 'multipart/form-data' },
     }).then(r => r.data)
   },
+  updatePoAmount: (id: string, poAmount: number) =>
+    http.patch<Attachment>(`/upload/${id}/po-amount`, { poAmount }).then(r => r.data),
   delete: (id: string) => http.delete(`/upload/${id}`).then(r => r.data),
 }
 

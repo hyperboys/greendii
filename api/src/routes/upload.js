@@ -326,6 +326,35 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
   } catch (e) { next(e); }
 });
 
+// PATCH /api/upload/:id/po-amount
+router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
+  try {
+    const poAmount = parsePoAmount(req.body?.poAmount);
+    if (poAmount === null) {
+      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ให้ถูกต้อง' });
+    }
+
+    const attachment = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (normalizeAttachmentCategory(attachment.category) !== 'po' || !attachment.workOrderId) {
+      return res.status(400).json({ message: 'แก้ไขยอดได้เฉพาะไฟล์ PO ของ Work Order' });
+    }
+
+    await assertWorkOrderAttachmentEditable(req, attachment.workOrderId, 'po');
+    const updated = await prisma.attachment.update({
+      where: { id: attachment.id },
+      data: { poAmount },
+    });
+    await writePoAuditLog({
+      workOrderId: attachment.workOrderId,
+      userId: req.user.id,
+      action: 'update_amount',
+      filename: attachment.originalName,
+    });
+
+    res.json(updated);
+  } catch (e) { next(e); }
+});
+
 // DELETE /api/upload/:id
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {

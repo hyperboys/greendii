@@ -120,6 +120,9 @@ export default function AttachmentsSection({
 
   const deferred = !docId
   const isCategoryAllowed = (key: CategoryKey) => !allowedCategories || allowedCategories.includes(key)
+  const latestPoAttachment = [...attachments]
+    .filter(attachment => attachment.category === 'po' && !stagedDeleteIds.includes(attachment.id))
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
   const rawPoAmount = String(poAmount || '').replace(/,/g, '').trim()
   const parsedPoAmount = Number(rawPoAmount)
   const isPoAmountValid = rawPoAmount !== '' && Number.isFinite(parsedPoAmount) && parsedPoAmount >= 0
@@ -130,6 +133,11 @@ export default function AttachmentsSection({
       Object.values(timers).forEach(clearTimeout)
     }
   }, [])
+
+  useEffect(() => {
+    if (!latestPoAttachment) return
+    onPoAmountChange?.(formatPoAmountInput(String(latestPoAttachment.poAmount ?? ''), true))
+  }, [latestPoAttachment?.id, latestPoAttachment?.poAmount])
 
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return

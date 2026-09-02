@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { WorkOrdersAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
+import { WorkOrdersAPI, SettingsAPI, UploadAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { DEFAULT_APPROVAL_FLOW } from '@/types'
 import type { ApprovalLog, WorkOrder, Settings } from '@/types'
 import WorkOrderPrint from '@/components/WorkOrderPrint'
@@ -19,7 +19,7 @@ import {
   parseWorkOrderDetailBeforeNote,
 } from '@/lib/workOrderItems'
 import { decodeDisplayFileName } from '@/lib/filename'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText, Image as ImageIcon, Paperclip, Save } from 'lucide-react'
 import toast from 'react-hot-toast'
 import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
@@ -152,6 +152,15 @@ export default function WorkOrderDetailPage() {
   const canCloseByRole = closeAccessRoles.map(normalizeUserRole).includes(normalizeUserRole(user?.role))
   const canCloseByUserId = Boolean(user?.id && closeAccessUserIds.includes(user.id))
   const canClose = doc.status === 'approved' && !doc.isClosed && (canCloseByRole || canCloseByUserId)
+  const latestPoAttachment = [...(doc.attachments ?? [])]
+    .filter(attachment => attachment.category === 'po')
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
+  const rawPoAmount = poAmount.replace(/,/g, '').trim()
+  const parsedPoAmount = Number(rawPoAmount)
+  const canSaveWorkOrder = Boolean(latestPoAttachment) && canManageAttachmentsInCurrentState
+  const isPoAmountValid = rawPoAmount !== ''
+    && Number.isFinite(parsedPoAmount)
+    && parsedPoAmount >= 0
 
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
@@ -221,6 +230,20 @@ export default function WorkOrderDetailPage() {
       router.push(`/workorders/${revised.id}/edit`)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'สร้าง Revision ไม่สำเร็จ')
+    } finally {
+      setActing(false)
+    }
+  }
+
+  const saveWithoutClosing = async () => {
+    if (!latestPoAttachment || !canSaveWorkOrder || !isPoAmountValid || acting) return
+    setActing(true)
+    try {
+      await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount)
+      toast.success('บันทึกข้อมูลสำเร็จ')
+      load()
+    } catch (err) {
+      toast.error(typeof err === 'string' ? err : 'บันทึกข้อมูลไม่สำเร็จ')
     } finally {
       setActing(false)
     }
@@ -549,21 +572,32 @@ export default function WorkOrderDetailPage() {
         </div>
       )}
 
-      {canClose && (
+      {(canClose || canSaveWorkOrder) && (
         <div className="card p-5 space-y-3">
-          <h3 className="font-semibold text-gray-800">ปิดงาน</h3>
-          <p className="text-xs text-gray-500">ใช้เมื่อใบสั่งงานนี้เสร็จสิ้นจริง และต้องการปิดงานด้วยมือ</p>
-          <textarea
-            className="form-input"
-            rows={2}
-            placeholder="หมายเหตุการปิดงาน (บังคับ)"
-            value={closeComment}
-            onChange={e => setCloseComment(e.target.value)}
-          />
+          <h3 className="font-semibold text-gray-800">บันทึก / ปิดงาน</h3>
+          {canClose && (
+            <>
+              <p className="text-xs text-gray-500">กดบันทึกเพื่อเก็บข้อมูลโดยไม่ปิดงาน หรือระบุหมายเหตุแล้วกดปิดงานเมื่อเสร็จสิ้นจริง</p>
+              <textarea
+                className="form-input"
+                rows={2}
+                placeholder="หมายเหตุการปิดงาน (บังคับเฉพาะเมื่อปิดงาน)"
+                value={closeComment}
+                onChange={e => setCloseComment(e.target.value)}
+              />
+            </>
+          )}
           <div className="flex gap-2">
-            <button className="btn-primary" onClick={() => act('close')} disabled={acting || !closeComment.trim()}>
-              <CheckCircle size={15} /> ปิดงาน
-            </button>
+            {canSaveWorkOrder && (
+              <button className="btn-primary" onClick={saveWithoutClosing} disabled={acting || !isPoAmountValid}>
+                <Save size={15} /> บันทึก
+              </button>
+            )}
+            {canClose && (
+              <button className="btn-primary" onClick={() => act('close')} disabled={acting || !closeComment.trim()}>
+                <CheckCircle size={15} /> ปิดงาน
+              </button>
+            )}
           </div>
         </div>
       )}
