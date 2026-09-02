@@ -631,14 +631,6 @@ router.post('/:id/reject', authenticate, async (req, res, next) => {
     if (pr.status !== 'pending') return res.status(400).json({ message: 'Not pending' });
     await assertPrCurrentApprover(req, pr);
     const updated = await prisma.$transaction(async (tx) => {
-      await tx.approvalLog.deleteMany({
-        where: {
-          docType: 'pr',
-          prId: pr.id,
-          action: 'approve',
-        },
-      });
-
       const rejected = await tx.purchaseRequest.update({
         where: { id: req.params.id },
         data: { status: 'rejected' },

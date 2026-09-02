@@ -53,7 +53,6 @@ function rowClass(row: WorkStatusRow) {
 
 function poBadge(poStatus: WorkStatusRow['poStatus']) {
   if (poStatus === 'Received') return 'bg-emerald-100 text-emerald-800 border-emerald-200'
-  if (poStatus === 'Partial') return 'bg-amber-100 text-amber-800 border-amber-200'
   if (poStatus === 'N/A') return 'bg-slate-100 text-slate-700 border-slate-200'
   return 'bg-red-100 text-red-700 border-red-200'
 }

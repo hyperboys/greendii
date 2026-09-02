@@ -320,6 +320,7 @@ export default function PRDetailPage() {
         creatorName={doc.sales?.fullName ?? doc.salesId}
         showSubmitState
         showStageComments
+        showAllStageComments
       />
       {autoSkippedStageCount > 0 && (
         <div className="-mt-3 text-xs text-amber-700 no-print">

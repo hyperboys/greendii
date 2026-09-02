@@ -946,8 +946,7 @@ router.get('/work-status', authenticate, async (req, res, next) => {
         const qtAmount = Number(wo.quotation?.grandTotal || 0);
 
         let poStatusLabel = wo.poRequirement === 'not_required' ? 'N/A' : 'Pending';
-        if (wo.poRequirement !== 'not_required' && hasPo && qtAmount > 0 && poAmount < qtAmount) poStatusLabel = 'Partial';
-        else if (wo.poRequirement !== 'not_required' && hasPo) poStatusLabel = 'Received';
+        if (wo.poRequirement !== 'not_required' && hasPo) poStatusLabel = 'Received';
 
         const poStatusKey = wo.poRequirement === 'not_required' ? 'not_required' : (hasPo ? 'has' : 'pending');
 
