@@ -818,7 +818,7 @@ export interface WorkStatusRow {
   qtAmount: number
   poNo: string | null
   poAmount: number
-  poStatus: 'Received' | 'Partial' | 'Pending' | 'N/A'
+  poStatus: 'Received' | 'Pending' | 'N/A'
   poStatusKey: 'has' | 'pending' | 'not_required'
   agingDays: number
   workAgeDays?: number
