@@ -55,11 +55,11 @@ function getEffectivePrStages(steps: unknown, creatorRole: string | undefined, s
   const normalizedCreatorRole = normalizeUserRole(creatorRole)
   if (!normalizedCreatorRole) return stages
 
-  return stages.filter((stage) => {
-    // Keep UI consistent with backend PR rule: if creator is in a stage,
-    // that whole stage is treated as auto-approved (skip).
-    return !stage.some((step) => normalizeUserRole(stepRoleConfig[String(step)]) === normalizedCreatorRole)
-  })
+  const creatorStageIndex = stages.findIndex((stage) =>
+    stage.some((step) => normalizeUserRole(stepRoleConfig[String(step)]) === normalizedCreatorRole),
+  )
+
+  return stages.slice(creatorStageIndex >= 0 ? creatorStageIndex + 1 : 0)
 }
 
 function getLatestSubmitterRole(approvalLogs?: ApprovalLog[]): string | undefined {
