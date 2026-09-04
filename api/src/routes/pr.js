@@ -409,11 +409,15 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         item = await prisma.$transaction(async (tx) => {
-          const lastPR = await tx.purchaseRequest.findFirst({
+          const yearPRs = await tx.purchaseRequest.findMany({
             where: { prNo: { startsWith: prPrefix } },
-            orderBy: { prNo: 'desc' },
+            select: { prNo: true },
           });
-          const prDbSeq = lastPR ? (parseInt(lastPR.prNo.replace(prPrefix, ''), 10) || 0) : 0;
+          const prDbSeq = yearPRs.reduce((maxSeq, record) => {
+            const match = String(record.prNo || '').match(new RegExp(`^${prPrefix}(\\d+)$`));
+            const sequence = match ? Number(match[1]) : 0;
+            return Number.isSafeInteger(sequence) ? Math.max(maxSeq, sequence) : maxSeq;
+          }, 0);
           const prSeq = Math.max(prDbSeq + 1, prFloor);
           const prNo = `${prPrefix}${String(prSeq).padStart(3, '0')}`;
 
