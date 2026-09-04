@@ -323,6 +323,7 @@ model WorkOrder {
   approvalStep   Int       @default(0)
   isClosed       Boolean   @default(false)
   closedAt       DateTime? @db.Timestamptz(3)
+  closeRemark    String?   @map("close_remark")
   createdAt      DateTime  @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
 

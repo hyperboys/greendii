@@ -340,9 +340,21 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
     }
 
     await assertWorkOrderAttachmentEditable(req, attachment.workOrderId, 'po');
-    const updated = await prisma.attachment.update({
-      where: { id: attachment.id },
-      data: { poAmount },
+    const closeRemark = req.body?.closeRemark === undefined
+      ? undefined
+      : (String(req.body.closeRemark || '').trim() || null);
+    const updated = await prisma.$transaction(async (tx) => {
+      const updatedAttachment = await tx.attachment.update({
+        where: { id: attachment.id },
+        data: { poAmount },
+      });
+      if (closeRemark !== undefined) {
+        await tx.workOrder.update({
+          where: { id: attachment.workOrderId },
+          data: { closeRemark },
+        });
+      }
+      return updatedAttachment;
     });
     await writePoAuditLog({
       workOrderId: attachment.workOrderId,

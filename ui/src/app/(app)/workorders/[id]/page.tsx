@@ -87,6 +87,9 @@ export default function WorkOrderDetailPage() {
   useEffect(() => {
     setApprovalChecklist({ ...DEFAULT_DOC_CHECKLIST, ...(doc?.docChecklist ?? {}) })
   }, [doc])
+  useEffect(() => {
+    if (doc) setCloseComment(doc.closeRemark || '')
+  }, [doc])
 
   useEffect(() => {
     if (!previewOpen) return
@@ -239,7 +242,7 @@ export default function WorkOrderDetailPage() {
     if (!latestPoAttachment || !canSaveWorkOrder || !isPoAmountValid || acting) return
     setActing(true)
     try {
-      await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount)
+      await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount, closeComment)
       toast.success('บันทึกข้อมูลสำเร็จ')
       load()
     } catch (err) {

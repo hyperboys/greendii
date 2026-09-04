@@ -397,6 +397,7 @@ export interface WorkOrder {
   approvalStep: number
   isClosed: boolean
   closedAt?: string
+  closeRemark?: string | null
   approvalLogs?: ApprovalLog[]
   closeLogs?: WorkOrderCloseLog[]
   issueLogs?: Array<{
