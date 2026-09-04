@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
+const { Prisma } = require('@prisma/client');
 const prisma = require('../lib/prisma');
 const { parseBangkokDate } = require('../lib/timezone');
 const { authenticate } = require('../middleware/auth');
@@ -403,28 +404,40 @@ router.post('/', authenticate, prValidators, validate, async (req, res, next) =>
     if (!customer) return res.status(400).json({ message: 'customer required' });
     const yy = String(new Date().getFullYear()).slice(2);
     const prPrefix = `PR${yy}`;
-    const lastPR = await prisma.purchaseRequest.findFirst({
-      where: { prNo: { startsWith: prPrefix } },
-      orderBy: { prNo: 'desc' },
-    });
-    const prDbSeq = lastPR ? (parseInt(lastPR.prNo.replace(prPrefix, ''), 10) || 0) : 0;
     const prFloor = await getDocNumberFloor(prPrefix);
-    const prSeq = Math.max(prDbSeq + 1, prFloor);
-    const prNo = `${prPrefix}${String(prSeq).padStart(3, '0')}`;
-    const item = await prisma.purchaseRequest.create({
-      data: {
-        prNo, workOrderId: workOrderId || null, prTypeId: prTypeId || null, customer, projectRef,
-        dateIssue: parseBangkokDate(dateIssue),
-        dateRequired: parseBangkokDate(dateRequired),
-        currency: requestedCurrency,
-        subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
-        remarks, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
-        items: {
-          create: items.map((it, i) => normalizePrItem(it, i)),
-        },
-      },
-      include: INCLUDE_FULL,
-    });
+    let item;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        item = await prisma.$transaction(async (tx) => {
+          const lastPR = await tx.purchaseRequest.findFirst({
+            where: { prNo: { startsWith: prPrefix } },
+            orderBy: { prNo: 'desc' },
+          });
+          const prDbSeq = lastPR ? (parseInt(lastPR.prNo.replace(prPrefix, ''), 10) || 0) : 0;
+          const prSeq = Math.max(prDbSeq + 1, prFloor);
+          const prNo = `${prPrefix}${String(prSeq).padStart(3, '0')}`;
+
+          return tx.purchaseRequest.create({
+            data: {
+              prNo, workOrderId: workOrderId || null, prTypeId: prTypeId || null, customer, projectRef,
+              dateIssue: parseBangkokDate(dateIssue),
+              dateRequired: parseBangkokDate(dateRequired),
+              currency: requestedCurrency,
+              subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
+              remarks, salesId: req.user.id, status: 'draft', active: true, revisionNo: 0,
+              items: {
+                create: items.map((it, i) => normalizePrItem(it, i)),
+              },
+            },
+            include: INCLUDE_FULL,
+          });
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        break;
+      } catch (error) {
+        const retryable = error?.code === 'P2034' || error?.code === 'P2002';
+        if (!retryable || attempt === 2) throw error;
+      }
+    }
     res.status(201).json(item);
   } catch (e) { next(e); }
 });
