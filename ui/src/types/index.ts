@@ -567,6 +567,7 @@ export interface HandOverItem {
   seq?: number
   desc: string
   note?: string
+  detailRows?: WorkOrderDetailRow[]
   remark?: string
   qty: number
   unit: string

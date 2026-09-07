@@ -5,15 +5,15 @@ import { ChevronDown, ChevronUp, ImagePlus, Plus, Trash2, X } from 'lucide-react
 import toast from 'react-hot-toast'
 import { UploadAPI, resolveFileUrl } from '@/lib/api'
 import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
-import type { Unit, WorkOrderItem } from '@/types'
+import type { HandOverItem, Unit } from '@/types'
 import {
-  createEmptyWorkOrderItem,
-  parseWorkOrderColoredNoteBlocks,
-  parseWorkOrderDetailBeforeNote,
-  parseWorkOrderNoteBlocks,
-  parseWorkOrderDetailRows,
-  stringifyWorkOrderDetailRows,
-} from '@/lib/workOrderItems'
+  createEmptyHandOverItem,
+  parseHandOverColoredNoteBlocks,
+  parseHandOverDetailBeforeNote,
+  parseHandOverNoteBlocks,
+  parseHandOverDetailRows,
+  stringifyHandOverDetailRows,
+} from '@/lib/handOverItems'
 
 const DEFAULT_LINE_COLOR = '#000000'
 const MAIN_ITEM_COLORS = [
@@ -24,17 +24,17 @@ const MAIN_ITEM_COLORS = [
 ] as const
 
 interface Props {
-  items: WorkOrderItem[]
+  items: HandOverItem[]
   units: Unit[]
-  onChange: (items: WorkOrderItem[]) => void
+  onChange: (items: HandOverItem[]) => void
   title?: string
 }
 
-export default function WorkOrderItemsEditor({
+export default function HandOverItemsEditor({
   items,
   units,
   onChange,
-  title = 'รายการงาน WorkOrder',
+  title = 'รายการงาน HandOver',
 }: Props) {
   const [activeItemIdx, setActiveItemIdx] = useState(0)
   const [detailBeforeNoteByItem, setDetailBeforeNoteByItem] = useState<boolean[]>([])
@@ -51,10 +51,10 @@ export default function WorkOrderItemsEditor({
   }, [items.length])
 
   useEffect(() => {
-    setDetailBeforeNoteByItem(items.map((item) => parseWorkOrderDetailBeforeNote(item.note)))
+    setDetailBeforeNoteByItem(items.map((item) => parseHandOverDetailBeforeNote(item.note)))
   }, [items])
 
-  const setItemField = (index: number, key: keyof WorkOrderItem, value: string | number | string[]) => {
+  const setItemField = (index: number, key: keyof HandOverItem, value: string | number | string[]) => {
     onChange(items.map((item, itemIndex) => (itemIndex === index ? { ...item, [key]: value } : item)))
   }
 
@@ -74,105 +74,105 @@ export default function WorkOrderItemsEditor({
 
   const setDescriptionLine = (itemIdx: number, lineIdx: number, key: 'desc' | 'qty' | 'unit', value: string | number | null) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     rows[lineIdx] = { ...rows[lineIdx], [key]: value }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const setDescriptionLineText = (itemIdx: number, lineIdx: number, value: string) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     const prev = parseColoredLine(rows[lineIdx]?.desc)
     rows[lineIdx] = { ...rows[lineIdx], desc: stringifyColoredLine({ text: value, color: prev.color }) }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const setDescriptionLineColor = (itemIdx: number, lineIdx: number, color: string) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     const prev = parseColoredLine(rows[lineIdx]?.desc)
     rows[lineIdx] = { ...rows[lineIdx], desc: stringifyColoredLine({ text: prev.text, color }) }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const addDescriptionLine = (itemIdx: number) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     rows.push({ desc: '', qty: null, unit: '' })
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     if (rows.length <= 1) {
-      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows([], { noteBlocks, detailBeforeNote }) }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows([], { noteBlocks, detailBeforeNote }) }
     } else {
       rows.splice(lineIdx, 1)
-      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
+      nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     }
     onChange(nextItems)
   }
 
   const setNoteBlock = (itemIdx: number, blockIdx: number, value: string) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const blocks = parseHandOverColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
     const current = nextBlocks[blockIdx] || { text: '' }
     nextBlocks[blockIdx] = { ...current, text: value }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const setNoteBlockColor = (itemIdx: number, blockIdx: number, color: string) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const blocks = parseHandOverColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = blocks.length > 0 ? [...blocks] : [{ text: '' }]
     const current = nextBlocks[blockIdx] || { text: '' }
     nextBlocks[blockIdx] = { ...current, color }
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const addNoteBlock = (itemIdx: number) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const blocks = parseHandOverColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = [...blocks, { text: '' }]
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
   const removeNoteBlock = (itemIdx: number, blockIdx: number) => {
     const nextItems = [...items]
-    const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
+    const rows = parseHandOverDetailRows(nextItems[itemIdx])
+    const blocks = parseHandOverColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     const nextBlocks = [...blocks]
     nextBlocks.splice(blockIdx, 1)
-    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
+    nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyHandOverDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
 
@@ -185,7 +185,7 @@ export default function WorkOrderItemsEditor({
     }
     const toastId = toast.loading('กำลังอัปโหลดรูป...')
     try {
-      const saved = await UploadAPI.upload(imageFiles, { category: 'workorder-item' })
+      const saved = await UploadAPI.upload(imageFiles, { category: 'handover-item' })
       const urls = saved.map((attachment: { fileUrl?: string }) => attachment.fileUrl).filter(Boolean) as string[]
       const nextItems = [...items]
       nextItems[itemIdx] = {
@@ -208,12 +208,12 @@ export default function WorkOrderItemsEditor({
   }
 
   const addItem = () => {
-    onChange([...items, createEmptyWorkOrderItem(items.length)])
+    onChange([...items, createEmptyHandOverItem(items.length)])
   }
 
   const removeItem = (index: number) => {
     const nextItems = items.filter((_, itemIndex) => itemIndex !== index)
-    onChange(nextItems.length > 0 ? nextItems : [createEmptyWorkOrderItem(0)])
+    onChange(nextItems.length > 0 ? nextItems : [createEmptyHandOverItem(0)])
     setDetailBeforeNoteByItem((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
   }
 
@@ -247,11 +247,11 @@ export default function WorkOrderItemsEditor({
       if (detailBeforeNote === next[itemIdx]) return prev
 
       const nextItems = [...items]
-      const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-      const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+      const rows = parseHandOverDetailRows(nextItems[itemIdx])
+      const noteBlocks = parseHandOverNoteBlocks(nextItems[itemIdx]?.note)
       nextItems[itemIdx] = {
         ...nextItems[itemIdx],
-        ...stringifyWorkOrderDetailRows(rows, {
+        ...stringifyHandOverDetailRows(rows, {
           noteBlocks,
           detailBeforeNote: Boolean(next[itemIdx]),
         }),
@@ -286,9 +286,9 @@ export default function WorkOrderItemsEditor({
               {items.map((item, index) => (
                 <Fragment key={`${item.seq ?? index}-${index}`}>
                   {(() => {
-                    const detailRows = parseWorkOrderDetailRows(item)
+                    const detailRows = parseHandOverDetailRows(item)
                     const detailBeforeNote = Boolean(detailBeforeNoteByItem[index])
-                    const noteBlocks = parseWorkOrderColoredNoteBlocks(item.note)
+                    const noteBlocks = parseHandOverColoredNoteBlocks(item.note)
                     const canMoveNoteUp = detailBeforeNote
                     const canMoveNoteDown = !detailBeforeNote
                     const canMoveDetailUp = !detailBeforeNote
@@ -373,7 +373,7 @@ export default function WorkOrderItemsEditor({
                         </td>
                         <td className="px-2 py-0.5">
                           <input
-                            list="workorder-units-datalist"
+                            list="handover-units-datalist"
                             className="form-input w-full py-1 text-xs"
                             value={row.unit ?? ''}
                             onFocus={() => setActiveItemIdx(index)}
@@ -666,7 +666,7 @@ export default function WorkOrderItemsEditor({
                     </td>
                     <td className="px-2 py-2">
                       <input
-                        list="workorder-units-datalist"
+                        list="handover-units-datalist"
                         className="form-input py-1"
                         value={item.unit}
                         onFocus={() => setActiveItemIdx(index)}
@@ -738,7 +738,7 @@ export default function WorkOrderItemsEditor({
         </div>
       </div>
 
-      <datalist id="workorder-units-datalist">
+      <datalist id="handover-units-datalist">
         {units.map(unit => <option key={unit.id} value={unit.name} />)}
       </datalist>
     </div>

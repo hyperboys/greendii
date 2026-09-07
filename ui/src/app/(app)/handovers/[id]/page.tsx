@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { HandoversAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
-import { toPlainColoredLine } from '@/lib/coloredText'
+import { parseColoredLine } from '@/lib/coloredText'
+import { parseHandOverColoredNoteBlocks, parseHandOverDetailBeforeNote, parseHandOverDetailRows } from '@/lib/handOverItems'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { HandOverJob, Settings } from '@/types'
 import HandoverPrint from '@/components/HandoverPrint'
@@ -151,23 +152,51 @@ export default function HandoverDetailPage() {
         <div className="card p-5">
           <h3 className="font-semibold text-gray-800 mb-3">รายละเอียดงานจากใบเสนอราคา</h3>
           <div className="space-y-4">
-            {quotationItems.map((item, idx) => (
-              <div key={`${item.seq ?? idx}-${idx}`} className="border border-gray-200 rounded-lg p-3">
-                <div className="text-sm font-medium text-gray-800 mb-1">{idx + 1}. {toPlainColoredLine(item.desc)}</div>
-                <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
-                {'remark' in item && item.remark && (
-                  <div className="mb-2 whitespace-pre-line text-xs text-gray-600">{item.remark}</div>
-                )}
-                {item.images && item.images.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {item.images.map((url, i) => (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img key={i} src={resolveFileUrl(url)} alt="quotation item" className="w-28 h-28 object-cover rounded border" />
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+            {quotationItems.map((item, idx) => {
+              const detailRows = parseHandOverDetailRows(item)
+              const noteBlocks = parseHandOverColoredNoteBlocks(item.note)
+              const detailBeforeNote = parseHandOverDetailBeforeNote(item.note)
+              const itemDesc = parseColoredLine(item.desc)
+
+              const detailView = detailRows.length > 0 ? (
+                <div className="mt-1 space-y-0.5 text-xs">
+                  {detailRows.map((row, rowIndex) => {
+                    const parsed = parseColoredLine(row.desc)
+                    return (
+                      <div key={`${idx}-detail-${rowIndex}`} className="whitespace-pre-line" style={{ color: parsed.color || '#9ca3af' }}>
+                        {parsed.text}
+                      </div>
+                    )
+                  })}
+                </div>
+              ) : null
+
+              const noteView = noteBlocks.length > 0 ? (
+                <div className="mt-1 space-y-0.5 text-xs text-gray-500">
+                  {noteBlocks.map((block, blockIndex) => (
+                    <div key={`${idx}-note-${blockIndex}`} className="whitespace-pre-line" style={{ color: block.color || '#6b7280' }}>
+                      {block.text}
+                    </div>
+                  ))}
+                </div>
+              ) : null
+
+              return (
+                <div key={`${item.seq ?? idx}-${idx}`} className="border border-gray-200 rounded-lg p-3">
+                  <div className="text-sm font-medium mb-1" style={{ color: itemDesc.color || '#1f2937' }}>{idx + 1}. {itemDesc.text}</div>
+                  <div className="text-xs text-gray-500 mb-2">จำนวน: {item.qty} {item.unit}</div>
+                  {detailBeforeNote ? (<>{detailView}{noteView}</>) : (<>{noteView}{detailView}</>)}
+                  {item.images && item.images.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {item.images.map((url, i) => (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img key={i} src={resolveFileUrl(url)} alt="quotation item" className="w-28 h-28 object-cover rounded border" />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
           </div>
         </div>
       )}

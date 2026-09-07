@@ -33,6 +33,13 @@ function normalizeHandoverItems(items) {
       const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
       const unit = String(item?.unit ?? '').trim();
       const note = item?.note == null ? '' : String(item.note);
+      const detailRows = Array.isArray(item?.detailRows)
+        ? item.detailRows.map((row) => ({
+            desc: String(row?.desc ?? ''),
+            qty: row?.qty == null || row?.qty === '' ? null : Number(row.qty),
+            unit: String(row?.unit ?? ''),
+          }))
+        : [];
       const remark = item?.remark == null ? '' : String(item.remark);
       const images = Array.isArray(item?.images)
         ? item.images.map(v => String(v || '')).filter(Boolean)
@@ -41,6 +48,7 @@ function normalizeHandoverItems(items) {
         seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
         desc,
         note,
+        detailRows,
         remark,
         qty,
         unit,

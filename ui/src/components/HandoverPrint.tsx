@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveFileUrl } from '@/lib/api'
+import { parseHandOverColoredNoteBlocks, parseHandOverDetailBeforeNote, parseHandOverDetailRows } from '@/lib/handOverItems'
 import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
@@ -55,14 +56,20 @@ function itemWeight(fragment: HandoverItemFragment): number {
   return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
 }
 
-type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'remark' | 'qty' | 'unit' | 'images'>
+type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'detailRows' | 'remark' | 'qty' | 'unit' | 'images'>
 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
-  const noteLines = [
-    ...splitDescriptionLines(item.note),
-    ...splitDescriptionLines(item.remark),
-  ]
-  const remainingLines = [...noteLines]
+  const detailLines = parseHandOverDetailRows(item).map(row => row.desc).filter(Boolean)
+  const metaNoteBlocks = parseHandOverColoredNoteBlocks(item.note)
+  const legacyRemark = String(item.remark ?? '').trim()
+  const noteBlockTexts = metaNoteBlocks.length > 0
+    ? metaNoteBlocks.map(block => block.text)
+    : (legacyRemark ? [legacyRemark] : [])
+  const noteLines = noteBlockTexts.flatMap(text => splitDescriptionLines(text))
+  // Legacy items (no note-block meta) always rendered detail lines before the single remark.
+  const detailBeforeNote = metaNoteBlocks.length > 0 ? parseHandOverDetailBeforeNote(item.note) : true
+  const orderedLines = detailBeforeNote ? [...detailLines, ...noteLines] : [...noteLines, ...detailLines]
+  const remainingLines = [...orderedLines]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: HandoverItemFragment[] = []
   const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
