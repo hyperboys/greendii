@@ -530,7 +530,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </div>
           )}
         </td>
-        <td style={itemCellS}>{item.qty != null ? item.qty : ''}</td>
+        <td style={itemCellS}>{item.qty != null && item.qty !== 0 ? item.qty : ''}</td>
         <td style={itemCellS}>{item.unit ?? ''}</td>
       </tr>
     )
