@@ -701,7 +701,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           )}
         </td>
         <td style={{ ...itemCellS, textAlign: 'center' }}>
-          <div>{formatQty(item.qty)}</div>
+          <div>{formatQty(item.qty) || '\u00A0'}</div>
           {item.detailRows.map((row, idx) => (
             <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
               {formatQty(row.qty) || '\u00A0'}
@@ -709,7 +709,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
           ))}
         </td>
         <td style={{ ...itemCellS, textAlign: 'center', borderRight: borderRightStrong }}>
-          <div>{normalizePrintableText(item.unit, { trim: false }) || ''}</div>
+          <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (normalizePrintableText(item.unit, { trim: false }) || '\u00A0')}</div>
           {item.detailRows.map((row, idx) => (
             <span key={idx} style={{ color: '#444', fontSize: '11pt', lineHeight: 1.0, whiteSpace: 'pre-wrap', display: 'block' }}>
               {normalizePrintableText(row.unit) || '\u00A0'}

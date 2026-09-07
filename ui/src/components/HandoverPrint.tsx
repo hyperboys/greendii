@@ -530,8 +530,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </div>
           )}
         </td>
-        <td style={itemCellS}>{item.qty != null && item.qty !== 0 ? item.qty : ''}</td>
-        <td style={itemCellS}>{item.unit ?? ''}</td>
+        <td style={itemCellS}>{item.qty != null && item.qty !== 0 ? item.qty : '\u00A0'}</td>
+        <td style={itemCellS}>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</td>
       </tr>
     )
   }
