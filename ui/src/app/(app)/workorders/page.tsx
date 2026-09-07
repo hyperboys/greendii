@@ -171,6 +171,7 @@ export default function WorkOrdersPage() {
               <th>เลขที่ WO</th>
               <th>ลูกค้า</th>
               <th>โครงการ</th>
+              <th>สินค้า/บริการ</th>
               <th>เซลล์</th>
               <th>วันติดตั้ง</th>
               <th>สถานะ</th>
@@ -180,15 +181,16 @@ export default function WorkOrdersPage() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={8} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
+              <tr><td colSpan={9} className="text-center py-8 text-gray-400">กำลังโหลด…</td></tr>
             ) : rows.length === 0 ? (
-              <tr><td colSpan={8} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
+              <tr><td colSpan={9} className="text-center py-8 text-gray-400">ไม่พบข้อมูล</td></tr>
             ) : rows.map(w => (
               <tr key={w.id} className="cursor-pointer" onClick={() => handleOpenWorkOrder(w.id)}>
                 <td className={`font-mono text-xs ${w.isRead ? 'wo-read' : 'wo-unread'}`}>{w.woNo}</td>
-                <td>{w.customerName}</td>
-                <td className="max-w-[180px] truncate">{w.project}</td>
-                <td>{w.sales?.fullName ?? w.salesId}</td>
+                <td title={w.customerName}>{w.customerName}</td>
+                <td className="max-w-[180px] truncate" title={w.project}>{w.project}</td>
+                <td className="max-w-[180px] truncate" title={w.products || '-'}>{w.products || '-'}</td>
+                <td title={w.sales?.fullName ?? w.salesId}>{w.sales?.fullName ?? w.salesId}</td>
                 <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('en-GB') : '-'}</td>
                 <td><span className={STATUS_COLORS[w.status]}>{STATUS_LABELS[w.status]}</span></td>
                 <td>{w.isClosed ? <span className="badge bg-gray-800 text-white">ปิดแล้ว</span> : '-'}</td>

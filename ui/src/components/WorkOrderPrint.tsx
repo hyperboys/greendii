@@ -662,7 +662,7 @@ export default function WorkOrderPrint({ doc, settings, onReady, embedPdfAttachm
     const formatQty = (value: number | null | undefined): string => {
       if (value == null) return ''
       const numeric = Number(value)
-      if (!Number.isFinite(numeric)) return ''
+      if (!Number.isFinite(numeric) || numeric === 0) return ''
       return `${numeric}`
     }
 

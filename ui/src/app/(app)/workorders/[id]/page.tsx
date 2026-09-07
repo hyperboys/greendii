@@ -500,7 +500,7 @@ export default function WorkOrderDetailPage() {
                             </div>
                           )}
                         </td>
-                        <td className="border px-2 py-1.5 text-right">{item.qty}</td>
+                        <td className="border px-2 py-1.5 text-right">{Number(item.qty || 0) === 0 ? '' : item.qty}</td>
                         <td className="border px-2 py-1.5 text-center">{item.unit}</td>
                       </tr>
                     )
