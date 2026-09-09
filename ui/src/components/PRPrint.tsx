@@ -9,6 +9,7 @@ import { parseColoredLine } from '@/lib/coloredText'
 
 const PACK_CAP_NON_LAST = 20
 const PACK_CAP_LAST = 11
+const PR_FRAGMENT_CAP = 16
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -121,7 +122,7 @@ function splitItemIntoFragments(item: PRItem, itemIndex: number): PRItemFragment
     while (remaining.length > 0) {
       const next = remaining[0]
       const nextWeight = next.type === 'image' ? 4 : (next.text?.trim() ? 0.7 : 0.35)
-      if (fragmentBlocks.length > 0 && weight + nextWeight > 10) break
+      if (fragmentBlocks.length > 0 && weight + nextWeight > PR_FRAGMENT_CAP) break
       fragmentBlocks.push(remaining.shift() as PRDescriptionBlock)
       weight += nextWeight
     }
