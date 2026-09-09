@@ -126,6 +126,14 @@ function fallbackRowsFromNote(note?: string): WorkOrderDetailRow[] {
   return rows
 }
 
+function mapQuotationDetailRows(item?: QuotationItem | null): WorkOrderDetailRow[] {
+  const detailRows = Array.isArray(item?.detailRows)
+    ? normalizeDetailRows(item.detailRows, { trimText: false })
+    : []
+  if (detailRows.length > 0) return detailRows
+  return fallbackRowsFromNote(toPlainColoredMultiline(item?.note))
+}
+
 export function parseWorkOrderNoteBlocks(note?: string): string[] {
   return parseWorkOrderColoredNoteBlocks(note).map((block) => block.text)
 }
@@ -170,7 +178,7 @@ export function mapQuotationItemsToWorkOrderItems(items?: QuotationItem[] | null
   return items.map((item, index) => ({
     seq: item.seq ?? index,
     desc: sanitizeWorkOrderText(toPlainColoredLine(item.desc), { trim: false }),
-    ...stringifyWorkOrderDetailRows(fallbackRowsFromNote(toPlainColoredMultiline(item.note))),
+    ...stringifyWorkOrderDetailRows(mapQuotationDetailRows(item)),
     qty: Number(item.qty ?? 0),
     unit: sanitizeWorkOrderText(item.unit, { trim: false }),
     images: Array.isArray(item.images)

@@ -292,7 +292,7 @@ async function getQuotationItemsSnapshot(quotationId) {
     where: { id: quotationId },
     select: {
       items: {
-        select: { seq: true, desc: true, note: true, qty: true, unit: true, images: true },
+        select: { seq: true, desc: true, note: true, detailRows: true, qty: true, unit: true, images: true },
         orderBy: { seq: 'asc' },
       },
     },
@@ -302,6 +302,13 @@ async function getQuotationItemsSnapshot(quotationId) {
     seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
     desc: String(item.desc ?? ''),
     note: item.note ?? '',
+    detailRows: Array.isArray(item.detailRows)
+      ? item.detailRows.map((row) => ({
+          desc: String(row?.desc ?? ''),
+          qty: row?.qty == null || row.qty === '' ? null : Number(row.qty),
+          unit: String(row?.unit ?? ''),
+        })).filter((row) => row.desc || row.qty != null || row.unit)
+      : [],
     qty: Number(item.qty ?? 0),
     unit: String(item.unit ?? ''),
     images: Array.isArray(item.images) ? item.images : [],
