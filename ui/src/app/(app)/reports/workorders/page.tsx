@@ -45,7 +45,7 @@ const DATE_PRESETS  = [
 const REPORT_WORKORDER_DEFAULTS = {
   filters: { search: '', statusFilter: '', salesFilter: '', priorityFilter: '', datePreset: 'all', dateFrom: '', dateTo: '' },
   pagination: { page: 1, pageSize: 25 },
-  sorting: { sortKey: null as 'woNo' | 'customerName' | 'installDate' | 'createdAt' | null, sortDir: 'asc' as 'asc' | 'desc' },
+  sorting: { sortKey: null as 'woNo' | 'customerName' | 'dueDate' | 'createdAt' | null, sortDir: 'asc' as 'asc' | 'desc' },
   selectedTab: null, scrollPosition: 0, shouldRestore: true,
 }
 
@@ -116,14 +116,20 @@ function getDateRange(preset: string, customFrom = '', customTo = ''): { from: D
   return { from: null, to: null }
 }
 
-/** Days remaining until installDate. Negative = overdue. Null if no installDate. */
+/** Days remaining until WO dueDate. Negative = overdue. Null if no dueDate. */
 function daysRemaining(wo: WorkOrder): number | null {
-  if (!wo.installDate) return null
-  const due  = new Date(wo.installDate)
+  if (!wo.dueDate) return null
+  const due  = new Date(wo.dueDate)
   const now  = new Date()
   due.setHours(23, 59, 59, 0)
   now.setHours(0, 0, 0, 0)
   return Math.ceil((due.getTime() - now.getTime()) / 86_400_000)
+}
+
+function overdueDays(wo: WorkOrder): number | null {
+  const days = daysRemaining(wo)
+  if (days === null || days >= 0 || wo.isClosed) return null
+  return Math.abs(days)
 }
 
 function isOverdue(wo: WorkOrder): boolean {
@@ -133,6 +139,7 @@ function isOverdue(wo: WorkOrder): boolean {
 }
 
 function getDisplayStatus(wo: WorkOrder): string {
+  if (!wo.dueDate)           return 'draft'
   if (wo.isClosed)           return 'closed'
   if (isOverdue(wo))         return 'overdue'
   return wo.status
@@ -405,10 +412,10 @@ export default function WorkOrderReportPage() {
   const sortedRows = useMemo(() => {
     if (!sortKey) return filteredRows
     return [...filteredRows].sort((a, b) => {
-      const va = sortKey === 'installDate' ? (a.installDate ?? '')
+      const va = sortKey === 'dueDate' ? (a.dueDate ?? '')
                : sortKey === 'createdAt'   ? a.createdAt
                : (a[sortKey as keyof WorkOrder] as string) ?? ''
-      const vb = sortKey === 'installDate' ? (b.installDate ?? '')
+      const vb = sortKey === 'dueDate' ? (b.dueDate ?? '')
                : sortKey === 'createdAt'   ? b.createdAt
                : (b[sortKey as keyof WorkOrder] as string) ?? ''
       if (va < vb) return sortDir === 'asc' ? -1 : 1
@@ -429,10 +436,10 @@ export default function WorkOrderReportPage() {
     const overdueList   = filteredRows.filter(wo => isOverdue(wo))
     const overdueCount  = overdueList.length
 
-    // On-time rate: closed before or on installDate
+    // On-time rate: closed before or on WO dueDate.
     const onTimeCount = closedWos.filter(wo => {
-      if (!wo.installDate || !wo.closedAt) return false
-      return new Date(wo.closedAt) <= new Date(wo.installDate)
+      if (!wo.dueDate || !wo.closedAt) return false
+      return new Date(wo.closedAt) <= new Date(wo.dueDate)
     }).length
     const onTimeRate = completedCount > 0 ? (onTimeCount / completedCount) * 100 : 0
 
@@ -508,9 +515,9 @@ export default function WorkOrderReportPage() {
         ['ช่วงเวลา', dateRangeLabel],
         ['สถานะ',    statusFilter ? (WO_STATUS_DISPLAY[statusFilter]?.label ?? statusFilter) : 'ทั้งหมด'],
         [],
-        ['เลขที่', 'อ้างอิง QUO', 'ลูกค้า', 'โครงการ', 'พนักงานขาย', 'Priority', 'สถานะ', 'วันที่สร้าง', 'กำหนดส่ง', 'วันที่ปิด'],
+        ['เลขที่', 'อ้างอิง QUO', 'ลูกค้า', 'โครงการ', 'พนักงานขาย', 'Priority', 'สถานะ', 'วันที่สร้าง', 'กำหนดส่ง', 'วันเกินกำหนด'],
         ...sortedRows.map(wo => {
-          const d = daysRemaining(wo)
+          const lateDays = overdueDays(wo)
           return [
             wo.woNo,
             wo.quotation?.quoNo ?? '',
@@ -520,8 +527,8 @@ export default function WorkOrderReportPage() {
             PRIORITY_CONFIG[getPriority(wo)].label,
             WO_STATUS_DISPLAY[getDisplayStatus(wo)]?.label ?? wo.status,
             new Date(wo.createdAt).toLocaleDateString('th-TH'),
-            wo.installDate ? new Date(wo.installDate).toLocaleDateString('th-TH') : '',
-            wo.closedAt ? new Date(wo.closedAt).toLocaleDateString('th-TH') : d !== null ? `${d} วัน` : '',
+            wo.dueDate ? new Date(wo.dueDate).toLocaleDateString('th-TH') : '',
+            lateDays !== null ? `${lateDays} วัน` : '',
           ]
         }),
       ])
@@ -546,8 +553,8 @@ export default function WorkOrderReportPage() {
     { label: 'Priority',        key: null,               right: false },
     { label: 'สถานะ',           key: null,               right: false },
     { label: 'วันที่สร้าง',    key: 'createdAt'   as const, right: false },
-    { label: 'กำหนดส่ง',       key: 'installDate' as const, right: false },
-    { label: 'คงเหลือ',         key: null,               right: true  },
+    { label: 'กำหนดส่ง',       key: 'dueDate' as const, right: false },
+    { label: 'วันเกินกำหนด',    key: null,               right: true  },
     { label: '',                key: null,               right: false },
   ]
 
@@ -901,6 +908,7 @@ export default function WorkOrderReportPage() {
                 const overdue       = displayStatus === 'overdue'
                 const priority      = getPriority(wo)
                 const days          = daysRemaining(wo)
+                const lateDays      = overdueDays(wo)
                 const pCfg          = PRIORITY_CONFIG[priority]
                 const sCfg          = WO_STATUS_DISPLAY[displayStatus] ?? WO_STATUS_DISPLAY['draft']
 
@@ -954,26 +962,18 @@ export default function WorkOrderReportPage() {
                     </td>
                     {/* Due date */}
                     <td className="px-4 py-3 text-xs whitespace-nowrap">
-                      {wo.installDate
+                      {wo.dueDate
                         ? <span className={overdue ? 'text-red-600 font-semibold' : 'text-gray-600'}>
-                            {fmtDate(wo.installDate)}
+                            {fmtDate(wo.dueDate)}
                           </span>
                         : <span className="text-gray-300">—</span>}
                     </td>
-                    {/* Days remaining */}
+                    {/* Overdue days */}
                     <td className="px-4 py-3 text-right whitespace-nowrap">
-                      {wo.isClosed ? (
-                        <span className="text-xs text-emerald-600 font-semibold flex items-center justify-end gap-1">
-                          <CheckCircle2 size={12} /> Done
-                        </span>
-                      ) : days === null ? (
+                      {days === null || lateDays === null ? (
                         <span className="text-xs text-gray-300">—</span>
-                      ) : days < 0 ? (
-                        <span className="text-xs font-bold text-red-600">{days} วัน</span>
-                      ) : days <= 7 ? (
-                        <span className="text-xs font-semibold text-amber-600">{days} วัน</span>
                       ) : (
-                        <span className="text-xs text-emerald-600">{days} วัน</span>
+                        <span className="text-xs font-bold text-red-600">{lateDays} วัน</span>
                       )}
                     </td>
                     {/* Actions */}
