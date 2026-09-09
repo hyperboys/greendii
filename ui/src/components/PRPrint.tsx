@@ -92,32 +92,63 @@ function groupPRDescriptionBlocks(blocks: PRDescriptionBlock[]): PRDescriptionGr
 
 type PRItem = PurchaseRequest['items'][number]
 
+interface PRItemFragment {
+  key: string
+  item: PRItem
+  blocks: PRDescriptionBlock[]
+  itemIndex: number
+  isFirst: boolean
+}
+
 interface PageChunk {
-  items: PRItem[]
+  items: PRItemFragment[]
   isLast: boolean
   tail: boolean
 }
 
-function itemWeight(item: PRItem): number {
+function splitItemIntoFragments(item: PRItem, itemIndex: number): PRItemFragment[] {
   const blocks = parsePRDescription(item.note, item.images?.length ?? 0)
-  const textLines = blocks.filter(block => block.type !== 'image')
-  const nonEmptyDetailLines = textLines.filter(block => block.text?.trim().length).length
-  const blankDetailLines = textLines.length - nonEmptyDetailLines
-  const imageWeight = Array.isArray(item.images) ? item.images.length * 3 : 0
+    .flatMap(block => block.type === 'image'
+      ? [block]
+      : String(block.text ?? '').split('\n').map(text => ({ ...block, text })))
+  const fragments: PRItemFragment[] = []
+  let remaining = [...blocks]
+  let fragmentIndex = 0
 
-  return (
-    1 +
-    nonEmptyDetailLines * 0.6 +
-    blankDetailLines * 0.3 +
-    imageWeight
-  )
+  while (fragmentIndex === 0 || remaining.length > 0) {
+    const fragmentBlocks: PRDescriptionBlock[] = []
+    let weight = 1
+    while (remaining.length > 0) {
+      const next = remaining[0]
+      const nextWeight = next.type === 'image' ? 4 : (next.text?.trim() ? 0.7 : 0.35)
+      if (fragmentBlocks.length > 0 && weight + nextWeight > 10) break
+      fragmentBlocks.push(remaining.shift() as PRDescriptionBlock)
+      weight += nextWeight
+    }
+    fragments.push({
+      key: `${item.id ?? itemIndex}-${fragmentIndex}`,
+      item,
+      blocks: fragmentBlocks,
+      itemIndex,
+      isFirst: fragmentIndex === 0,
+    })
+    fragmentIndex += 1
+  }
+
+  return fragments
 }
 
-function paginateItems(items: PRItem[]): PageChunk[] {
+function itemWeight(fragment: PRItemFragment): number {
+  return 1 + fragment.blocks.reduce((sum, block) => (
+    sum + (block.type === 'image' ? 3 : (block.text?.trim() ? 0.6 : 0.3))
+  ), 0)
+}
+
+function paginateItems(items: PRItemFragment[]): PageChunk[] {
   if (items.length === 0) return [{ items: [], isLast: true, tail: true }]
 
-  const rawPages: PRItem[][] = []
-  let current: PRItem[] = []
+  const rawPages: PRItemFragment[][] = []
+  let current: PRItemFragment[] = []
   let currentWeight = 0
 
   for (const item of items) {
@@ -136,9 +167,9 @@ function paginateItems(items: PRItem[]): PageChunk[] {
   const last = rawPages[rawPages.length - 1]
   let lastWeight = last.reduce((sum, item) => sum + itemWeight(item), 0)
   if (lastWeight > PACK_CAP_LAST && last.length > 1) {
-    const overflow: PRItem[] = []
+    const overflow: PRItemFragment[] = []
     while (lastWeight > PACK_CAP_LAST && last.length > 1) {
-      const moved = last.pop() as PRItem
+      const moved = last.pop() as PRItemFragment
       overflow.unshift(moved)
       lastWeight -= itemWeight(moved)
     }
@@ -225,7 +256,9 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   const approvalDate = approvalSignatureLog?.actedAt
     ? formatBangkokDateTime(approvalSignatureLog.actedAt)
     : ''
-  const pages = paginateItems(Array.isArray(doc.items) ? doc.items : [])
+  const printableItems = (Array.isArray(doc.items) ? doc.items : [])
+    .flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
+  const pages = paginateItems(printableItems)
   const totalPages = pages.length
 
   const thS: React.CSSProperties = {
@@ -302,7 +335,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
   }
 
   function renderItemsTable(chunk: PageChunk, pageIndex: number) {
-    const itemOffset = pages.slice(0, pageIndex).reduce((sum, page) => sum + page.items.length, 0)
     return (
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
         <colgroup>
@@ -320,16 +352,15 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         </thead>
         <tbody style={{ height: '100%' }}>
           {chunk.items.map((item, i) => {
-            const globalIndex = itemOffset + i
             return (
-              <tr key={item.id ?? globalIndex}>
-                <td style={{ ...tdS, textAlign: 'center' }}>{item?.partNo ?? ''}</td>
+              <tr key={item.key}>
+                <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.partNo ?? '' : ''}</td>
                 <td style={{ ...tdS }}>
-                  {(() => {
-                    const descLine = parseColoredLine(item?.desc)
+                  {item.isFirst && (() => {
+                    const descLine = parseColoredLine(item.item.desc)
                     return <span style={{ color: descLine.color || undefined }}>{descLine.text}</span>
                   })()}
-                  {groupPRDescriptionBlocks(parsePRDescription(item.note, item.images?.length ?? 0)).map((group, groupIdx) => group.type === 'images' ? (
+                  {groupPRDescriptionBlocks(item.blocks).map((group, groupIdx) => group.type === 'images' ? (
                     <div
                       key={`description-images-${groupIdx}`}
                       style={{
@@ -343,8 +374,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                       }}
                     >
                       {group.blocks.map((block, idx) => {
-                        const url = item.images?.[block.imageIndex ?? -1] || ''
-                        const imageKey = getImageKey(globalIndex, block.imageIndex ?? idx, url)
+                        const url = item.item.images?.[block.imageIndex ?? -1] || ''
+                        const imageKey = getImageKey(item.itemIndex, block.imageIndex ?? idx, url)
                         const isLandscape = imageOrientation[imageKey] === 'landscape'
                         return (
                           // eslint-disable-next-line @next/next/no-img-element
@@ -371,10 +402,10 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
                     </div>
                   ))}
                 </td>
-                <td style={{ ...tdS, textAlign: 'center' }}>{item?.unit ?? ''}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtQty(item.qty)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtItemMoney(item.price)}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{fmtItemMoney(item.amount)}</td>
+                <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.unit ?? '' : ''}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtQty(item.item.qty) : ''}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.price) : ''}</td>
+                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.amount) : ''}</td>
               </tr>
             )
           })}
