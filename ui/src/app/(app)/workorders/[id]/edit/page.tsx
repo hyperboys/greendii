@@ -87,6 +87,7 @@ export default function EditWorkOrderPage() {
   const [units, setUnits] = useState<Unit[]>([])
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [poAmount, setPoAmount] = useState('')
+  const [minAmount, setMinAmount] = useState('')
   const [linkNotice, setLinkNotice] = useState('')
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -395,6 +396,8 @@ export default function EditWorkOrderPage() {
         onRefresh={reloadAttachments}
         poAmount={poAmount}
         onPoAmountChange={setPoAmount}
+        minAmount={minAmount}
+        onMinAmountChange={setMinAmount}
       />
 
       <div className="flex justify-end gap-3">

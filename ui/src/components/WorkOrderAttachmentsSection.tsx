@@ -37,6 +37,8 @@ interface Props {
   allowedCategories?: CategoryKey[]
   poAmount?: string
   onPoAmountChange?: (value: string) => void
+  minAmount?: string
+  onMinAmountChange?: (value: string) => void
 }
 
 const CATEGORIES = [
@@ -108,6 +110,8 @@ export default function AttachmentsSection({
   allowedCategories,
   poAmount = '',
   onPoAmountChange,
+  minAmount = '',
+  onMinAmountChange,
 }: Props) {
   const inputRefs = useRef<Partial<Record<CategoryKey, HTMLInputElement | null>>>({})
   const dragDepthRef = useRef<Partial<Record<CategoryKey, number>>>({})
@@ -123,9 +127,15 @@ export default function AttachmentsSection({
   const latestPoAttachment = [...attachments]
     .filter(attachment => attachment.category === 'po' && !stagedDeleteIds.includes(attachment.id))
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
+  const latestMinAttachment = [...attachments]
+    .filter(attachment => attachment.category === 'mom' && !stagedDeleteIds.includes(attachment.id))
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
   const rawPoAmount = String(poAmount || '').replace(/,/g, '').trim()
   const parsedPoAmount = Number(rawPoAmount)
   const isPoAmountValid = rawPoAmount !== '' && Number.isFinite(parsedPoAmount) && parsedPoAmount >= 0
+  const rawMinAmount = String(minAmount || '').replace(/,/g, '').trim()
+  const parsedMinAmount = Number(rawMinAmount)
+  const isMinAmountValid = rawMinAmount !== '' && Number.isFinite(parsedMinAmount) && parsedMinAmount >= 0
 
   useEffect(() => {
     const timers = deleteTimersRef.current
@@ -139,12 +149,23 @@ export default function AttachmentsSection({
     onPoAmountChange?.(formatPoAmountInput(String(latestPoAttachment.poAmount ?? ''), true))
   }, [latestPoAttachment?.id, latestPoAttachment?.poAmount])
 
+  useEffect(() => {
+    if (!latestMinAttachment) return
+    onMinAmountChange?.(formatPoAmountInput(String(latestMinAttachment.poAmount ?? ''), true))
+  }, [latestMinAttachment?.id, latestMinAttachment?.poAmount])
+
   const handleUpload = async (catKey: CategoryKey, files: File[]) => {
     if (!files.length) return
     if (readOnly) return
     if (!isCategoryAllowed(catKey)) return
     if (catKey === 'po' && !isPoAmountValid) {
       toast.error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
+      const el = inputRefs.current[catKey]
+      if (el) el.value = ''
+      return
+    }
+    if (catKey === 'mom' && !isMinAmountValid) {
+      toast.error('กรุณากรอกยอดเงิน MIN ก่อนแนบไฟล์')
       const el = inputRefs.current[catKey]
       if (el) el.value = ''
       return
@@ -165,6 +186,7 @@ export default function AttachmentsSection({
         [docField]: docId as string,
         category: catKey,
         ...(catKey === 'po' ? { poAmount: parsedPoAmount } : {}),
+        ...(catKey === 'mom' ? { poAmount: parsedMinAmount } : {}),
       })
       toast.success(`แนบ ${files.length} ไฟล์และบันทึกแล้ว`)
       onRefresh?.()
@@ -264,7 +286,6 @@ export default function AttachmentsSection({
           </p>
         </div>
         <button
-          type="button"
           className="shrink-0 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700 hover:bg-emerald-100"
           onClick={() => {
             const timer = deleteTimersRef.current[id]
@@ -339,15 +360,19 @@ export default function AttachmentsSection({
 
           return (
             <div key={key} className="space-y-2.5 md:space-y-3">
-              {key === 'po' && (
+              {(key === 'po' || key === 'mom') && (
                 <div>
-                  <label className="text-sm font-semibold text-slate-600">ยอดเงิน PO (บาท) *</label>
+                  <label className="text-sm font-semibold text-slate-600">{key === 'po' ? 'ยอดเงิน PO (บาท) *' : 'ยอดเงิน MIN (บาท) *'}</label>
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={poAmount}
-                    onChange={e => onPoAmountChange?.(formatPoAmountInput(e.target.value))}
-                    onBlur={e => onPoAmountChange?.(formatPoAmountInput(e.target.value, true))}
+                    value={key === 'po' ? poAmount : minAmount}
+                    onChange={e => key === 'po'
+                      ? onPoAmountChange?.(formatPoAmountInput(e.target.value))
+                      : onMinAmountChange?.(formatPoAmountInput(e.target.value))}
+                    onBlur={e => key === 'po'
+                      ? onPoAmountChange?.(formatPoAmountInput(e.target.value, true))
+                      : onMinAmountChange?.(formatPoAmountInput(e.target.value, true))}
                     placeholder="เช่น 1,500,000.00"
                     disabled={readOnly || categoryLocked}
                     className="form-input mt-2"
@@ -355,7 +380,7 @@ export default function AttachmentsSection({
                 </div>
               )}
 
-              {(key === 'drawing' || key === 'mom') && (
+              {key === 'drawing' && (
                 <div className="hidden md:block invisible" aria-hidden="true">
                   <label className="text-sm font-semibold text-slate-600">ยอดเงิน PO (บาท) *</label>
                   <input
@@ -384,6 +409,10 @@ export default function AttachmentsSection({
                     if (isUploading) return
                     if (key === 'po' && !isPoAmountValid) {
                       toast.error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
+                      return
+                    }
+                    if (key === 'mom' && !isMinAmountValid) {
+                      toast.error('กรุณากรอกยอดเงิน MIN ก่อนแนบไฟล์')
                       return
                     }
                     inputRefs.current[key]?.click()
@@ -436,6 +465,7 @@ export default function AttachmentsSection({
                         <span className="text-xs text-slate-400">
                           {fmtSize(att.size)}
                           {key === 'po' && typeof att.poAmount === 'number' ? ` · ยอด PO ${att.poAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท` : ''}
+                          {key === 'mom' && typeof att.poAmount === 'number' ? ` · ยอด MIN ${att.poAmount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท` : ''}
                         </span>
                       </div>
                       {!readOnly && !categoryLocked && (

@@ -37,6 +37,7 @@ const upload = multer({
 
 const PO_ALLOWED_EXT = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const PO_ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png']);
+const ATTACHMENT_AMOUNT_CATEGORIES = new Set(['po', 'mom']);
 const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles';
 const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator'];
 
@@ -267,9 +268,10 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
       removeTempUploadedFiles(req.files || []);
       return res.status(400).json({ message: 'ไฟล์ PO อนุญาตเฉพาะ PDF, JPG, PNG' });
     }
-    if (normalizedCategory === 'po' && parsedPoAmount === null) {
+    if (ATTACHMENT_AMOUNT_CATEGORIES.has(normalizedCategory) && parsedPoAmount === null) {
       removeTempUploadedFiles(req.files || []);
-      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์' });
+      const label = normalizedCategory === 'mom' ? 'MIN' : 'PO';
+      return res.status(400).json({ message: `กรุณากรอกยอดเงิน ${label} ก่อนแนบไฟล์` });
     }
     await assertQuotationAttachmentEditable(req, quotationId);
     await assertWorkOrderAttachmentEditable(req, workOrderId, normalizedCategory);
@@ -299,7 +301,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           size: file.size,
           fileUrl,
           category: normalizedCategory || null,
-          poAmount: normalizedCategory === 'po' ? parsedPoAmount : null,
+          poAmount: ATTACHMENT_AMOUNT_CATEGORIES.has(normalizedCategory) ? parsedPoAmount : null,
           quotationId: quotationId || null,
           workOrderId: workOrderId || null,
           handOverJobId: handOverJobId || null,
@@ -331,15 +333,16 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
   try {
     const poAmount = parsePoAmount(req.body?.poAmount);
     if (poAmount === null) {
-      return res.status(400).json({ message: 'กรุณากรอกยอดเงิน PO ให้ถูกต้อง' });
+      return res.status(400).json({ message: 'กรุณากรอกยอดเงินให้ถูกต้อง' });
     }
 
     const attachment = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (normalizeAttachmentCategory(attachment.category) !== 'po' || !attachment.workOrderId) {
-      return res.status(400).json({ message: 'แก้ไขยอดได้เฉพาะไฟล์ PO ของ Work Order' });
+    const normalizedCategory = normalizeAttachmentCategory(attachment.category);
+    if (!ATTACHMENT_AMOUNT_CATEGORIES.has(normalizedCategory) || !attachment.workOrderId) {
+      return res.status(400).json({ message: 'แก้ไขยอดได้เฉพาะไฟล์ PO/MIN ของ Work Order' });
     }
 
-    await assertWorkOrderAttachmentEditable(req, attachment.workOrderId, 'po');
+    await assertWorkOrderAttachmentEditable(req, attachment.workOrderId, normalizedCategory);
     const closeRemark = req.body?.closeRemark === undefined
       ? undefined
       : (String(req.body.closeRemark || '').trim() || null);
@@ -356,12 +359,14 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
       }
       return updatedAttachment;
     });
-    await writePoAuditLog({
-      workOrderId: attachment.workOrderId,
-      userId: req.user.id,
-      action: 'update_amount',
-      filename: attachment.originalName,
-    });
+    if (normalizedCategory === 'po') {
+      await writePoAuditLog({
+        workOrderId: attachment.workOrderId,
+        userId: req.user.id,
+        action: 'update_amount',
+        filename: attachment.originalName,
+      });
+    }
 
     res.json(updated);
   } catch (e) { next(e); }

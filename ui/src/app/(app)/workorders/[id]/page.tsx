@@ -68,6 +68,7 @@ export default function WorkOrderDetailPage() {
   const [acting, setActing] = useState(false)
   const [approvalChecklist, setApprovalChecklist] = useState<Record<string, boolean>>({ ...DEFAULT_DOC_CHECKLIST })
   const [poAmount, setPoAmount] = useState('')
+  const [minAmount, setMinAmount] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
 
@@ -158,12 +159,21 @@ export default function WorkOrderDetailPage() {
   const latestPoAttachment = [...(doc.attachments ?? [])]
     .filter(attachment => attachment.category === 'po')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
+  const latestMinAttachment = [...(doc.attachments ?? [])]
+    .filter(attachment => attachment.category === 'mom')
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
   const rawPoAmount = poAmount.replace(/,/g, '').trim()
   const parsedPoAmount = Number(rawPoAmount)
-  const canSaveWorkOrder = Boolean(latestPoAttachment) && canManageAttachmentsInCurrentState
   const isPoAmountValid = rawPoAmount !== ''
     && Number.isFinite(parsedPoAmount)
     && parsedPoAmount >= 0
+  const rawMinAmount = minAmount.replace(/,/g, '').trim()
+  const parsedMinAmount = Number(rawMinAmount)
+  const isMinAmountValid = rawMinAmount !== ''
+    && Number.isFinite(parsedMinAmount)
+    && parsedMinAmount >= 0
+  const canSaveWorkOrder = Boolean(latestPoAttachment || latestMinAttachment) && canManageAttachmentsInCurrentState
+  const canSaveAttachmentAmounts = (!latestPoAttachment || isPoAmountValid) && (!latestMinAttachment || isMinAmountValid)
 
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
@@ -239,10 +249,15 @@ export default function WorkOrderDetailPage() {
   }
 
   const saveWithoutClosing = async () => {
-    if (!latestPoAttachment || !canSaveWorkOrder || !isPoAmountValid || acting) return
+    if (!canSaveWorkOrder || !canSaveAttachmentAmounts || acting) return
     setActing(true)
     try {
-      await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount, closeComment)
+      if (latestPoAttachment) {
+        await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount, closeComment)
+      }
+      if (latestMinAttachment) {
+        await UploadAPI.updatePoAmount(latestMinAttachment.id, parsedMinAmount, latestPoAttachment ? undefined : closeComment)
+      }
       toast.success('บันทึกข้อมูลสำเร็จ')
       load()
     } catch (err) {
@@ -417,6 +432,8 @@ export default function WorkOrderDetailPage() {
         allowedCategories={editableAttachmentCategories}
         poAmount={poAmount}
         onPoAmountChange={setPoAmount}
+        minAmount={minAmount}
+        onMinAmountChange={setMinAmount}
       />
 
       {/* Quotation items / Details of Work */}
@@ -592,7 +609,7 @@ export default function WorkOrderDetailPage() {
           )}
           <div className="flex gap-2">
             {canSaveWorkOrder && (
-              <button className="btn-primary" onClick={saveWithoutClosing} disabled={acting || !isPoAmountValid}>
+              <button className="btn-primary" onClick={saveWithoutClosing} disabled={acting || !canSaveAttachmentAmounts}>
                 <Save size={15} /> บันทึก
               </button>
             )}

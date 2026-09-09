@@ -87,6 +87,7 @@ export default function NewWorkOrderPage() {
   const [sourceWorkOrder, setSourceWorkOrder] = useState<{ woNo: string; project: string; customerName: string } | null>(null)
   const [pendingAttachments, setPendingAttachments] = useState<PendingWorkOrderAttachment[]>([])
   const [poAmount, setPoAmount] = useState('')
+  const [minAmount, setMinAmount] = useState('')
   const [linkNotice, setLinkNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const canEditTeamChecklist = normalizeUserRole(user?.role) === 'project_mgr'
@@ -199,6 +200,8 @@ export default function NewWorkOrderPage() {
         try {
           const rawPoAmount = poAmount.replace(/,/g, '').trim()
           const parsedPoAmount = Number(rawPoAmount)
+          const rawMinAmount = minAmount.replace(/,/g, '').trim()
+          const parsedMinAmount = Number(rawMinAmount)
           for (const [category, files] of Object.entries(byCategory)) {
             const uploadMeta: Record<string, string | number> = { workOrderId: created.id, category }
             if (category === 'po') {
@@ -206,6 +209,12 @@ export default function NewWorkOrderPage() {
                 throw new Error('กรุณากรอกยอดเงิน PO ก่อนแนบไฟล์')
               }
               uploadMeta.poAmount = parsedPoAmount
+            }
+            if (category === 'mom') {
+              if (rawMinAmount === '' || !Number.isFinite(parsedMinAmount) || parsedMinAmount < 0) {
+                throw new Error('กรุณากรอกยอดเงิน MIN ก่อนแนบไฟล์')
+              }
+              uploadMeta.poAmount = parsedMinAmount
             }
             await UploadAPI.upload(files, uploadMeta)
           }
@@ -433,6 +442,8 @@ export default function NewWorkOrderPage() {
         onPendingChange={setPendingAttachments}
         poAmount={poAmount}
         onPoAmountChange={setPoAmount}
+        minAmount={minAmount}
+        onMinAmountChange={setMinAmount}
       />
 
       <div className="flex justify-end gap-3">
