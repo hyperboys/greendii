@@ -139,8 +139,8 @@ function isOverdue(wo: WorkOrder): boolean {
 }
 
 function getDisplayStatus(wo: WorkOrder): string {
-  if (!wo.dueDate)           return 'draft'
   if (wo.isClosed)           return 'closed'
+  if (!wo.dueDate)           return 'draft'
   if (isOverdue(wo))         return 'overdue'
   return wo.status
 }
