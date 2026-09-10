@@ -173,8 +173,8 @@ export default function WorkOrderDetailPage() {
     && Number.isFinite(parsedMinAmount)
     && parsedMinAmount >= 0
   const canSaveWorkOrder = Boolean(latestPoAttachment || latestMinAttachment) && canManageAttachmentsInCurrentState
-  const canSaveAttachmentAmounts = (!latestPoAttachment || isPoAmountValid) && (!latestMinAttachment || isMinAmountValid)
-
+  const effectivePoAmount = isPoAmountValid ? parsedPoAmount : latestPoAttachment?.poAmount
+  const effectiveMinAmount = isMinAmountValid ? parsedMinAmount : latestMinAttachment?.poAmount
   const currentStep = doc.approvalStep
   const currentStepRole = stepRoleConfig[String(currentStep)]
   const canApprove = doc.status === 'pending' && normalizeUserRole(currentStepRole) === normalizeUserRole(user?.role)
@@ -249,14 +249,18 @@ export default function WorkOrderDetailPage() {
   }
 
   const saveWithoutClosing = async () => {
-    if (!canSaveWorkOrder || !canSaveAttachmentAmounts || acting) return
+    if (acting) return
+    if (!canSaveWorkOrder) {
+      toast.error('ไม่มีสิทธิ์บันทึก หรือไม่พบไฟล์ PO/MIN')
+      return
+    }
     setActing(true)
     try {
       if (latestPoAttachment) {
-        await UploadAPI.updatePoAmount(latestPoAttachment.id, parsedPoAmount, closeComment)
+        await UploadAPI.updatePoAmount(latestPoAttachment.id, effectivePoAmount, closeComment)
       }
       if (latestMinAttachment) {
-        await UploadAPI.updatePoAmount(latestMinAttachment.id, parsedMinAmount, latestPoAttachment ? undefined : closeComment)
+        await UploadAPI.updatePoAmount(latestMinAttachment.id, effectiveMinAmount, latestPoAttachment ? undefined : closeComment)
       }
       toast.success('บันทึกข้อมูลสำเร็จ')
       load()
@@ -609,7 +613,7 @@ export default function WorkOrderDetailPage() {
           )}
           <div className="flex gap-2">
             {canSaveWorkOrder && (
-              <button className="btn-primary" onClick={saveWithoutClosing} disabled={acting || !canSaveAttachmentAmounts}>
+              <button className="btn-primary" onClick={saveWithoutClosing} disabled={acting}>
                 <Save size={15} /> บันทึก
               </button>
             )}

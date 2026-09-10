@@ -331,8 +331,9 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
 // PATCH /api/upload/:id/po-amount
 router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
   try {
-    const poAmount = parsePoAmount(req.body?.poAmount);
-    if (poAmount === null) {
+    const hasPoAmount = req.body?.poAmount !== undefined && req.body?.poAmount !== null && String(req.body.poAmount).trim() !== '';
+    const poAmount = hasPoAmount ? parsePoAmount(req.body.poAmount) : null;
+    if (hasPoAmount && poAmount === null) {
       return res.status(400).json({ message: 'กรุณากรอกยอดเงินให้ถูกต้อง' });
     }
 
@@ -349,7 +350,7 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
     const updated = await prisma.$transaction(async (tx) => {
       const updatedAttachment = await tx.attachment.update({
         where: { id: attachment.id },
-        data: { poAmount },
+        data: hasPoAmount ? { poAmount } : {},
       });
       if (closeRemark !== undefined) {
         await tx.workOrder.update({
