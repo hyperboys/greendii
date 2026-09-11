@@ -88,13 +88,14 @@ export default function ApprovalsPage() {
               <h3 className="font-semibold text-gray-800 mb-3">Purchase Request · {data!.prs.length} รายการ</h3>
               <table className="data-table">
                 <thead>
-                  <tr><th>เลขที่</th><th>ลูกค้า</th><th className="text-right">ยอดสุทธิ</th><th>วันที่</th></tr>
+                  <tr><th>เลขที่</th><th>ลูกค้า</th><th>Project Ref</th><th className="text-right">ยอดสุทธิ</th><th>วันที่</th></tr>
                 </thead>
                 <tbody>
                   {data!.prs.map(p => (
                     <tr key={p.id} className="cursor-pointer" onClick={() => router.push(`/pr/${p.id}`)}>
                       <td className="font-mono text-xs font-semibold text-purple-700">{p.prNo}</td>
                       <td>{p.customer}</td>
+                      <td>{p.projectRef || '-'}</td>
                       <td className="text-right">฿{new Intl.NumberFormat('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(p.netTotal)}</td>
                       <td className="text-xs text-gray-500">{new Date(p.createdAt).toLocaleDateString('en-GB')}</td>
                     </tr>
