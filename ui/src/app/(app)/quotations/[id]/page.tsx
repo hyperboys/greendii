@@ -4,7 +4,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, SettingsAPI, downloadBlob } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { parseColoredLine, parseQuotationNoteMultiline } from '@/lib/coloredText'
+import { parseColoredLine, parseQuotationItemSectionOrder, parseQuotationNoteMultiline } from '@/lib/coloredText'
 import { DEFAULT_APPROVAL_FLOW, STATUS_LABELS } from '@/types'
 import type { Quotation, Settings } from '@/types'
 import { useAuthStore } from '@/store/auth'
@@ -280,13 +280,15 @@ export default function QuotationDetailPage() {
                 {doc.items.map((item, i) => {
                   const descLine = parseColoredLine(item.desc)
                   const detailRows = normalizeDetailRows(item.detailRows)
+                  const sectionOrder = parseQuotationItemSectionOrder(item.note)
+                  const noteBeforeDetail = sectionOrder.indexOf('note') < sectionOrder.indexOf('detail') || !sectionOrder.includes('detail')
                   return (
                     <Fragment key={item.id ?? i}>
                       <tr className="border-t border-gray-100 align-top">
                         <td className="py-2.5 px-3 text-gray-400 text-xs pt-3.5">{(item.seq ?? i) + 1}</td>
                         <td className="py-2 px-3 break-words">
                           <div className="font-medium" style={{ color: descLine.color || '#1f2937' }}>{descLine.text}</div>
-                          {splitDescriptionLines(item.note).map((line, idx) => (
+                          {noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
                             <p key={idx} className="text-xs mt-0.5" style={{ color: line.color || '#9ca3af' }}>{line.text}</p>
                           ))}
                         </td>
@@ -327,6 +329,17 @@ export default function QuotationDetailPage() {
                           </tr>
                         )
                       })}
+                      {!noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
+                        <tr key={`${item.id ?? i}-note-${idx}`} className="align-top border-t border-gray-50">
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1 text-xs break-words" style={{ color: line.color || '#9ca3af' }}>{line.text}</td>
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1" />
+                          <td className="px-3 py-1" />
+                        </tr>
+                      ))}
                     </Fragment>
                   )
                 })}

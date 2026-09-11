@@ -6,6 +6,46 @@ export interface ColoredTextLine {
 const COLOR_TAG = /^\[color=(#[0-9a-fA-F]{3}|#[0-9a-fA-F]{6})\]([\s\S]*)$/
 const QUOTATION_NOTE_BLOCK_TOKEN = /^_+Q[OQ]_NOTE_BLOCK_+$/i
 const QUOTATION_NOTE_EMPTY_TOKEN = /^_+QO_NOTE_EMPTY_+$/i
+const QUOTATION_NOTE_META_TOKEN = '__QO_NOTE_META__'
+
+export type QuotationItemSection = 'note' | 'image' | 'detail'
+
+type QuotationNoteMeta = {
+  sectionOrder?: QuotationItemSection[]
+}
+
+function parseQuotationNoteMeta(value?: string | null): { note: string; meta: QuotationNoteMeta } {
+  const raw = String(value ?? '')
+  const tokenIndex = raw.indexOf(QUOTATION_NOTE_META_TOKEN)
+  if (tokenIndex < 0) return { note: raw, meta: {} }
+
+  const note = raw.slice(0, tokenIndex).replace(/[\n\r\s]*$/, '')
+  const rawMeta = raw.slice(tokenIndex + QUOTATION_NOTE_META_TOKEN.length).replace(/^[\n\r\s]*/, '')
+  try {
+    const parsed = JSON.parse(rawMeta || '{}') as QuotationNoteMeta
+    const sectionOrder = Array.isArray(parsed.sectionOrder)
+      ? parsed.sectionOrder.filter((section): section is QuotationItemSection => ['note', 'image', 'detail'].includes(section))
+      : undefined
+    return { note, meta: sectionOrder ? { sectionOrder } : {} }
+  } catch {
+    return { note: raw, meta: {} }
+  }
+}
+
+export function getQuotationNoteText(value?: string | null): string {
+  return parseQuotationNoteMeta(value).note
+}
+
+export function parseQuotationItemSectionOrder(value?: string | null): QuotationItemSection[] {
+  return parseQuotationNoteMeta(value).meta.sectionOrder ?? []
+}
+
+export function stringifyQuotationItemSectionOrder(note: string | null | undefined, sectionOrder: QuotationItemSection[]): string {
+  const noteText = getQuotationNoteText(note)
+  const normalizedOrder = sectionOrder.filter((section, index) => ['note', 'image', 'detail'].includes(section) && sectionOrder.indexOf(section) === index)
+  if (normalizedOrder.length === 0) return noteText
+  return `${noteText}\n\n${QUOTATION_NOTE_META_TOKEN}\n\n${JSON.stringify({ sectionOrder: normalizedOrder })}`
+}
 
 export function normalizeColorHex(input?: string | null): string | undefined {
   const value = String(input || '').trim()
@@ -49,7 +89,7 @@ export function parseQuotationNoteMultiline(value?: string | null): ColoredTextL
   let activeColor: string | undefined
   const result: ColoredTextLine[] = []
 
-  for (const rawLine of String(value).split('\n')) {
+  for (const rawLine of getQuotationNoteText(value).split('\n')) {
     const line = parseColoredLine(rawLine)
     const text = line.text.trim()
 

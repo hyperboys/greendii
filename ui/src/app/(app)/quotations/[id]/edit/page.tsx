@@ -4,7 +4,7 @@ import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
 import { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
+import { getQuotationNoteText, parseColoredLine, parseQuotationItemSectionOrder, stringifyColoredLine, stringifyQuotationItemSectionOrder } from '@/lib/coloredText'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { useAuthStore } from '@/store/auth'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X, ChevronUp, ChevronDown } from 'lucide-react'
@@ -108,7 +108,7 @@ const calcItemTotal = (item: QuotationItem) => {
 }
 
 function parseNoteBlocks(note?: string): NoteBlock[] {
-  const raw = String(note ?? '')
+  const raw = getQuotationNoteText(note)
   if (raw === '') return []
   const parseBlock = (value: string): NoteBlock => {
     if (value === NOTE_EMPTY_TOKEN) return { text: '' }
@@ -223,10 +223,11 @@ export default function QuotationFormPage() {
             const showNote = hasNoteContent(item.note)
             const showDetails = hasDetailContent(item as QuotationItem)
             const showImage = Array.isArray(item.images) && item.images.length > 0
-            const sectionOrder: ItemSection[] = []
-            if (showNote) sectionOrder.push('note')
-            if (showImage) sectionOrder.push('image')
-            if (showDetails) sectionOrder.push('detail')
+            const storedOrder = parseQuotationItemSectionOrder(item.note)
+            const sectionOrder: ItemSection[] = storedOrder.length > 0 ? storedOrder : []
+            if (showNote && !sectionOrder.includes('note')) sectionOrder.push('note')
+            if (showImage && !sectionOrder.includes('image')) sectionOrder.push('image')
+            if (showDetails && !sectionOrder.includes('detail')) sectionOrder.push('detail')
             return { showNote, showDetails, sectionOrder }
           }))
           setIsCustomLeadTime(Boolean(leadTime) && !LEAD_TIME_OPTIONS.includes(leadTime as typeof LEAD_TIME_OPTIONS[number]))
@@ -522,7 +523,18 @@ export default function QuotationFormPage() {
         subTotal,
         vat,
         grandTotal,
-        items: form.items.map((item, i) => ({ ...normalizeItem(item), seq: i + 1 })),
+        items: form.items.map((item, i) => {
+          const normalized = normalizeItem(item)
+          const visibleSections: ItemSection[] = []
+          if (hasNoteContent(normalized.note)) visibleSections.push('note')
+          if (normalized.images && normalized.images.length > 0) visibleSections.push('image')
+          if (hasDetailContent(normalized)) visibleSections.push('detail')
+          const sectionOrder = [
+            ...(itemUi[i]?.sectionOrder || []).filter(section => visibleSections.includes(section)),
+            ...visibleSections.filter(section => !(itemUi[i]?.sectionOrder || []).includes(section)),
+          ]
+          return { ...normalized, note: stringifyQuotationItemSectionOrder(normalized.note, sectionOrder), seq: i + 1 }
+        }),
       }
       if (isEdit) {
         await QuotationsAPI.update(params.id!, payload)

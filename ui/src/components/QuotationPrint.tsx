@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate } from '@/lib/timezone'
-import { parseColoredLine, parseQuotationNoteMultiline } from '@/lib/coloredText'
+import { parseColoredLine, parseQuotationItemSectionOrder, parseQuotationNoteMultiline } from '@/lib/coloredText'
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -505,6 +505,8 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     const baseTd: React.CSSProperties = { ...tdS }
     const detailRows = normalizeDetailRows(item?.detailRows)
     const descLine = parseColoredLine(item?.desc)
+    const sectionOrder = parseQuotationItemSectionOrder(item?.note)
+    const noteBeforeDetail = sectionOrder.indexOf('note') < sectionOrder.indexOf('detail') || !sectionOrder.includes('detail')
     return (
       <>
       <tr key={key} data-measure-item={measureIndex}>
@@ -513,7 +515,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </td>
         <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
           <span style={{ fontWeight: 'bold', color: descLine.color || '#000' }}>{item ? descLine.text : ''}</span>
-          {item && splitDescriptionLines(item.note).map((line, idx) => (
+          {item && noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
             <span key={idx} style={{ color: line.color || '#000', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
               {line.text || '\u00A0'}
             </span>
@@ -600,6 +602,19 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           </tr>
         )
       })}
+      {item && !noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
+        <tr key={`${key}-note-${idx}`} data-measure-item={measureIndex}>
+          <td style={{ ...baseTd, textAlign: 'center' }} />
+          <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1, color: line.color || '#000' }}>
+            {line.text || '\u00A0'}
+          </td>
+          <td style={baseTd} />
+          <td style={baseTd} />
+          <td style={baseTd} />
+          <td style={baseTd} />
+          <td style={baseTd} />
+        </tr>
+      ))}
       </>
     )
   }

@@ -3,7 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { QuotationsAPI, CustomersAPI, UnitsAPI, UploadAPI, resolveFileUrl } from '@/lib/api'
-import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
+import { getQuotationNoteText, parseColoredLine, stringifyColoredLine, stringifyQuotationItemSectionOrder } from '@/lib/coloredText'
 import { useAuthStore } from '@/store/auth'
 import type { Customer, Unit, QuotationItem, QuotationItemDetail } from '@/types'
 import { ArrowLeft, Plus, Trash2, ImagePlus, X, ChevronUp, ChevronDown } from 'lucide-react'
@@ -106,7 +106,7 @@ const calcItemTotal = (item: QuotationItem) => {
 }
 
 function parseNoteBlocks(note?: string): NoteBlock[] {
-  const raw = String(note ?? '')
+  const raw = getQuotationNoteText(note)
   if (raw === '') return []
   const parseBlock = (value: string): NoteBlock => {
     if (value === NOTE_EMPTY_TOKEN) return { text: '' }
@@ -442,7 +442,18 @@ export default function NewQuotationPage() {
         subTotal,
         vat,
         grandTotal,
-        items: form.items.map((item, i) => ({ ...normalizeItem(item), seq: i + 1 })),
+        items: form.items.map((item, i) => {
+          const normalized = normalizeItem(item)
+          const visibleSections: ItemSection[] = []
+          if (hasNoteContent(normalized.note)) visibleSections.push('note')
+          if (normalized.images && normalized.images.length > 0) visibleSections.push('image')
+          if (hasDetailContent(normalized)) visibleSections.push('detail')
+          const sectionOrder = [
+            ...(itemUi[i]?.sectionOrder || []).filter(section => visibleSections.includes(section)),
+            ...visibleSections.filter(section => !(itemUi[i]?.sectionOrder || []).includes(section)),
+          ]
+          return { ...normalized, note: stringifyQuotationItemSectionOrder(normalized.note, sectionOrder), seq: i + 1 }
+        }),
       })
       toast.success('สร้างใบเสนอราคาสำเร็จ')
       router.replace(`/quotations/${created.id}`)
