@@ -1,0 +1,62 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #17211b;
+  --paper: #f4f6f2;
+  --forest: #194d34;
+  --leaf: #2f7d4b;
+}
+
+@theme inline {
+  --font-sans: var(--font-public-sans), var(--font-noto-thai), sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-public-sans), var(--font-noto-thai), sans-serif;
+  letter-spacing: 0;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 3px solid rgba(47, 125, 75, 0.28);
+  outline-offset: 2px;
+}
+
+.login-backdrop {
+  background-color: #eef2eb;
+  background-image:
+    linear-gradient(rgba(25, 77, 52, 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(25, 77, 52, 0.06) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.login-panel,
+.dashboard-enter > * {
+  animation: enter 460ms cubic-bezier(.2,.8,.2,1) both;
+}
+
+.dashboard-enter > *:nth-child(2) { animation-delay: 60ms; }
+.dashboard-enter > *:nth-child(3) { animation-delay: 120ms; }
+
+@keyframes enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
