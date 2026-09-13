@@ -23,12 +23,12 @@ import { getStoredUser, logout } from "@/lib/auth";
 
 const navigation = [
   { href: "/dashboard", label: "ภาพรวมบัญชี", icon: LayoutDashboard },
-  { href: "#", label: "ลูกหนี้ / ใบแจ้งหนี้", icon: FileText },
-  { href: "#", label: "รับชำระเงิน", icon: WalletCards },
-  { href: "#", label: "เจ้าหนี้ / ค่าใช้จ่าย", icon: ReceiptText },
-  { href: "#", label: "รายการธนาคาร", icon: BanknoteArrowDown },
-  { href: "#", label: "สมุดรายวัน", icon: BookOpenText },
-  { href: "#", label: "รายงานการเงิน", icon: FileChartColumn },
+  { href: "/ar/invoices", label: "ลูกหนี้ / ใบแจ้งหนี้", icon: FileText },
+  { href: "/ar/receipts", label: "รับชำระเงิน", icon: WalletCards },
+  { href: "/ap/vouchers", label: "เจ้าหนี้ / ค่าใช้จ่าย", icon: ReceiptText },
+  { href: "/inventory", label: "คลังสินค้า / สต็อก", icon: BanknoteArrowDown },
+  { href: "/master", label: "ผังบัญชี & ข้อมูลหลัก", icon: BookOpenText },
+  { href: "/reports", label: "รายงานการเงิน", icon: FileChartColumn },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

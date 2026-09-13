@@ -4,6 +4,7 @@
   "description": "GreenDii Sales Workflow System - Backend API",
   "main": "src/index.js",
   "scripts": {
+    "test": "node --test test/statusModel.test.js test/runningNumber.test.js test/auditTrail.test.js test/authorizationPolicy.test.js test/masterData.test.js test/ar.test.js test/ap.test.js test/inventory.test.js",
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
     "db:migrate": "npx prisma migrate dev",
