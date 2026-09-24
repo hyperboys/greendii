@@ -8,7 +8,7 @@ import { parsePRDescription, type PRDescriptionBlock } from '@/lib/prDescription
 import { parseColoredLine } from '@/lib/coloredText'
 
 const PACK_CAP_NON_LAST = 20
-const PACK_CAP_LAST = 11
+const PACK_CAP_LAST = 16
 const PR_FRAGMENT_CAP = 16
 
 function fmtAmt(n: number | null | undefined): string {
