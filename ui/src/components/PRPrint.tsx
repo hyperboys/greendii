@@ -1,15 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PurchaseRequest, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
 import { parsePRDescription, type PRDescriptionBlock } from '@/lib/prDescription'
 import { parseColoredLine } from '@/lib/coloredText'
 
+// Weight-based pagination is now only a fallback for when real measurement
+// isn't available; keep its last-page cap conservative so it never risks
+// pushing the summary/signature block past the printable area on its own.
 const PACK_CAP_NON_LAST = 20
-const PACK_CAP_LAST = 16
+const PACK_CAP_LAST = 11
 const PR_FRAGMENT_CAP = 16
+
+const PAGE_HEIGHT_MM = '281mm'
+const HEADER_GAP = 12
+const SAFETY = 12
+const TAIL_GAP = 12
+const MEASURE_BUFFER_NON_LAST = 20
+const MEASURE_BUFFER_LAST = 40
+const MAX_REFIT_PASSES = 12
+const OVERFLOW_TOLERANCE_PX = 2
 
 function fmtAmt(n: number | null | undefined): string {
   if (n == null) return ''
@@ -184,14 +196,90 @@ function paginateItems(items: PRItemFragment[]): PageChunk[] {
   }))
 }
 
+// Measurement-based pagination: pack fragments by their real rendered heights
+// (px) so the summary/signature block never overflows the printable page.
+function packByHeight(items: PRItemFragment[], heights: number[], availNonLast: number, availLast: number): PageChunk[] {
+  if (items.length === 0) return [{ items: [], isLast: true, tail: true }]
+
+  type Entry = { item: PRItemFragment; height: number }
+  const entries: Entry[] = items.map((item, index) => ({ item, height: heights[index] ?? 0 }))
+
+  const packEntries = (sourceEntries: Entry[], cap: number): Entry[][] => {
+    const packed: Entry[][] = []
+    let current: Entry[] = []
+    let used = 0
+    for (const entry of sourceEntries) {
+      if (current.length > 0 && used + entry.height > cap) {
+        packed.push(current)
+        current = [entry]
+        used = entry.height
+      } else {
+        current.push(entry)
+        used += entry.height
+      }
+    }
+    if (current.length > 0) packed.push(current)
+    return packed
+  }
+
+  const rawPages = packEntries(entries, availNonLast)
+  const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
+
+  if (lastPageHeight <= availLast) {
+    const pages = rawPages.map((pageItems) => ({
+      items: pageItems.map(entry => entry.item),
+      isLast: false,
+      tail: false,
+    }))
+    const lastPage = pages[pages.length - 1]
+    lastPage.isLast = true
+    lastPage.tail = true
+    return pages
+  }
+
+  const pages = rawPages.map((pageItems) => ({
+    items: pageItems.map(entry => entry.item),
+    isLast: false,
+    tail: false,
+  }))
+  const lastEntries = [...rawPages[rawPages.length - 1]]
+  const finalEntry = lastEntries[lastEntries.length - 1]
+
+  // The preceding page already fits the full item area; move only its final
+  // fragment to the footer page, which uses otherwise unused space above the tail.
+  if (finalEntry && finalEntry.height <= availLast) {
+    lastEntries.pop()
+    pages[pages.length - 1].items = lastEntries.map(entry => entry.item)
+    pages.push({ items: [finalEntry.item], isLast: true, tail: true })
+  } else {
+    pages.push({ items: [], isLast: true, tail: true })
+  }
+
+  return pages
+}
+
 interface Props {
   doc: PurchaseRequest
   settings: Settings | null
   embedPdfAttachments?: boolean
+  onReady?: () => void
 }
 
-export default function PRPrint({ doc, settings, embedPdfAttachments = true }: Props) {
+export default function PRPrint({ doc, settings, embedPdfAttachments = true, onReady }: Props) {
   const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
+  const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const [layoutSettled, setLayoutSettled] = useState(false)
+  const measureRef = useRef<HTMLDivElement>(null)
+  const probeRef = useRef<HTMLDivElement>(null)
+  const headerMeasRef = useRef<HTMLDivElement>(null)
+  const theadMeasRef = useRef<HTMLTableSectionElement>(null)
+  const tailMeasRef = useRef<HTMLDivElement>(null)
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const pageRefs = useRef<(HTMLDivElement | null)[]>([])
+  const lastRowRefs = useRef<(HTMLTableRowElement | null)[]>([])
+  const tailRefs = useRef<(HTMLDivElement | null)[]>([])
+  const refitPassRef = useRef(0)
+  const readyRef = useRef(false)
 
   // PDF attachments are excluded from the print HTML in PDF-generation mode
   // (embedPdfAttachments=false) because the backend merges the real PDF pages
@@ -259,8 +347,124 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     : ''
   const printableItems = (Array.isArray(doc.items) ? doc.items : [])
     .flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
-  const pages = paginateItems(printableItems)
-  const totalPages = pages.length
+  const totalPages = pages?.length ?? 1
+
+  useEffect(() => {
+    setPages(null)
+    setLayoutSettled(false)
+    rowRefs.current = []
+    pageRefs.current = []
+    lastRowRefs.current = []
+    tailRefs.current = []
+    refitPassRef.current = 0
+    readyRef.current = false
+  }, [doc])
+
+  useEffect(() => {
+    if (pages !== null) return
+    let cancelled = false
+
+    const run = async () => {
+      try {
+        if (typeof document !== 'undefined' && document.fonts?.ready) {
+          await document.fonts.ready
+        }
+
+        const container = measureRef.current
+        if (container) {
+          const imgs = Array.from(container.querySelectorAll('img'))
+          await Promise.all(imgs.map(img => img.complete
+            ? Promise.resolve()
+            : new Promise<void>(resolve => {
+              img.addEventListener('load', () => resolve(), { once: true })
+              img.addEventListener('error', () => resolve(), { once: true })
+            })))
+        }
+
+        await new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+        if (cancelled) return
+
+        const pagePx = probeRef.current?.getBoundingClientRect().height ?? 0
+        const headerHeight = headerMeasRef.current?.getBoundingClientRect().height ?? 0
+        const theadHeight = theadMeasRef.current?.getBoundingClientRect().height ?? 0
+        const tailHeight = tailMeasRef.current?.getBoundingClientRect().height ?? 0
+        const heights = printableItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
+        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY - MEASURE_BUFFER_NON_LAST
+        const availLast = availNonLast - tailHeight - TAIL_GAP - MEASURE_BUFFER_LAST
+
+        if (!pagePx || availNonLast < 20 || (printableItems.length > 0 && heights.every(height => height <= 0))) {
+          setPages(paginateItems(printableItems))
+          return
+        }
+
+        setPages(packByHeight(printableItems, heights, availNonLast, Math.max(availLast, 20)))
+      } catch {
+        if (!cancelled) setPages(paginateItems(printableItems))
+      }
+    }
+
+    void run()
+    return () => { cancelled = true }
+  }, [pages, printableItems])
+
+  // Measured heights can be slightly off once the real page renders (fonts,
+  // borders); verify the actual overflow and push any crossing row onto the next page.
+  useEffect(() => {
+    if (pages === null || layoutSettled) return
+
+    const frame = requestAnimationFrame(() => {
+      if (refitPassRef.current >= MAX_REFIT_PASSES) { setLayoutSettled(true); return }
+
+      const overflowIndex = pages.findIndex((_, index) => {
+        const pageEl = pageRefs.current[index]
+        const rowEl = lastRowRefs.current[index]
+        if (!pageEl || !rowEl || !rowEl.isConnected) return false
+        const tailEl = tailRefs.current[index]
+        const limit = tailEl
+          ? tailEl.getBoundingClientRect().top
+          : pageEl.getBoundingClientRect().bottom
+        return rowEl.getBoundingClientRect().bottom > limit + OVERFLOW_TOLERANCE_PX
+      })
+
+      if (overflowIndex < 0) { setLayoutSettled(true); return }
+
+      const next = pages.map(page => ({ ...page, items: [...page.items] }))
+      const overflowing = next[overflowIndex]
+      if (overflowing.items.length === 0) { setLayoutSettled(true); return }
+
+      if (overflowing.tail) {
+        // The footer must stay on the last page, so split the items instead.
+        const kept = overflowing.items.slice(-1)
+        const moved = overflowing.items.slice(0, -1)
+        overflowing.items = moved.length > 0 ? kept : []
+        next.splice(overflowIndex, 0, {
+          items: moved.length > 0 ? moved : kept,
+          isLast: false,
+          tail: false,
+        })
+      } else {
+        const moved = overflowing.items.pop()
+        const following = next[overflowIndex + 1]
+        if (!moved) { setLayoutSettled(true); return }
+        if (following) following.items.unshift(moved)
+        else next.push({ items: [moved], isLast: true, tail: true })
+      }
+
+      refitPassRef.current += 1
+      pageRefs.current = []
+      lastRowRefs.current = []
+      tailRefs.current = []
+      setPages(next)
+    })
+
+    return () => cancelAnimationFrame(frame)
+  }, [pages, layoutSettled])
+
+  useEffect(() => {
+    if (!layoutSettled || readyRef.current) return
+    readyRef.current = true
+    requestAnimationFrame(() => { onReady?.() })
+  }, [layoutSettled, onReady])
 
   const thS: React.CSSProperties = {
     border,
@@ -335,81 +539,87 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     )
   }
 
-  function renderItemsTable(chunk: PageChunk, pageIndex: number) {
+  function itemsHeadRow() {
+    return (
+      <tr>
+        <th style={{ ...thS }}>รหัส<br />P/N</th>
+        <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
+        <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
+        <th style={{ ...thS }}>จำนวน<br />QTY</th>
+        <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
+        <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
+      </tr>
+    )
+  }
+
+  function renderItemRow(item: PRItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
+    return (
+      <tr key={item.key} ref={rowRef}>
+        <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.partNo ?? '' : ''}</td>
+        <td style={{ ...tdS }}>
+          {item.isFirst && (() => {
+            const descLine = parseColoredLine(item.item.desc)
+            return <span style={{ color: descLine.color || undefined }}>{descLine.text}</span>
+          })()}
+          {groupPRDescriptionBlocks(item.blocks).map((group, groupIdx) => group.type === 'images' ? (
+            <div
+              key={`description-images-${groupIdx}`}
+              style={{
+                marginTop: '1.8mm',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                gridAutoFlow: 'dense',
+                gap: '1.6mm',
+                alignItems: 'start',
+                width: '100%',
+              }}
+            >
+              {group.blocks.map((block, idx) => {
+                const url = item.item.images?.[block.imageIndex ?? -1] || ''
+                const imageKey = getImageKey(item.itemIndex, block.imageIndex ?? idx, url)
+                const isLandscape = imageOrientation[imageKey] === 'landscape'
+                return (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={imageKey}
+                    src={resolveFileUrl(url)}
+                    alt=""
+                    onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                    style={{
+                      width: '100%',
+                      height: 'auto',
+                      maxHeight: '34mm',
+                      objectFit: 'contain',
+                      display: 'block',
+                      gridColumn: isLandscape ? 'span 2' : 'span 1',
+                    }}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            <div key={`description-${groupIdx}`} style={{ marginTop: '2px', whiteSpace: 'pre-wrap', color: group.block.color || undefined }}>
+              {group.block.text || '\u00a0'}
+            </div>
+          ))}
+        </td>
+        <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.unit ?? '' : ''}</td>
+        <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtQty(item.item.qty) : ''}</td>
+        <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.price) : ''}</td>
+        <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.amount) : ''}</td>
+      </tr>
+    )
+  }
+
+  function renderItemsTable(chunk: PageChunk, pageIndex: number, onLastRowRef?: (element: HTMLTableRowElement | null) => void) {
     return (
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
         <colgroup>
           {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
         </colgroup>
-        <thead>
-          <tr>
-            <th style={{ ...thS }}>รหัส<br />P/N</th>
-            <th style={{ ...thS }}>รายละเอียด<br />DETAIL</th>
-            <th style={{ ...thS }}>หน่วยนับ<br />UNIT</th>
-            <th style={{ ...thS }}>จำนวน<br />QTY</th>
-            <th style={{ ...thS }}>ราคาต่อหน่วย<br />UNIT PRICE</th>
-            <th style={{ ...thS }}>จำนวนเงิน<br />AMOUNT</th>
-          </tr>
-        </thead>
+        <thead>{itemsHeadRow()}</thead>
         <tbody style={{ height: '100%' }}>
-          {chunk.items.map((item, i) => {
-            return (
-              <tr key={item.key}>
-                <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.partNo ?? '' : ''}</td>
-                <td style={{ ...tdS }}>
-                  {item.isFirst && (() => {
-                    const descLine = parseColoredLine(item.item.desc)
-                    return <span style={{ color: descLine.color || undefined }}>{descLine.text}</span>
-                  })()}
-                  {groupPRDescriptionBlocks(item.blocks).map((group, groupIdx) => group.type === 'images' ? (
-                    <div
-                      key={`description-images-${groupIdx}`}
-                      style={{
-                        marginTop: '1.8mm',
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                        gridAutoFlow: 'dense',
-                        gap: '1.6mm',
-                        alignItems: 'start',
-                        width: '100%',
-                      }}
-                    >
-                      {group.blocks.map((block, idx) => {
-                        const url = item.item.images?.[block.imageIndex ?? -1] || ''
-                        const imageKey = getImageKey(item.itemIndex, block.imageIndex ?? idx, url)
-                        const isLandscape = imageOrientation[imageKey] === 'landscape'
-                        return (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={imageKey}
-                            src={resolveFileUrl(url)}
-                            alt=""
-                            onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
-                            style={{
-                              width: '100%',
-                              height: 'auto',
-                              maxHeight: '34mm',
-                              objectFit: 'contain',
-                              display: 'block',
-                              gridColumn: isLandscape ? 'span 2' : 'span 1',
-                            }}
-                          />
-                        )
-                      })}
-                    </div>
-                  ) : (
-                    <div key={`description-${groupIdx}`} style={{ marginTop: '2px', whiteSpace: 'pre-wrap', color: group.block.color || undefined }}>
-                      {group.block.text || '\u00a0'}
-                    </div>
-                  ))}
-                </td>
-                <td style={{ ...tdS, textAlign: 'center' }}>{item.isFirst ? item.item.unit ?? '' : ''}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtQty(item.item.qty) : ''}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.price) : ''}</td>
-                <td style={{ ...tdS, textAlign: 'right' }}>{item.isFirst ? fmtItemMoney(item.item.amount) : ''}</td>
-              </tr>
-            )
-          })}
+          {chunk.items.map((item, i) => renderItemRow(item, i === chunk.items.length - 1 ? onLastRowRef : undefined))}
           {renderFlexibleFillerRow(chunk.items.length)}
         </tbody>
       </table>
@@ -561,6 +771,116 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
     )
   }
 
+  function renderHeader() {
+    return (
+      <>
+        {/* ═══ Company Header ═══ */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+          <tbody>
+            <tr>
+              {/* Logo — enlarged */}
+              <td rowSpan={4} style={{ width: '150px', verticalAlign: 'middle', paddingRight: '14px' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '150px', display: 'block' }} />
+              </td>
+              {/* Company name (Thai) — left aligned next to logo */}
+              <td style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '17pt', lineHeight: '1.3', verticalAlign: 'bottom' }}>
+                {companyName}
+              </td>
+              {/* Document type label — no border, PURCHASE REQUEST stacked below */}
+              <td rowSpan={4} style={{ width: '190px', verticalAlign: 'top', paddingLeft: '10px', paddingTop: '2px' }}>
+                <div style={{
+                  textAlign: 'center',
+                  fontWeight: 'bold',
+                  lineHeight: '1.2',
+                }}>
+                  <div style={{ fontSize: '17pt' }}>ใบขอซื้อ </div>
+                  <div style={{ fontSize: '17pt' }}>PURCHASE REQUEST</div>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
+                {address}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
+                {addressTh}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
+                Tel : {telDisplay}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        {/* ═══ PR Info ═══ */}
+        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
+          <tbody>
+            <tr>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt', fontWeight: 'bold', width: '50%' }}>
+                Purchase Request No. {doc.prNo}
+              </td>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
+                <span style={{ fontWeight: 'bold' }}>Supplier : </span>{doc.customer}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
+                <span style={{ fontWeight: 'bold' }}>Date of Issue : </span>{fmtDateTH(doc.dateIssue)}
+              </td>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
+                <span style={{ fontWeight: 'bold' }}>Project Ref : </span>{doc.projectRef || ''}
+              </td>
+            </tr>
+            <tr>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
+                <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
+              </td>
+              <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
+                <span style={{ fontWeight: 'bold' }}>WO No. : </span>{doc.workOrder?.woNo || ''}
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </>
+    )
+  }
+
+  function renderMeasureLayer() {
+    return (
+      <div
+        ref={measureRef}
+        aria-hidden
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          visibility: 'hidden',
+          pointerEvents: 'none',
+          zIndex: -1,
+        }}
+      >
+        <div ref={probeRef} style={{ height: PAGE_HEIGHT_MM, width: '1px' }} />
+        <div ref={headerMeasRef}>{renderHeader()}</div>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
+          <colgroup>
+            {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
+          </colgroup>
+          <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
+          <tbody>
+            {printableItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
+          </tbody>
+        </table>
+        <div ref={tailMeasRef}>{renderSummaryAndSignatures()}</div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="print-sheet pr-print"
@@ -568,14 +888,17 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         fontFamily: 'var(--font-body)',
         color: '#000',
         fontSize: '11pt',
+        position: 'relative',
       }}
     >
-      {pages.map((page, pageIndex) => (
+      {pages === null && renderMeasureLayer()}
+      {(pages ?? []).map((page, pageIndex) => (
       <div
         key={`pr-page-${pageIndex}`}
         className="pr-page"
+        ref={(element) => { pageRefs.current[pageIndex] = element }}
         style={{
-          minHeight: '277mm',
+          height: PAGE_HEIGHT_MM,
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
@@ -585,83 +908,16 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true }: P
         }}
       >
 
-      {/* ═══ Company Header ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
-        <tbody>
-          <tr>
-            {/* Logo — enlarged */}
-            <td rowSpan={4} style={{ width: '150px', verticalAlign: 'middle', paddingRight: '14px' }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/logo.jpg" alt="Green Dii Co., Ltd." style={{ width: '150px', display: 'block' }} />
-            </td>
-            {/* Company name (Thai) — left aligned next to logo */}
-            <td style={{ textAlign: 'left', fontWeight: 'bold', fontSize: '17pt', lineHeight: '1.3', verticalAlign: 'bottom' }}>
-              {companyName}
-            </td>
-            {/* Document type label — no border, PURCHASE REQUEST stacked below */}
-            <td rowSpan={4} style={{ width: '190px', verticalAlign: 'top', paddingLeft: '10px', paddingTop: '2px' }}>
-              <div style={{
-                textAlign: 'center',
-                fontWeight: 'bold',
-                lineHeight: '1.2',
-              }}>
-                <div style={{ fontSize: '17pt' }}>ใบขอซื้อ </div>
-                <div style={{ fontSize: '17pt' }}>PURCHASE REQUEST</div>
-              </div>
-            </td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
-              {address}
-            </td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
-              {addressTh}
-            </td>
-          </tr>
-          <tr>
-            <td style={{ textAlign: 'left', fontSize: '13.5pt', lineHeight: '1.25' }}>
-              Tel : {telDisplay}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-
-      {/* ═══ PR Info ═══ */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: '6px' }}>
-        <tbody>
-          <tr>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt', fontWeight: 'bold', width: '50%' }}>
-              Purchase Request No. {doc.prNo}
-            </td>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
-              <span style={{ fontWeight: 'bold' }}>Supplier : </span>{doc.customer}
-            </td>
-          </tr>
-          <tr>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
-              <span style={{ fontWeight: 'bold' }}>Date of Issue : </span>{fmtDateTH(doc.dateIssue)}
-            </td>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt' }}>
-              <span style={{ fontWeight: 'bold' }}>Project Ref : </span>{doc.projectRef || ''}
-            </td>
-          </tr>
-          <tr>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
-              <span style={{ fontWeight: 'bold' }}>Date of Required : </span>{fmtDateTH(doc.dateRequired)}
-            </td>
-            <td style={{ border, padding: '5px 8px', fontSize: '12pt', width: '50%' }}>
-              <span style={{ fontWeight: 'bold' }}>WO No. : </span>{doc.workOrder?.woNo || ''}
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      {renderHeader()}
 
       {/* ═══ Items Table ( fills remaining space down to Summary ) ═══ */}
-      {renderItemsTable(page, pageIndex)}
+      {renderItemsTable(page, pageIndex, (element) => { lastRowRefs.current[pageIndex] = element })}
 
-      {page.tail && renderSummaryAndSignatures()}
+      {page.tail && (
+        <div ref={(element) => { tailRefs.current[pageIndex] = element }}>
+          {renderSummaryAndSignatures()}
+        </div>
+      )}
       {!page.tail && (
         <div
           style={{

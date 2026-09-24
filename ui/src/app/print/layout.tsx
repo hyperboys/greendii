@@ -136,7 +136,7 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
           .print-sheet.pr-print .pr-page {
             box-sizing: border-box !important;
             width: 100% !important;
-            min-height: 281mm !important;
+            height: 281mm !important;
             overflow: hidden !important;
             display: flex !important;
             flex-direction: column !important;

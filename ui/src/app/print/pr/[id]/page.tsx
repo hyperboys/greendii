@@ -36,6 +36,7 @@ export default function PrintPRPage() {
   const [pdfMode, setPdfMode] = useState(false)
   const [workOrderResolved, setWorkOrderResolved] = useState(false)
   const [workOrderReady, setWorkOrderReady] = useState(false)
+  const [prReady, setPrReady] = useState(false)
 
   useEffect(() => {
     const token = getTokenFromQuery()
@@ -45,6 +46,7 @@ export default function PrintPRPage() {
     setWorkOrderResolved(false)
     setWorkOrderReady(false)
     setWorkOrderDoc(null)
+    setPrReady(false)
     setPdfMode(isPdfMode)
     Promise.all([
       apiGet<PurchaseRequest>(`/pr/${id}`, token),
@@ -63,6 +65,7 @@ export default function PrintPRPage() {
 
   useEffect(() => {
     if (!doc) return
+    if (!prReady) return
     const shouldWaitWorkOrder = Boolean(doc.workOrder)
     if (!shouldWaitWorkOrder) {
       void signalPrintReady()
@@ -71,14 +74,14 @@ export default function PrintPRPage() {
     if (!workOrderResolved) return
     if (workOrderDoc && !workOrderReady) return
     void signalPrintReady()
-  }, [doc, pdfMode, workOrderDoc, workOrderReady, workOrderResolved])
+  }, [doc, pdfMode, workOrderDoc, workOrderReady, workOrderResolved, prReady])
 
   if (error) return <div style={{ padding: 20, color: 'red' }}>Error: {error}</div>
   if (!doc) return <div style={{ padding: 20 }}>Loading…</div>
 
   return (
     <>
-      <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} />
+      <PRPrint doc={doc} settings={settings} embedPdfAttachments={!pdfMode} onReady={() => setPrReady(true)} />
       {workOrderDoc && (
         <>
           <div className="pr-linked-workorder-break" aria-hidden />
