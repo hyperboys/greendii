@@ -6,6 +6,7 @@ import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate, formatBangkokDateTime } from '@/lib/timezone'
 import { parsePRDescription, type PRDescriptionBlock } from '@/lib/prDescription'
 import { parseColoredLine } from '@/lib/coloredText'
+import PRRevisionSummary from '@/components/PRRevisionSummary'
 
 // Weight-based pagination is now only a fallback for when real measurement
 // isn't available; keep its last-page cap conservative so it never risks
@@ -892,6 +893,20 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
       }}
     >
       {pages === null && renderMeasureLayer()}
+      {doc.revisionNo && doc.revisionNo > 0 && doc.previousPurchaseRequest && (
+        <div
+          className="pr-revision-summary-page"
+          style={{
+            boxSizing: 'border-box',
+            minHeight: PAGE_HEIGHT_MM,
+            padding: '4mm',
+            pageBreakAfter: 'always',
+            breakAfter: 'page',
+          }}
+        >
+          <PRRevisionSummary doc={doc} previous={doc.previousPurchaseRequest} print />
+        </div>
+      )}
       {(pages ?? []).map((page, pageIndex) => (
       <div
         key={`pr-page-${pageIndex}`}

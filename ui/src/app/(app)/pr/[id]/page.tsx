@@ -12,6 +12,7 @@ import { normalizeUserRole } from '@/lib/roleAliases'
 import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
+import PRRevisionSummary from '@/components/PRRevisionSummary'
 import ApprovalFlowSteps from '@/components/ApprovalFlowSteps'
 import AttachmentsSection from '@/components/AttachmentsSection'
 import { parsePRDescription } from '@/lib/prDescription'
@@ -82,6 +83,8 @@ export default function PRDetailPage() {
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
+  const [revisionReasonDraft, setRevisionReasonDraft] = useState('')
 
   const load = () => {
     setLoading(true)
@@ -141,10 +144,16 @@ export default function PRDetailPage() {
 
   const createRevision = async () => {
     if (!canRevise || acting) return
+    const revisionReason = revisionReasonDraft.trim()
+    if (!revisionReason) {
+      toast.error('กรุณาระบุเหตุผลในการทำ Revision')
+      return
+    }
     setActing(true)
     try {
-      const revised = await PRAPI.revise(id)
+      const revised = await PRAPI.revise(id, revisionReason)
       toast.success('สร้างฉบับ Revision สำเร็จ')
+      setRevisionDialogOpen(false)
       router.push(`/pr/${revised.id}/edit`)
     } catch (err) {
       toast.error(typeof err === 'string' ? err : 'สร้าง Revision ไม่สำเร็จ')
@@ -192,7 +201,7 @@ export default function PRDetailPage() {
             </button>
           )}
           {canRevise && (
-            <button className="btn-outline btn-sm" onClick={createRevision} disabled={acting}>
+            <button className="btn-outline btn-sm" onClick={() => { setRevisionReasonDraft(''); setRevisionDialogOpen(true) }} disabled={acting}>
               <Pencil size={14} /> สร้าง Revision
             </button>
           )}
@@ -249,6 +258,10 @@ export default function PRDetailPage() {
         <div><span className="form-label">Date of Required</span><p>{doc.dateRequired ? new Date(doc.dateRequired).toLocaleDateString('en-GB') : '-'}</p></div>
         <div className="col-span-2 md:col-span-3"><span className="form-label">Remarks</span><p className="whitespace-pre-line">{doc.remarks?.trim() || '-'}</p></div>
       </div>
+
+      {doc.revisionNo && doc.revisionNo > 0 && doc.previousPurchaseRequest && (
+        <PRRevisionSummary doc={doc} previous={doc.previousPurchaseRequest} />
+      )}
 
       <AttachmentsSection
         attachments={doc.attachments ?? []}
@@ -353,6 +366,30 @@ export default function PRDetailPage() {
         </div>
       )}
     </div>
+    {revisionDialogOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" role="presentation">
+        <div className="w-full max-w-lg rounded-lg bg-white p-5 shadow-xl" role="dialog" aria-modal="true" aria-labelledby="pr-revision-title">
+          <h3 id="pr-revision-title" className="text-lg font-semibold text-gray-900">สร้าง PR Revision</h3>
+          <p className="mt-1 text-sm text-gray-600">ระบุเหตุผลเพื่อให้ผู้อนุมัติเห็นประกอบการพิจารณา</p>
+          <textarea
+            className="form-input mt-4"
+            rows={4}
+            maxLength={2000}
+            autoFocus
+            placeholder="เช่น ปรับจำนวนตามใบเสนอราคา Supplier ฉบับล่าสุด"
+            value={revisionReasonDraft}
+            onChange={event => setRevisionReasonDraft(event.target.value)}
+          />
+          <div className="mt-4 flex justify-end gap-2">
+            <button className="btn-outline" onClick={() => setRevisionDialogOpen(false)} disabled={acting}>ยกเลิก</button>
+            <button className="btn-primary" onClick={createRevision} disabled={acting || !revisionReasonDraft.trim()}>
+              {acting ? <Loader2 size={14} className="animate-spin" /> : <Pencil size={14} />}
+              สร้าง Revision
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     {previewOpen && (
       <div className="quotation-preview-modal fixed inset-0 z-50 flex flex-col bg-gray-950/75 p-2 sm:p-4 lg:p-6">
         <div className="quotation-preview-toolbar flex flex-wrap items-center gap-2 rounded-t-lg border-b border-gray-200 bg-white px-3 py-3 shadow-sm sm:px-4">

@@ -21,6 +21,7 @@ interface FormData {
   projectRef: string
   dateIssue: string
   dateRequired: string
+  revisionReason: string
   remarks: string
   items: PRItem[]
 }
@@ -67,12 +68,13 @@ export default function EditPRPage() {
   const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [isRevision, setIsRevision] = useState(false)
   const [specialDiscountInput, setSpecialDiscountInput] = useState('0.00')
   const [isSpecialDiscountFocused, setIsSpecialDiscountFocused] = useState(false)
 
   const [form, setForm] = useState<FormData & { specialDiscount: number; includeVat: boolean }>({
     workOrderId: '', prTypeId: '', currency: 'THB', customer: '', projectRef: '',
-    dateIssue: '', dateRequired: '', remarks: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
+    dateIssue: '', dateRequired: '', revisionReason: '', remarks: '', items: [emptyItem()], specialDiscount: 0, includeVat: true,
   })
 
   useEffect(() => {
@@ -99,6 +101,7 @@ export default function EditPRPage() {
           return
         }
         const loadedItems = doc.items && doc.items.length > 0 ? doc.items : [emptyItem()]
+        setIsRevision((doc.revisionNo ?? 0) > 0)
         setForm({
           workOrderId: doc.workOrderId ?? '',
           prTypeId: doc.prTypeId ?? '',
@@ -107,6 +110,7 @@ export default function EditPRPage() {
           projectRef: doc.projectRef ?? '',
           dateIssue: doc.dateIssue ? doc.dateIssue.slice(0, 10) : '',
           dateRequired: doc.dateRequired ? doc.dateRequired.slice(0, 10) : '',
+          revisionReason: doc.revisionReason ?? '',
           remarks: doc.remarks ?? '',
           specialDiscount: Number(doc.specialDiscount ?? 0),
           includeVat: Number(doc.vat ?? 0) > 0,
@@ -173,6 +177,7 @@ export default function EditPRPage() {
     e.preventDefault()
     if (!form.prTypeId) { toast.error('กรุณาเลือกประเภทใบขอซื้อ'); return }
     if (!form.customer) { toast.error('กรุณากรอกชื่อ Supplier'); return }
+    if (isRevision && !form.revisionReason.trim()) { toast.error('กรุณาระบุเหตุผลในการทำ Revision'); return }
     if (form.items.some(i => !i.desc)) { toast.error('กรุณากรอกรายการ'); return }
     setSaving(true)
     try {
@@ -188,7 +193,8 @@ export default function EditPRPage() {
       }
 
       await PRAPI.update(id, {
-        ...form, subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
+        ...form, revisionReason: isRevision ? form.revisionReason.trim() : undefined,
+        subTotal, specialDiscount: form.specialDiscount, vat, netTotal,
         items: form.items.map((item, i) => ({ ...item, note: compactPRDescription(item.note), seq: i + 1 })),
       })
       toast.success('บันทึกสำเร็จ')
@@ -264,6 +270,13 @@ export default function EditPRPage() {
           <DateInput value={form.dateRequired}
             onChange={iso => setForm(f => ({ ...f, dateRequired: iso }))} />
         </div>
+        {isRevision && (
+          <div className="md:col-span-2">
+            <label className="form-label">เหตุผลในการทำ Revision *</label>
+            <textarea className="form-input" rows={3} maxLength={2000} required value={form.revisionReason}
+              onChange={e => setForm(f => ({ ...f, revisionReason: e.target.value }))} />
+          </div>
+        )}
         <div className="md:col-span-2">
           <label className="form-label">Remarks</label>
           <textarea className="form-input" rows={2} value={form.remarks}

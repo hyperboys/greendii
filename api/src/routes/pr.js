@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { body } = require('express-validator');
 const { Prisma } = require('@prisma/client');
+const { randomUUID } = require('crypto');
 const prisma = require('../lib/prisma');
 const { parseBangkokDate } = require('../lib/timezone');
 const { authenticate } = require('../middleware/auth');
@@ -65,11 +66,35 @@ const prValidators = [
   body('subTotal').optional().isFloat({ min: 0 }),
   body('vat').optional().isFloat({ min: 0 }),
   body('netTotal').optional().isFloat({ min: 0 }),
+  body('revisionReason').optional({ nullable: true }).isString().isLength({ max: 2000 }),
 ];
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
   prType: { select: { id: true, name: true, approvalSteps: true } },
+  previousPurchaseRequest: {
+    select: {
+      id: true,
+      prNo: true,
+      revisionNo: true,
+      customer: true,
+      projectRef: true,
+      workOrderId: true,
+      workOrder: { select: { woNo: true } },
+      dateIssue: true,
+      dateRequired: true,
+      prTypeId: true,
+      prType: { select: { name: true } },
+      currency: true,
+      subTotal: true,
+      specialDiscount: true,
+      vat: true,
+      netTotal: true,
+      remarks: true,
+      items: { orderBy: { seq: 'asc' } },
+      attachments: { orderBy: { uploadedAt: 'asc' } },
+    },
+  },
   workOrder: {
     select: {
       id: true,
@@ -142,6 +167,7 @@ function normalizePrItem(item, index) {
     price,
     amount: qty * price,
     images: Array.isArray(item?.images) ? item.images.map(v => String(v || '')).filter(Boolean) : [],
+    revisionKey: item?.revisionKey ? String(item.revisionKey) : randomUUID(),
   };
 }
 
@@ -451,7 +477,7 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
   try {
     const source = await prisma.purchaseRequest.findUniqueOrThrow({
       where: { id: req.params.id },
-      include: { items: { orderBy: { seq: 'asc' } } },
+      include: { items: { orderBy: { seq: 'asc' } }, attachments: true },
     });
 
     if (source.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
@@ -462,6 +488,13 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
     }
     if (!source.active) {
       return res.status(400).json({ message: 'ใบขอซื้อนี้ไม่ใช่ฉบับที่ active ล่าสุด' });
+    }
+    const revisionReason = String(req.body?.revisionReason || '').trim();
+    if (!revisionReason) {
+      return res.status(400).json({ message: 'กรุณาระบุเหตุผลในการทำ Revision' });
+    }
+    if (revisionReason.length > 2000) {
+      return res.status(400).json({ message: 'เหตุผล Revision ต้องไม่เกิน 2,000 ตัวอักษร' });
     }
 
     const rootId = source.rootPurchaseRequestId || source.id;
@@ -477,6 +510,8 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           active: true,
           revisionNo,
           rootPurchaseRequestId: rootId,
+          previousPurchaseRequestId: source.id,
+          revisionReason,
           workOrderId: source.workOrderId,
           prTypeId: source.prTypeId,
           salesId: source.salesId,
@@ -493,7 +528,15 @@ router.post('/:id/revise', authenticate, async (req, res, next) => {
           status: 'draft',
           approvalStep: 0,
           items: {
-            create: source.items.map((it, i) => normalizePrItem(it, it.seq ?? i)),
+            create: source.items.map((it, i) => normalizePrItem({
+              ...it,
+              revisionKey: it.revisionKey || it.id,
+            }, it.seq ?? i)),
+          },
+          attachments: {
+            create: source.attachments.map(({ filename, originalName, mimeType, size, category, poAmount, fileUrl }) => ({
+              filename, originalName, mimeType, size, category, poAmount, fileUrl,
+            })),
           },
         },
         include: INCLUDE_FULL,
@@ -516,7 +559,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
     }
     const {
       workOrderId, customer, projectRef, dateIssue, dateRequired, prTypeId,
-      currency, items = [], subTotal, specialDiscount, vat, netTotal, remarks,
+      currency, items = [], subTotal, specialDiscount, vat, netTotal, remarks, revisionReason,
     } = req.body;
     let normalizedCurrency;
     if (currency !== undefined) {
@@ -537,6 +580,7 @@ router.put('/:id', authenticate, prValidators, validate, async (req, res, next) 
           dateIssue: parseBangkokDate(dateIssue),
           dateRequired: parseBangkokDate(dateRequired),
           currency: normalizedCurrency,
+          revisionReason: revisionReason === undefined ? undefined : String(revisionReason || '').trim(),
           subTotal: subTotal || 0, specialDiscount: specialDiscount || 0, vat: vat || 0, netTotal: netTotal || 0,
           remarks,
           items: {
@@ -576,6 +620,9 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       include: { prType: { select: { approvalSteps: true } }, sales: { select: { role: true } } },
     });
     if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
+    if (pr.revisionNo > 0 && !String(pr.revisionReason || '').trim()) {
+      return res.status(400).json({ message: 'กรุณาระบุเหตุผลในการทำ Revision ก่อนส่งอนุมัติ' });
+    }
 
     const firstStep = await getPrFirstStep(pr.prType?.approvalSteps, pr.sales.role);
     const newStatus = firstStep === null ? 'approved' : 'pending';

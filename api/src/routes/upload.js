@@ -382,11 +382,16 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     await assertWorkOrderAttachmentEditable(req, att.workOrderId, normalizedCategory);
     await assertHandoverAttachmentEditable(req, att.handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, att.purchaseRequestId);
-    if (isR2Enabled) {
-      await deleteFromR2(att.filename).catch(() => {}); // ไม่ block ถ้า R2 fail
-    } else {
-      const filePath = path.join(UPLOAD_DIR, att.filename);
-      if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+    const hasOtherReferences = await prisma.attachment.count({
+      where: { filename: att.filename, id: { not: att.id } },
+    });
+    if (hasOtherReferences === 0) {
+      if (isR2Enabled) {
+        await deleteFromR2(att.filename).catch(() => {}); // ไม่ block ถ้า R2 fail
+      } else {
+        const filePath = path.join(UPLOAD_DIR, att.filename);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+      }
     }
     await prisma.attachment.delete({ where: { id: req.params.id } });
 

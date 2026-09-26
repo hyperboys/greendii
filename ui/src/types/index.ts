@@ -578,6 +578,7 @@ export interface HandOverItem {
 
 export interface PRItem {
   id?: string
+  revisionKey?: string
   seq?: number
   partNo?: string
   desc: string
@@ -589,12 +590,37 @@ export interface PRItem {
   images?: string[]
 }
 
+export interface PRRevisionSnapshot {
+  id: string
+  prNo: string
+  revisionNo: number
+  customer: string
+  projectRef?: string | null
+  workOrderId?: string | null
+  workOrder?: { woNo: string } | null
+  prTypeId?: string | null
+  prType?: { name: string } | null
+  dateIssue?: string | null
+  dateRequired?: string | null
+  currency?: string | null
+  subTotal: number
+  specialDiscount: number
+  vat: number
+  netTotal: number
+  remarks?: string | null
+  items: PRItem[]
+  attachments?: Pick<Attachment, 'id' | 'filename' | 'originalName' | 'mimeType' | 'size'>[]
+}
+
 export interface PurchaseRequest {
   id: string
   prNo: string
   active?: boolean
   revisionNo?: number
   rootPurchaseRequestId?: string | null
+  previousPurchaseRequestId?: string | null
+  previousPurchaseRequest?: PRRevisionSnapshot | null
+  revisionReason?: string | null
   workOrderId?: string
   workOrder?: PurchaseRequestLinkedWorkOrder | null
   prTypeId?: string

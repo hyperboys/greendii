@@ -592,6 +592,10 @@ model PurchaseRequest {
   rootPurchaseRequestId String?
   rootPurchaseRequest PurchaseRequest? @relation("PurchaseRequestRevisions", fields: [rootPurchaseRequestId], references: [id])
   revisions    PurchaseRequest[] @relation("PurchaseRequestRevisions")
+  previousPurchaseRequestId String?
+  previousPurchaseRequest PurchaseRequest? @relation("PurchaseRequestRevisionPrevious", fields: [previousPurchaseRequestId], references: [id])
+  nextPurchaseRequestRevisions PurchaseRequest[] @relation("PurchaseRequestRevisionPrevious")
+  revisionReason String?
   workOrderId  String?
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
   prTypeId     String?
@@ -618,6 +622,8 @@ model PurchaseRequest {
   attachments  Attachment[]
   purchaseOrders PurchaseOrder[]
 
+  @@index([rootPurchaseRequestId, revisionNo])
+  @@index([previousPurchaseRequestId])
   @@map("purchase_requests")
 }
 
@@ -634,7 +640,9 @@ model PurchaseRequestItem {
   price             Decimal         @default(0) @db.Decimal(12, 2)
   amount            Decimal         @default(0) @db.Decimal(12, 2)
   images            String[]        @default([])
+  revisionKey       String?
 
+  @@unique([purchaseRequestId, revisionKey])
   @@map("purchase_request_items")
 }
 
