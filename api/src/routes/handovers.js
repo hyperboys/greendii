@@ -86,6 +86,26 @@ function buildOptionalRelationUpdate(id) {
   return id ? { connect: { id } } : { disconnect: true };
 }
 
+function normalizeQuotationIds(quotationIds, quotationId) {
+  const values = Array.isArray(quotationIds) ? quotationIds : [quotationId]
+  return [...new Set(values.filter(value => value !== undefined && value !== null && value !== '').map(String))]
+}
+
+function withQuotationIds(item) {
+  const quotationIds = (item.quotationLinks || []).map(link => link.quotationId || link.quotation?.id).filter(Boolean)
+  return { ...item, quotationIds: quotationIds.length ? quotationIds : (item.quotationId ? [item.quotationId] : []) }
+}
+
+async function syncHandoverQuotations(handOverJobId, quotationIds, tx = prisma) {
+  await tx.handOverJobQuotation.deleteMany({ where: { handOverJobId } })
+  if (quotationIds.length > 0) {
+    await tx.handOverJobQuotation.createMany({
+      data: quotationIds.map(quotationId => ({ handOverJobId, quotationId })),
+      skipDuplicates: true,
+    })
+  }
+}
+
 async function assertQuotationAccessible(req, quotationId) {
   if (!quotationId || MANAGER_ROLES.includes(req.user.role)) return;
   const quotation = await prisma.quotation.findUnique({
@@ -160,21 +180,24 @@ router.get('/', authenticate, async (req, res, next) => {
       { hoNo: { contains: q, mode: 'insensitive' } },
       { project: { contains: q, mode: 'insensitive' } },
     ];
-    const listInclude = { sales: { select: { id: true, fullName: true, email: true, phone: true } } };
+    const listInclude = {
+      sales: { select: { id: true, fullName: true, email: true, phone: true } },
+      quotationLinks: { select: { quotationId: true }, orderBy: { createdAt: 'asc' } },
+    };
     const pg = getPagination(req.query);
     if (pg) {
       const [data, total] = await prisma.$transaction([
         prisma.handOverJob.findMany({ where, include: listInclude, orderBy: { createdAt: 'desc' }, skip: pg.skip, take: pg.take }),
         prisma.handOverJob.count({ where }),
       ]);
-      return res.json(paginated(data, total, pg));
+      return res.json(paginated(data.map(withQuotationIds), total, pg));
     }
     const list = await prisma.handOverJob.findMany({
       where,
       include: listInclude,
       orderBy: { createdAt: 'desc' },
     });
-    res.json(list);
+    res.json(list.map(withQuotationIds));
   } catch (e) { next(e); }
 });
 
@@ -195,6 +218,10 @@ router.get('/:id', authenticate, async (req, res, next) => {
               orderBy: { seq: 'asc' },
             },
           },
+        },
+        quotationLinks: {
+          select: { quotation: { select: { id: true, quoNo: true } } },
+          orderBy: { createdAt: 'asc' },
         },
         workOrder: {
           select: {
@@ -219,7 +246,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
         },
       },
     });
-    res.json(item);
+    res.json(withQuotationIds(item));
   } catch (e) { next(e); }
 });
 
@@ -242,7 +269,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
 router.post('/', authenticate, handoverValidators, validate, async (req, res, next) => {
   try {
     const {
-      quotationId, workOrderId, project, contractor, location,
+      quotationId, quotationIds, workOrderId, project, contractor, location,
       contactName, contactTel, product, responsibility,
       serviceDate, qualityProduct, qualitySales, qualityInstall, comment, items,
     } = req.body;
@@ -257,20 +284,23 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
     const hoFloor = await getDocNumberFloor(hoPrefix);
     const hoSeq = Math.max(hoDbSeq + 1, hoFloor);
     const hoNo = `${hoPrefix}${String(hoSeq).padStart(3, '0')}`;
-    await assertQuotationAccessible(req, quotationId);
+    const normalizedQuotationIds = normalizeQuotationIds(quotationIds, quotationId);
+    const primaryQuotationId = normalizedQuotationIds[0] || null;
+    await assertQuotationAccessible(req, primaryQuotationId);
+    for (const id of normalizedQuotationIds.slice(1)) await assertQuotationAccessible(req, id);
 
     // If user selected quotation and did not explicitly send workOrderId,
     // auto-link the latest active work order created from that quotation.
-    const resolvedWorkOrderId = workOrderId || await findWorkOrderIdByQuotationId(quotationId);
+    const resolvedWorkOrderId = workOrderId || await findWorkOrderIdByQuotationId(primaryQuotationId);
     const normalizedItems = normalizeHandoverItems(items);
     const itemsSnapshot = normalizedItems.length > 0
       ? normalizedItems
-      : await getQuotationItemsSnapshot(quotationId);
+      : await getQuotationItemsSnapshot(primaryQuotationId);
 
     const item = await prisma.handOverJob.create({
       data: {
         hoNo,
-        quotationId: quotationId || null,
+        quotationId: primaryQuotationId,
         workOrderId: resolvedWorkOrderId,
         project, contractor, location,
         contactName, contactTel, product, items: itemsSnapshot, responsibility,
@@ -281,6 +311,7 @@ router.post('/', authenticate, handoverValidators, validate, async (req, res, ne
         comment, salesId: req.user.id, status: 'draft',
       },
     });
+    await syncHandoverQuotations(item.id, normalizedQuotationIds, prisma);
     res.status(201).json(item);
   } catch (e) { next(e); }
 });
@@ -294,20 +325,24 @@ router.put('/:id', authenticate, handoverValidators, validate, async (req, res, 
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
     const {
-      quotationId, workOrderId, project, contractor, location, contactName, contactTel,
+      quotationId, quotationIds, workOrderId, project, contractor, location, contactName, contactTel,
       product, responsibility, serviceDate,
       qualityProduct, qualitySales, qualityInstall, comment, items,
     } = req.body;
-    await assertQuotationAccessible(req, quotationId);
-    const quotationRelation = buildOptionalRelationUpdate(quotationId);
+    const normalizedQuotationIds = normalizeQuotationIds(quotationIds, quotationId);
+    const primaryQuotationId = normalizedQuotationIds[0] || null;
+    await assertQuotationAccessible(req, primaryQuotationId);
+    for (const id of normalizedQuotationIds.slice(1)) await assertQuotationAccessible(req, id);
+    const quotationRelation = buildOptionalRelationUpdate(primaryQuotationId);
     const workOrderRelation = buildOptionalRelationUpdate(workOrderId);
     const normalizedItems = normalizeHandoverItems(items);
     const nextItemsSnapshot = items === undefined
       ? undefined
       : (normalizedItems.length > 0
           ? normalizedItems
-          : await getQuotationItemsSnapshot(quotationId));
-    const item = await prisma.handOverJob.update({
+          : await getQuotationItemsSnapshot(primaryQuotationId));
+    const item = await prisma.$transaction(async tx => {
+      const updated = await tx.handOverJob.update({
       where: { id: req.params.id },
       data: {
         project, contractor, location, contactName, contactTel,
@@ -318,6 +353,9 @@ router.put('/:id', authenticate, handoverValidators, validate, async (req, res, 
         ...(quotationRelation ? { quotation: quotationRelation } : {}),
         ...(workOrderRelation ? { workOrder: workOrderRelation } : {}),
       },
+      });
+      await syncHandoverQuotations(req.params.id, normalizedQuotationIds, tx);
+      return updated;
     });
     res.json(item);
   } catch (e) { next(e); }

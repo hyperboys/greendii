@@ -9,6 +9,7 @@ import { ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
 import DateInput from '@/components/DateInput'
 import HandOverItemsEditor from '@/components/HandOverItemsEditor'
+import QuotationCheckboxSelect from '@/components/QuotationCheckboxSelect'
 import {
   createEmptyHandOverItem,
   mapQuotationItemsToHandOverItems,
@@ -19,6 +20,7 @@ const DEFAULT_RESPONSIBILITY = 'K.Sarayut'
 
 interface FormData {
   quotationId: string
+  quotationIds: string[]
   project: string
   contractor: string
   location: string
@@ -37,7 +39,7 @@ export default function NewHandoverPage() {
   const [saving, setSaving] = useState(false)
 
   const [form, setForm] = useState<FormData>({
-    quotationId: '', project: '', contractor: '', location: '',
+    quotationId: '', quotationIds: [], project: '', contractor: '', location: '',
     contactName: '', contactTel: '', product: '', responsibility: DEFAULT_RESPONSIBILITY,
     serviceDate: '', items: [createEmptyHandOverItem(0)],
   })
@@ -54,12 +56,27 @@ export default function NewHandoverPage() {
     const q = quotations.find(x => x.id === id)
     setForm(f => ({
       ...f, quotationId: id,
+      quotationIds: id ? [id] : [],
       project: q?.project ?? f.project,
       contactName: q?.attn ?? f.contactName,
       contactTel: q?.tel ?? f.contactTel,
       product: q?.items?.map(item => toPlainColoredLine(item.desc)).join('\n') ?? f.product,
       items: q?.items?.length ? mapQuotationItemsToHandOverItems(q.items) : f.items,
     }))
+  }
+
+  // Items mirror every selected QO, concatenated in selection order.
+  const mergeQuotationItems = (ids: string[]) => {
+    const merged = ids.flatMap(id => mapQuotationItemsToHandOverItems(quotations.find(q => q.id === id)?.items))
+    return merged.length ? merged.map((item, index) => ({ ...item, seq: index })) : null
+  }
+
+  const handleQuotations = (ids: string[]) => {
+    const primary = ids[0] || ''
+    // Re-prefill header only when the main QO changes, so ticking extra QO keeps edited fields.
+    if (primary !== form.quotationId) handleQuotation(primary)
+    const items = mergeQuotationItems(ids)
+    setForm(f => ({ ...f, quotationIds: ids, quotationId: primary, items: items ?? f.items }))
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -90,10 +107,12 @@ export default function NewHandoverPage() {
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิงใบเสนอราคา</label>
-          <select className="form-input" value={form.quotationId} onChange={e => handleQuotation(e.target.value)}>
-            <option value="">— ไม่ระบุ —</option>
-            {quotations.map(q => <option key={q.id} value={q.id}>{q.quoNo} — {q.customerName}</option>)}
-          </select>
+          <QuotationCheckboxSelect
+            options={quotations.map(q => ({ value: q.id, label: `${q.quoNo} — ${q.customerName}`, shortLabel: q.quoNo, description: q.project || undefined }))}
+            selected={form.quotationIds}
+            onChange={handleQuotations}
+          />
+          <p className="mt-1 text-xs text-gray-500">กด “เลือก” เพื่อติ๊กได้มากกว่า 1 ใบ เลขที่เลือกจะแสดงคั่นด้วย , โดยรายการที่เลือกแรกสุดเป็น QO หลัก</p>
         </div>
         <div className="md:col-span-2">
           <label className="form-label">ชื่อโครงการ *</label>

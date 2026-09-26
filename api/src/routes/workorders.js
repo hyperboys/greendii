@@ -122,6 +122,26 @@ function normalizeOptionalId(value) {
   return normalized ? normalized : null;
 }
 
+function normalizeQuotationIds(quotationIds, quotationId) {
+  const values = Array.isArray(quotationIds) ? quotationIds : [quotationId]
+  return [...new Set(values.filter(value => value !== undefined && value !== null && value !== '').map(String))]
+}
+
+function withQuotationIds(item) {
+  const quotationIds = (item.quotationLinks || []).map(link => link.quotationId || link.quotation?.id).filter(Boolean)
+  return { ...item, quotationIds: quotationIds.length ? quotationIds : (item.quotationId ? [item.quotationId] : []) }
+}
+
+async function syncWorkOrderQuotations(workOrderId, quotationIds, tx = prisma) {
+  await tx.workOrderQuotation.deleteMany({ where: { workOrderId } })
+  if (quotationIds.length > 0) {
+    await tx.workOrderQuotation.createMany({
+      data: quotationIds.map(quotationId => ({ workOrderId, quotationId })),
+      skipDuplicates: true,
+    })
+  }
+}
+
 function normalizeWorkOrderTracking(input = {}, fallback = {}) {
   const poRequirement = PO_REQUIREMENTS.has(String(input.poRequirement || ''))
     ? String(input.poRequirement)
@@ -626,6 +646,10 @@ router.get('/by-quotation/:quotationId/previous', authenticate, async (req, res,
               { rootQuotationId },
             ],
           },
+          quotationLinks: {
+            select: { quotation: { select: { id: true, quoNo: true } } },
+            orderBy: { createdAt: 'asc' },
+          },
         },
       },
       orderBy: [{ revisionNo: 'desc' }, { createdAt: 'desc' }],
@@ -659,9 +683,10 @@ router.get('/', authenticate, async (req, res, next) => {
         where: { userId: req.user.id },
         select: { id: true },
       },
+      quotationLinks: { select: { quotationId: true }, orderBy: { createdAt: 'asc' } },
     };
     const withReadStatus = (list) => list.map(({ readLogs, ...item }) => ({
-      ...item,
+      ...withQuotationIds(item),
       isRead: Array.isArray(readLogs) && readLogs.length > 0,
     }));
     const pg = getPagination(req.query);
@@ -721,7 +746,7 @@ router.get('/:id', authenticate, async (req, res, next) => {
       include: INCLUDE_FULL,
     });
     await assertWorkOrderAccessible(req, item);
-    res.json(item);
+    res.json(withQuotationIds(item));
   } catch (e) { next(e); }
 });
 
@@ -791,16 +816,18 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
   try {
     const {
       handOverJobId,
-      quotationId, project, location, products, items, responsibility,
+      quotationId, quotationIds, project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, dueDate, remark, docChecklist,
       poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt,
     } = req.body;
-    const normalizedQuotationId = normalizeOptionalId(quotationId);
+    const normalizedQuotationIds = normalizeQuotationIds(quotationIds, quotationId);
+    const normalizedQuotationId = normalizeOptionalId(normalizedQuotationIds[0]);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
     const selectedHandover = await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, null);
     const linkedQuotationId = resolveLinkedQuotationId(normalizedQuotationId, selectedHandover);
     await ensureQuotationAccessible(req, linkedQuotationId);
+    for (const id of normalizedQuotationIds.slice(1)) await ensureQuotationAccessible(req, id);
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationItemsSnapshot = linkedQuotationId
       ? await getQuotationItemsSnapshot(linkedQuotationId)
@@ -926,6 +953,7 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
       })
 
       await syncSelectedHandOverJob(created.id, normalizedHandOverJobId, linkedQuotationId, tx)
+      await syncWorkOrderQuotations(created.id, normalizedQuotationIds.length ? [linkedQuotationId, ...normalizedQuotationIds.slice(1)].filter(Boolean) : [], tx)
       if (trackingValue.issueStatus !== 'none') {
         await tx.workOrderIssueLog.create({
           data: {
@@ -966,17 +994,19 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
     }
     const {
       handOverJobId,
-      quotationId,
+      quotationId, quotationIds,
       project, location, products, items, responsibility,
       customerName, contactName, contactTel, teamAssignment,
       qcDate, installDate, dueDate, remark, docChecklist,
       poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt,
     } = req.body;
-    const normalizedQuotationId = normalizeOptionalId(quotationId);
+    const normalizedQuotationIds = normalizeQuotationIds(quotationIds, quotationId);
+    const normalizedQuotationId = normalizeOptionalId(normalizedQuotationIds[0]);
     const normalizedHandOverJobId = normalizeOptionalId(handOverJobId);
     const selectedHandover = await ensureHandOverSelectable(normalizedQuotationId, normalizedHandOverJobId, req.params.id);
     const linkedQuotationId = resolveLinkedQuotationId(normalizedQuotationId, selectedHandover);
     await ensureQuotationAccessible(req, linkedQuotationId);
+    for (const id of normalizedQuotationIds.slice(1)) await ensureQuotationAccessible(req, id);
     const normalizedItems = normalizeWorkOrderItems(items);
     const quotationRelation = buildOptionalRelationUpdate(linkedQuotationId);
     const canEditTeamChecklist = normalizeRole(req.user.role) === 'project_mgr';
@@ -1015,6 +1045,7 @@ router.put('/:id', authenticate, workOrderValidators, validate, async (req, res,
       }
 
       await syncSelectedHandOverJob(req.params.id, normalizedHandOverJobId, linkedQuotationId, tx)
+      await syncWorkOrderQuotations(req.params.id, normalizedQuotationIds.length ? [linkedQuotationId, ...normalizedQuotationIds.slice(1)].filter(Boolean) : [], tx)
       return updated
     })
     res.json(wo);

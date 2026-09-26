@@ -18,8 +18,8 @@ datasource db {
 // Valid values are managed via Settings > บทบาท & สิทธิ์
 
 enum DocStatus {
-  draft    // แบบร่าง
-  pending  // รออนุมัติ
+  draft // แบบร่าง
+  pending // รออนุมัติ
   approved // อนุมัติแล้ว
   rejected // ปฏิเสธ
   cancelled // ยกเลิก
@@ -36,45 +36,45 @@ enum ApprovalAction {
 // ─────────────────────────────────────────────
 
 model User {
-  id           String   @id @default(cuid())
-  username     String   @unique
-  passwordHash String
-  fullName     String
-  initials     String   @default("")
-  role         String   @default("sales")
-  email               String?
-  phone               String?
-  department          String?
-  position            String?
-  firstName           String?
-  lastName            String?
-  firstNameEn         String?
-  lastNameEn          String?
-  lineUserId          String?
-  signatureText       String?
-  signatureUrl        String?
-  active              Boolean  @default(true)
-  mustChangePassword  Boolean  @default(false)
-  docCounters         Json?    // { "mmyy": floorSeq } เช่น { "0626": 3 }
-  createdAt           DateTime @default(now()) @db.Timestamptz(3)
-  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+  id                 String   @id @default(cuid())
+  username           String   @unique
+  passwordHash       String
+  fullName           String
+  initials           String   @default("")
+  role               String   @default("sales")
+  email              String?
+  phone              String?
+  department         String?
+  position           String?
+  firstName          String?
+  lastName           String?
+  firstNameEn        String?
+  lastNameEn         String?
+  lineUserId         String?
+  signatureText      String?
+  signatureUrl       String?
+  active             Boolean  @default(true)
+  mustChangePassword Boolean  @default(false)
+  docCounters        Json? // { "mmyy": floorSeq } เช่น { "0626": 3 }
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
 
-  quotations       Quotation[]
-  workOrders       WorkOrder[]
+  quotations         Quotation[]
+  workOrders         WorkOrder[]
   workOrderCloseLogs WorkOrderCloseLog[]
   workOrderIssueLogs WorkOrderIssueLog[]
-  handOverJobs     HandOverJob[]
-  purchaseRequests PurchaseRequest[]
-  approvalLogs     ApprovalLog[]
-  notifications    Notification[]
-  activityLogs     ActivityLog[]
-  sentEmailLogs    EmailLog[]
-  customers        Customer[]
-  workOrderPoAudits WorkOrderPoAudit[]
-  refreshTokens    RefreshToken[]
-  quotationCounters QuotationCounter[]
-  workOrderReadLogs WorkOrderReadLog[]
-  domainAuditLogs   AuditLog[]
+  handOverJobs       HandOverJob[]
+  purchaseRequests   PurchaseRequest[]
+  approvalLogs       ApprovalLog[]
+  notifications      Notification[]
+  activityLogs       ActivityLog[]
+  sentEmailLogs      EmailLog[]
+  customers          Customer[]
+  workOrderPoAudits  WorkOrderPoAudit[]
+  refreshTokens      RefreshToken[]
+  quotationCounters  QuotationCounter[]
+  workOrderReadLogs  WorkOrderReadLog[]
+  domainAuditLogs    AuditLog[]
 
   @@map("users")
 }
@@ -97,7 +97,7 @@ model RefreshToken {
   tokenHash String    @unique
   userId    String
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  expiresAt DateTime @db.Timestamptz(3)
+  expiresAt DateTime  @db.Timestamptz(3)
   revokedAt DateTime? @db.Timestamptz(3)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
 
@@ -170,37 +170,37 @@ model AccountCustomer {
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
   provisionalDeliveryOrders ProvisionalDeliveryOrder[]
-  invoices                 Invoice[]
-  billingNotes             BillingNote[]
-  creditNotes              CreditNote[]
-  receiptVouchers          ReceiptVoucher[]
+  invoices                  Invoice[]
+  billingNotes              BillingNote[]
+  creditNotes               CreditNote[]
+  receiptVouchers           ReceiptVoucher[]
 
   @@map("account_customers")
 }
 
 model AccountProduct {
-  id          String         @id @default(cuid())
-  code        String         @unique
+  id          String   @id @default(cuid())
+  code        String   @unique
   name        String
   category    String?
   unit        String?
-  productType String         @default("stored") @map("product_type") // stored | manufactured | service
-  vatConfig   String?        @default("VAT7%") @map("vat_config")
-  price       Decimal        @default(0) @db.Decimal(12, 2)
-  cost        Decimal        @default(0) @db.Decimal(12, 2)
+  productType String   @default("stored") @map("product_type") // stored | manufactured | service
+  vatConfig   String?  @default("VAT7%") @map("vat_config")
+  price       Decimal  @default(0) @db.Decimal(12, 2)
+  cost        Decimal  @default(0) @db.Decimal(12, 2)
   description String?
-  active      Boolean        @default(true)
-  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
   stockBalances                 StockBalance[]
   provisionalDeliveryOrderLines ProvisionalDeliveryOrderLine[]
-  invoiceLines                 InvoiceLine[]
-  purchaseOrderLines           PurchaseOrderLine[]
-  goodsReceiptLines            GoodsReceiptLine[]
-  stockIssueLines              StockIssueLine[]
-  stockReturnLines             StockReturnLine[]
-  stockMovements               StockMovement[]
+  invoiceLines                  InvoiceLine[]
+  purchaseOrderLines            PurchaseOrderLine[]
+  goodsReceiptLines             GoodsReceiptLine[]
+  stockIssueLines               StockIssueLine[]
+  stockReturnLines              StockReturnLine[]
+  stockMovements                StockMovement[]
 
   @@map("account_products")
 }
@@ -227,10 +227,10 @@ model Supplier {
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
-  purchaseOrders           PurchaseOrder[]
+  purchaseOrders            PurchaseOrder[]
   contractorPaymentRequests ContractorPaymentRequest[]
-  goodsReceipts            GoodsReceipt[]
-  paymentVouchers          PaymentVoucher[]
+  goodsReceipts             GoodsReceipt[]
+  paymentVouchers           PaymentVoucher[]
 
   @@map("suppliers")
 }
@@ -286,7 +286,7 @@ model StockBalance {
   warehouse   Warehouse      @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
   productId   String         @map("product_id")
   product     AccountProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
-  onHand      Decimal        @default(0) @db.Decimal(12, 3) @map("on_hand")
+  onHand      Decimal        @default(0) @map("on_hand") @db.Decimal(12, 3)
   reserved    Decimal        @default(0) @db.Decimal(12, 3)
   available   Decimal        @default(0) @db.Decimal(12, 3)
   createdAt   DateTime       @default(now()) @db.Timestamptz(3)
@@ -300,7 +300,7 @@ model ChartOfAccount {
   id             String   @id @default(cuid())
   code           String   @unique
   name           String
-  category       String   // asset | liability | equity | revenue | expense
+  category       String // asset | liability | equity | revenue | expense
   accountType    String   @default("detail") @map("account_type") // header | detail
   accountMapping String?  @map("account_mapping") // AR | AP | SALES | CASH | BANK | VAT_INPUT | VAT_OUTPUT
   active         Boolean  @default(true)
@@ -330,20 +330,20 @@ model PrType {
 }
 
 model Settings {
-  id                  String   @id @default("main")
-  companyName         String   @default("Green Dii Co., Ltd.")
-  companyNameEn       String   @default("Green Dii Co., Ltd.")
-  address             String   @default("")
-  taxId               String   @default("")
-  tel                 String   @default("")
-  email               String   @default("")
-  website             String   @default("")
-  logoUrl             String   @default("")
-  stepRoleConfig          Json?    // { "1":"sales", "2":"sale_mgr", ... }
-  approvalFlowConfig      Json?    // { quotation:[1,2,3,4,5], workOrder:[3,4,5], pr:[3,4,5,6], handover:[3,4,5] }
-  menuAccessConfig      Json?    // { quotations:['admin','sales',...], workorders:[...], ... }
-  rolePermissionsConfig Json?    // { roles:[{key,label,description}], permissions:[{key,label,roles[]}] }
-  updatedAt           DateTime @updatedAt @db.Timestamptz(3)
+  id                    String   @id @default("main")
+  companyName           String   @default("Green Dii Co., Ltd.")
+  companyNameEn         String   @default("Green Dii Co., Ltd.")
+  address               String   @default("")
+  taxId                 String   @default("")
+  tel                   String   @default("")
+  email                 String   @default("")
+  website               String   @default("")
+  logoUrl               String   @default("")
+  stepRoleConfig        Json? // { "1":"sales", "2":"sale_mgr", ... }
+  approvalFlowConfig    Json? // { quotation:[1,2,3,4,5], workOrder:[3,4,5], pr:[3,4,5,6], handover:[3,4,5] }
+  menuAccessConfig      Json? // { quotations:['admin','sales',...], workorders:[...], ... }
+  rolePermissionsConfig Json? // { roles:[{key,label,description}], permissions:[{key,label,roles[]}] }
+  updatedAt             DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("settings")
 }
@@ -353,62 +353,64 @@ model Settings {
 // ─────────────────────────────────────────────
 
 model Quotation {
-  id            String    @id @default(cuid())
-  quoNo         String    @unique
-  active        Boolean   @default(true)
-  revisionNo    Int       @default(0)
+  id              String      @id @default(cuid())
+  quoNo           String      @unique
+  active          Boolean     @default(true)
+  revisionNo      Int         @default(0)
   rootQuotationId String?
-  rootQuotation Quotation? @relation("QuotationRevisions", fields: [rootQuotationId], references: [id])
-  revisions     Quotation[] @relation("QuotationRevisions")
-  salesId       String
-  sales         User      @relation(fields: [salesId], references: [id])
-  customerId    String?
-  customer      Customer? @relation(fields: [customerId], references: [id])
-  customerName  String    // keep as text in case not in master
-  attn          String?
-  project       String
-  address       String?
-  tel           String?
-  customerHp    String?
-  conditionTerm String?
-  validityDays  Int       @default(30)
-  leadTime      String?
-  paymentTerm   String?
-  subTotal      Decimal   @default(0) @db.Decimal(12, 2)
-  specialDiscount Decimal @default(0) @db.Decimal(12, 2)
-  vat           Decimal   @default(0) @db.Decimal(12, 2)
-  grandTotal    Decimal   @default(0) @db.Decimal(12, 2)
-  status        DocStatus @default(draft)
-  approvalStep  Int       @default(0)
-  remark        String?
-  createdAt     DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime  @updatedAt @db.Timestamptz(3)
+  rootQuotation   Quotation?  @relation("QuotationRevisions", fields: [rootQuotationId], references: [id])
+  revisions       Quotation[] @relation("QuotationRevisions")
+  salesId         String
+  sales           User        @relation(fields: [salesId], references: [id])
+  customerId      String?
+  customer        Customer?   @relation(fields: [customerId], references: [id])
+  customerName    String // keep as text in case not in master
+  attn            String?
+  project         String
+  address         String?
+  tel             String?
+  customerHp      String?
+  conditionTerm   String?
+  validityDays    Int         @default(30)
+  leadTime        String?
+  paymentTerm     String?
+  subTotal        Decimal     @default(0) @db.Decimal(12, 2)
+  specialDiscount Decimal     @default(0) @db.Decimal(12, 2)
+  vat             Decimal     @default(0) @db.Decimal(12, 2)
+  grandTotal      Decimal     @default(0) @db.Decimal(12, 2)
+  status          DocStatus   @default(draft)
+  approvalStep    Int         @default(0)
+  remark          String?
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
-  items        QuotationItem[]
-  workOrders   WorkOrder[]
-  handOverJobs HandOverJob[]
-  approvalLogs ApprovalLog[]
-  attachments  Attachment[]
-  emailLogs    EmailLog[]
+  items            QuotationItem[]
+  workOrders       WorkOrder[]
+  handOverJobs     HandOverJob[]
+  workOrderLinks   WorkOrderQuotation[]
+  handOverJobLinks HandOverJobQuotation[]
+  approvalLogs     ApprovalLog[]
+  attachments      Attachment[]
+  emailLogs        EmailLog[]
 
   @@map("quotations")
 }
 
 model QuotationItem {
-  id          String    @id @default(cuid())
-  quotationId String
-  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
-  seq         Int       @default(0)
-  desc        String
-  note        String?   // free-form description / spec
-  detailRows  Json?     // [{ desc, qty, unit, materialPrice, labourPrice, price, amount }]
-  qty         Decimal   @default(0) @db.Decimal(10, 3)
-  unit        String
-  materialPrice Decimal @default(0) @db.Decimal(12, 2)
-  labourPrice   Decimal @default(0) @db.Decimal(12, 2)
-  price       Decimal   @default(0) @db.Decimal(12, 2)
-  amount      Decimal   @default(0) @db.Decimal(12, 2)
-  images      String[]  @default([])
+  id            String    @id @default(cuid())
+  quotationId   String
+  quotation     Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  seq           Int       @default(0)
+  desc          String
+  note          String? // free-form description / spec
+  detailRows    Json? // [{ desc, qty, unit, materialPrice, labourPrice, price, amount }]
+  qty           Decimal   @default(0) @db.Decimal(10, 3)
+  unit          String
+  materialPrice Decimal   @default(0) @db.Decimal(12, 2)
+  labourPrice   Decimal   @default(0) @db.Decimal(12, 2)
+  price         Decimal   @default(0) @db.Decimal(12, 2)
+  amount        Decimal   @default(0) @db.Decimal(12, 2)
+  images        String[]  @default([])
 
   @@map("quotation_items")
 }
@@ -418,66 +420,67 @@ model QuotationItem {
 // ─────────────────────────────────────────────
 
 model WorkOrder {
-  id             String    @id @default(cuid())
-  woNo           String    @unique
-  active         Boolean   @default(true)
-  revisionNo     Int       @default(0)
+  id              String      @id @default(cuid())
+  woNo            String      @unique
+  active          Boolean     @default(true)
+  revisionNo      Int         @default(0)
   rootWorkOrderId String?
-  rootWorkOrder  WorkOrder? @relation("WorkOrderRevisions", fields: [rootWorkOrderId], references: [id])
-  revisions      WorkOrder[] @relation("WorkOrderRevisions")
-  quotationId    String?
-  quotation      Quotation? @relation(fields: [quotationId], references: [id])
-  salesId        String
-  sales          User      @relation(fields: [salesId], references: [id])
-  project        String
-  location       String?
-  products       String?   // text description
-  items          Json      @default("[]")
-  responsibility String?
-  customerName   String
-  contactName    String?
-  contactTel     String?
-  teamAssignment String?
-  qcDate         DateTime? @db.Timestamptz(3)
-  installDate    DateTime? @db.Timestamptz(3)
-  dueDate        DateTime? @db.Timestamptz(3)
-  completedAt    DateTime? @db.Timestamptz(3)
-  remark         String?
-  docChecklist   Json      @default("{}")
-  hasPo          Boolean   @default(false) @map("has_po")
-  poAttachedDate DateTime? @map("po_attached_date") @db.Timestamptz(3)
-  poStatus       String    @default("ยังไม่มี PO") @map("po_status")
-  poRequirement  String    @default("required") @map("po_requirement")
-  noPoReason     String?   @map("no_po_reason")
-  noPoRemark     String?   @map("no_po_remark")
-  issueStatus    String    @default("none") @map("issue_status")
-  issueType      String?   @map("issue_type")
-  issueDetail    String?   @map("issue_detail")
-  issueOwner     String?   @map("issue_owner")
-  issueExpectedAt DateTime? @map("issue_expected_at") @db.Timestamptz(3)
-  issueBlockedAt DateTime? @map("issue_blocked_at") @db.Timestamptz(3)
-  issueResolvedAt DateTime? @map("issue_resolved_at") @db.Timestamptz(3)
-  status         DocStatus @default(draft)
-  approvalStep   Int       @default(0)
-  isClosed       Boolean   @default(false)
-  closedAt       DateTime? @db.Timestamptz(3)
-  closeRemark    String?   @map("close_remark")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  rootWorkOrder   WorkOrder?  @relation("WorkOrderRevisions", fields: [rootWorkOrderId], references: [id])
+  revisions       WorkOrder[] @relation("WorkOrderRevisions")
+  quotationId     String?
+  quotation       Quotation?  @relation(fields: [quotationId], references: [id])
+  salesId         String
+  sales           User        @relation(fields: [salesId], references: [id])
+  project         String
+  location        String?
+  products        String? // text description
+  items           Json        @default("[]")
+  responsibility  String?
+  customerName    String
+  contactName     String?
+  contactTel      String?
+  teamAssignment  String?
+  qcDate          DateTime?   @db.Timestamptz(3)
+  installDate     DateTime?   @db.Timestamptz(3)
+  dueDate         DateTime?   @db.Timestamptz(3)
+  completedAt     DateTime?   @db.Timestamptz(3)
+  remark          String?
+  docChecklist    Json        @default("{}")
+  hasPo           Boolean     @default(false) @map("has_po")
+  poAttachedDate  DateTime?   @map("po_attached_date") @db.Timestamptz(3)
+  poStatus        String      @default("ยังไม่มี PO") @map("po_status")
+  poRequirement   String      @default("required") @map("po_requirement")
+  noPoReason      String?     @map("no_po_reason")
+  noPoRemark      String?     @map("no_po_remark")
+  issueStatus     String      @default("none") @map("issue_status")
+  issueType       String?     @map("issue_type")
+  issueDetail     String?     @map("issue_detail")
+  issueOwner      String?     @map("issue_owner")
+  issueExpectedAt DateTime?   @map("issue_expected_at") @db.Timestamptz(3)
+  issueBlockedAt  DateTime?   @map("issue_blocked_at") @db.Timestamptz(3)
+  issueResolvedAt DateTime?   @map("issue_resolved_at") @db.Timestamptz(3)
+  status          DocStatus   @default(draft)
+  approvalStep    Int         @default(0)
+  isClosed        Boolean     @default(false)
+  closedAt        DateTime?   @db.Timestamptz(3)
+  closeRemark     String?     @map("close_remark")
+  createdAt       DateTime    @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime    @updatedAt @db.Timestamptz(3)
 
-  handOverJobs     HandOverJob[]
-  purchaseRequests PurchaseRequest[]
-  approvalLogs     ApprovalLog[]
-  attachments      Attachment[]
-  poAuditLogs      WorkOrderPoAudit[]
-  closeLogs        WorkOrderCloseLog[]
-  issueLogs        WorkOrderIssueLog[]
-  emailLogs        EmailLog[]
-  readLogs         WorkOrderReadLog[]
+  handOverJobs              HandOverJob[]
+  quotationLinks            WorkOrderQuotation[]
+  purchaseRequests          PurchaseRequest[]
+  approvalLogs              ApprovalLog[]
+  attachments               Attachment[]
+  poAuditLogs               WorkOrderPoAudit[]
+  closeLogs                 WorkOrderCloseLog[]
+  issueLogs                 WorkOrderIssueLog[]
+  emailLogs                 EmailLog[]
+  readLogs                  WorkOrderReadLog[]
   provisionalDeliveryOrders ProvisionalDeliveryOrder[]
-  invoices         Invoice[]
-  stockIssues      StockIssue[]
-  stockReturns     StockReturn[]
+  invoices                  Invoice[]
+  stockIssues               StockIssue[]
+  stockReturns              StockReturn[]
 
   @@map("work_orders")
 }
@@ -494,6 +497,19 @@ model WorkOrderReadLog {
   @@index([userId, readAt])
   @@index([workOrderId, readAt])
   @@map("work_order_read_logs")
+}
+
+model WorkOrderQuotation {
+  id          String    @id @default(cuid())
+  workOrderId String
+  workOrder   WorkOrder @relation(fields: [workOrderId], references: [id], onDelete: Cascade)
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+
+  @@unique([workOrderId, quotationId])
+  @@index([quotationId])
+  @@map("work_order_quotations")
 }
 
 model WorkOrderPoAudit {
@@ -563,7 +579,7 @@ model HandOverJob {
   product        String?
   items          Json       @default("[]")
   responsibility String?
-  serviceDate    DateTime? @db.Timestamptz(3)
+  serviceDate    DateTime?  @db.Timestamptz(3)
   qualityProduct Int        @default(0)
   qualitySales   Int        @default(0)
   qualityInstall Int        @default(0)
@@ -573,11 +589,25 @@ model HandOverJob {
   createdAt      DateTime   @default(now()) @db.Timestamptz(3)
   updatedAt      DateTime   @updatedAt @db.Timestamptz(3)
 
-  attachments  Attachment[]
-  approvalLogs ApprovalLog[]
-  emailLogs    EmailLog[]
+  attachments    Attachment[]
+  approvalLogs   ApprovalLog[]
+  emailLogs      EmailLog[]
+  quotationLinks HandOverJobQuotation[]
 
   @@map("hand_over_jobs")
+}
+
+model HandOverJobQuotation {
+  id            String      @id @default(cuid())
+  handOverJobId String
+  handOverJob   HandOverJob @relation(fields: [handOverJobId], references: [id], onDelete: Cascade)
+  quotationId   String
+  quotation     Quotation   @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now()) @db.Timestamptz(3)
+
+  @@unique([handOverJobId, quotationId])
+  @@index([quotationId])
+  @@map("hand_over_job_quotations")
 }
 
 // ─────────────────────────────────────────────
@@ -585,41 +615,41 @@ model HandOverJob {
 // ─────────────────────────────────────────────
 
 model PurchaseRequest {
-  id           String     @id @default(cuid())
-  prNo         String     @unique
-  active       Boolean    @default(true)
-  revisionNo   Int        @default(0)
-  rootPurchaseRequestId String?
-  rootPurchaseRequest PurchaseRequest? @relation("PurchaseRequestRevisions", fields: [rootPurchaseRequestId], references: [id])
-  revisions    PurchaseRequest[] @relation("PurchaseRequestRevisions")
-  previousPurchaseRequestId String?
-  previousPurchaseRequest PurchaseRequest? @relation("PurchaseRequestRevisionPrevious", fields: [previousPurchaseRequestId], references: [id])
+  id                           String            @id @default(cuid())
+  prNo                         String            @unique
+  active                       Boolean           @default(true)
+  revisionNo                   Int               @default(0)
+  rootPurchaseRequestId        String?
+  rootPurchaseRequest          PurchaseRequest?  @relation("PurchaseRequestRevisions", fields: [rootPurchaseRequestId], references: [id])
+  revisions                    PurchaseRequest[] @relation("PurchaseRequestRevisions")
+  previousPurchaseRequestId    String?
+  previousPurchaseRequest      PurchaseRequest?  @relation("PurchaseRequestRevisionPrevious", fields: [previousPurchaseRequestId], references: [id])
   nextPurchaseRequestRevisions PurchaseRequest[] @relation("PurchaseRequestRevisionPrevious")
-  revisionReason String?
-  workOrderId  String?
-  workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
-  prTypeId     String?
-  prType       PrType?    @relation(fields: [prTypeId], references: [id])
-  salesId      String
-  sales        User       @relation(fields: [salesId], references: [id])
-  customer     String
-  projectRef   String?
-  dateIssue    DateTime? @db.Timestamptz(3)
-  dateRequired DateTime? @db.Timestamptz(3)
-  currency     String     @default("THB")
-  subTotal        Decimal    @default(0) @db.Decimal(12, 2)
-  specialDiscount Decimal    @default(0) @db.Decimal(12, 2)
-  vat             Decimal    @default(0) @db.Decimal(12, 2)
-  netTotal        Decimal    @default(0) @db.Decimal(12, 2)
-  remarks         String?
-  status       DocStatus  @default(draft)
-  approvalStep Int        @default(0)
-  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
+  revisionReason               String?
+  workOrderId                  String?
+  workOrder                    WorkOrder?        @relation(fields: [workOrderId], references: [id])
+  prTypeId                     String?
+  prType                       PrType?           @relation(fields: [prTypeId], references: [id])
+  salesId                      String
+  sales                        User              @relation(fields: [salesId], references: [id])
+  customer                     String
+  projectRef                   String?
+  dateIssue                    DateTime?         @db.Timestamptz(3)
+  dateRequired                 DateTime?         @db.Timestamptz(3)
+  currency                     String            @default("THB")
+  subTotal                     Decimal           @default(0) @db.Decimal(12, 2)
+  specialDiscount              Decimal           @default(0) @db.Decimal(12, 2)
+  vat                          Decimal           @default(0) @db.Decimal(12, 2)
+  netTotal                     Decimal           @default(0) @db.Decimal(12, 2)
+  remarks                      String?
+  status                       DocStatus         @default(draft)
+  approvalStep                 Int               @default(0)
+  createdAt                    DateTime          @default(now()) @db.Timestamptz(3)
+  updatedAt                    DateTime          @updatedAt @db.Timestamptz(3)
 
-  items        PurchaseRequestItem[]
-  approvalLogs ApprovalLog[]
-  attachments  Attachment[]
+  items          PurchaseRequestItem[]
+  approvalLogs   ApprovalLog[]
+  attachments    Attachment[]
   purchaseOrders PurchaseOrder[]
 
   @@index([rootPurchaseRequestId, revisionNo])
@@ -634,7 +664,7 @@ model PurchaseRequestItem {
   seq               Int             @default(0)
   partNo            String?
   desc              String
-  note              String?         // free-form description / spec
+  note              String? // free-form description / spec
   qty               Decimal         @default(0) @db.Decimal(10, 3)
   unit              String
   price             Decimal         @default(0) @db.Decimal(12, 2)
@@ -651,22 +681,22 @@ model PurchaseRequestItem {
 // ─────────────────────────────────────────────
 
 model ApprovalLog {
-  id              String         @id @default(cuid())
-  docType         String         // 'quotation' | 'workorder' | 'handover' | 'pr'
-  quotationId     String?
-  quotation       Quotation?     @relation(fields: [quotationId], references: [id])
-  workOrderId     String?
-  workOrder       WorkOrder?     @relation(fields: [workOrderId], references: [id])
-  handOverJobId   String?
-  handOverJob     HandOverJob?   @relation(fields: [handOverJobId], references: [id])
-  prId            String?
-  pr              PurchaseRequest? @relation(fields: [prId], references: [id])
-  approverId      String
-  approver    User           @relation(fields: [approverId], references: [id])
-  step        Int
-  action      ApprovalAction
-  comment     String?
-  actedAt     DateTime       @default(now()) @db.Timestamptz(3)
+  id            String           @id @default(cuid())
+  docType       String // 'quotation' | 'workorder' | 'handover' | 'pr'
+  quotationId   String?
+  quotation     Quotation?       @relation(fields: [quotationId], references: [id])
+  workOrderId   String?
+  workOrder     WorkOrder?       @relation(fields: [workOrderId], references: [id])
+  handOverJobId String?
+  handOverJob   HandOverJob?     @relation(fields: [handOverJobId], references: [id])
+  prId          String?
+  pr            PurchaseRequest? @relation(fields: [prId], references: [id])
+  approverId    String
+  approver      User             @relation(fields: [approverId], references: [id])
+  step          Int
+  action        ApprovalAction
+  comment       String?
+  actedAt       DateTime         @default(now()) @db.Timestamptz(3)
 
   @@map("approval_logs")
 }
@@ -687,15 +717,15 @@ model Notification {
 }
 
 model EmailLog {
-  id            String     @id @default(cuid())
+  id            String       @id @default(cuid())
   workOrderId   String?
-  workOrder     WorkOrder? @relation(fields: [workOrderId], references: [id])
+  workOrder     WorkOrder?   @relation(fields: [workOrderId], references: [id])
   quotationId   String?
-  quotation     Quotation? @relation(fields: [quotationId], references: [id])
+  quotation     Quotation?   @relation(fields: [quotationId], references: [id])
   handOverJobId String?
   handOverJob   HandOverJob? @relation(fields: [handOverJobId], references: [id])
   sentById      String
-  sentBy        User       @relation(fields: [sentById], references: [id])
+  sentBy        User         @relation(fields: [sentById], references: [id])
   toRecipients  Json
   ccRecipients  Json?
   bccRecipients Json?
@@ -703,12 +733,12 @@ model EmailLog {
   bodyHtml      String
   bodyText      String?
   attachments   Json?
-  status        String     @default("sent")
+  status        String       @default("sent")
   errorMessage  String?
-  sentAt        DateTime   @default(now()) @db.Timestamptz(3)
+  sentAt        DateTime     @default(now()) @db.Timestamptz(3)
   ipAddress     String?
   userAgent     String?
-  createdAt     DateTime   @default(now()) @db.Timestamptz(3)
+  createdAt     DateTime     @default(now()) @db.Timestamptz(3)
 
   @@index([workOrderId])
   @@index([quotationId])
@@ -726,13 +756,13 @@ model ActivityLog {
   id         String   @id @default(cuid())
   userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  username   String?  // snapshot ชื่อ user ณ เวลานั้น
-  method     String   // GET POST PUT PATCH DELETE
-  path       String   // /api/quotations/xxx
-  statusCode Int      // 200 201 400 401 403 500
+  username   String? // snapshot ชื่อ user ณ เวลานั้น
+  method     String // GET POST PUT PATCH DELETE
+  path       String // /api/quotations/xxx
+  statusCode Int // 200 201 400 401 403 500
   ipAddress  String?
   userAgent  String?
-  durationMs Int      // milliseconds
+  durationMs Int // milliseconds
   createdAt  DateTime @default(now()) @db.Timestamptz(3)
 
   @@index([userId])
@@ -746,23 +776,23 @@ model ActivityLog {
 // ─────────────────────────────────────────────
 
 model Attachment {
-  id              String           @id @default(cuid())
-  filename        String
-  originalName    String
-  mimeType        String
-  size            Int
-  category        String?
-  poAmount        Decimal?         @db.Decimal(12, 2) @map("po_amount")
-  fileUrl         String?
-  quotationId     String?
-  quotation       Quotation?       @relation(fields: [quotationId], references: [id])
-  workOrderId     String?
-  workOrder       WorkOrder?       @relation(fields: [workOrderId], references: [id])
-  handOverJobId   String?
-  handOverJob     HandOverJob?     @relation(fields: [handOverJobId], references: [id])
+  id                String           @id @default(cuid())
+  filename          String
+  originalName      String
+  mimeType          String
+  size              Int
+  category          String?
+  poAmount          Decimal?         @map("po_amount") @db.Decimal(12, 2)
+  fileUrl           String?
+  quotationId       String?
+  quotation         Quotation?       @relation(fields: [quotationId], references: [id])
+  workOrderId       String?
+  workOrder         WorkOrder?       @relation(fields: [workOrderId], references: [id])
+  handOverJobId     String?
+  handOverJob       HandOverJob?     @relation(fields: [handOverJobId], references: [id])
   purchaseRequestId String?
-  purchaseRequest PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
-  uploadedAt      DateTime         @default(now()) @db.Timestamptz(3)
+  purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
+  uploadedAt        DateTime         @default(now()) @db.Timestamptz(3)
 
   @@map("attachments")
 }
@@ -873,21 +903,21 @@ model Invoice {
   workOrder                  WorkOrder?                @relation(fields: [workOrderId], references: [id])
   provisionalDeliveryOrderId String?                   @map("provisional_delivery_order_id")
   provisionalDeliveryOrder   ProvisionalDeliveryOrder? @relation(fields: [provisionalDeliveryOrderId], references: [id])
-  subTotal                   Decimal                   @default(0) @db.Decimal(12, 2) @map("sub_total")
+  subTotal                   Decimal                   @default(0) @map("sub_total") @db.Decimal(12, 2)
   discount                   Decimal                   @default(0) @db.Decimal(12, 2)
   vat                        Decimal                   @default(0) @db.Decimal(12, 2)
-  netAmount                  Decimal                   @default(0) @db.Decimal(12, 2) @map("net_amount")
-  outstandingAmount          Decimal                   @default(0) @db.Decimal(12, 2) @map("outstanding_amount")
+  netAmount                  Decimal                   @default(0) @map("net_amount") @db.Decimal(12, 2)
+  outstandingAmount          Decimal                   @default(0) @map("outstanding_amount") @db.Decimal(12, 2)
   status                     DocStatus                 @default(draft)
   approvalStep               Int                       @default(0)
   remark                     String?
   createdAt                  DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt                  DateTime                  @updatedAt @db.Timestamptz(3)
 
-  items              InvoiceLine[]
+  items               InvoiceLine[]
   billingNoteInvoices BillingNoteInvoice[]
-  creditNotes        CreditNote[]
-  receiptAllocations ReceiptAllocation[]
+  creditNotes         CreditNote[]
+  receiptAllocations  ReceiptAllocation[]
 
   @@map("invoices")
 }
@@ -901,8 +931,8 @@ model InvoiceLine {
   product      AccountProduct? @relation(fields: [productId], references: [id])
   desc         String
   qty          Decimal         @default(0) @db.Decimal(12, 3)
-  unitPrice    Decimal         @default(0) @db.Decimal(12, 2) @map("unit_price")
-  lineDiscount Decimal         @default(0) @db.Decimal(12, 2) @map("line_discount")
+  unitPrice    Decimal         @default(0) @map("unit_price") @db.Decimal(12, 2)
+  lineDiscount Decimal         @default(0) @map("line_discount") @db.Decimal(12, 2)
   vat          Decimal         @default(0) @db.Decimal(12, 2)
   amount       Decimal         @default(0) @db.Decimal(12, 2)
 
@@ -918,7 +948,7 @@ model BillingNote {
   customerBranch      String?          @default("สำนักงานใหญ่") @map("customer_branch")
   contactPerson       String?          @map("contact_person")
   expectedPaymentDate DateTime?        @map("expected_payment_date") @db.Timestamptz(3)
-  totalAmount         Decimal          @default(0) @db.Decimal(12, 2) @map("total_amount")
+  totalAmount         Decimal          @default(0) @map("total_amount") @db.Decimal(12, 2)
   status              DocStatus        @default(draft)
   approvalStep        Int              @default(0)
   remark              String?
@@ -937,31 +967,31 @@ model BillingNoteInvoice {
   billingNote       BillingNote @relation(fields: [billingNoteId], references: [id], onDelete: Cascade)
   invoiceId         String      @map("invoice_id")
   invoice           Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  outstandingAmount Decimal     @default(0) @db.Decimal(12, 2) @map("outstanding_amount")
-  billingAmount     Decimal     @default(0) @db.Decimal(12, 2) @map("billing_amount")
+  outstandingAmount Decimal     @default(0) @map("outstanding_amount") @db.Decimal(12, 2)
+  billingAmount     Decimal     @default(0) @map("billing_amount") @db.Decimal(12, 2)
 
   @@unique([billingNoteId, invoiceId])
   @@map("billing_note_invoices")
 }
 
 model CreditNote {
-  id                String           @id @default(cuid())
-  cnNo              String           @unique
-  cnDate            DateTime         @default(now()) @db.Timestamptz(3)
-  invoiceId         String           @map("invoice_id")
-  invoice           Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  customerId        String?          @map("customer_id")
-  customer          AccountCustomer? @relation(fields: [customerId], references: [id])
-  customerBranch    String?          @default("สำนักงานใหญ่") @map("customer_branch")
-  reason            String?
-  amountBeforeVat   Decimal          @default(0) @db.Decimal(12, 2) @map("amount_before_vat")
-  vat               Decimal          @default(0) @db.Decimal(12, 2)
-  netAmount         Decimal          @default(0) @db.Decimal(12, 2) @map("net_amount")
-  status            DocStatus        @default(draft)
-  approvalStep      Int              @default(0)
-  salesId           String?          @map("sales_id")
-  createdAt         DateTime         @default(now()) @db.Timestamptz(3)
-  updatedAt         DateTime         @updatedAt @db.Timestamptz(3)
+  id              String           @id @default(cuid())
+  cnNo            String           @unique
+  cnDate          DateTime         @default(now()) @db.Timestamptz(3)
+  invoiceId       String           @map("invoice_id")
+  invoice         Invoice          @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  customerId      String?          @map("customer_id")
+  customer        AccountCustomer? @relation(fields: [customerId], references: [id])
+  customerBranch  String?          @default("สำนักงานใหญ่") @map("customer_branch")
+  reason          String?
+  amountBeforeVat Decimal          @default(0) @map("amount_before_vat") @db.Decimal(12, 2)
+  vat             Decimal          @default(0) @db.Decimal(12, 2)
+  netAmount       Decimal          @default(0) @map("net_amount") @db.Decimal(12, 2)
+  status          DocStatus        @default(draft)
+  approvalStep    Int              @default(0)
+  salesId         String?          @map("sales_id")
+  createdAt       DateTime         @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime         @updatedAt @db.Timestamptz(3)
 
   items CreditNoteLine[]
 
@@ -975,10 +1005,10 @@ model CreditNoteLine {
   seq             Int        @default(0)
   desc            String
   qty             Decimal    @default(0) @db.Decimal(12, 3)
-  unitPrice       Decimal    @default(0) @db.Decimal(12, 2) @map("unit_price")
-  amountBeforeVat Decimal    @default(0) @db.Decimal(12, 2) @map("amount_before_vat")
+  unitPrice       Decimal    @default(0) @map("unit_price") @db.Decimal(12, 2)
+  amountBeforeVat Decimal    @default(0) @map("amount_before_vat") @db.Decimal(12, 2)
   vat             Decimal    @default(0) @db.Decimal(12, 2)
-  netAmount       Decimal    @default(0) @db.Decimal(12, 2) @map("net_amount")
+  netAmount       Decimal    @default(0) @map("net_amount") @db.Decimal(12, 2)
 
   @@map("credit_note_lines")
 }
@@ -994,9 +1024,9 @@ model ReceiptVoucher {
   refNo         String?          @map("ref_no")
   chequeNo      String?          @map("cheque_no")
   chequeDate    DateTime?        @map("cheque_date") @db.Timestamptz(3)
-  totalReceived Decimal          @default(0) @db.Decimal(12, 2) @map("total_received")
-  whtAmount     Decimal          @default(0) @db.Decimal(12, 2) @map("wht_amount")
-  bankFee       Decimal          @default(0) @db.Decimal(12, 2) @map("bank_fee")
+  totalReceived Decimal          @default(0) @map("total_received") @db.Decimal(12, 2)
+  whtAmount     Decimal          @default(0) @map("wht_amount") @db.Decimal(12, 2)
+  bankFee       Decimal          @default(0) @map("bank_fee") @db.Decimal(12, 2)
   remark        String?
   status        DocStatus        @default(draft)
   approvalStep  Int              @default(0)
@@ -1015,8 +1045,8 @@ model ReceiptAllocation {
   receiptVoucher   ReceiptVoucher @relation(fields: [receiptVoucherId], references: [id], onDelete: Cascade)
   invoiceId        String         @map("invoice_id")
   invoice          Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  receivedAmount   Decimal        @default(0) @db.Decimal(12, 2) @map("received_amount")
-  whtAmount        Decimal        @default(0) @db.Decimal(12, 2) @map("wht_amount")
+  receivedAmount   Decimal        @default(0) @map("received_amount") @db.Decimal(12, 2)
+  whtAmount        Decimal        @default(0) @map("wht_amount") @db.Decimal(12, 2)
 
   @@map("receipt_allocations")
 }
@@ -1037,9 +1067,9 @@ model PurchaseOrder {
   contactPerson    String?          @map("contact_person")
   prId             String?          @map("pr_id")
   pr               PurchaseRequest? @relation(fields: [prId], references: [id])
-  subTotal         Decimal          @default(0) @db.Decimal(12, 2) @map("sub_total")
+  subTotal         Decimal          @default(0) @map("sub_total") @db.Decimal(12, 2)
   vat              Decimal          @default(0) @db.Decimal(12, 2)
-  netAmount        Decimal          @default(0) @db.Decimal(12, 2) @map("net_amount")
+  netAmount        Decimal          @default(0) @map("net_amount") @db.Decimal(12, 2)
   paymentTerm      Int              @default(30) @map("payment_term")
   deliveryDate     DateTime?        @map("delivery_date") @db.Timestamptz(3)
   deliveryLocation String?          @map("delivery_location")
@@ -1049,9 +1079,9 @@ model PurchaseOrder {
   createdAt        DateTime         @default(now()) @db.Timestamptz(3)
   updatedAt        DateTime         @updatedAt @db.Timestamptz(3)
 
-  items                      PurchaseOrderLine[]
+  items                     PurchaseOrderLine[]
   contractorPaymentRequests ContractorPaymentRequest[]
-  goodsReceipts              GoodsReceipt[]
+  goodsReceipts             GoodsReceipt[]
 
   @@map("purchase_orders")
 }
@@ -1065,7 +1095,7 @@ model PurchaseOrderLine {
   product         AccountProduct? @relation(fields: [productId], references: [id])
   desc            String
   qty             Decimal         @default(0) @db.Decimal(12, 3)
-  unitPrice       Decimal         @default(0) @db.Decimal(12, 2) @map("unit_price")
+  unitPrice       Decimal         @default(0) @map("unit_price") @db.Decimal(12, 2)
   discount        Decimal         @default(0) @db.Decimal(12, 2)
   amount          Decimal         @default(0) @db.Decimal(12, 2)
 
@@ -1073,27 +1103,27 @@ model PurchaseOrderLine {
 }
 
 model ContractorPaymentRequest {
-  id                       String        @id @default(cuid())
-  psNo                     String        @unique
-  docDate                  DateTime      @default(now()) @db.Timestamptz(3)
-  poId                     String        @map("po_id")
-  po                       PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-  supplierId               String?       @map("supplier_id")
-  supplier                 Supplier?     @relation(fields: [supplierId], references: [id])
-  paymentRound             Int           @default(1) @map("payment_round")
-  poAmount                 Decimal       @default(0) @db.Decimal(12, 2) @map("po_amount")
-  previouslyRequestedAmount Decimal       @default(0) @db.Decimal(12, 2) @map("previously_requested_amount")
-  remainingAmount          Decimal       @default(0) @db.Decimal(12, 2) @map("remaining_amount")
-  currentRequestAmount     Decimal       @default(0) @db.Decimal(12, 2) @map("current_request_amount")
-  vat                      Decimal       @default(0) @db.Decimal(12, 2)
-  wht                      Decimal       @default(0) @db.Decimal(12, 2)
-  retention                Decimal       @default(0) @db.Decimal(12, 2)
-  netAmount                Decimal       @default(0) @db.Decimal(12, 2) @map("net_amount")
-  status                   DocStatus     @default(draft)
-  approvalStep             Int           @default(0)
-  createdById              String?       @map("created_by_id")
-  createdAt                DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt                DateTime      @updatedAt @db.Timestamptz(3)
+  id                        String        @id @default(cuid())
+  psNo                      String        @unique
+  docDate                   DateTime      @default(now()) @db.Timestamptz(3)
+  poId                      String        @map("po_id")
+  po                        PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  supplierId                String?       @map("supplier_id")
+  supplier                  Supplier?     @relation(fields: [supplierId], references: [id])
+  paymentRound              Int           @default(1) @map("payment_round")
+  poAmount                  Decimal       @default(0) @map("po_amount") @db.Decimal(12, 2)
+  previouslyRequestedAmount Decimal       @default(0) @map("previously_requested_amount") @db.Decimal(12, 2)
+  remainingAmount           Decimal       @default(0) @map("remaining_amount") @db.Decimal(12, 2)
+  currentRequestAmount      Decimal       @default(0) @map("current_request_amount") @db.Decimal(12, 2)
+  vat                       Decimal       @default(0) @db.Decimal(12, 2)
+  wht                       Decimal       @default(0) @db.Decimal(12, 2)
+  retention                 Decimal       @default(0) @db.Decimal(12, 2)
+  netAmount                 Decimal       @default(0) @map("net_amount") @db.Decimal(12, 2)
+  status                    DocStatus     @default(draft)
+  approvalStep              Int           @default(0)
+  createdById               String?       @map("created_by_id")
+  createdAt                 DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt                 DateTime      @updatedAt @db.Timestamptz(3)
 
   items ContractorPaymentRequestLine[]
 
@@ -1113,23 +1143,23 @@ model ContractorPaymentRequestLine {
 }
 
 model GoodsReceipt {
-  id            String        @id @default(cuid())
-  grNo          String        @unique
-  receiptDate   DateTime      @default(now()) @db.Timestamptz(3)
-  poId          String        @map("po_id")
-  po            PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
-  supplierId    String?       @map("supplier_id")
-  supplier      Supplier?     @relation(fields: [supplierId], references: [id])
-  warehouseId   String?       @map("warehouse_id")
-  warehouse     Warehouse?    @relation(fields: [warehouseId], references: [id])
-  sender        String?
-  receiver      String?
-  remark        String?
-  status        DocStatus     @default(draft)
-  approvalStep  Int           @default(0)
-  createdById   String?       @map("created_by_id")
-  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
-  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  id           String        @id @default(cuid())
+  grNo         String        @unique
+  receiptDate  DateTime      @default(now()) @db.Timestamptz(3)
+  poId         String        @map("po_id")
+  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  supplierId   String?       @map("supplier_id")
+  supplier     Supplier?     @relation(fields: [supplierId], references: [id])
+  warehouseId  String?       @map("warehouse_id")
+  warehouse    Warehouse?    @relation(fields: [warehouseId], references: [id])
+  sender       String?
+  receiver     String?
+  remark       String?
+  status       DocStatus     @default(draft)
+  approvalStep Int           @default(0)
+  createdById  String?       @map("created_by_id")
+  createdAt    DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
 
   items GoodsReceiptLine[]
 
@@ -1143,34 +1173,34 @@ model GoodsReceiptLine {
   seq                   Int             @default(0)
   productId             String?         @map("product_id")
   product               AccountProduct? @relation(fields: [productId], references: [id])
-  orderedQty            Decimal      @default(0) @db.Decimal(12, 3) @map("ordered_qty")
-  previouslyReceivedQty Decimal      @default(0) @db.Decimal(12, 3) @map("previously_received_qty")
-  remainingQty          Decimal      @default(0) @db.Decimal(12, 3) @map("remaining_qty")
-  currentReceiptQty     Decimal      @default(0) @db.Decimal(12, 3) @map("current_receipt_qty")
+  orderedQty            Decimal         @default(0) @map("ordered_qty") @db.Decimal(12, 3)
+  previouslyReceivedQty Decimal         @default(0) @map("previously_received_qty") @db.Decimal(12, 3)
+  remainingQty          Decimal         @default(0) @map("remaining_qty") @db.Decimal(12, 3)
+  currentReceiptQty     Decimal         @default(0) @map("current_receipt_qty") @db.Decimal(12, 3)
 
   @@map("goods_receipt_lines")
 }
 
 model PaymentVoucher {
-  id             String    @id @default(cuid())
-  pvNo           String    @unique
-  pvDate         DateTime  @default(now()) @db.Timestamptz(3)
-  supplierId     String?   @map("supplier_id")
-  supplier       Supplier? @relation(fields: [supplierId], references: [id])
-  sourceDocType  String?   @map("source_doc_type") // po | ps | pr
-  sourceDocId    String?   @map("source_doc_id")
-  amountBeforeTax Decimal  @default(0) @db.Decimal(12, 2) @map("amount_before_tax")
-  vat            Decimal   @default(0) @db.Decimal(12, 2)
-  wht            Decimal   @default(0) @db.Decimal(12, 2)
-  otherDeduction Decimal   @default(0) @db.Decimal(12, 2) @map("other_deduction")
-  netPayment     Decimal   @default(0) @db.Decimal(12, 2) @map("net_payment")
-  paymentMethod  String    @default("transfer") @map("payment_method")
-  bankAccount    String?   @map("bank_account")
-  status         DocStatus @default(draft)
-  approvalStep   Int       @default(0)
-  createdById    String?   @map("created_by_id")
-  createdAt      DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @db.Timestamptz(3)
+  id              String    @id @default(cuid())
+  pvNo            String    @unique
+  pvDate          DateTime  @default(now()) @db.Timestamptz(3)
+  supplierId      String?   @map("supplier_id")
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  sourceDocType   String?   @map("source_doc_type") // po | ps | pr
+  sourceDocId     String?   @map("source_doc_id")
+  amountBeforeTax Decimal   @default(0) @map("amount_before_tax") @db.Decimal(12, 2)
+  vat             Decimal   @default(0) @db.Decimal(12, 2)
+  wht             Decimal   @default(0) @db.Decimal(12, 2)
+  otherDeduction  Decimal   @default(0) @map("other_deduction") @db.Decimal(12, 2)
+  netPayment      Decimal   @default(0) @map("net_payment") @db.Decimal(12, 2)
+  paymentMethod   String    @default("transfer") @map("payment_method")
+  bankAccount     String?   @map("bank_account")
+  status          DocStatus @default(draft)
+  approvalStep    Int       @default(0)
+  createdById     String?   @map("created_by_id")
+  createdAt       DateTime  @default(now()) @db.Timestamptz(3)
+  updatedAt       DateTime  @updatedAt @db.Timestamptz(3)
 
   items          PaymentVoucherLine[]
   chequePayments ChequePayment[]
@@ -1215,19 +1245,19 @@ model ChequePayment {
 // ─────────────────────────────────────────────
 
 model StockIssue {
-  id           String    @id @default(cuid())
-  issueNo      String    @unique
-  issueDate    DateTime  @default(now()) @db.Timestamptz(3)
-  workOrderId  String?   @map("work_order_id")
+  id           String     @id @default(cuid())
+  issueNo      String     @unique
+  issueDate    DateTime   @default(now()) @db.Timestamptz(3)
+  workOrderId  String?    @map("work_order_id")
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
-  warehouseId  String?   @map("warehouse_id")
+  warehouseId  String?    @map("warehouse_id")
   warehouse    Warehouse? @relation(fields: [warehouseId], references: [id])
   remark       String?
-  status       DocStatus @default(draft)
-  approvalStep Int       @default(0)
-  createdById  String?   @map("created_by_id")
-  createdAt    DateTime  @default(now()) @db.Timestamptz(3)
-  updatedAt    DateTime  @updatedAt @db.Timestamptz(3)
+  status       DocStatus  @default(draft)
+  approvalStep Int        @default(0)
+  createdById  String?    @map("created_by_id")
+  createdAt    DateTime   @default(now()) @db.Timestamptz(3)
+  updatedAt    DateTime   @updatedAt @db.Timestamptz(3)
 
   items        StockIssueLine[]
   stockReturns StockReturn[]
@@ -1242,9 +1272,9 @@ model StockIssueLine {
   seq          Int            @default(0)
   productId    String         @map("product_id")
   product      AccountProduct @relation(fields: [productId], references: [id])
-  requestedQty Decimal        @default(0) @db.Decimal(12, 3) @map("requested_qty")
-  issuedQty    Decimal        @default(0) @db.Decimal(12, 3) @map("issued_qty")
-  cancelledQty Decimal        @default(0) @db.Decimal(12, 3) @map("cancelled_qty")
+  requestedQty Decimal        @default(0) @map("requested_qty") @db.Decimal(12, 3)
+  issuedQty    Decimal        @default(0) @map("issued_qty") @db.Decimal(12, 3)
+  cancelledQty Decimal        @default(0) @map("cancelled_qty") @db.Decimal(12, 3)
 
   @@map("stock_issue_lines")
 }
@@ -1279,7 +1309,7 @@ model StockReturnLine {
   seq           Int            @default(0)
   productId     String         @map("product_id")
   product       AccountProduct @relation(fields: [productId], references: [id])
-  returnedQty   Decimal        @default(0) @db.Decimal(12, 3) @map("returned_qty")
+  returnedQty   Decimal        @default(0) @map("returned_qty") @db.Decimal(12, 3)
 
   @@map("stock_return_lines")
 }
@@ -1291,8 +1321,8 @@ model StockMovement {
   product         AccountProduct @relation(fields: [productId], references: [id])
   warehouseId     String         @map("warehouse_id")
   warehouse       Warehouse      @relation(fields: [warehouseId], references: [id])
-  qtyIn           Decimal        @default(0) @db.Decimal(12, 3) @map("qty_in")
-  qtyOut          Decimal        @default(0) @db.Decimal(12, 3) @map("qty_out")
+  qtyIn           Decimal        @default(0) @map("qty_in") @db.Decimal(12, 3)
+  qtyOut          Decimal        @default(0) @map("qty_out") @db.Decimal(12, 3)
   sourceDocType   String         @map("source_doc_type") // goods_receipt | stock_issue | stock_return
   sourceDocId     String         @map("source_doc_id")
   sourceDocNo     String?        @map("source_doc_no")

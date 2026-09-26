@@ -11,6 +11,7 @@ import DateInput from '@/components/DateInput'
 import WorkOrderAttachmentsSection from '@/components/WorkOrderAttachmentsSection'
 import WorkOrderItemsEditor from '@/components/WorkOrderItemsEditor'
 import SearchableSelect from '@/components/SearchableSelect'
+import QuotationCheckboxSelect from '@/components/QuotationCheckboxSelect'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
 import {
@@ -52,6 +53,7 @@ const ISSUE_TYPES = ['รอลูกค้ายืนยัน', 'รอลู
 interface FormData {
   handOverJobId: string
   quotationId: string
+  quotationIds: string[]
   customerName: string
   contactName: string
   contactTel: string
@@ -95,7 +97,7 @@ export default function EditWorkOrderPage() {
 
   const [form, setForm] = useState<FormData>({
     handOverJobId: '',
-    quotationId: '', customerName: '', contactName: '', contactTel: '',
+    quotationId: '', quotationIds: [], customerName: '', contactName: '', contactTel: '',
     project: '', location: '', products: '', items: [createEmptyWorkOrderItem(0)], responsibility: DEFAULT_RESPONSIBILITY,
     teamAssignment: '', installDate: '', qcDate: '', dueDate: '', remark: '', poRequirement: 'required', noPoReason: '', noPoRemark: '', issueStatus: 'none', issueType: '', issueDetail: '', issueOwner: '', issueExpectedAt: '',
     docChecklist: { ...DEFAULT_DOC_CHECKLIST },
@@ -121,6 +123,7 @@ export default function EditWorkOrderPage() {
         setForm({
           handOverJobId: doc.handOverJobs?.[0]?.id ?? '',
           quotationId: doc.quotationId ?? '',
+          quotationIds: doc.quotationIds?.length ? doc.quotationIds : (doc.quotationId ? [doc.quotationId] : []),
           customerName: doc.customerName ?? '',
           contactName: doc.contactName ?? '',
           contactTel: doc.contactTel ?? '',
@@ -163,6 +166,7 @@ export default function EditWorkOrderPage() {
     setForm(f => ({
       ...f,
       quotationId: qId,
+      quotationIds: qId ? [qId] : [],
       handOverJobId: shouldKeepSelectedHandOver ? f.handOverJobId : '',
       customerName: q?.customerName ?? f.customerName,
       project: q?.project ?? f.project,
@@ -172,12 +176,26 @@ export default function EditWorkOrderPage() {
     }))
   }
 
+  // Items mirror every selected QO, concatenated in selection order.
+  const mergeQuotationItems = (ids: string[]) => {
+    const merged = ids.flatMap(id => mapQuotationItemsToWorkOrderItems(quotations.find(q => q.id === id)?.items))
+    return merged.length ? merged.map((item, index) => ({ ...item, seq: index })) : null
+  }
+
+  const handleQuotations = (ids: string[]) => {
+    const primary = ids[0] || ''
+    // Re-prefill header only when the main QO changes, so ticking extra QO keeps edited fields.
+    if (primary !== form.quotationId) handleQuotation(primary)
+    const items = mergeQuotationItems(ids)
+    setForm(f => ({ ...f, quotationIds: ids, quotationId: primary, items: items ?? f.items }))
+  }
+
   const handleHandover = (handoverId: string) => {
     const handover = handovers.find(h => h.id === handoverId)
     setForm(prev => {
       if (!prev.quotationId && handover?.quotationId) {
         setLinkNotice('ระบบเติม Quotation ให้อัตโนมัติจากเอกสารที่อ้างอิง')
-        return { ...prev, handOverJobId: handoverId, quotationId: handover.quotationId }
+        return { ...prev, handOverJobId: handoverId, quotationId: handover.quotationId, quotationIds: [handover.quotationId] }
       }
       setLinkNotice('')
       return { ...prev, handOverJobId: handoverId }
@@ -247,18 +265,12 @@ export default function EditWorkOrderPage() {
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิงใบเสนอราคา (ถ้ามี)</label>
-          <SearchableSelect
-            options={quotations.map(q => ({
-              value: q.id,
-              label: `${q.quoNo} — ${q.customerName}`,
-              description: q.project ? `Project: ${q.project}` : undefined,
-            }))}
-            value={form.quotationId}
-            onChange={handleQuotation}
-            placeholder="ค้นหา/เลือกเลขที่ใบเสนอราคา (เว้นว่าง = ไม่ระบุ)"
-            searchPlaceholder="พิมพ์ค้นหาเลขที่ใบเสนอราคา / ลูกค้า / Project"
-            emptyText="ไม่พบใบเสนอราคาที่ตรงคำค้น"
+          <QuotationCheckboxSelect
+            options={quotations.map(q => ({ value: q.id, label: `${q.quoNo} — ${q.customerName}`, shortLabel: q.quoNo, description: q.project || undefined }))}
+            selected={form.quotationIds}
+            onChange={handleQuotations}
           />
+          <p className="mt-1 text-xs text-gray-500">กด “เลือก” เพื่อติ๊กได้มากกว่า 1 ใบ เลขที่เลือกจะแสดงคั่นด้วย , โดยรายการที่เลือกแรกสุดเป็น QO หลัก</p>
         </div>
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิง HandOver (ถ้ามี)</label>

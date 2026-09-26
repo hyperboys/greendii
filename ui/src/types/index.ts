@@ -359,6 +359,7 @@ export interface WorkOrder {
   revisionNo?: number
   rootWorkOrderId?: string | null
   quotationId?: string
+  quotationIds?: string[]
   quotation?: { id: string; quoNo: string; items?: QuotationItem[] }
   handOverJobId?: string
   handOverJob?: { id: string; hoNo: string; quotationId?: string }
@@ -523,6 +524,7 @@ export interface HandOverJob {
   id: string
   hoNo: string
   quotationId?: string
+  quotationIds?: string[]
   quotation?: {
     id: string
     quoNo: string

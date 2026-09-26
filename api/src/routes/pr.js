@@ -217,22 +217,26 @@ async function isPrAccessibleForUser(user, pr, stepRole) {
   return isPendingPrCurrentApprover(user, pr, stepRole);
 }
 
-async function buildPrAccessWhere(user) {
-  if (await canBypassDocApproval('pr', user.role)) return {};
+function buildPrAccessWhere(user, canBypass, approverSteps = []) {
+  if (canBypass) return {};
 
-  return {
-    OR: [
-      { salesId: user.id },
-      { status: 'pending' },
-      {
-        approvalLogs: {
-          some: {
-            approverId: user.id,
-            action: { in: ['approve', 'reject'] },
-          },
+  const accessClauses = [
+    { salesId: user.id },
+    {
+      approvalLogs: {
+        some: {
+          approverId: user.id,
+          action: { in: ['approve', 'reject'] },
         },
       },
-    ],
+    },
+  ];
+  if (approverSteps.length > 0) {
+    accessClauses.push({ status: 'pending', approvalStep: { in: approverSteps } });
+  }
+
+  return {
+    OR: accessClauses,
   };
 }
 
@@ -303,7 +307,15 @@ async function assertPrCurrentApprover(req, pr) {
 router.get('/', authenticate, async (req, res, next) => {
   try {
     const { status, q, active } = req.query;
-    const andWhere = [await buildPrAccessWhere(req.user)];
+    const canBypass = await canBypassDocApproval('pr', req.user.role);
+    const { stepRole } = canBypass ? { stepRole: null } : await getStepRoleMapping();
+    const approverSteps = stepRole
+      ? Object.entries(stepRole)
+        .filter(([, role]) => normalizeRole(role) === normalizeRole(req.user.role))
+        .map(([step]) => Number(step))
+        .filter(step => Number.isInteger(step) && step > 0)
+      : [];
+    const andWhere = [buildPrAccessWhere(req.user, canBypass, approverSteps)];
     if (status) andWhere.push({ status });
     if (active !== undefined) andWhere.push({ active: active === 'true' });
     else andWhere.push({ active: true });
@@ -329,36 +341,57 @@ router.get('/', authenticate, async (req, res, next) => {
       items: true,
     };
 
-    const list = await prisma.purchaseRequest.findMany({
+    const pg = getPagination(req.query);
+    if (canBypass) {
+      const [data, total] = await Promise.all([
+        prisma.purchaseRequest.findMany({
+          where,
+          include: listInclude,
+          orderBy: { createdAt: 'desc' },
+          ...(pg ? { skip: pg.skip, take: pg.take } : {}),
+        }),
+        pg ? prisma.purchaseRequest.count({ where }) : Promise.resolve(null),
+      ]);
+      return res.json(pg ? paginated(data, total, pg) : data);
+    }
+
+    const candidates = await prisma.purchaseRequest.findMany({
       where,
-      include: listInclude,
+      select: {
+        id: true,
+        salesId: true,
+        status: true,
+        approvalStep: true,
+        sales: { select: { role: true } },
+        prType: { select: { approvalSteps: true } },
+        approvalLogs: {
+          where: {
+            approverId: req.user.id,
+            action: { in: ['approve', 'reject'] },
+          },
+          select: { approverId: true, action: true },
+        },
+      },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (await canBypassDocApproval('pr', req.user.role)) {
-      const pg = getPagination(req.query);
-      if (pg) {
-        const data = list.slice(pg.skip, pg.skip + pg.take);
-        return res.json(paginated(data, list.length, pg));
-      }
-      return res.json(list);
-    }
-
-    const { stepRole } = await getStepRoleMapping();
-    const visibleList = [];
-    for (const item of list) {
-      if (await isPrAccessibleForUser(req.user, item, stepRole)) {
-        visibleList.push(item);
+    const visibleIds = [];
+    for (const candidate of candidates) {
+      if (await isPrAccessibleForUser(req.user, candidate, stepRole)) {
+        visibleIds.push(candidate.id);
       }
     }
 
-    const pg = getPagination(req.query);
-    if (pg) {
-      const data = visibleList.slice(pg.skip, pg.skip + pg.take);
-      return res.json(paginated(data, visibleList.length, pg));
-    }
+    const pageIds = pg ? visibleIds.slice(pg.skip, pg.skip + pg.take) : visibleIds;
+    const data = pageIds.length > 0
+      ? await prisma.purchaseRequest.findMany({
+        where: { id: { in: pageIds } },
+        include: listInclude,
+        orderBy: { createdAt: 'desc' },
+      })
+      : [];
 
-    res.json(visibleList);
+    res.json(pg ? paginated(data, visibleIds.length, pg) : data);
   } catch (e) { next(e); }
 });
 
