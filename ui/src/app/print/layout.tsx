@@ -127,9 +127,9 @@ export default function PrintLayout({ children }: { children: React.ReactNode })
           }
 
           .print-sheet.pr-print {
-            width: 100% !important;
-            max-width: none !important;
-            margin: 0 !important;
+            width: 190mm !important;
+            max-width: 190mm !important;
+            margin: 0 auto !important;
             padding: 0 !important;
           }
 

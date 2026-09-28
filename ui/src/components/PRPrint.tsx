@@ -17,10 +17,8 @@ const PR_FRAGMENT_CAP = 16
 
 const PAGE_HEIGHT_MM = '281mm'
 const HEADER_GAP = 12
-const SAFETY = 12
-const TAIL_GAP = 12
-const MEASURE_BUFFER_NON_LAST = 20
-const MEASURE_BUFFER_LAST = 40
+const SAFETY = 10
+const TAIL_GAP = 10
 const MAX_REFIT_PASSES = 12
 const OVERFLOW_TOLERANCE_PX = 2
 
@@ -243,19 +241,7 @@ function packByHeight(items: PRItemFragment[], heights: number[], availNonLast: 
     isLast: false,
     tail: false,
   }))
-  const lastEntries = [...rawPages[rawPages.length - 1]]
-  const finalEntry = lastEntries[lastEntries.length - 1]
-
-  // The preceding page already fits the full item area; move only its final
-  // fragment to the footer page, which uses otherwise unused space above the tail.
-  if (finalEntry && finalEntry.height <= availLast) {
-    lastEntries.pop()
-    pages[pages.length - 1].items = lastEntries.map(entry => entry.item)
-    pages.push({ items: [finalEntry.item], isLast: true, tail: true })
-  } else {
-    pages.push({ items: [], isLast: true, tail: true })
-  }
-
+  pages.push({ items: [], isLast: true, tail: true })
   return pages
 }
 
@@ -390,8 +376,8 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
         const theadHeight = theadMeasRef.current?.getBoundingClientRect().height ?? 0
         const tailHeight = tailMeasRef.current?.getBoundingClientRect().height ?? 0
         const heights = printableItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
-        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY - MEASURE_BUFFER_NON_LAST
-        const availLast = availNonLast - tailHeight - TAIL_GAP - MEASURE_BUFFER_LAST
+        const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY
+        const availLast = availNonLast - tailHeight - TAIL_GAP
 
         if (!pagePx || availNonLast < 20 || (printableItems.length > 0 && heights.every(height => height <= 0))) {
           setPages(paginateItems(printableItems))
@@ -419,8 +405,10 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
       const overflowIndex = pages.findIndex((_, index) => {
         const pageEl = pageRefs.current[index]
         const rowEl = lastRowRefs.current[index]
-        if (!pageEl || !rowEl || !rowEl.isConnected) return false
+        if (!pageEl) return false
         const tailEl = tailRefs.current[index]
+        if (tailEl && tailEl.getBoundingClientRect().bottom > pageEl.getBoundingClientRect().bottom + OVERFLOW_TOLERANCE_PX) return true
+        if (!rowEl || !rowEl.isConnected) return false
         const limit = tailEl
           ? tailEl.getBoundingClientRect().top
           : pageEl.getBoundingClientRect().bottom
@@ -434,12 +422,10 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
       if (overflowing.items.length === 0) { setLayoutSettled(true); return }
 
       if (overflowing.tail) {
-        // The footer must stay on the last page, so split the items instead.
-        const kept = overflowing.items.slice(-1)
-        const moved = overflowing.items.slice(0, -1)
-        overflowing.items = moved.length > 0 ? kept : []
+        const moved = overflowing.items
+        overflowing.items = []
         next.splice(overflowIndex, 0, {
-          items: moved.length > 0 ? moved : kept,
+          items: moved,
           isLast: false,
           tail: false,
         })
@@ -521,7 +507,6 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
   function renderFlexibleFillerRow(key: number) {
     const fillerTd: React.CSSProperties = {
       ...tdS,
-      height: '100%',
       paddingTop: 0,
       paddingBottom: 0,
       lineHeight: 0,
@@ -614,12 +599,12 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
 
   function renderItemsTable(chunk: PageChunk, pageIndex: number, onLastRowRef?: (element: HTMLTableRowElement | null) => void) {
     return (
-      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
+      <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', tableLayout: 'fixed', border }}>
         <colgroup>
           {prColumnWidths.map((width, i) => <col key={i} style={{ width }} />)}
         </colgroup>
         <thead>{itemsHeadRow()}</thead>
-        <tbody style={{ height: '100%' }}>
+        <tbody>
           {chunk.items.map((item, i) => renderItemRow(item, i === chunk.items.length - 1 ? onLastRowRef : undefined))}
           {renderFlexibleFillerRow(chunk.items.length)}
         </tbody>
@@ -893,7 +878,7 @@ export default function PRPrint({ doc, settings, embedPdfAttachments = true, onR
       }}
     >
       {pages === null && renderMeasureLayer()}
-      {doc.revisionNo && doc.revisionNo > 0 && doc.previousPurchaseRequest && (
+      {(doc.revisionNo ?? 0) > 0 && !!doc.previousPurchaseRequest && (
         <div
           className="pr-revision-summary-page"
           style={{
