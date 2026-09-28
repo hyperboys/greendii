@@ -1,5 +1,5 @@
 import type { QuotationItem, WorkOrder, WorkOrderDetailRow, WorkOrderItem } from '@/types'
-import { parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
+import { getQuotationNoteText, parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 
 const WORKORDER_NOTE_META_SEPARATOR = '\n\n__WO_NOTE_META__\n\n'
 const WORKORDER_NOTE_META_TOKEN = '__WO_NOTE_META__'
@@ -131,7 +131,7 @@ function mapQuotationDetailRows(item?: QuotationItem | null): WorkOrderDetailRow
     ? normalizeDetailRows(item.detailRows, { trimText: false })
     : []
   if (detailRows.length > 0) return detailRows
-  return fallbackRowsFromNote(toPlainColoredMultiline(item?.note))
+  return fallbackRowsFromNote(toPlainColoredMultiline(getQuotationNoteText(item?.note)))
 }
 
 export function parseWorkOrderNoteBlocks(note?: string): string[] {

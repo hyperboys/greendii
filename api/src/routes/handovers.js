@@ -13,6 +13,7 @@ const { normalizeRole } = require('../lib/roleAliases');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const MANAGER_ROLES = DOC_MANAGER_ROLES;
+const QUOTATION_NOTE_META_TOKEN = '__QO_NOTE_META__';
 
 const handoverValidators = [
   body('project').trim().notEmpty().withMessage('กรุณาระบุชื่อโครงการ'),
@@ -23,6 +24,12 @@ const handoverValidators = [
   body('items').optional().isArray().withMessage('items ต้องเป็น array'),
 ];
 
+function stripQuotationNoteMeta(note) {
+  const raw = String(note ?? '');
+  const tokenIndex = raw.indexOf(QUOTATION_NOTE_META_TOKEN);
+  return tokenIndex < 0 ? raw : raw.slice(0, tokenIndex).replace(/[\n\r\s]*$/, '');
+}
+
 function normalizeHandoverItems(items) {
   if (!Array.isArray(items)) return [];
   return items
@@ -32,7 +39,7 @@ function normalizeHandoverItems(items) {
       const qtyRaw = Number(item?.qty);
       const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
       const unit = String(item?.unit ?? '').trim();
-      const note = item?.note == null ? '' : String(item.note);
+      const note = stripQuotationNoteMeta(item?.note == null ? '' : String(item.note));
       const detailRows = Array.isArray(item?.detailRows)
         ? item.detailRows.map((row) => ({
             desc: String(row?.desc ?? ''),
@@ -73,7 +80,7 @@ async function getQuotationItemsSnapshot(quotationId) {
   return quotation.items.map((item, index) => ({
     seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
     desc: String(item.desc ?? ''),
-    note: item.note ?? '',
+    note: stripQuotationNoteMeta(item.note),
     detailRows: Array.isArray(item.detailRows) ? item.detailRows : [],
     qty: Number(item.qty ?? 0),
     unit: String(item.unit ?? ''),

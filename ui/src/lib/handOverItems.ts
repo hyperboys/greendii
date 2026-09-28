@@ -1,5 +1,5 @@
 import type { HandOverItem, QuotationItem, WorkOrderDetailRow } from '@/types'
-import { parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
+import { getQuotationNoteText, parseColoredLine, stringifyColoredLine, toPlainColoredLine, toPlainColoredMultiline } from '@/lib/coloredText'
 
 const HANDOVER_NOTE_META_SEPARATOR = '\n\n__HO_NOTE_META__\n\n'
 const HANDOVER_NOTE_META_TOKEN = '__HO_NOTE_META__'
@@ -170,7 +170,7 @@ export function mapQuotationItemsToHandOverItems(items?: QuotationItem[] | null)
   return items.map((item, index) => ({
     seq: item.seq ?? index,
     desc: sanitizeHandOverText(toPlainColoredLine(item.desc), { trim: false }),
-    ...stringifyHandOverDetailRows(fallbackRowsFromNote(toPlainColoredMultiline(item.note))),
+    ...stringifyHandOverDetailRows(fallbackRowsFromNote(toPlainColoredMultiline(getQuotationNoteText(item.note)))),
     qty: Number(item.qty ?? 0),
     unit: sanitizeHandOverText(item.unit, { trim: false }),
     images: Array.isArray(item.images)

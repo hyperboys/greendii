@@ -21,6 +21,7 @@ const DEFAULT_WO_CLOSE_ACCESS = {
 const PO_REQUIREMENTS = new Set(['required', 'not_required']);
 const NO_PO_REASONS = new Set(['free_service', 'sample', 'warranty', 'free_repair', 'internal', 'customer_support', 'other']);
 const ISSUE_STATUSES = new Set(['none', 'blocked', 'resolved']);
+const QUOTATION_NOTE_META_TOKEN = '__QO_NOTE_META__';
 const TEAM_CHECKLIST_KEYS = [
   'team_delivery_only',
   'team_floor',
@@ -120,6 +121,12 @@ function normalizeOptionalId(value) {
   if (value === null) return null;
   const normalized = String(value).trim();
   return normalized ? normalized : null;
+}
+
+function stripQuotationNoteMeta(note) {
+  const raw = String(note ?? '');
+  const tokenIndex = raw.indexOf(QUOTATION_NOTE_META_TOKEN);
+  return tokenIndex < 0 ? raw : raw.slice(0, tokenIndex).replace(/[\n\r\s]*$/, '');
 }
 
 function normalizeQuotationIds(quotationIds, quotationId) {
@@ -286,7 +293,7 @@ function normalizeWorkOrderItems(items) {
       const qtyRaw = Number(item?.qty);
       const qty = Number.isFinite(qtyRaw) ? qtyRaw : 0;
       const unit = sanitizeWorkOrderText(item?.unit);
-      const note = item?.note == null ? '' : sanitizeWorkOrderText(item.note, { trim: false });
+      const note = stripQuotationNoteMeta(item?.note == null ? '' : sanitizeWorkOrderText(item.note, { trim: false }));
       const noteInfo = parseWorkOrderNote(note);
       const images = Array.isArray(item?.images)
         ? item.images.map(v => sanitizeWorkOrderText(v)).filter(Boolean)
@@ -321,7 +328,7 @@ async function getQuotationItemsSnapshot(quotationId) {
   return quotation.items.map((item, index) => ({
     seq: Number.isFinite(Number(item.seq)) ? Number(item.seq) : index,
     desc: String(item.desc ?? ''),
-    note: item.note ?? '',
+    note: stripQuotationNoteMeta(item.note),
     detailRows: Array.isArray(item.detailRows)
       ? item.detailRows.map((row) => ({
           desc: String(row?.desc ?? ''),
