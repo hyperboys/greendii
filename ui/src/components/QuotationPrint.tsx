@@ -754,7 +754,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
             <td colSpan={2} style={{ ...totalsLabelTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>Vat</td>
-            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{vatIncluded ? fmtAmt(doc.vat) : 'Not included'}</td>
+            <td style={{ ...totalsValueTd, fontSize: fpt(12), fontFamily: 'var(--font-thai)' }}>{vatIncluded ? fmtAmt(doc.vat) : ''}</td>
           </tr>
           <tr>
             <td colSpan={4} style={blankTd}>&nbsp;</td>
