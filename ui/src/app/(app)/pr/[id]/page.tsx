@@ -4,12 +4,12 @@ import { useEffect, useState } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import { PRAPI, SettingsAPI, downloadBlob, resolveFileUrl } from '@/lib/api'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
-import type { ApprovalLog, PurchaseRequest, Settings } from '@/types'
+import type { ApprovalLog, Attachment, PurchaseRequest, Settings } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
-import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X } from 'lucide-react'
+import { ArrowLeft, CheckCircle, XCircle, SendHorizonal, Pencil, Printer, Trash2, Loader2, Eye, X, ExternalLink, FileText } from 'lucide-react'
 import toast from 'react-hot-toast'
 import PRPrint from '@/components/PRPrint'
 import PRRevisionSummary from '@/components/PRRevisionSummary'
@@ -18,8 +18,9 @@ import AttachmentsSection from '@/components/AttachmentsSection'
 import { parsePRDescription } from '@/lib/prDescription'
 import { parseColoredLine } from '@/lib/coloredText'
 
-type PRDetailDoc = PurchaseRequest & {
+type PRDetailDoc = Omit<PurchaseRequest, 'attachments'> & {
   sales?: (PurchaseRequest['sales'] & { role?: string })
+  attachments?: Attachment[]
 }
 
 function fmtMoney(n: number) {
@@ -83,6 +84,10 @@ export default function PRDetailPage() {
   const [acting, setActing] = useState(false)
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [showMergedPdf, setShowMergedPdf] = useState(false)
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
+  const [previewPdfLoading, setPreviewPdfLoading] = useState(false)
+  const [previewPdfError, setPreviewPdfError] = useState(false)
   const [revisionDialogOpen, setRevisionDialogOpen] = useState(false)
   const [revisionReasonDraft, setRevisionReasonDraft] = useState('')
 
@@ -108,6 +113,31 @@ export default function PRDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
+
+  useEffect(() => {
+    if (!previewOpen || !showMergedPdf) return
+    let cancelled = false
+    let objectUrl = ''
+    setPreviewPdfUrl(null)
+    setPreviewPdfError(false)
+    setPreviewPdfLoading(true)
+    PRAPI.pdf(id)
+      .then(blob => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setPreviewPdfUrl(objectUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewPdfError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewPdfLoading(false)
+      })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [id, previewOpen, showMergedPdf])
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
   if (!doc) return <div className="text-center py-16 text-gray-400">ไม่พบเอกสาร</div>
@@ -141,6 +171,13 @@ export default function PRDetailPage() {
 
   const previewToken = typeof window !== 'undefined' ? (localStorage.getItem('gd_token') || '') : ''
   const previewUrl = previewToken ? `/print/pr/${id}?token=${encodeURIComponent(previewToken)}` : ''
+  const workOrderAttachments = doc.workOrder?.attachments ?? []
+  const latestPoAttachment = [...workOrderAttachments]
+    .filter(attachment => attachment.category === 'po')
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
+  const latestMinAttachment = [...workOrderAttachments]
+    .filter(attachment => attachment.category === 'mom')
+    .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
 
   const createRevision = async () => {
     if (!canRevise || acting) return
@@ -397,6 +434,24 @@ export default function PRDetailPage() {
             <div className="text-sm font-semibold text-gray-800">พรีวิวใบขอซื้อ (PR)</div>
             <div className="truncate text-xs text-gray-500">{doc.prNo} · {doc.customer}</div>
           </div>
+          {previewPdfUrl && (
+            <a
+              href={previewPdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs text-gray-700 hover:bg-gray-100"
+            >
+              <ExternalLink size={13} /> เปิด PDF
+            </a>
+          )}
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs text-gray-700 transition-colors hover:bg-gray-100"
+            onClick={() => setShowMergedPdf(value => !value)}
+          >
+            {previewPdfLoading ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+            {showMergedPdf ? 'กลับหน้าตัวอย่าง' : (previewPdfLoading ? 'กำลังสร้าง PDF…' : 'ดู PDF ฉบับรวม')}
+          </button>
           <button
             type="button"
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
@@ -406,20 +461,48 @@ export default function PRDetailPage() {
             <X size={16} />
           </button>
         </div>
-        <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
-          <div className="mx-auto w-fit">
-            {previewUrl ? (
-              <iframe
-                title={`PR preview ${doc.prNo}`}
-                src={previewUrl}
-                className="block h-[calc(100vh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
-              />
-            ) : (
-              <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
-                ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+        <div className="quotation-preview-frame min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-gray-200 p-3 sm:p-5">
+          <div className="mx-auto mb-3 grid w-full max-w-[210mm] grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-2">
+            {[
+              { label: 'ยอด PO', amount: latestPoAttachment?.poAmount },
+              { label: 'ยอด MIN', amount: latestMinAttachment?.poAmount },
+            ].map(({ label, amount }) => (
+              <div key={label} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-gray-600">{label}</span>
+                <span className="font-semibold tabular-nums text-gray-900">
+                  {typeof amount === 'number' ? `${fmtMoney(amount)} บาท` : '-'}
+                </span>
               </div>
-            )}
+            ))}
           </div>
+          {showMergedPdf ? (
+            <div className="mx-auto w-full max-w-[210mm] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+              {previewPdfLoading && <div className="p-8 text-center text-sm text-gray-500">กำลังสร้าง PDF ฉบับรวม…</div>}
+              {previewPdfError && <div className="p-8 text-center text-sm text-red-600">สร้าง PDF ฉบับรวมไม่สำเร็จ กรุณาลองใหม่</div>}
+              {previewPdfUrl && (
+                <iframe
+                  src={previewPdfUrl}
+                  title={`PDF ฉบับรวม ${doc.prNo}`}
+                  className="block w-full border-0"
+                  style={{ height: 'calc(100dvh - 18rem)', minHeight: '480px' }}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="mx-auto w-fit">
+              {previewUrl ? (
+                <iframe
+                  title={`PR preview ${doc.prNo}`}
+                  src={previewUrl}
+                  className="block h-[calc(100dvh-10rem)] min-h-[297mm] w-[210mm] max-w-full border-0 bg-white shadow-[0_12px_30px_rgba(15,23,42,0.22)]"
+                />
+              ) : (
+                <div className="flex min-h-[297mm] w-[210mm] max-w-full items-center justify-center bg-white px-6 text-center text-sm text-gray-500 shadow-[0_12px_30px_rgba(15,23,42,0.22)]">
+                  ไม่สามารถโหลดพรีวิวได้ กรุณาเข้าสู่ระบบใหม่แล้วลองอีกครั้ง
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     )}

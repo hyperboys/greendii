@@ -71,6 +71,10 @@ export default function WorkOrderDetailPage() {
   const [minAmount, setMinAmount] = useState('')
   const [pdfLoading, setPdfLoading] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const [showMergedPdf, setShowMergedPdf] = useState(false)
+  const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null)
+  const [previewPdfLoading, setPreviewPdfLoading] = useState(false)
+  const [previewPdfError, setPreviewPdfError] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -103,6 +107,31 @@ export default function WorkOrderDetailPage() {
       window.removeEventListener('keydown', onKeyDown)
     }
   }, [previewOpen])
+
+  useEffect(() => {
+    if (!previewOpen || !showMergedPdf) return
+    let cancelled = false
+    let objectUrl = ''
+    setPreviewPdfUrl(null)
+    setPreviewPdfError(false)
+    setPreviewPdfLoading(true)
+    WorkOrdersAPI.pdf(id)
+      .then(blob => {
+        if (cancelled) return
+        objectUrl = URL.createObjectURL(blob)
+        setPreviewPdfUrl(objectUrl)
+      })
+      .catch(() => {
+        if (!cancelled) setPreviewPdfError(true)
+      })
+      .finally(() => {
+        if (!cancelled) setPreviewPdfLoading(false)
+      })
+    return () => {
+      cancelled = true
+      if (objectUrl) URL.revokeObjectURL(objectUrl)
+    }
+  }, [id, previewOpen, showMergedPdf])
 
   const previewQuotationId = doc?.quotationId
   const previewHandoverId = doc?.handOverJobs?.[0]?.id
@@ -651,6 +680,24 @@ export default function WorkOrderDetailPage() {
             <div className="text-sm font-semibold text-gray-800">พรีวิวใบสั่งงาน (Work Order)</div>
             <div className="truncate text-xs text-gray-500">{doc.woNo} · {doc.project}</div>
           </div>
+          {previewPdfUrl && (
+            <a
+              href={previewPdfUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs text-gray-700 hover:bg-gray-100"
+            >
+              <ExternalLink size={13} /> เปิด PDF
+            </a>
+          )}
+          <button
+            type="button"
+            className="inline-flex h-8 items-center gap-1 rounded-lg border border-gray-200 px-2 text-xs text-gray-700 transition-colors hover:bg-gray-100"
+            onClick={() => setShowMergedPdf(value => !value)}
+          >
+            {previewPdfLoading ? <Loader2 size={13} className="animate-spin" /> : <FileText size={13} />}
+            {showMergedPdf ? 'กลับหน้าตัวอย่าง' : (previewPdfLoading ? 'กำลังสร้าง PDF…' : 'ดู PDF ฉบับรวม')}
+          </button>
           <button
             type="button"
             className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-gray-200 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
@@ -660,7 +707,7 @@ export default function WorkOrderDetailPage() {
             <X size={16} />
           </button>
         </div>
-        <div className="quotation-preview-frame flex-1 overflow-auto bg-gray-200 p-3 sm:p-5">
+        <div className="quotation-preview-frame min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain bg-gray-200 p-3 sm:p-5">
           <div className="mx-auto mb-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white px-4 py-3 shadow-sm">
             <div className="text-xs font-semibold text-gray-700">ลำดับเอกสารที่รวมใน PDF</div>
             <ul className="mt-2 space-y-1 text-xs text-gray-600">
@@ -669,9 +716,37 @@ export default function WorkOrderDetailPage() {
               ))}
             </ul>
           </div>
-          <div className="workorder-preview-sheet-wrap mx-auto w-full max-w-[210mm] bg-white">
-            <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} />
+          <div className="mx-auto mb-3 grid w-full max-w-[210mm] grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:grid-cols-2">
+            {[
+              { label: 'ยอด PO', amount: latestPoAttachment?.poAmount },
+              { label: 'ยอด MIN', amount: latestMinAttachment?.poAmount },
+            ].map(({ label, amount }) => (
+              <div key={label} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-gray-600">{label}</span>
+                <span className="font-semibold tabular-nums text-gray-900">
+                  {typeof amount === 'number' ? `${amount.toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} บาท` : '-'}
+                </span>
+              </div>
+            ))}
           </div>
+          {showMergedPdf ? (
+            <div className="mx-auto w-full max-w-[210mm] overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+              {previewPdfLoading && <div className="p-8 text-center text-sm text-gray-500">กำลังสร้าง PDF ฉบับรวม…</div>}
+              {previewPdfError && <div className="p-8 text-center text-sm text-red-600">สร้าง PDF ฉบับรวมไม่สำเร็จ กรุณาลองใหม่</div>}
+              {previewPdfUrl && (
+                <iframe
+                  src={previewPdfUrl}
+                  title={`PDF ฉบับรวม ${doc.woNo}`}
+                  className="block w-full border-0"
+                  style={{ height: 'calc(100dvh - 18rem)', minHeight: '480px' }}
+                />
+              )}
+            </div>
+          ) : (
+            <div className="workorder-preview-sheet-wrap mx-auto w-full max-w-[210mm] bg-white">
+              <WorkOrderPrint doc={doc} settings={settings} embedPdfAttachments={false} />
+            </div>
+          )}
           <div className="mx-auto mt-3 w-full max-w-[210mm] rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
             <div className="mb-3 text-sm font-semibold text-gray-800">เอกสารอ้างอิงที่ผูกไว้</div>
             <div className="space-y-3">
