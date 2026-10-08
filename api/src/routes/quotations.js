@@ -363,7 +363,7 @@ router.get('/', authenticate, async (req, res, next) => {
     }
     const listInclude = {
       sales: { select: { id: true, fullName: true, phone: true } },
-      items: true,
+      items: { orderBy: { seq: 'asc' } },
     };
     const pg = getPagination(req.query);
     if (pg) {
