@@ -184,16 +184,18 @@ function buildChains(
       if (ho.status === 'approved') currentStage = 'complete'
       else currentStage = 'handover'
     }
-    if (ho && (ho.status === 'approved')) currentStage = 'complete'
+    if (wo?.isClosed) currentStage = 'complete'
 
-    const completedDate = currentStage === 'complete' ? (ho?.updatedAt ?? ho?.createdAt) : undefined
+    const completedDate = currentStage === 'complete'
+      ? (wo?.isClosed ? (wo.closedAt ?? wo.updatedAt) : (ho?.updatedAt ?? ho?.createdAt))
+      : undefined
     const totalDays = daysBetween(q.createdAt, completedDate)
 
     // Stage durations
     const stageDays: Record<Stage, number> = {
       quotation:  wo ? daysBetween(q.createdAt, wo.createdAt) : daysBetween(q.createdAt),
       workorder:  wo && inProgressDate ? daysBetween(wo.createdAt, inProgressDate) : 0,
-      inprogress: ho && inProgressDate ? daysBetween(inProgressDate, ho.createdAt) : (wo && inProgressDate ? daysBetween(inProgressDate) : 0),
+      inprogress: ho && inProgressDate ? daysBetween(inProgressDate, ho.createdAt) : (wo && inProgressDate ? daysBetween(inProgressDate, completedDate) : 0),
       handover:   ho && completedDate ? daysBetween(ho.createdAt, completedDate) : (ho ? daysBetween(ho.createdAt) : 0),
       complete:   0,
     }
