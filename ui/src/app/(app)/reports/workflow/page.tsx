@@ -131,24 +131,19 @@ function getDateRange(preset: string, customFrom = '', customTo = ''): { from: D
   return { from: null, to: null }
 }
 
-/** Build project chains from all four collections */
+/** Build one tracking row per WO, plus quotations that have not reached a WO yet. */
 function buildChains(
   quotations: Quotation[],
   workOrders: WorkOrder[],
   handovers: HandOverJob[],
   prs: PurchaseRequest[],
 ): ProjectChain[] {
-  const woByQuo   = new Map<string, WorkOrder[]>()
-  const hoByWo    = new Map<string, HandOverJob>()
-  const prsByWo   = new Map<string, PurchaseRequest[]>()
-  const hoByQuo   = new Map<string, HandOverJob>()
+  const quotationById = new Map(quotations.map(q => [q.id, q]))
+  const hoByWo = new Map<string, HandOverJob>()
+  const prsByWo = new Map<string, PurchaseRequest[]>()
+  const hoByQuo = new Map<string, HandOverJob>()
+  const linkedQuotationIds = new Set<string>()
 
-  for (const wo of workOrders) {
-    if (wo.quotationId) {
-      if (!woByQuo.has(wo.quotationId)) woByQuo.set(wo.quotationId, [])
-      woByQuo.get(wo.quotationId)!.push(wo)
-    }
-  }
   for (const ho of handovers) {
     if (ho.workOrderId) hoByWo.set(ho.workOrderId, ho)
     if (ho.quotationId && !ho.workOrderId) hoByQuo.set(ho.quotationId, ho)
@@ -162,66 +157,82 @@ function buildChains(
 
   const chains: ProjectChain[] = []
 
-  for (const q of quotations) {
-    const wos = woByQuo.get(q.id) ?? []
-    // Use the most recent / relevant WO
-    const wo  = wos.sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
-    const ho  = wo ? (hoByWo.get(wo.id) ?? hoByQuo.get(q.id)) : hoByQuo.get(q.id)
-    const prList = wo ? (prsByWo.get(wo.id) ?? []) : []
-
-    // Determine current stage
-    let currentStage: Stage = 'quotation'
-    let inProgressDate: string | undefined
-
-    if (wo) {
-      currentStage = 'workorder'
-      // WO "inprogress" = when WO was approved
-      const approvedLog = wo.approvalLogs?.find(l => l.action === 'approve')
-      inProgressDate = approvedLog?.actedAt ?? wo.updatedAt
-      if (wo.status === 'approved' || wo.isClosed) currentStage = 'inprogress'
-    }
-    if (ho) {
-      if (ho.status === 'approved') currentStage = 'complete'
-      else currentStage = 'handover'
-    }
-    if (wo?.isClosed) currentStage = 'complete'
-
-    const completedDate = currentStage === 'complete'
-      ? (wo?.isClosed ? (wo.closedAt ?? wo.updatedAt) : (ho?.updatedAt ?? ho?.createdAt))
-      : undefined
-    const totalDays = daysBetween(q.createdAt, completedDate)
-
-    // Stage durations
+  for (const wo of workOrders) {
+    const quoteId = wo.quotationId || wo.quotationIds?.[0]
+    for (const id of wo.quotationIds ?? (wo.quotationId ? [wo.quotationId] : [])) linkedQuotationIds.add(id)
+    if (wo.quotationId) linkedQuotationIds.add(wo.quotationId)
+    const q = quoteId ? quotationById.get(quoteId) : undefined
+    const ho = hoByWo.get(wo.id) ?? (quoteId ? hoByQuo.get(quoteId) : undefined)
+    const prList = prsByWo.get(wo.id) ?? []
+    const approvedLog = wo.approvalLogs?.find(l => l.action === 'approve')
+    const inProgressDate = approvedLog?.actedAt ?? (wo.status === 'approved' ? wo.updatedAt : undefined)
+    const currentStage: Stage = wo.isClosed
+      ? 'complete'
+      : ho ? 'handover'
+      : wo.status === 'approved' ? 'inprogress'
+      : 'workorder'
+    const completedDate = wo.isClosed ? (wo.closedAt ?? wo.updatedAt) : undefined
+    const startDate = wo.createdAt
     const stageDays: Record<Stage, number> = {
-      quotation:  wo ? daysBetween(q.createdAt, wo.createdAt) : daysBetween(q.createdAt),
-      workorder:  wo && inProgressDate ? daysBetween(wo.createdAt, inProgressDate) : 0,
-      inprogress: ho && inProgressDate ? daysBetween(inProgressDate, ho.createdAt) : (wo && inProgressDate ? daysBetween(inProgressDate, completedDate) : 0),
-      handover:   ho && completedDate ? daysBetween(ho.createdAt, completedDate) : (ho ? daysBetween(ho.createdAt) : 0),
-      complete:   0,
+      quotation: q ? daysBetween(q.createdAt, wo.createdAt) : 0,
+      workorder: inProgressDate ? daysBetween(wo.createdAt, inProgressDate) : 0,
+      inprogress: ho && inProgressDate
+        ? daysBetween(inProgressDate, ho.createdAt)
+        : inProgressDate ? daysBetween(inProgressDate, completedDate) : 0,
+      handover: ho && completedDate ? daysBetween(ho.createdAt, completedDate) : (ho ? daysBetween(ho.createdAt) : 0),
+      complete: 0,
     }
 
     chains.push({
-      id:            q.id,
-      quoId:         q.id,
-      woId:          wo?.id,
-      hoId:          ho?.id,
-      quoNo:         q.quoNo,
-      woNo:          wo?.woNo,
-      hoNo:          ho?.hoNo,
-      prNos:         prList.map(p => p.prNo),
-      customer:      q.customerName,
-      project:       q.project,
-      salesId:       q.salesId,
-      salesName:     q.sales?.fullName ?? q.salesId,
-      grandTotal:    +q.grandTotal,
+      id: wo.id,
+      quoId: q?.id ?? '',
+      woId: wo.id,
+      hoId: ho?.id,
+      quoNo: q?.quoNo ?? '—',
+      woNo: wo.woNo,
+      hoNo: ho?.hoNo,
+      prNos: prList.map(p => p.prNo),
+      customer: wo.customerName,
+      project: wo.project,
+      salesId: wo.salesId,
+      salesName: wo.sales?.fullName ?? wo.salesId,
+      grandTotal: q ? +q.grandTotal : 0,
       currentStage,
-      startDate:     q.createdAt,
-      woDate:        wo?.createdAt,
+      startDate,
+      woDate: wo.createdAt,
       inProgressDate,
-      handoverDate:  ho?.createdAt,
+      handoverDate: ho?.createdAt,
       completedDate,
-      totalDays,
+      totalDays: daysBetween(startDate, completedDate),
       stageDays,
+    })
+  }
+
+  for (const q of quotations) {
+    if (linkedQuotationIds.has(q.id)) continue
+    const ho = hoByQuo.get(q.id)
+    chains.push({
+      id: q.id,
+      quoId: q.id,
+      hoId: ho?.id,
+      quoNo: q.quoNo,
+      hoNo: ho?.hoNo,
+      prNos: [],
+      customer: q.customerName,
+      project: q.project,
+      salesId: q.salesId,
+      salesName: q.sales?.fullName ?? q.salesId,
+      grandTotal: +q.grandTotal,
+      currentStage: 'quotation',
+      startDate: q.createdAt,
+      totalDays: daysBetween(q.createdAt),
+      stageDays: {
+        quotation: daysBetween(q.createdAt),
+        workorder: 0,
+        inprogress: 0,
+        handover: ho ? daysBetween(ho.createdAt) : 0,
+        complete: 0,
+      },
     })
   }
 
@@ -511,9 +522,7 @@ export default function WorkflowTrackingReportPage() {
     if (search.trim()) {
       const q = search.toLowerCase()
       list = list.filter(c =>
-        c.quoNo.toLowerCase().includes(q) ||
         (c.woNo?.toLowerCase().includes(q)) ||
-        (c.hoNo?.toLowerCase().includes(q)) ||
         c.customer.toLowerCase().includes(q) ||
         c.project.toLowerCase().includes(q)
       )
@@ -556,15 +565,16 @@ export default function WorkflowTrackingReportPage() {
       STAGE_ORDER.map(s => [s, all.filter(c => c.currentStage === s).length])
     ) as Record<Stage, number>
 
-    const completed   = all.filter(c => c.currentStage === 'complete')
-    const active      = all.filter(c => c.currentStage !== 'complete')
+    const workOrderChains = all.filter(c => !!c.woId)
+    const completed   = workOrderChains.filter(c => c.currentStage === 'complete')
+    const active      = workOrderChains.filter(c => c.currentStage !== 'complete')
     const TARGET_TOTAL = 45 // total target days for full cycle
     const stuck       = active.filter(c => c.totalDays > TARGET_TOTAL)
 
     const avgCycle = completed.length > 0
       ? completed.reduce((s, c) => s + c.totalDays, 0) / completed.length
       : 0
-    const completionRate = all.length > 0 ? (completed.length / all.length) * 100 : 0
+    const completionRate = workOrderChains.length > 0 ? (completed.length / workOrderChains.length) * 100 : 0
 
     // Average time per stage (from chains that reached each stage)
     const avgStageDays = Object.fromEntries(
@@ -596,7 +606,7 @@ export default function WorkflowTrackingReportPage() {
       stageCounts, completed: completed.length, active: active.length,
       stuck: stuck.length, avgCycle, completionRate, avgStageDays,
       conversionRates, bottleneck,
-      total: all.length,
+      total: workOrderChains.length,
     }
   }, [filteredChains])
 
@@ -829,13 +839,13 @@ export default function WorkflowTrackingReportPage() {
         <KpiCard loading={loading}
           label="Avg Cycle Time"
           value={loading ? '—' : `${stats.avgCycle.toFixed(1)} วัน`}
-          sub="เฉลี่ยจากโปรเจกต์ที่เสร็จแล้ว"
+          sub="เฉลี่ยจาก WO ที่ปิดงานแล้ว"
           valueColor="text-blue-700"
           icon={<Route size={18} className="text-blue-500" />}
           iconBg="bg-blue-50" accent="border-l-blue-500" />
 
         <KpiCard loading={loading}
-          label="Completed Projects"
+          label="Completed Work Orders"
           value={loading ? '—' : animCompleted.toLocaleString()}
           sub={`${stats.completionRate.toFixed(0)}% completion rate`}
           valueColor="text-emerald-700"
@@ -843,7 +853,7 @@ export default function WorkflowTrackingReportPage() {
           iconBg="bg-emerald-50" accent="border-l-emerald-500" />
 
         <KpiCard loading={loading}
-          label="Active Projects"
+          label="Active Work Orders"
           value={loading ? '—' : animActive.toLocaleString()}
           sub="กำลังดำเนินการ"
           valueColor="text-indigo-700"
@@ -862,7 +872,7 @@ export default function WorkflowTrackingReportPage() {
         <KpiCard loading={loading}
           label="Completion Rate"
           value={loading ? '—' : `${stats.completionRate.toFixed(1)}%`}
-          sub={`${stats.completed} / ${stats.total} โปรเจกต์`}
+          sub={`${stats.completed} / ${stats.total} ใบ WO`}
           valueColor={stats.completionRate >= 60 ? 'text-emerald-700' : 'text-amber-600'}
           icon={<CheckCircle2 size={18} className="text-emerald-500" />}
           iconBg="bg-emerald-50" accent="border-l-emerald-500" />
@@ -873,7 +883,7 @@ export default function WorkflowTrackingReportPage() {
         <div className="flex items-center justify-between mb-5">
           <div>
             <h3 className="text-sm font-semibold text-gray-700">Workflow Funnel</h3>
-            <p className="text-xs text-gray-400 mt-0.5">จำนวนโปรเจกต์ในแต่ละขั้นตอน · คลิกเพื่อกรองตาราง</p>
+            <p className="text-xs text-gray-400 mt-0.5">จำนวนรายการในแต่ละขั้นตอน · คลิกเพื่อกรองตาราง</p>
           </div>
           {/* Bottleneck badge */}
           {!loading && stats.avgStageDays[stats.bottleneck] > 0 && (
@@ -1151,7 +1161,7 @@ export default function WorkflowTrackingReportPage() {
 
                     {/* Actions */}
                     <td className="px-4 py-3">
-                      <button onClick={() => { armPersistentListState('report-workflow'); router.push(`/quotations/${chain.quoId}`) }} title="ดูใบเสนอราคา"
+                      <button onClick={() => { armPersistentListState('report-workflow'); router.push(chain.woId ? `/workorders/${chain.woId}` : `/quotations/${chain.quoId}`) }} title={chain.woId ? 'ดูใบสั่งงาน' : 'ดูใบเสนอราคา'}
                         className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50
                                    transition-all duration-150">
                         <Eye size={14} />

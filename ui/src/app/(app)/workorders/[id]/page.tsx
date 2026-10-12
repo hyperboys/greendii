@@ -148,7 +148,9 @@ export default function WorkOrderDetailPage() {
 
   const isMine = doc.salesId === user?.id
   const isAdmin = ['admin', 'director', 'admin_mgr'].includes(user?.role ?? '')
-  const canEdit = (isMine || isAdmin) && isEditableApprovalDocStatus(doc.status)
+  const canEdit = (isMine || isAdmin) && (
+    isEditableApprovalDocStatus(doc.status) || (doc.isClosed && doc.status === 'approved')
+  )
   const canRevise = isMine
     && doc.status === 'approved'
     && doc.active !== false
@@ -184,7 +186,7 @@ export default function WorkOrderDetailPage() {
     : DEFAULT_WO_CLOSE_ACCESS.userIds
   const canCloseByRole = closeAccessRoles.map(normalizeUserRole).includes(normalizeUserRole(user?.role))
   const canCloseByUserId = Boolean(user?.id && closeAccessUserIds.includes(user.id))
-  const canClose = doc.status === 'approved' && !doc.isClosed && (canCloseByRole || canCloseByUserId)
+  const canClose = doc.status === 'approved' && (canCloseByRole || canCloseByUserId)
   const latestPoAttachment = [...(doc.attachments ?? [])]
     .filter(attachment => attachment.category === 'po')
     .sort((a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime())[0]
@@ -648,7 +650,7 @@ export default function WorkOrderDetailPage() {
             )}
             {canClose && (
               <button className="btn-primary" onClick={() => act('close')} disabled={acting || !closeComment.trim()}>
-                <CheckCircle size={15} /> ปิดงาน
+                <CheckCircle size={15} /> {doc.isClosed ? 'ปิดงานอีกครั้ง' : 'ปิดงาน'}
               </button>
             )}
           </div>

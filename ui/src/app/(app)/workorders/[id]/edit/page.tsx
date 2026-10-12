@@ -83,7 +83,7 @@ type TextFormKey = Exclude<keyof FormData, 'docChecklist' | 'items'>
 export default function EditWorkOrderPage() {
   const router = useRouter()
   const { id } = useParams<{ id: string }>()
-  const { user } = useAuthStore()
+  const { user, _hasHydrated } = useAuthStore()
   const [quotations, setQuotations] = useState<Quotation[]>([])
   const [handovers, setHandovers] = useState<HandOverJob[]>([])
   const [units, setUnits] = useState<Unit[]>([])
@@ -104,6 +104,7 @@ export default function EditWorkOrderPage() {
   })
 
   useEffect(() => {
+    if (!_hasHydrated) return
     Promise.all([
       QuotationsAPI.list({ status: 'approved' }),
       HandoversAPI.list(),
@@ -114,7 +115,10 @@ export default function EditWorkOrderPage() {
         setQuotations(qList)
         setHandovers(handoverList.filter(h => h.status !== 'cancelled'))
         setUnits(unitList)
-        if (!isEditableApprovalDocStatus(doc.status)) {
+        const canEditClosedWorkOrder = doc.isClosed
+          && doc.status === 'approved'
+          && (doc.salesId === user?.id || ['admin', 'director', 'admin_mgr'].includes(user?.role ?? ''))
+        if (!isEditableApprovalDocStatus(doc.status) && !canEditClosedWorkOrder) {
           toast.error(EDITABLE_APPROVAL_DOC_MESSAGE)
           router.replace(`/workorders/${id}`)
           return
@@ -148,7 +152,7 @@ export default function EditWorkOrderPage() {
       })
       .catch(() => toast.error('โหลดข้อมูลไม่สำเร็จ'))
       .finally(() => setLoading(false))
-  }, [id])
+  }, [id, user?.id, user?.role, _hasHydrated])
 
   const filteredHandovers = form.quotationId
     ? handovers.filter(h => !h.quotationId || h.quotationId === form.quotationId || h.id === form.handOverJobId)

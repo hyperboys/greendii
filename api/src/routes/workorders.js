@@ -992,11 +992,14 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
 router.put('/:id', authenticate, workOrderValidators, validate, async (req, res, next) => {
   try {
     const existing = await prisma.workOrder.findUniqueOrThrow({ where: { id: req.params.id } });
-    if (existing.isClosed) return res.status(400).json({ message: 'Work order is closed' });
     if (existing.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์แก้ไขเอกสารของผู้อื่น' });
     }
-    if (!isEditableApprovalDocStatus(existing.status)) {
+    const isClosedApprovedWorkOrder = existing.isClosed && existing.status === 'approved';
+    if (existing.isClosed && !isClosedApprovedWorkOrder) {
+      return res.status(400).json({ message: 'Work order is closed' });
+    }
+    if (!isClosedApprovedWorkOrder && !isEditableApprovalDocStatus(existing.status)) {
       return res.status(400).json({ message: EDITABLE_APPROVAL_DOC_MESSAGE });
     }
     const {
@@ -1307,9 +1310,6 @@ router.post('/:id/close', authenticate, async (req, res, next) => {
 
     if (wo.status !== 'approved') {
       return res.status(400).json({ message: 'ปิดงานได้เฉพาะเอกสารที่อนุมัติแล้วเท่านั้น' });
-    }
-    if (wo.isClosed) {
-      return res.status(400).json({ message: 'Work order ปิดงานแล้ว' });
     }
     if (!closeComment) {
       return res.status(400).json({ message: 'กรุณาระบุหมายเหตุการปิดงาน' });
