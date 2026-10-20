@@ -109,3 +109,15 @@ the lint command. The test suite covers access policy, React rendering, and
 Tailwind layout utilities.
 
 Accounting authorization tests are included in `npm --prefix api test`.
+
+## Coolify install troubleshooting
+
+Keep the install command as `npm ci` and commit `package-lock.json` alongside any
+dependency changes. The lockfile includes the optional `@emnapi/runtime` peer
+required by npm 10's clean-install validation; npm 11 may accept a lockfile without
+that entry even though npm 10 rejects it.
+
+If Coolify reports `Missing: @emnapi/runtime ... from lock file`, deploy the commit
+with the repaired lockfile rather than replacing `npm ci` with `npm install`.
+Node engine warnings are separate: some transitive tooling requires Node 22.13+
+on the Node 22 line, so use a compatible build image instead of Node 22.11.
