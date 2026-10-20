@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Sans_Thai, Public_Sans } from "next/font/google";
 import "./globals.css";
+import { AccountingAccessProvider } from "@/components/accounting-access-provider";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -21,7 +22,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th" className={`${publicSans.variable} ${notoSansThai.variable}`}>
-      <body>{children}</body>
+      <body><AccountingAccessProvider>{children}</AccountingAccessProvider></body>
     </html>
   );
 }

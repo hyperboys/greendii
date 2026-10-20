@@ -6,7 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import {
   BadgeDollarSign,
-  BanknoteArrowDown,
+  Banknote,
   BookOpenText,
   FileChartColumn,
   FileText,
@@ -20,13 +20,15 @@ import {
 } from "lucide-react";
 import { AuthGuard } from "@/components/auth-guard";
 import { getStoredUser, logout } from "@/lib/auth";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canOpenAccountingPath } from "@/lib/accounting-access";
 
 const navigation = [
   { href: "/dashboard", label: "ภาพรวมบัญชี", icon: LayoutDashboard },
   { href: "/ar/invoices", label: "ลูกหนี้ / ใบแจ้งหนี้", icon: FileText },
   { href: "/ar/receipts", label: "รับชำระเงิน", icon: WalletCards },
   { href: "/ap/vouchers", label: "เจ้าหนี้ / ค่าใช้จ่าย", icon: ReceiptText },
-  { href: "/inventory", label: "คลังสินค้า / สต็อก", icon: BanknoteArrowDown },
+  { href: "/inventory", label: "คลังสินค้า / สต็อก", icon: Banknote },
   { href: "/master", label: "ผังบัญชี & ข้อมูลหลัก", icon: BookOpenText },
   { href: "/reports", label: "รายงานการเงิน", icon: FileChartColumn },
 ];
@@ -36,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const user = getStoredUser();
+  const access = useAccountingAccess();
 
   const handleLogout = async () => {
     await logout();
@@ -64,7 +67,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
             <p className="px-3 pb-2 text-[10px] font-bold uppercase text-[#8db29a]">งานบัญชี</p>
-            {navigation.map((item) => {
+            {navigation.filter(item => access && canOpenAccountingPath(access, item.href)).map((item) => {
               const active = item.href !== "#" && pathname.startsWith(item.href);
               return (
                 <Link key={item.label} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center gap-3 rounded-md px-3 text-[13px] transition-colors ${active ? "bg-[#b8d538] font-bold text-[#173f2d]" : "text-[#d8e6dc] hover:bg-white/10 hover:text-white"}`}>
@@ -76,9 +79,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="border-t border-white/10 p-3">
-            <button className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] text-[#d8e6dc] hover:bg-white/10" title="ตั้งค่า">
-              <Settings size={18} /><span>ตั้งค่าบัญชี</span>
-            </button>
+            {access?.isAdmin && (
+              <Link href="/settings/access" onClick={() => setOpen(false)} className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] text-[#d8e6dc] hover:bg-white/10">
+                <Settings size={18} /><span>บทบาท & สิทธิ์ Accounting</span>
+              </Link>
+            )}
           </div>
         </aside>
 
@@ -92,7 +97,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden text-right sm:block">
                 <div className="text-xs font-bold text-[#17211b]">{user?.fullName || user?.username || "ผู้ใช้งาน"}</div>
-                <div className="text-[10px] uppercase text-[#657069]">{user?.role || "accounting"}</div>
+                <div className="text-[10px] text-[#657069]">{access?.isAdmin ? "Accounting Admin" : access?.role?.name}</div>
               </div>
               <button onClick={handleLogout} className="grid size-9 place-items-center rounded-md border border-[#dfe5de] text-[#657069] hover:border-red-200 hover:bg-red-50 hover:text-red-600" title="ออกจากระบบ" aria-label="ออกจากระบบ"><LogOut size={17} /></button>
             </div>

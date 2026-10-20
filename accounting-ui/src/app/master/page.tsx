@@ -4,8 +4,11 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MasterApi } from "@/lib/api";
 import { Building2, Layers, Package, Plus, Store, Users } from "lucide-react";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canUseAccounting } from "@/lib/accounting-access";
 
 export default function MasterDataPage() {
+  const canCreate = canUseAccounting(useAccountingAccess(), "master", "create");
   const [activeTab, setActiveTab] = useState<"customers" | "suppliers" | "products" | "warehouses" | "coa">("customers");
   const [loading, setLoading] = useState(false);
   const [dataList, setDataList] = useState<any[]>([]);
@@ -71,8 +74,10 @@ export default function MasterDataPage() {
             <p className="mt-1 text-sm text-[#657069]">จัดการลูกค้า, ผู้จำหน่าย, สินค้า, คลังสินค้า และโครงสร้างผังบัญชี</p>
           </div>
           <button
+            disabled={!canCreate}
+            title={!canCreate ? "ไม่มีสิทธิ์สร้างข้อมูลหลัก" : undefined}
             onClick={() => { setFormData({}); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />เพิ่มข้อมูลใหม่
           </button>
@@ -262,7 +267,7 @@ export default function MasterDataPage() {
                   </>
                 )}
 
-                <div className="mt-5 flex justify-end gap-2 pt-3">
+                <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
                   <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">บันทึก</button>
                 </div>

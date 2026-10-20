@@ -1,14 +1,12 @@
-@import "tailwindcss";
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 :root {
   --ink: #17211b;
   --paper: #f4f6f2;
   --forest: #194d34;
   --leaf: #2f7d4b;
-}
-
-@theme inline {
-  --font-sans: var(--font-public-sans), var(--font-noto-thai), sans-serif;
 }
 
 * {
@@ -23,8 +21,11 @@ body {
   letter-spacing: 0;
 }
 
+/* Preserve the existing inherited control typography with Tailwind 3 utilities. */
 button,
-input {
+input,
+button[class],
+input[class] {
   font: inherit;
 }
 

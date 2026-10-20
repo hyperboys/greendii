@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { InventoryApi, MasterApi } from "@/lib/api";
+import { InventoryApi, AccountingLookupApi } from "@/lib/api";
 import { ArrowDownLeft, ArrowUpRight, Package, Plus, Store } from "lucide-react";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canUseAccounting } from "@/lib/accounting-access";
 
 export default function InventoryPage() {
+  const canCreate = canUseAccounting(useAccountingAccess(), "inventory", "create");
+  const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"balances" | "movements">("balances");
   const [loading, setLoading] = useState(false);
   const [balances, setBalances] = useState<any[]>([]);
@@ -17,6 +21,7 @@ export default function InventoryPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
       if (activeTab === "balances") {
         const res = await InventoryApi.getBalances();
@@ -26,13 +31,15 @@ export default function InventoryPage() {
         setMovements(Array.isArray(res) ? res : res.items || []);
       }
 
-      const prodRes = await MasterApi.getProducts();
-      setProducts(Array.isArray(prodRes) ? prodRes : prodRes.items || []);
-
-      const whRes = await MasterApi.getWarehouses();
-      setWarehouses(Array.isArray(whRes) ? whRes : whRes.items || []);
-    } catch (err: any) {
-      console.error(err);
+      if (canCreate) {
+        const [productData, warehouseData] = await Promise.all([
+          AccountingLookupApi.getProducts(), AccountingLookupApi.getWarehouses(),
+        ]);
+        setProducts(productData);
+        setWarehouses(warehouseData);
+      }
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
@@ -40,7 +47,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [activeTab, canCreate]);
 
   const handleIssueStock = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,8 +83,10 @@ export default function InventoryPage() {
             <p className="mt-1 text-sm text-[#657069]">ตรวจสอบยอดคงเหลือ Stock On Hand, Reserved, Available และประวัติการเบิก-รับคืน</p>
           </div>
           <button
+            disabled={!canCreate}
+            title={!canCreate ? "ไม่มีสิทธิ์ทำรายการคลังสินค้า" : undefined}
             onClick={() => { setFormData({ requestedQty: 1 }); setShowIssueModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />ทำรายการเบิกสินค้า
           </button>
@@ -103,6 +112,7 @@ export default function InventoryPage() {
           ))}
         </div>
 
+        {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Content Table */}
         <div className="overflow-hidden rounded-lg border border-[#dfe5de] bg-white shadow-sm">
           {loading ? (
@@ -243,7 +253,7 @@ export default function InventoryPage() {
                   />
                 </div>
 
-                <div className="mt-5 flex justify-end gap-2 pt-3">
+                <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowIssueModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
                   <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">ยืนยันตัดเบิก</button>
                 </div>

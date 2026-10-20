@@ -32,6 +32,13 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 }
 
 // ─── MASTER DATA ─────────────────────────────────────────────────────────────
+export const AccountingLookupApi = {
+  getCustomers: () => apiFetch("/api/accounting-access/lookups/customers"),
+  getSuppliers: () => apiFetch("/api/accounting-access/lookups/suppliers"),
+  getProducts: () => apiFetch("/api/accounting-access/lookups/products"),
+  getWarehouses: () => apiFetch("/api/accounting-access/lookups/warehouses"),
+};
+
 export const MasterApi = {
   getCustomers: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

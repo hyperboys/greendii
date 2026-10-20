@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { ArApi, MasterApi } from "@/lib/api";
+import { ArApi, AccountingLookupApi } from "@/lib/api";
 import { FileText, Plus, Receipt } from "lucide-react";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canUseAccounting } from "@/lib/accounting-access";
 
 export default function InvoicesPage() {
+  const canCreate = canUseAccounting(useAccountingAccess(), "ar", "create");
+  const [errorMsg, setErrorMsg] = useState("");
   const [activeSubTab, setActiveSubTab] = useState<"invoices" | "so" | "billingNotes">("invoices");
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<any[]>([]);
@@ -15,6 +19,7 @@ export default function InvoicesPage() {
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
       if (activeSubTab === "invoices") {
         const res = await ArApi.getInvoices();
@@ -27,10 +32,9 @@ export default function InvoicesPage() {
         setList(Array.isArray(res) ? res : res.items || []);
       }
 
-      const custRes = await MasterApi.getCustomers();
-      setCustomers(Array.isArray(custRes) ? custRes : custRes.items || []);
-    } catch (err: any) {
-      console.error(err);
+      if (canCreate) setCustomers(await AccountingLookupApi.getCustomers());
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
@@ -38,7 +42,7 @@ export default function InvoicesPage() {
 
   useEffect(() => {
     loadData();
-  }, [activeSubTab]);
+  }, [activeSubTab, canCreate]);
 
   const handleCreateInvoice = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -75,8 +79,10 @@ export default function InvoicesPage() {
             <p className="mt-1 text-sm text-[#657069]">จัดการใบส่งของชั่วคราว, ใบแจ้งหนี้/ใบกำกับภาษี และใบวางบิล</p>
           </div>
           <button
+            disabled={!canCreate}
+            title={!canCreate ? "ไม่มีสิทธิ์สร้างเอกสารลูกหนี้" : undefined}
             onClick={() => { setFormData({ items: [{ desc: "", qty: 1, unitPrice: 0, amount: 0 }] }); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />สร้างเอกสารใหม่
           </button>
@@ -103,6 +109,7 @@ export default function InvoicesPage() {
           ))}
         </div>
 
+        {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Document List Table */}
         <div className="overflow-hidden rounded-lg border border-[#dfe5de] bg-white shadow-sm">
           {loading ? (
@@ -218,7 +225,7 @@ export default function InvoicesPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex justify-end gap-2 pt-3">
+                <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
                   <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">สร้างเอกสาร</button>
                 </div>

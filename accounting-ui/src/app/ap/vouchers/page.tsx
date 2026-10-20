@@ -2,10 +2,14 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { ApApi, MasterApi } from "@/lib/api";
+import { ApApi, AccountingLookupApi } from "@/lib/api";
 import { Plus, ReceiptText } from "lucide-react";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canUseAccounting } from "@/lib/accounting-access";
 
 export default function AccountsPayablePage() {
+  const canCreate = canUseAccounting(useAccountingAccess(), "ap", "create");
+  const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"po" | "gr" | "pv" | "cq">("po");
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<any[]>([]);
@@ -15,16 +19,16 @@ export default function AccountsPayablePage() {
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
       if (activeTab === "po") {
         const res = await ApApi.getPurchaseOrders();
         setList(Array.isArray(res) ? res : res.items || []);
       }
 
-      const suppRes = await MasterApi.getSuppliers();
-      setSuppliers(Array.isArray(suppRes) ? suppRes : suppRes.items || []);
-    } catch (err: any) {
-      console.error(err);
+      if (canCreate) setSuppliers(await AccountingLookupApi.getSuppliers());
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
@@ -32,7 +36,7 @@ export default function AccountsPayablePage() {
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [activeTab, canCreate]);
 
   const handleCreatePo = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -67,8 +71,10 @@ export default function AccountsPayablePage() {
             <p className="mt-1 text-sm text-[#657069]">จัดการใบสั่งซื้อ (PO), ใบตรวจรับ (GR), ใบสำคัญจ่าย (PV) และเช็คจ่าย (CQ)</p>
           </div>
           <button
+            disabled={!canCreate}
+            title={!canCreate ? "ไม่มีสิทธิ์สร้างเอกสารเจ้าหนี้" : undefined}
             onClick={() => { setFormData({ items: [{ desc: "", qty: 1, unitPrice: 0, amount: 0 }] }); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />สร้างใบสั่งซื้อ (PO)
           </button>
@@ -96,6 +102,7 @@ export default function AccountsPayablePage() {
           ))}
         </div>
 
+        {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* List Table */}
         <div className="overflow-hidden rounded-lg border border-[#dfe5de] bg-white shadow-sm">
           {loading ? (
@@ -198,7 +205,7 @@ export default function AccountsPayablePage() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex justify-end gap-2 pt-3">
+                <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
                   <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">สร้างใบสั่งซื้อ</button>
                 </div>

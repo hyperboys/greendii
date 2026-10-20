@@ -43,6 +43,9 @@ const arRoutes            = require('./routes/ar');
 const apRoutes            = require('./routes/ap');
 const inventoryRoutes     = require('./routes/inventory');
 const accountingReportsRoutes = require('./routes/accounting-reports');
+const accountingAccessRoutes = require('./routes/accounting-access');
+const { authenticate } = require('./middleware/auth');
+const { ACCOUNTING_RESOURCES, requireAccountingResource } = require('./middleware/accountingAccess');
 const { errorHandler } = require('./middleware/errorHandler');
 const { activityLogger } = require('./middleware/activityLogger');
 
@@ -61,7 +64,7 @@ app.use(helmet({
 }));
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
-const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001')
   .split(',').map(s => s.trim());
 
 app.use(cors({
@@ -168,6 +171,10 @@ const forgotPasswordLimiter = rateLimit({
 app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authRoutes);
+app.use('/api/accounting-access', accountingAccessRoutes);
+for (const [route, resource] of ACCOUNTING_RESOURCES) {
+  app.use(route, authenticate, requireAccountingResource(resource));
+}
 app.use('/api/users', usersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/account-customers', accountCustomersRoutes);

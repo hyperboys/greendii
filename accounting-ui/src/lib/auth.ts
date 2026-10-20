@@ -35,7 +35,11 @@ export function getStoredUser(): AuthUser | null {
 }
 
 export function hasSession() {
-  return typeof window !== "undefined" && Boolean(localStorage.getItem(TOKEN_KEY));
+  return Boolean(getSessionToken());
+}
+
+export function getSessionToken() {
+  return typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
 }
 
 export async function login(username: string, password: string) {

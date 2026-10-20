@@ -75,8 +75,30 @@ model User {
   quotationCounters  QuotationCounter[]
   workOrderReadLogs  WorkOrderReadLog[]
   domainAuditLogs    AuditLog[]
+  accountingAssignment AccountingUserRole?
 
   @@map("users")
+}
+
+model AccountingRole {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  permissions String[]
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime @updatedAt @db.Timestamptz(3)
+  assignments AccountingUserRole[]
+
+  @@map("accounting_roles")
+}
+
+model AccountingUserRole {
+  userId String @id
+  roleId String
+  user   User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   AccountingRole @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  @@index([roleId])
+  @@map("accounting_user_roles")
 }
 
 model QuotationCounter {

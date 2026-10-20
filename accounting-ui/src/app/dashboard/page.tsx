@@ -1,5 +1,10 @@
+"use client";
+
+import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, CircleAlert, FileClock, Plus, ReceiptText, WalletCards } from "lucide-react";
 import { AppShell } from "@/components/app-shell";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { AccountingModule, canUseAccounting } from "@/lib/accounting-access";
 
 const stats = [
   { label: "ลูกหนี้คงค้าง", value: "฿0.00", note: "รอเชื่อมข้อมูลใบแจ้งหนี้", icon: WalletCards, tone: "bg-[#e3efe7] text-[#23653e]" },
@@ -9,6 +14,11 @@ const stats = [
 ];
 
 export default function DashboardPage() {
+  const access = useAccountingAccess();
+  const createPaths: [AccountingModule, string][] = [
+    ["ar", "/ar/invoices"], ["ap", "/ap/vouchers"], ["inventory", "/inventory"], ["master", "/master"],
+  ];
+  const createPath = createPaths.find(([resource]) => canUseAccounting(access, resource, "create"))?.[1];
   return (
     <AppShell>
       <div className="dashboard-enter mx-auto max-w-370">
@@ -18,7 +28,7 @@ export default function DashboardPage() {
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ภาพรวมบัญชี</h1>
             <p className="mt-2 text-sm text-[#657069]">สถานะเอกสารรับ-จ่าย และงานที่ต้องดำเนินการ</p>
           </div>
-          <button className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"><Plus size={17} />สร้างรายการใหม่</button>
+          {createPath && <Link href={createPath} className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"><Plus size={17} />สร้างรายการใหม่</Link>}
         </div>
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">

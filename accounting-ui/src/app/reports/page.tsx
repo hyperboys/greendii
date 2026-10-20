@@ -6,12 +6,14 @@ import { ReportsApi } from "@/lib/api";
 import { FileChartColumn, FileSpreadsheet, RefreshCw } from "lucide-react";
 
 export default function ReportsPage() {
+  const [errorMsg, setErrorMsg] = useState("");
   const [activeTab, setActiveTab] = useState<"arAging" | "apAging" | "reconDelivery" | "reconPo">("arAging");
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<any>({ rows: [] });
 
   const loadReport = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
       if (activeTab === "arAging") {
         const res = await ReportsApi.getArAging();
@@ -26,8 +28,8 @@ export default function ReportsPage() {
         const res = await ReportsApi.getReconPoToGoodsReceipt();
         setReportData(res);
       }
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดรายงานได้");
     } finally {
       setLoading(false);
     }
@@ -76,6 +78,7 @@ export default function ReportsPage() {
           ))}
         </div>
 
+        {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Report Content Table */}
         <div className="overflow-hidden rounded-lg border border-[#dfe5de] bg-white shadow-sm">
           {loading ? (

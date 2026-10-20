@@ -2,26 +2,28 @@
 
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
-import { ArApi, MasterApi } from "@/lib/api";
+import { ArApi } from "@/lib/api";
 import { Plus, WalletCards } from "lucide-react";
+import { useAccountingAccess } from "@/components/accounting-access-provider";
+import { canUseAccounting } from "@/lib/accounting-access";
 
 export default function ReceiptsPage() {
+  const canCreate = canUseAccounting(useAccountingAccess(), "ar", "create");
+  const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
   const [invoices, setInvoices] = useState<any[]>([]);
-  const [customers, setCustomers] = useState<any[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<any>({ paymentMethod: "transfer" });
 
   const loadData = async () => {
     setLoading(true);
+    setErrorMsg("");
     try {
       const invRes = await ArApi.getInvoices({ unpaidOnly: "true" });
       setInvoices(Array.isArray(invRes) ? invRes : invRes.items || []);
 
-      const custRes = await MasterApi.getCustomers();
-      setCustomers(Array.isArray(custRes) ? custRes : custRes.items || []);
-    } catch (err: any) {
-      console.error(err);
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
@@ -73,13 +75,16 @@ export default function ReceiptsPage() {
             <p className="mt-1 text-sm text-[#657069]">บันทึกการรับชำระเงิน ตัดยอดลูกหนี้คงค้าง และออกใบเสร็จรับเงิน (RV)</p>
           </div>
           <button
+            disabled={!canCreate}
+            title={!canCreate ? "ไม่มีสิทธิ์บันทึกรับชำระเงิน" : undefined}
             onClick={() => { setFormData({ paymentMethod: "transfer" }); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />บันทึกรับชำระเงิน
           </button>
         </div>
 
+        {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         <div className="overflow-hidden rounded-lg border border-[#dfe5de] bg-white shadow-sm">
           <div className="p-4 border-b border-[#dfe5de] bg-[#f8faf7]">
             <h2 className="font-bold text-xs text-[#566159]">รายการใบแจ้งหนี้รอดำเนินการรับชำระ (Unpaid Invoices)</h2>
@@ -111,8 +116,9 @@ export default function ReceiptsPage() {
                       <td className="p-3.5 font-bold text-[#9a6514]">฿{Number(inv.outstandingAmount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
                       <td className="p-3.5 text-right">
                         <button
+                          disabled={!canCreate}
                           onClick={() => { setFormData({ invoiceId: inv.id, receivedAmount: inv.outstandingAmount, paymentMethod: "transfer" }); setShowModal(true); }}
-                          className="rounded bg-[#23653e] px-3 py-1 text-[11px] font-bold text-white hover:bg-[#194d34]"
+                          className="rounded bg-[#23653e] px-3 py-1 text-[11px] font-bold text-white hover:bg-[#194d34] disabled:cursor-not-allowed disabled:opacity-40"
                         >
                           รับชำระ
                         </button>
@@ -183,7 +189,7 @@ export default function ReceiptsPage() {
                   />
                 </div>
 
-                <div className="mt-5 flex justify-end gap-2 pt-3">
+                <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
                   <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">บันทึกตัดชำระ</button>
                 </div>
