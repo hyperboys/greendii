@@ -315,7 +315,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         })
         // Conservative gaps account for inter-block margins so content never clips.
         const HEADER_GAP = 12
-        const SAFETY = 10
+        const SAFETY = 18
         const TAIL_GAP = 10
         const availNonLast = pagePx - hHeader - HEADER_GAP - hThead - SAFETY
         const availLast = availNonLast - hTail - TAIL_GAP
