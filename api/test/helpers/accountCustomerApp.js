@@ -19,9 +19,12 @@ function createCustomerApp() {
   };
   const hydrate = value => value && structuredClone({
     ...value, responsibleSale: state.sales.find(s => s.id === value.responsibleSaleId) || null,
+    secondarySales: (value.secondarySales || []).map(link => ({ ...link, sale: state.sales.find(s => s.id === link.saleId) || null })),
   });
   const customerData = (data, previous) => ({
     ...data,
+    secondarySales: data.secondarySales?.create ? data.secondarySales.create.map(link => ({ ...link }))
+      : previous?.secondarySales || [],
     branches: data.branches?.create ? data.branches.create.map(branch => ({
       ...branch, id: branch.id || `branch-${sequence++}`,
       addresses: branch.addresses.create.map(address => ({ ...address, id: address.id || `address-${sequence++}` })),
@@ -51,6 +54,9 @@ function createCustomerApp() {
     },
     accountCustomerBranch: {
       deleteMany: async ({ where }) => { const customer = find(state.customers, { id: where.customerId }); customer.branches = []; },
+    },
+    accountCustomerSecondarySale: {
+      deleteMany: async ({ where }) => { const customer = find(state.customers, { id: where.customerId }); customer.secondarySales = []; },
     },
     invoice: {
       create: async ({ data }) => {

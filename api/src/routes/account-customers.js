@@ -16,6 +16,7 @@ router.get('/', authenticate, async (req, res, next) => {
         { name: { contains: q, mode: 'insensitive' } },
         { code: { contains: q, mode: 'insensitive' } },
         { taxId: { contains: q, mode: 'insensitive' } },
+        { branches: { some: { code: { contains: q, mode: 'insensitive' } } } },
       ];
     }
     const pg = getPagination(req.query);
@@ -48,12 +49,17 @@ async function saveCustomer(req, res, next) {
       if (previous && req.body.updatedAt && new Date(req.body.updatedAt).getTime() !== previous.updatedAt.getTime()) {
         throw Object.assign(new Error('ข้อมูลลูกค้าถูกแก้ไขแล้ว กรุณาโหลดข้อมูลใหม่'), { status: 409 });
       }
-      const { branches, ...data } = validateCustomer(req.body, previous);
-      if (data.responsibleSaleId) {
-        const sale = await tx.accountSale.findUnique({ where: { id: data.responsibleSaleId } });
-        if (!sale || (!sale.active && previous?.responsibleSaleId !== sale.id)) {
+      const { branches, secondarySaleIds, ...data } = validateCustomer(req.body, previous);
+      const assignedSaleIds = new Set([previous?.responsibleSaleId, ...(previous?.secondarySales || []).map(s => s.saleId)]);
+      for (const saleId of [data.responsibleSaleId, ...(secondarySaleIds || [])].filter(Boolean)) {
+        const sale = await tx.accountSale.findUnique({ where: { id: saleId } });
+        if (!sale || (!sale.active && !assignedSaleIds.has(sale.id))) {
           throw Object.assign(new Error('Sale ผู้ดูแลไม่ถูกต้องหรือถูกปิดใช้งาน'), { status: 400 });
         }
+      }
+      if (secondarySaleIds) {
+        if (previous) await tx.accountCustomerSecondarySale.deleteMany({ where: { customerId: previous.id } });
+        data.secondarySales = { create: secondarySaleIds.map((saleId, position) => ({ saleId, position })) };
       }
       if (branches) {
         const branchIds = branches.map(b => b.id).filter(Boolean);
@@ -66,6 +72,7 @@ async function saveCustomer(req, res, next) {
         if (previous) await tx.accountCustomerBranch.deleteMany({ where: { customerId: previous.id } });
         data.branches = { create: branches.map((branch, position) => ({
           ...(branch.id ? { id: branch.id } : {}), code: branch.code, name: branch.name, position,
+          contactPerson: branch.contactPerson, tel: branch.tel, fax: branch.fax, email: branch.email,
           addresses: { create: branch.addresses.map((address, addressPosition) => ({
             ...(address.id ? { id: address.id } : {}), label: address.label, kind: address.kind,
             address: address.address, position: addressPosition,

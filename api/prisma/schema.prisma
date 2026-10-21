@@ -178,6 +178,7 @@ model AccountCustomer {
   name            String
   contactPerson   String?  @map("contact_person")
   tel             String?
+  fax             String?
   email           String?
   address         String?
   billingAddress  String?  @map("billing_address")
@@ -194,6 +195,7 @@ model AccountCustomer {
   responsibleSaleId String? @map("responsible_sale_id")
   responsibleSale AccountSale? @relation(fields: [responsibleSaleId], references: [id], onDelete: SetNull)
   branches        AccountCustomerBranch[]
+  secondarySales  AccountCustomerSecondarySale[]
 
   provisionalDeliveryOrders ProvisionalDeliveryOrder[]
   invoices                  Invoice[]
@@ -214,9 +216,22 @@ model AccountSale {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @db.Timestamptz(3)
   customers AccountCustomer[]
+  secondaryCustomers AccountCustomerSecondarySale[]
   invoices  Invoice[]
 
   @@map("account_sales")
+}
+
+model AccountCustomerSecondarySale {
+  customerId String @map("customer_id")
+  customer   AccountCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  saleId     String @map("sale_id")
+  sale       AccountSale @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  position   Int @default(0)
+
+  @@id([customerId, saleId])
+  @@index([saleId])
+  @@map("account_customer_secondary_sales")
 }
 
 model AccountCustomerBranch {
@@ -225,6 +240,10 @@ model AccountCustomerBranch {
   customer   AccountCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
   code       String
   name       String
+  contactPerson String? @map("contact_person")
+  tel        String?
+  fax        String?
+  email      String?
   position   Int @default(0)
   addresses  AccountCustomerAddress[]
 

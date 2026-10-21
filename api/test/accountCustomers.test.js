@@ -4,36 +4,26 @@ const fs = require('node:fs');
 const path = require('node:path');
 const { validateCustomer, validateSale, invoiceCustomerDefaults } = require('../src/lib/accountCustomers');
 
-test('Customer migration is additive Accounting-only and never rewrites existing rows', () => {
-  const sql = fs.readFileSync(path.join(__dirname, '..', 'prisma', 'migrations',
-    '20261021020000_account_customer_management', 'migration.sql'), 'utf8').replace(/--[^\r\n]*/g, '');
+test('Import support SQL is additive, re-runnable and Accounting-only', () => {
+  const sql = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'sql', 'account-customer-import-support.sql'), 'utf8')
+    .replace(/--[^\r\n]*/g, '');
   const statements = sql.split(';').map(statement => statement.trim()).filter(Boolean);
-  const newTables = new Set(['account_sales', 'account_customer_branches', 'account_customer_addresses']);
-  const existingTables = new Set(['account_customers', 'invoices']);
-  const referencedTables = new Set([...newTables, ...existingTables]);
+  const newTables = new Set(['account_customer_secondary_sales']);
+  const existingTables = new Set(['account_customers', 'account_customer_branches']);
+  const referencedTables = new Set([...newTables, ...existingTables, 'account_sales']);
   assert.equal(statements[0], 'BEGIN');
   assert.equal(statements.at(-1), 'COMMIT');
   for (const statement of statements.slice(1, -1)) {
-    assert.doesNotMatch(statement, /\b(?:DROP|TRUNCATE|RENAME)\b/i);
-    assert.doesNotMatch(statement, /^(?:UPDATE|DELETE|MERGE|DO|CALL|EXECUTE)\b/i);
-    const create = statement.match(/^CREATE TABLE "([^"]+)"/i);
-    const index = statement.match(/^CREATE (?:UNIQUE )?INDEX "[^"]+"\s+ON "([^"]+)"/i);
-    const alter = statement.match(/^ALTER TABLE "([^"]+)"/i);
-    const insert = statement.match(/^INSERT INTO "([^"]+)"/i);
-    assert.ok(create || index || alter || insert, `Unreviewed migration statement: ${statement}`);
+    assert.doesNotMatch(statement, /\b(?:DROP|TRUNCATE|RENAME|UPDATE|DELETE|INSERT)\b(?!\s+CASCADE|\s+RESTRICT)/i);
+    const create = statement.match(/^CREATE TABLE IF NOT EXISTS "([^"]+)"/i);
+    const index = statement.match(/^CREATE (?:UNIQUE )?INDEX IF NOT EXISTS "[^"]+"\s+ON "([^"]+)"/i);
+    const alter = statement.match(/^ALTER TABLE "([^"]+)"\s+ADD COLUMN IF NOT EXISTS "[^"]+" TEXT$/i);
+    assert.ok(create || index || alter, `Unreviewed SQL statement: ${statement}`);
     if (create) assert.ok(newTables.has(create[1]), create[1]);
     if (index) assert.ok(newTables.has(index[1]), index[1]);
-    if (insert) {
-      assert.ok(newTables.has(insert[1]), insert[1]);
-      assert.match(statement, /\bSELECT\b/i);
-    }
-    if (alter) {
-      assert.ok(existingTables.has(alter[1]), alter[1]);
-      assert.match(statement, /^ALTER TABLE "[^"]+"\s+ADD (?:COLUMN|CONSTRAINT)\b/i);
-      assert.doesNotMatch(statement, /\b(?:ALTER COLUMN|SET DEFAULT|SET NOT NULL)\b/i);
-    }
+    if (alter) assert.ok(existingTables.has(alter[1]), alter[1]);
     for (const match of statement.matchAll(/\b(?:FROM|REFERENCES|JOIN)\s+"([^"]+)"/gi)) {
-      assert.ok(referencedTables.has(match[1]), `Migration touches unrelated table: ${match[1]}`);
+      assert.ok(referencedTables.has(match[1]), `SQL touches unrelated table: ${match[1]}`);
     }
   }
 });
@@ -66,7 +56,11 @@ test('Customer validation preserves zero credit, multiple branches and address t
   assert.throws(() => validateCustomer({ ...customer, active: 'false' }), /สถานะ/);
   assert.throws(() => validateCustomer({ ...customer, branches: [customer.branches[0], customer.branches[0]] }), /สาขาซ้ำ/);
   assert.throws(() => validateCustomer({ ...customer, branches: [] }), /สาขา/);
-  assert.throws(() => validateCustomer({ ...customer, branches: [{ name: 'Office', addresses: [] }] }), /ที่อยู่/);
+  const noAddress = validateCustomer({ ...customer, branches: [{ code: 'H', name: 'Office', addresses: [] }] });
+  assert.deepEqual(noAddress.branches[0].addresses, []);
+  assert.equal(noAddress.address, null);
+  assert.equal(noAddress.billingAddress, null);
+  assert.throws(() => validateCustomer({ ...customer, branches: [{ code: 'H', name: 'Office' }] }), /ที่อยู่/);
 });
 
 test('Accounting Sale has its own code, contact and active status', () => {
@@ -116,4 +110,19 @@ test('Legacy customers can still supply scalar addresses without losing data', (
   assert.equal(defaults.address, 'Old billing');
   assert.equal(defaults.shippingAddress, 'Old shipping');
   assert.equal(defaults.creditTerm, 45);
+});
+
+test('Customer validation supports fax, branch contacts, multiple emails and secondary Sales', () => {
+  const data = validateCustomer({
+    ...customer, fax: ' 02-1 ', email: 'a@x.co; b@y.co', responsibleSaleId: 's1', secondarySaleIds: ['s2', 's3'],
+    branches: [{ ...customer.branches[0], tel: '1', fax: '2', contactPerson: 'K', email: 'c@z.co' }],
+  });
+  assert.equal(data.fax, '02-1');
+  assert.equal(data.email, 'a@x.co, b@y.co');
+  assert.deepEqual(data.secondarySaleIds, ['s2', 's3']);
+  assert.deepEqual([data.branches[0].tel, data.branches[0].fax, data.branches[0].contactPerson], ['1', '2', 'K']);
+  assert.throws(() => validateCustomer({ ...customer, email: 'a@x.co, nope' }), /อีเมล/);
+  assert.throws(() => validateCustomer({ ...customer, responsibleSaleId: 's1', secondarySaleIds: ['s1'] }), /Sale รอง/);
+  assert.throws(() => validateCustomer({ ...customer, secondarySaleIds: ['s2', 's2'] }), /Sale รองซ้ำ/);
+  assert.throws(() => validateCustomer({ ...customer, secondarySaleIds: 's2' }), /Sale รอง/);
 });

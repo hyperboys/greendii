@@ -65,10 +65,11 @@ export function CustomerMaster() {
   };
   const duplicateTax = form.taxId.trim() ? customers.filter(c => c.id !== modal?.customer?.id && c.taxId?.trim() === form.taxId.trim()) : [];
   const filtered = customers.filter(customer => (status === "all" || customer.active === (status === "active")) &&
-    [customer.code, customer.name, customer.taxId, customer.responsibleSale?.name].some(value => value?.toLowerCase().includes(query.toLowerCase())));
+    [customer.code, customer.name, customer.taxId, customer.responsibleSale?.name, ...customer.branches.map(b => b.code),
+      ...(customer.secondarySales ?? []).map(s => s.sale?.name)].some(value => value?.toLowerCase().includes(query.toLowerCase())));
   return <section aria-label="จัดการลูกค้าบัญชี">
     <div className="mb-4 flex flex-wrap items-end gap-3">
-      <Field label="ค้นหารหัส / ชื่อ / Tax ID / Sale"><input className={inputClass} value={query} onChange={e => setQuery(e.target.value)} /></Field>
+      <Field label="ค้นหารหัส / รหัสเดิม / ชื่อ / Tax ID / Sale"><input className={inputClass} value={query} onChange={e => setQuery(e.target.value)} /></Field>
       <Field label="สถานะ"><select className={inputClass} value={status} onChange={e => setStatus(e.target.value)}>
         <option value="all">ทั้งหมด</option><option value="active">ใช้งาน</option><option value="inactive">ปิดใช้งาน</option>
       </select></Field>
@@ -84,8 +85,10 @@ export function CustomerMaster() {
           : filtered.map(customer => <tr key={customer.id} className="border-t border-[#dfe5de]">
             <td className="p-3"><div className="font-bold">{customer.name}</div><div>{customer.code || "ยังไม่ระบุรหัส"}</div></td>
             <td className="p-3"><div>{customer.taxId || "-"}</div><div>{customer.contactPerson || customer.tel || "-"}</div></td>
-            <td className="p-3">{customer.branches.length || 1} สาขา</td>
-            <td className="p-3">{customer.responsibleSale?.name || "ยังไม่ระบุ"}</td>
+            <td className="p-3">{customer.branches.length || 1} สาขา
+              {customer.branches.some(b => !b.addresses.length) && <div className="text-xs font-bold text-amber-700">ยังไม่มีที่อยู่</div>}</td>
+            <td className="p-3"><div>{customer.responsibleSale?.name || "ยังไม่ระบุ"}</div>
+              {Boolean(customer.secondarySales?.length) && <div className="text-xs text-[#657069]">รอง: {customer.secondarySales?.map(s => s.sale?.name).filter(Boolean).join(", ")}</div>}</td>
             <td className="p-3">{customer.vatConfig === "NO_VAT" ? "ไม่มี VAT" : customer.vatConfig}<br />{customer.creditTerm} วัน</td>
             <td className="p-3">{customer.active ? "ใช้งาน" : "ปิดใช้งาน"}</td>
             <td className="p-3"><div className="flex gap-2">
@@ -110,10 +113,16 @@ export function CustomerMaster() {
               <Field label="ประเภทลูกค้า"><select className={inputClass} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option>นิติบุคคล</option><option>บุคคลธรรมดา</option></select></Field>
               <Field label="ผู้ติดต่อ"><input className={inputClass} value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} /></Field>
               <Field label="โทรศัพท์"><input type="tel" className={inputClass} value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} /></Field>
-              <Field label="อีเมล"><input type="email" className={inputClass} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></Field>
-              <Field label="Sale ผู้ดูแล (ทะเบียนบัญชี)"><select className={inputClass} value={form.responsibleSaleId} onChange={e => setForm({ ...form, responsibleSaleId: e.target.value })}>
+              <Field label="แฟกซ์"><input type="tel" className={inputClass} value={form.fax} onChange={e => setForm({ ...form, fax: e.target.value })} /></Field>
+              <Field label="อีเมล (หลายอีเมลคั่นด้วย ,)"><input type="email" multiple className={inputClass} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></Field>
+              <Field label="Sale หลัก (ทะเบียนบัญชี)"><select className={inputClass} value={form.responsibleSaleId} onChange={e => setForm({ ...form, responsibleSaleId: e.target.value, secondarySaleIds: form.secondarySaleIds.filter(id => id !== e.target.value) })}>
                 <option value="">ยังไม่ระบุ</option>{sales.filter(s => s.active || s.id === form.responsibleSaleId).map(s => <option key={s.id} value={s.id}>{s.code} - {s.name}{s.active ? "" : " (ปิดใช้งาน)"}</option>)}
               </select></Field>
+              <fieldset className="sm:col-span-2"><legend className="text-xs font-bold text-[#566159]">Sale รอง</legend>
+                <div className="mt-1 flex flex-wrap gap-3">{sales.filter(s => s.id !== form.responsibleSaleId && (s.active || form.secondarySaleIds.includes(s.id))).map(s => <label key={s.id} className="flex items-center gap-1 text-sm">
+                  <input type="checkbox" checked={form.secondarySaleIds.includes(s.id)} onChange={e => setForm({ ...form, secondarySaleIds: e.target.checked ? [...form.secondarySaleIds, s.id] : form.secondarySaleIds.filter(id => id !== s.id) })} />
+                  {s.code} - {s.name}{s.active ? "" : " (ปิดใช้งาน)"}</label>)}</div>
+              </fieldset>
               <Field label="การตั้งค่า VAT"><select className={inputClass} value={form.vatConfig} onChange={e => setForm({ ...form, vatConfig: e.target.value === "NO_VAT" ? "NO_VAT" : "VAT7%" })}><option value="VAT7%">VAT 7%</option><option value="NO_VAT">ไม่มี VAT</option></select></Field>
               <Field label="Credit Term (วัน)"><input required type="number" min={0} max={2147483647} step={1} className={inputClass} value={Number.isNaN(form.creditTerm) ? "" : form.creditTerm} onChange={e => setForm({ ...form, creditTerm: e.target.valueAsNumber })} /></Field>
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />เปิดใช้งานลูกค้า</label>
@@ -125,6 +134,10 @@ export function CustomerMaster() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field label="รหัสสาขา *"><input required className={inputClass} value={branch.code} onChange={e => updateBranch(branchIndex, { code: e.target.value })} /></Field>
                 <Field label="ชื่อสาขา *"><input required className={inputClass} value={branch.name} onChange={e => updateBranch(branchIndex, { name: e.target.value })} /></Field>
+                <Field label="ผู้ติดต่อสาขา"><input className={inputClass} value={branch.contactPerson ?? ""} onChange={e => updateBranch(branchIndex, { contactPerson: e.target.value })} /></Field>
+                <Field label="อีเมลสาขา"><input type="email" multiple className={inputClass} value={branch.email ?? ""} onChange={e => updateBranch(branchIndex, { email: e.target.value })} /></Field>
+                <Field label="โทรศัพท์สาขา"><input type="tel" className={inputClass} value={branch.tel ?? ""} onChange={e => updateBranch(branchIndex, { tel: e.target.value })} /></Field>
+                <Field label="แฟกซ์สาขา"><input type="tel" className={inputClass} value={branch.fax ?? ""} onChange={e => updateBranch(branchIndex, { fax: e.target.value })} /></Field>
               </div>
               {branch.addresses.map((address, addressIndex) => <div key={address.id || addressIndex} className="grid gap-3 border-t border-[#dfe5de] pt-3 sm:grid-cols-2">
                 <Field label="ชื่อที่อยู่ *"><input required className={inputClass} value={address.label} onChange={e => updateBranch(branchIndex, { addresses: branch.addresses.map((a, i) => i === addressIndex ? { ...a, label: e.target.value } : a) })} /></Field>
@@ -132,8 +145,9 @@ export function CustomerMaster() {
                   <option value="both">วางบิลและจัดส่ง</option><option value="billing">ที่อยู่วางบิล</option><option value="shipping">ที่อยู่จัดส่ง</option>
                 </select></Field>
                 <div className="sm:col-span-2"><Field label="ที่อยู่ *"><textarea required rows={2} className={inputClass} value={address.address} onChange={e => updateBranch(branchIndex, { addresses: branch.addresses.map((a, i) => i === addressIndex ? { ...a, address: e.target.value } : a) })} /></Field></div>
-                <button type="button" className={`${buttonClass} justify-self-start`} disabled={branch.addresses.length === 1} onClick={() => updateBranch(branchIndex, { addresses: branch.addresses.filter((_, i) => i !== addressIndex) })}>ลบที่อยู่</button>
+                <button type="button" className={`${buttonClass} justify-self-start`} onClick={() => updateBranch(branchIndex, { addresses: branch.addresses.filter((_, i) => i !== addressIndex) })}>ลบที่อยู่</button>
               </div>)}
+              {!branch.addresses.length && <p className="text-sm text-amber-700">สาขานี้ยังไม่มีที่อยู่ กด &quot;เพิ่มที่อยู่&quot; เพื่อบันทึกก่อนออกเอกสาร</p>}
               <button type="button" className={buttonClass} onClick={() => updateBranch(branchIndex, { addresses: [...branch.addresses, { label: "", kind: "both", address: "" }] })}>เพิ่มที่อยู่</button>
             </section>)}
           </fieldset>

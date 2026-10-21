@@ -109,3 +109,48 @@ test('Customer and Sale HTTP flows persist edits, enforce permissions and snapsh
   })).status, 200);
   assert.equal((await (await request(`/account-customers/${customer2.id}`)).json()).active, true);
 });
+
+test('Customer edits keep fax, branch contacts and secondary Sales; inactive Sales cannot be newly added', async t => {
+  const original = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'isolated-accounting-customer-tests';
+  t.after(() => { if (original === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = original; });
+  const fixture = createCustomerApp();
+  const server = fixture.app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  const token = fixture.token('admin');
+  const request = (path, method = 'GET', body) => fetch(`${base}${path}`, {
+    method, headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+    ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+  });
+  const [main, second, inactive] = await Promise.all(['S1', 'S2', 'S3'].map(code =>
+    request('/account-sales', 'POST', { code, name: code, active: code !== 'S3' }).then(r => r.json())));
+  const payload = {
+    code: 'C100', name: 'Fax customer', fax: '02-999', email: 'a@x.co, b@y.co', responsibleSaleId: main.id, secondarySaleIds: [second.id],
+    branches: [{ code: 'C100', name: 'สำนักงานใหญ่', tel: '1', fax: '2', contactPerson: 'K', email: 'k@z.co',
+      addresses: [{ label: 'ที่อยู่หลัก', kind: 'both', address: 'Addr' }] }],
+  };
+  const created = await request('/account-customers', 'POST', payload);
+  assert.equal(created.status, 201);
+  const customer = await created.json();
+  assert.equal(customer.fax, '02-999');
+  assert.deepEqual(customer.secondarySales.map(s => s.sale.name), ['S2']);
+  assert.deepEqual([customer.branches[0].tel, customer.branches[0].fax, customer.branches[0].contactPerson], ['1', '2', 'K']);
+  const nameOnly = await (await request(`/account-customers/${customer.id}`, 'PUT', { name: 'Renamed' })).json();
+  assert.deepEqual(nameOnly.secondarySales.map(s => s.saleId), [second.id]);
+  assert.equal(nameOnly.branches[0].fax, '2');
+  assert.equal((await request(`/account-customers/${customer.id}`, 'PUT', { secondarySaleIds: [inactive.id] })).status, 400);
+  assert.equal((await request(`/account-customers/${customer.id}`, 'PUT', { secondarySaleIds: [main.id] })).status, 400);
+  assert.equal((await request(`/account-customers/${customer.id}`, 'PUT', { responsibleSaleId: second.id })).status, 400);
+  const swapped = await (await request(`/account-customers/${customer.id}`, 'PUT', { responsibleSaleId: second.id, secondarySaleIds: [main.id] })).json();
+  assert.equal(swapped.responsibleSale.name, 'S2');
+  assert.deepEqual(swapped.secondarySales.map(s => s.sale.name), ['S1']);
+  const noAddress = await request(`/account-customers/${customer.id}`, 'PUT', {
+    branches: [{ id: swapped.branches[0].id, code: 'C100', name: 'สำนักงานใหญ่', addresses: [] }],
+  });
+  assert.equal(noAddress.status, 200);
+  assert.deepEqual((await noAddress.json()).branches[0].addresses, []);
+  const created2 = await request('/account-customers', 'POST', { code: 'C101', name: 'No address', branches: [{ code: 'C101', name: 'สำนักงานใหญ่', addresses: [] }] });
+  assert.equal(created2.status, 201);
+});

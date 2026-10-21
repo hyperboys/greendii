@@ -7,31 +7,37 @@ export type CustomerAddress = {
   id?: string; label: string; kind: "billing" | "shipping" | "both"; address: string;
 };
 export type CustomerBranch = {
-  id?: string; code: string; name: string; addresses: CustomerAddress[];
+  id?: string; code: string; name: string; contactPerson?: string | null; tel?: string | null;
+  fax?: string | null; email?: string | null; addresses: CustomerAddress[];
 };
 export type CustomerInput = {
   code: string; name: string; taxId: string; type: string; contactPerson: string;
-  tel: string; email: string; responsibleSaleId: string; vatConfig: VatConfig;
+  tel: string; fax: string; email: string; responsibleSaleId: string; secondarySaleIds: string[]; vatConfig: VatConfig;
   creditTerm: number; active: boolean; branches: CustomerBranch[]; updatedAt?: string;
 };
-export type AccountCustomer = Omit<CustomerInput, "code" | "taxId" | "contactPerson" | "tel" | "email" | "responsibleSaleId"> & {
+export type AccountCustomer = Omit<CustomerInput, "code" | "taxId" | "contactPerson" | "tel" | "fax" | "email" | "responsibleSaleId" | "secondarySaleIds"> & {
   id: string; code: string | null; taxId: string | null; contactPerson: string | null;
-  tel: string | null; email: string | null; responsibleSaleId: string | null;
-  responsibleSale: AccountSale | null; branch?: string | null; address?: string | null;
+  tel: string | null; fax?: string | null; email: string | null; responsibleSaleId: string | null;
+  responsibleSale: AccountSale | null; secondarySales?: { saleId: string; position: number; sale: AccountSale | null }[];
+  branch?: string | null; address?: string | null;
   billingAddress?: string | null; shippingAddress?: string | null;
 };
 
 export function newBranch(): CustomerBranch {
-  return { code: "", name: "", addresses: [{ label: "ที่อยู่หลัก", kind: "both", address: "" }] };
+  return { code: "", name: "", contactPerson: "", tel: "", fax: "", email: "", addresses: [{ label: "ที่อยู่หลัก", kind: "both", address: "" }] };
 }
 export function customerForm(customer?: AccountCustomer): CustomerInput {
   return {
     code: customer?.code ?? "", name: customer?.name ?? "", taxId: customer?.taxId ?? "",
     type: customer?.type ?? "นิติบุคคล", contactPerson: customer?.contactPerson ?? "",
-    tel: customer?.tel ?? "", email: customer?.email ?? "", responsibleSaleId: customer?.responsibleSaleId ?? "",
+    tel: customer?.tel ?? "", fax: customer?.fax ?? "", email: customer?.email ?? "", responsibleSaleId: customer?.responsibleSaleId ?? "",
+    secondarySaleIds: customer?.secondarySales?.map(s => s.saleId) ?? [],
     vatConfig: customer?.vatConfig ?? "VAT7%", creditTerm: customer?.creditTerm ?? 30,
     active: customer?.active ?? true, updatedAt: customer?.updatedAt,
-    branches: customer?.branches.length ? customer.branches.map(b => ({ ...b, addresses: b.addresses.map(a => ({ ...a })) }))
+    branches: customer?.branches.length ? customer.branches.map(b => ({
+      ...b, contactPerson: b.contactPerson ?? "", tel: b.tel ?? "", fax: b.fax ?? "", email: b.email ?? "",
+      addresses: b.addresses.map(a => ({ ...a })),
+    }))
       : [{
         code: customer ? "LEGACY" : "", name: customer?.branch ?? "สำนักงานใหญ่",
         addresses: customer ? [
