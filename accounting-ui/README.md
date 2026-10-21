@@ -188,6 +188,43 @@ break Accounting customer and Invoice requests even though it does not erase
 data. If application rollback is needed, retain the additive schema; do not drop
 new tables or columns containing user-entered data.
 
+### Fax, secondary Sales and branch contacts
+
+Customers have a fax field, a primary **Sale หลัก** (`responsibleSaleId`) and
+optional **Sale รอง** (`secondarySaleIds`, stored in
+`account_customer_secondary_sales`). Each branch can store its own contact
+person, phone, fax and email. Email fields accept multiple addresses separated
+by `,` or `;`. Updates omitting `secondarySaleIds` keep existing secondary Sales.
+
+These columns/table are added by the idempotent, additive script
+`api/scripts/sql/account-customer-import-support.sql` (ADD COLUMN IF NOT EXISTS /
+CREATE TABLE IF NOT EXISTS only). Apply it, with approval and after a backup,
+before deploying this API version.
+
+### Importing customers from CSV
+
+`api/scripts/import-account-customers.js` imports `Data/customer.csv` into the
+Accounting customer tables only. Rules: rows sharing a valid 13-digit Tax ID
+become one customer with one branch per original code, except configured Tax IDs
+shared by different companies (`--separate-tax`), which become one customer per
+company name; `*` Sale is the primary
+Sale and other listed Sales are secondary; blank credit defaults to 30 days and
+VAT to 7%; rows without an address are imported with a branch that has no
+address (flagged "ยังไม่มีที่อยู่" in the customer list) and need an address
+added before issuing documents. Branch addresses are optional in the API/UI.
+
+1. Back up the database.
+2. Apply `account-customer-import-support.sql`.
+3. Dry run (no DB connection): `npm run db:import:account-customers:dry -- --report=plan.json`
+4. Rehearse against the DB inside a rolled-back transaction:
+   `node scripts/import-account-customers.js --check-db`
+5. Import: `npm run db:import:account-customers:apply -- --performed-by=<userId>`
+
+The import is insert-only: a customer is skipped when any of its codes, branch
+codes or Tax ID already exists; it never updates or deletes Accounting rows and
+never reads or writes Sales tables or users. Missing Accounting Sales are created
+in `account_sales`.
+
 ## Checks
 
 ```powershell
