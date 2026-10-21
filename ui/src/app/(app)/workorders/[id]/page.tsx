@@ -661,7 +661,7 @@ export default function WorkOrderDetailPage() {
         <div className="card p-5 space-y-3">
           <h3 className="font-semibold text-gray-800">ประวัติการปิดงาน</h3>
           <div className="space-y-2">
-            {doc.closeLogs.map(log => (
+            {doc.closeLogs.slice(0, 1).map(log => (
               <div key={log.id} className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm">
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
                   <span className="font-medium text-gray-700">{log.user?.fullName ?? log.userId}</span>
