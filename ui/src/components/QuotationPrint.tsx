@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Quotation, Settings } from '@/types'
 import { resolveFileUrl } from '@/lib/api'
 import { formatBangkokDate } from '@/lib/timezone'
@@ -31,16 +31,7 @@ function fmtQtyBlankZero(n: number | null | undefined): string {
   return fmtQty(numeric)
 }
 
-// Row-weight pack capacities. 1 weight ≈ 1 main row at ~7mm.
-// A4 portrait content area: 297mm − 6mm top − 10mm bottom = 281mm.
-// Header + customer info box ~ 95mm; column header ~ 14mm; totals + terms ~ 85mm.
-// Note lines render at 10pt (~4mm ≈ 0.6 of a main row), so they cost less than
-// a full row — counting them as full rows pushed items onto a new page too early.
-// Non-last items area = 277 − 95 − 14 = 168mm ≈ 24 rows.
-// Last page items area = 277 − 95 − 14 − 85 = 83mm ≈ 12 rows.
-// PACK_CAP_LAST must match the ~12-row last-page item area so the totals + terms +
-// signature block always has room; otherwise trailing items overflow into that
-// block and get visually cut off (forcing them onto a fresh page instead).
+// Used only if browser-based row measurements are unavailable.
 const PACK_CAP_NON_LAST = 24
 const PACK_CAP_LAST = 12
 
@@ -59,6 +50,11 @@ type DetailRow = {
   labourPrice?: number
   amount?: number
 }
+
+type PrintRow =
+  | { kind: 'item'; item: Item; itemIndex: number }
+  | { kind: 'detail'; item: Item; itemIndex: number; detailIndex: number }
+  | { kind: 'note'; item: Item; itemIndex: number; text: string; color?: string }
 
 function splitDescriptionLines(note?: string) {
   const lines = parseQuotationNoteMultiline(note)
@@ -79,84 +75,72 @@ function normalizeDetailRows(raw: unknown): DetailRow[] {
   return []
 }
 
-function itemWeight(it: Item): number {
-  // 1 base row for the item line itself.
-  // Non-empty note lines cost ~1 row; intentionally blank note lines cost less,
-  // so users can add visual spacing without forcing an early page break.
-  // +3 per image (30mm-wide image renders ~20–25mm tall ≈ 3 rows of ~7mm).
-  const noteLines = splitDescriptionLines(it.note)
-  const nonEmptyNoteLines = noteLines.filter(line => line.text.trim().length > 0).length
-  const blankNoteLines = noteLines.length - nonEmptyNoteLines
-  const detailRows = normalizeDetailRows(it.detailRows)
-  const detailRowsWeight = detailRows.reduce((sum, row) => {
-    const hasDesc = Boolean(String(row?.desc ?? '').trim())
-    const hasCalc =
-      Number(row?.qty ?? 0) !== 0 ||
-      Boolean(String(row?.unit ?? '').trim()) ||
-      Number(row?.materialPrice ?? 0) !== 0 ||
-      Number(row?.labourPrice ?? 0) !== 0
-    return sum + (hasDesc ? 0.5 : 0) + (hasCalc ? 0.4 : 0)
-  }, 0)
-
-  return (
-    1 +
-    nonEmptyNoteLines * 0.6 +
-    blankNoteLines * 0.3 +
-    detailRowsWeight +
-    (Array.isArray(it.images) ? it.images.length * 3 : 0)
-  )
-}
-
 interface PageChunk {
-  items: Item[]
+  rows: PrintRow[]
   isLast: boolean
-  // Whether the totals + terms + signature block renders on this page.
   tail: boolean
   capacity: number
 }
 
-function paginateItems(items: Item[]): PageChunk[] {
-  if (items.length === 0) {
-    return [{ items: [], isLast: true, tail: true, capacity: PACK_CAP_LAST }]
+function buildPrintRows(items: Item[]): PrintRow[] {
+  return items.flatMap((item, itemIndex) => {
+    const noteLines = splitDescriptionLines(item.note)
+    const detailRows = normalizeDetailRows(item.detailRows)
+    const sectionOrder = parseQuotationItemSectionOrder(item.note)
+    const noteBeforeDetail = sectionOrder.indexOf('note') < sectionOrder.indexOf('detail') || !sectionOrder.includes('detail')
+    const rows: PrintRow[] = [{ kind: 'item', item, itemIndex }]
+    const notes: PrintRow[] = noteLines.map(line => ({
+      kind: 'note',
+      item,
+      itemIndex,
+      text: line.text,
+      color: line.color,
+    }))
+    const details: PrintRow[] = detailRows.map((_, detailIndex) => ({
+      kind: 'detail',
+      item,
+      itemIndex,
+      detailIndex,
+    }))
+    return [...rows, ...(noteBeforeDetail ? notes : details), ...(noteBeforeDetail ? details : notes)]
+  })
+}
+
+function paginatePrintRows(rows: PrintRow[]): PageChunk[] {
+  if (rows.length === 0) {
+    return [{ rows: [], isLast: true, tail: true, capacity: PACK_CAP_LAST }]
   }
 
-  // Forward packing: fill each page top-to-bottom up to the per-page item
-  // capacity, then start a new page. This keeps earlier pages full and pushes
-  // only the remainder onto later pages (instead of leaving the first page
-  // mostly empty).
-  const rawPages: Item[][] = []
-  let current: Item[] = []
+  const rawPages: PrintRow[][] = []
+  let current: PrintRow[] = []
   let currentWeight = 0
-  for (const item of items) {
-    const w = itemWeight(item)
+  for (const row of rows) {
+    const w = row.kind === 'item' && Array.isArray(row.item.images) ? 1 + row.item.images.length * 3 : 1
     if (currentWeight + w > PACK_CAP_NON_LAST && current.length > 0) {
       rawPages.push(current)
-      current = [item]
+      current = [row]
       currentWeight = w
     } else {
-      current.push(item)
+      current.push(row)
       currentWeight += w
     }
   }
   if (current.length > 0) rawPages.push(current)
 
-  // The last page must also hold the totals + terms + signature block, so its
-  // available item area is smaller. If the final page's items don't leave room
-  // for the totals block, move trailing items onto a fresh last page.
   const last = rawPages[rawPages.length - 1]
-  let lastWeight = last.reduce((s, it) => s + itemWeight(it), 0)
+  let lastWeight = last.reduce((sum, row) => sum + (row.kind === 'item' && Array.isArray(row.item.images) ? 1 + row.item.images.length * 3 : 1), 0)
   if (lastWeight > PACK_CAP_LAST && last.length > 1) {
-    const overflow: Item[] = []
+    const overflow: PrintRow[] = []
     while (lastWeight > PACK_CAP_LAST && last.length > 1) {
-      const moved = last.pop() as Item
+      const moved = last.pop() as PrintRow
       overflow.unshift(moved)
-      lastWeight -= itemWeight(moved)
+      lastWeight -= moved.kind === 'item' && Array.isArray(moved.item.images) ? 1 + moved.item.images.length * 3 : 1
     }
     if (overflow.length > 0) rawPages.push(overflow)
   }
 
-  return rawPages.map((pageItems, i) => ({
-    items: pageItems,
+  return rawPages.map((pageRows, i) => ({
+    rows: pageRows,
     isLast: i === rawPages.length - 1,
     tail: i === rawPages.length - 1,
     capacity: i === rawPages.length - 1 ? PACK_CAP_LAST : PACK_CAP_NON_LAST,
@@ -165,20 +149,27 @@ function paginateItems(items: Item[]): PageChunk[] {
 
 const COL_WIDTHS = ['5%', '47%', '8%', '6.5%', '11%', '11%', '11.5%']
 
-// Measurement-based pagination: assign items to pages using their real rendered
+// Measurement-based pagination: assign rows to pages using their real rendered
 // heights (in px) instead of heuristic weights. `availNonLast` is the usable
-// item-area height on a page that only holds items; `availLast` additionally
+// table-area height on a page that only holds rows; `availLast` additionally
 // reserves room for the totals + terms + signature block on the final page.
-function packByHeight(items: Item[], heights: number[], availNonLast: number, availLast: number): PageChunk[] {
-  if (items.length === 0) return [{ items: [], isLast: true, tail: true, capacity: 0 }]
-  type Entry = { item: Item; h: number }
-  const entries: Entry[] = items.map((item, i) => ({ item, h: heights[i] ?? 0 }))
+function packByHeight(rows: PrintRow[], heights: number[], availNonLast: number, availLast: number): PageChunk[] {
+  if (rows.length === 0) return [{ rows: [], isLast: true, tail: true, capacity: 0 }]
+  type Entry = { row: PrintRow; h: number }
+  const entries: Entry[] = rows.map((row, i) => ({ row, h: heights[i] ?? 0 }))
 
-  // Forward fill each page using the FULL item area so earlier pages stay dense.
+  // Fill each page using its full table area so earlier pages stay dense.
   const pages: Entry[][] = []
   let cur: Entry[] = []
   let used = 0
   for (const e of entries) {
+    if (e.h > availNonLast) {
+      if (cur.length) pages.push(cur)
+      pages.push([e])
+      cur = []
+      used = 0
+      continue
+    }
     if (cur.length > 0 && used + e.h > availNonLast) {
       pages.push(cur)
       cur = [e]
@@ -192,7 +183,7 @@ function packByHeight(items: Item[], heights: number[], availNonLast: number, av
 
   const sumH = (arr: Entry[]) => arr.reduce((s, e) => s + e.h, 0)
   const result: PageChunk[] = pages.map(arr => ({
-    items: arr.map(e => e.item),
+    rows: arr.map(e => e.row),
     isLast: false,
     tail: false,
     capacity: 0,
@@ -206,7 +197,7 @@ function packByHeight(items: Item[], heights: number[], availNonLast: number, av
     lastPage.isLast = true
     lastPage.tail = true
   } else {
-    result.push({ items: [], isLast: true, tail: true, capacity: 0 })
+    result.push({ rows: [], isLast: true, tail: true, capacity: 0 })
   }
   return result
 }
@@ -253,6 +244,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const [scale, setScale] = useState(1)
   const [imageOrientation, setImageOrientation] = useState<Record<string, 'landscape' | 'portrait'>>({})
+  const printRows = useMemo(() => buildPrintRows(doc.items), [doc.items])
   const totalPages = pages ? pages.length : 1
 
   const measureRef = useRef<HTMLDivElement>(null)
@@ -316,10 +308,10 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         const hHeader = headerMeasRef.current?.getBoundingClientRect().height ?? 0
         const hThead = theadMeasRef.current?.getBoundingClientRect().height ?? 0
         const hTail = tailMeasRef.current?.getBoundingClientRect().height ?? 0
-        const heights = doc.items.map((_, i) => {
+        const heights = printRows.map((_, i) => {
           if (!container) return 0
-          const rows = Array.from(container.querySelectorAll(`tr[data-measure-item=\"${i}\"]`))
-          return rows.reduce((sum, row) => sum + row.getBoundingClientRect().height, 0)
+          const row = container.querySelector(`tr[data-measure-row=\"${i}\"]`)
+          return row?.getBoundingClientRect().height ?? 0
         })
         // Conservative gaps account for inter-block margins so content never clips.
         const HEADER_GAP = 12
@@ -328,13 +320,13 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         const availNonLast = pagePx - hHeader - HEADER_GAP - hThead - SAFETY
         const availLast = availNonLast - hTail - TAIL_GAP
         if (!pagePx || availNonLast < 20) {
-          setPages(paginateItems(doc.items))
+          setPages(paginatePrintRows(printRows))
           return
         }
-        const chunks = packByHeight(doc.items, heights, availNonLast, Math.max(availLast, 20))
+        const chunks = packByHeight(printRows, heights, availNonLast, Math.max(availLast, 20))
         if (scale >= 1 - 1e-9) fallbackRef.current = chunks
         const last = chunks[chunks.length - 1]
-        const tailOnly = chunks.length > 1 && last.items.length === 0
+        const tailOnly = chunks.length > 1 && last.rows.length === 0
         if (!tailOnly) {
           // Everything (incl. summary) is placed without a lone trailing page.
           setPages(chunks)
@@ -348,12 +340,12 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           setPages(fallbackRef.current ?? chunks)
         }
       } catch {
-        if (!cancelled) setPages(paginateItems(doc.items))
+        if (!cancelled) setPages(paginatePrintRows(printRows))
       }
     }
     void run()
     return () => { cancelled = true }
-  }, [pages, doc, scale])
+  }, [pages, doc, printRows, scale])
 
   // Signal readiness only after the real (paginated) layout is committed.
   useEffect(() => {
@@ -501,121 +493,106 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     )
   }
 
-  function renderItemRows(item: Item | null, displaySeq: number, key: number, measureIndex?: number) {
+  function renderPrintRow(row: PrintRow, measureIndex?: number, key?: string) {
+    const { item } = row
     const baseTd: React.CSSProperties = { ...tdS }
-    const detailRows = normalizeDetailRows(item?.detailRows)
-    const descLine = parseColoredLine(item?.desc)
-    const sectionOrder = parseQuotationItemSectionOrder(item?.note)
-    const noteBeforeDetail = sectionOrder.indexOf('note') < sectionOrder.indexOf('detail') || !sectionOrder.includes('detail')
-    return (
-      <>
-      <tr key={key} data-measure-item={measureIndex}>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? displaySeq : ''}
-        </td>
-        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
-          <span style={{ fontWeight: 'bold', color: descLine.color || '#000' }}>{item ? descLine.text : ''}</span>
-          {item && noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
-            <span key={idx} style={{ color: line.color || '#000', fontSize: fpt(12), lineHeight: 1.1, display: 'block', fontFamily: 'var(--font-thai)' }}>
-              {line.text || '\u00A0'}
-            </span>
-          ))}
-          {item && Array.isArray(item.images) && item.images.length > 0 && (
-            <div
-              style={{
-                marginTop: '2mm',
-                display: 'grid',
-                // Mixed layout: portrait = 1 column, landscape = 2 columns.
-                gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
-                gridAutoFlow: 'dense',
-                gap: '2mm',
-                alignItems: 'start',
-              }}
-            >
-              {item.images.map((url, idx) => {
-                const imageKey = getImageKey(item, idx, url)
-                const orientation = imageOrientation[imageKey]
-                const isLandscape = orientation === 'landscape'
-                return (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    key={idx}
-                    src={resolveFileUrl(url)}
-                    alt=""
-                    onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
-                    style={{
-                      width: '100%',
-                      height: 'auto',
-                      maxHeight: `${(34 * scale).toFixed(3)}mm`,
-                      objectFit: 'contain',
-                      display: 'block',
-                      gridColumn: isLandscape ? 'span 2' : 'span 1',
-                    }}
-                  />
-                )
-              })}
-            </div>
-          )}
-        </td>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? fmtQtyBlankZero(item.qty) : ''}
-        </td>
-        <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item?.unit ?? ''}
-        </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? fmtAmtBlankZero(item.materialPrice) : ''}
-        </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? fmtAmtBlankZero(item.labourPrice) : ''}
-        </td>
-        <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
-          {item ? fmtAmtBlankZero(item.amount) : ''}
-        </td>
-      </tr>
-      {detailRows.map((row, idx) => {
-        const detailDesc = parseColoredLine(row.desc)
-        const detailQty = Number(row.qty || "0")
-        const detailUnit = String(row.unit || '').trim()
-        const material = Number(row.materialPrice || 0)
-        const labour = Number(row.labourPrice || 0)
-        const rowTotal = Number(row.amount ?? (detailQty * (material + labour)))
-        const detailTd: React.CSSProperties = {
-          ...tdS,
-          fontFamily: 'var(--font-thai)',
-          fontSize: fpt(12),
-          color: '#000',
-          paddingTop: '2px',
-          paddingBottom: '2px',
-          lineHeight: 1.1,
-          backgroundColor: '#fff',
-        }
-        return (
-          <tr key={`${key}-detail-${idx}`} data-measure-item={measureIndex}>
-            <td style={{ ...detailTd, textAlign: 'center' }} />
-            <td style={{ ...detailTd, color: detailDesc.color || '#000' }}>{detailDesc.text || `รายละเอียด ${idx + 1}`}</td>
-            <td style={{ ...detailTd, textAlign: 'center' }}>{detailQty ? fmtQty(detailQty) : ''}</td>
-            <td style={{ ...detailTd, textAlign: 'center' }}>{detailUnit || ''}</td>
-            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(material)}</td>
-            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(labour)}</td>
-            <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(rowTotal)}</td>
-          </tr>
-        )
-      })}
-      {item && !noteBeforeDetail && splitDescriptionLines(item.note).map((line, idx) => (
-        <tr key={`${key}-note-${idx}`} data-measure-item={measureIndex}>
-          <td style={{ ...baseTd, textAlign: 'center' }} />
-          <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1, color: line.color || '#000' }}>
-            {line.text || '\u00A0'}
+    const rowAttr = { key: key ?? `${row.kind}-${row.itemIndex}`, 'data-measure-row': measureIndex }
+
+    if (row.kind === 'item') {
+      const descLine = parseColoredLine(item.desc)
+      return (
+        <tr {...rowAttr}>
+          <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>
+            {item.seq !== undefined ? item.seq + 1 : row.itemIndex + 1}
           </td>
-          <td style={baseTd} />
-          <td style={baseTd} />
-          <td style={baseTd} />
-          <td style={baseTd} />
-          <td style={baseTd} />
+          <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1 }}>
+            <span style={{ fontWeight: 'bold', color: descLine.color || '#000' }}>{descLine.text}</span>
+            {Array.isArray(item.images) && item.images.length > 0 && (
+              <div
+                style={{
+                  marginTop: '2mm',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+                  gridAutoFlow: 'dense',
+                  gap: '2mm',
+                  alignItems: 'start',
+                }}
+              >
+                {item.images.map((url, idx) => {
+                  const imageKey = getImageKey(item, idx, url)
+                  const isLandscape = imageOrientation[imageKey] === 'landscape'
+                  return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={idx}
+                      src={resolveFileUrl(url)}
+                      alt=""
+                      onLoad={(e) => onImageLoad(imageKey, e.currentTarget.naturalWidth, e.currentTarget.naturalHeight)}
+                      style={{
+                        width: '100%',
+                        height: 'auto',
+                        maxHeight: `${(34 * scale).toFixed(3)}mm`,
+                        objectFit: 'contain',
+                        display: 'block',
+                        gridColumn: isLandscape ? 'span 2' : 'span 1',
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </td>
+          <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>{fmtQtyBlankZero(item.qty)}</td>
+          <td style={{ ...baseTd, textAlign: 'center', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>{item.unit ?? ''}</td>
+          <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>{fmtAmtBlankZero(item.materialPrice)}</td>
+          <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>{fmtAmtBlankZero(item.labourPrice)}</td>
+          <td style={{ ...baseTd, textAlign: 'right', fontFamily: 'var(--font-thai)', fontSize: fpt(12) }}>{fmtAmtBlankZero(item.amount)}</td>
         </tr>
-      ))}
-      </>
+      )
+    }
+
+    if (row.kind === 'detail') {
+      const detail = normalizeDetailRows(item.detailRows)[row.detailIndex]
+      const detailDesc = parseColoredLine(detail?.desc)
+      const detailQty = Number(detail?.qty || 0)
+      const material = Number(detail?.materialPrice || 0)
+      const labour = Number(detail?.labourPrice || 0)
+      const rowTotal = Number(detail?.amount ?? (detailQty * (material + labour)))
+      const detailTd: React.CSSProperties = {
+        ...tdS,
+        fontFamily: 'var(--font-thai)',
+        fontSize: fpt(12),
+        color: '#000',
+        paddingTop: '2px',
+        paddingBottom: '2px',
+        lineHeight: 1.1,
+        backgroundColor: '#fff',
+      }
+      return (
+        <tr {...rowAttr}>
+          <td style={{ ...detailTd, textAlign: 'center' }} />
+          <td style={{ ...detailTd, color: detailDesc.color || '#000' }}>{detailDesc.text || `รายละเอียด ${row.detailIndex + 1}`}</td>
+          <td style={{ ...detailTd, textAlign: 'center' }}>{detailQty ? fmtQty(detailQty) : ''}</td>
+          <td style={{ ...detailTd, textAlign: 'center' }}>{String(detail?.unit || '').trim()}</td>
+          <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(material)}</td>
+          <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(labour)}</td>
+          <td style={{ ...detailTd, textAlign: 'right' }}>{fmtAmtBlankZero(rowTotal)}</td>
+        </tr>
+      )
+    }
+
+    return (
+      <tr {...rowAttr}>
+        <td style={{ ...baseTd, textAlign: 'center' }} />
+        <td style={{ ...baseTd, fontFamily: 'var(--font-thai)', fontSize: fpt(12), lineHeight: 1.1, color: row.color || '#000' }}>
+          {row.text || '\u00A0'}
+        </td>
+        <td style={baseTd} />
+        <td style={baseTd} />
+        <td style={baseTd} />
+        <td style={baseTd} />
+        <td style={baseTd} />
+      </tr>
     )
   }
 
@@ -663,7 +640,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
     )
   }
 
-  function renderItemsTable(chunk: PageChunk, itemOffset: number) {
+  function renderItemsTable(chunk: PageChunk) {
     return (
       <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, height: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', borderTop: tableFrameBorder, borderLeft: tableFrameBorder, borderRight: tableFrameBorder }}>
         <colgroup>
@@ -671,12 +648,8 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </colgroup>
         <thead>{itemsHeadRows()}</thead>
         <tbody style={{ height: '100%' }}>
-          {chunk.items.map((item, i) => {
-            const globalIndex = itemOffset + i
-            const displaySeq = (item.seq !== undefined ? item.seq + 1 : globalIndex + 1)
-            return renderItemRows(item, displaySeq, globalIndex)
-          })}
-          {renderFlexibleFillerRow(chunk.items.length)}
+          {chunk.rows.map((row, i) => renderPrintRow(row, undefined, `${row.kind}-${row.itemIndex}-${i}`))}
+          {renderFlexibleFillerRow(chunk.rows.length)}
         </tbody>
       </table>
     )
@@ -854,14 +827,7 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
           </colgroup>
           <thead ref={theadMeasRef}>{itemsHeadRows()}</thead>
           <tbody>
-            {doc.items.map((item, i) =>
-              renderItemRows(
-                item,
-                item.seq !== undefined ? item.seq + 1 : i + 1,
-                i,
-                i,
-              ),
-            )}
+            {printRows.map((row, i) => renderPrintRow(row, i, `${row.kind}-${row.itemIndex}-${i}`))}
           </tbody>
         </table>
         <div ref={tailMeasRef}>
@@ -871,14 +837,6 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
         </div>
       </div>
     )
-  }
-
-  // Compute item offsets per page
-  const offsets: number[] = []
-  let acc = 0
-  for (const p of pages ?? []) {
-    offsets.push(acc)
-    acc += p.items.length
   }
 
   return (
@@ -894,11 +852,11 @@ export default function QuotationPrint({ doc, settings, onReady }: Props) {
             position: 'relative',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '281mm',
+            height: '281mm',
           }}
         >
           {renderHeader(pi + 1)}
-          {renderItemsTable(page, offsets[pi])}
+          {renderItemsTable(page)}
           {page.tail && (
             <div style={{ marginTop: 'auto' }}>
               {renderTotalsTable()}

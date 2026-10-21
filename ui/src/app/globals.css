@@ -203,21 +203,19 @@
     display: table-row-group !important;
   }
   .print-sheet.quotation-print tr {
-    page-break-inside: avoid;
-    break-inside: avoid;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
   }
-
   /* Each manual page = exactly one A4 sheet (content area).
      A4 portrait 297mm − 6mm top − 10mm bottom margin = 281mm. */
   .print-sheet.quotation-print .quotation-page {
     box-sizing: border-box !important;
     width: 100% !important;
-    height: 281mm;
-    overflow: hidden;
+    height: 281mm !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
   }
-  /* Keep the last manual page as an A4 content area so the item table can fill it. */
   .print-sheet.quotation-print .quotation-page:last-child {
     height: 281mm !important;
     overflow: hidden !important;
