@@ -68,11 +68,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
-            <p className="px-3 pb-2 text-[10px] font-bold uppercase">งานบัญชี</p>
+            <p className="px-3 pb-2 text-xs font-bold uppercase">งานบัญชี</p>
             {navigation.filter(item => access && canOpenAccountingPath(access, item.href)).map((item) => {
               const active = item.href !== "#" && pathname.startsWith(item.href);
               return (
-                <Link key={item.label} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] transition-colors ${active ? "border-white bg-[#054cbd] font-bold shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+                <Link key={item.label} href={item.href} onClick={() => setOpen(false)} className={`flex min-h-11 items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] transition-colors ${active ? "border-white bg-[#054cbd] font-bold shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
                   <item.icon size={18} strokeWidth={1.8} />
                   <span>{item.label}</span>
                 </Link>
@@ -81,14 +81,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="border-t border-white/10 p-3">
-            <Link href="/profile" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/profile") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+            <Link href="/profile" onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/profile") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
               <UserRound size={18} /><span>โปรไฟล์ของฉัน</span>
             </Link>
-            <Link href="/change-password" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/change-password") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+            <Link href="/change-password" onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/change-password") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
               <KeyRound size={18} /><span>เปลี่ยนรหัสผ่าน</span>
             </Link>
             {access?.isAdmin && (
-              <Link href="/settings/access" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/settings/access") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+              <Link href="/settings/access" onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/settings/access") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
                 <Settings size={18} /><span>บทบาท & สิทธิ์ Accounting</span>
               </Link>
             )}
