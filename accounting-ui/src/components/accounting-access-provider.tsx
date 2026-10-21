@@ -63,8 +63,8 @@ export function AccountingAccessProvider({ children }: { children: React.ReactNo
               : "บัญชีนี้ยังไม่ได้รับสิทธิ์ Accounting กรุณาให้ admin กำหนดบทบาทให้ก่อน สิทธิ์ระบบเดิมยังใช้งานได้ตามเดิม")}
           </p>
           <div className="mt-5 flex flex-wrap gap-4 text-sm">
-            {access?.allowed && <Link className="font-bold text-[#194d34]" href="/dashboard">กลับหน้าภาพรวม</Link>}
-            <button onClick={() => { setResult(null); setRevision(value => value + 1); }} className="font-bold text-[#194d34]">ตรวจสอบอีกครั้ง</button>
+            {access?.allowed && <Link className="font-bold text-[#0866ff]" href="/dashboard">กลับหน้าภาพรวม</Link>}
+            <button onClick={() => { setResult(null); setRevision(value => value + 1); }} className="font-bold text-[#0866ff]">ตรวจสอบอีกครั้ง</button>
             <button onClick={async () => { await logout(); router.replace("/login"); }} className="text-red-700">ออกจากระบบ</button>
           </div>
         </section>

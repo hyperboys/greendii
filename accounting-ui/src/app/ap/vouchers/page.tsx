@@ -74,7 +74,7 @@ export default function AccountsPayablePage() {
             disabled={!canCreate}
             title={!canCreate ? "ไม่มีสิทธิ์สร้างเอกสารเจ้าหนี้" : undefined}
             onClick={() => { setFormData({ items: [{ desc: "", qty: 1, unitPrice: 0, amount: 0 }] }); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#0866ff] px-4 text-sm font-bold text-white hover:bg-[#054cbd] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />สร้างใบสั่งซื้อ (PO)
           </button>
@@ -93,7 +93,7 @@ export default function AccountsPayablePage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                 activeTab === tab.id
-                  ? "bg-[#194d34] text-white"
+                  ? "bg-[#0866ff] text-white"
                   : "bg-white text-[#566159] hover:bg-[#e8ece7]"
               }`}
             >
@@ -207,7 +207,7 @@ export default function AccountsPayablePage() {
 
                 <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
-                  <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">สร้างใบสั่งซื้อ</button>
+                  <button type="submit" className="rounded bg-[#0866ff] px-4 py-2 text-xs font-bold text-white hover:bg-[#054cbd]">สร้างใบสั่งซื้อ</button>
                 </div>
               </form>
             </div>

@@ -70,7 +70,7 @@ export default function MasterDataPage() {
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-bold uppercase text-[#2f7d4b]">Master Configuration</p>
+            <p className="text-xs font-bold uppercase text-[#0866ff]">Master Configuration</p>
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ข้อมูลหลัก & ผังบัญชี</h1>
             <p className="mt-1 text-sm text-[#657069]">จัดการลูกค้า, ผู้จำหน่าย, สินค้า, คลังสินค้า และโครงสร้างผังบัญชี</p>
           </div>
@@ -78,7 +78,7 @@ export default function MasterDataPage() {
             disabled={!canCreate}
             title={!canCreate ? "ไม่มีสิทธิ์สร้างข้อมูลหลัก" : undefined}
             onClick={() => { setFormData({}); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#0866ff] px-4 text-sm font-bold text-white hover:bg-[#054cbd] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />เพิ่มข้อมูลใหม่
           </button>}
@@ -99,7 +99,7 @@ export default function MasterDataPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                 activeTab === tab.id
-                  ? "bg-[#194d34] text-white"
+                  ? "bg-[#0866ff] text-white"
                   : "bg-white text-[#566159] hover:bg-[#e8ece7]"
               }`}
             >
@@ -256,7 +256,7 @@ export default function MasterDataPage() {
 
                 <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
-                  <button type="submit" className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28]">บันทึก</button>
+                  <button type="submit" className="rounded bg-[#0866ff] px-4 py-2 text-xs font-bold text-white hover:bg-[#054cbd]">บันทึก</button>
                 </div>
               </form>
             </div>

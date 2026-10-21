@@ -74,7 +74,7 @@ export function CustomerMaster() {
         <option value="all">ทั้งหมด</option><option value="active">ใช้งาน</option><option value="inactive">ปิดใช้งาน</option>
       </select></Field>
       <button className={buttonClass} onClick={() => void load()} disabled={loading}>โหลดใหม่</button>
-      <button className={`${buttonClass} ml-auto bg-[#194d34] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>เพิ่มลูกค้า</button>
+      <button className={`${buttonClass} ml-auto bg-[#0866ff] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>เพิ่มลูกค้า</button>
     </div>
     {error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
     <div className="overflow-x-auto rounded-lg border border-[#dfe5de] bg-white">
@@ -153,7 +153,7 @@ export function CustomerMaster() {
           </fieldset>
           <div className="flex justify-end gap-2 border-t pt-4">
             <button type="button" disabled={saving} className={buttonClass} onClick={() => setModal(null)}>ปิด</button>
-            {!modal.readOnly && <button disabled={saving || !writable} className={`${buttonClass} bg-[#194d34] text-white`} type="submit">{saving ? "กำลังบันทึก..." : "บันทึกข้อมูลลูกค้า"}</button>}
+            {!modal.readOnly && <button disabled={saving || !writable} className={`${buttonClass} bg-[#0866ff] text-white`} type="submit">{saving ? "กำลังบันทึก..." : "บันทึกข้อมูลลูกค้า"}</button>}
           </div>
         </form>
       </div>
@@ -198,7 +198,7 @@ export function SaleMaster() {
   };
   return <section aria-label="ทะเบียน Sale บัญชี">
     <div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm text-[#657069]">ทะเบียน Sale สำหรับบัญชีเท่านั้น ไม่ใช่บัญชีผู้ใช้หรือข้อมูล Sale ในระบบ Sales</p>
-      <button disabled={!canCreate || loading} className={`${buttonClass} bg-[#194d34] text-white`} onClick={() => { setEditing(null); setForm(emptySale); setError(""); setShowForm(true); }}>เพิ่ม Sale บัญชี</button></div>
+      <button disabled={!canCreate || loading} className={`${buttonClass} bg-[#0866ff] text-white`} onClick={() => { setEditing(null); setForm(emptySale); setError(""); setShowForm(true); }}>เพิ่ม Sale บัญชี</button></div>
     {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
     {loading ? <p>กำลังโหลด...</p> : <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left text-sm">
       <thead><tr>{["รหัส", "ชื่อ", "โทรศัพท์", "อีเมล", "สถานะ", "จัดการ"].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
@@ -218,7 +218,7 @@ export function SaleMaster() {
           <Field label="อีเมล"><input type="email" className={inputClass} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></Field>
           <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />เปิดใช้งาน</label>
         </fieldset>
-        <div className="flex justify-end gap-2"><button type="button" disabled={saving} className={buttonClass} onClick={() => setShowForm(false)}>ปิด</button><button type="submit" disabled={saving || !writable} className={`${buttonClass} bg-[#194d34] text-white`}>{saving ? "กำลังบันทึก..." : "บันทึก Sale"}</button></div>
+        <div className="flex justify-end gap-2"><button type="button" disabled={saving} className={buttonClass} onClick={() => setShowForm(false)}>ปิด</button><button type="submit" disabled={saving || !writable} className={`${buttonClass} bg-[#0866ff] text-white`}>{saving ? "กำลังบันทึก..." : "บันทึก Sale"}</button></div>
       </form>
     </div></div>}
   </section>;

@@ -115,7 +115,7 @@ export function SupplierMaster() {
         </select>
       </Field>
       <button className={buttonClass} onClick={() => void load()} disabled={loading}>โหลดใหม่</button>
-      <button className={`${buttonClass} ml-auto bg-[#194d34] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>
+      <button className={`${buttonClass} ml-auto bg-[#0866ff] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>
         เพิ่มผู้จำหน่าย
       </button>
     </div>
@@ -192,7 +192,7 @@ export function SupplierMaster() {
           </fieldset>
           <div className="flex justify-end gap-2">
             <button type="button" className={buttonClass} onClick={() => setModal(null)}>ปิด</button>
-            {!modal.readOnly && <button type="submit" className={`${buttonClass} bg-[#194d34] text-white`} disabled={!writable || saving}>
+            {!modal.readOnly && <button type="submit" className={`${buttonClass} bg-[#0866ff] text-white`} disabled={!writable || saving}>
               {saving ? "กำลังบันทึก..." : "บันทึก"}
             </button>}
           </div>

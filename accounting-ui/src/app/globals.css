@@ -5,8 +5,8 @@
 :root {
   --ink: #17211b;
   --paper: #f4f6f2;
-  --forest: #194d34;
-  --leaf: #2f7d4b;
+  --forest: #0866ff;
+  --leaf: #0866ff;
 }
 
 * {
@@ -30,8 +30,13 @@ input[class] {
 }
 
 :focus-visible {
-  outline: 3px solid rgba(47, 125, 75, 0.28);
+  outline: 3px solid rgba(8, 102, 255, 0.28);
   outline-offset: 2px;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: #0866ff;
 }
 
 .login-backdrop {

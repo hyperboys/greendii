@@ -104,7 +104,7 @@ export default function AccountingAccessPage() {
     <AppShell>
       <div className="mx-auto max-w-370 space-y-6">
         <div>
-          <p className="text-xs font-bold text-[#2f7d4b]">Accounting Administration</p>
+          <p className="text-xs font-bold text-[#0866ff]">Accounting Administration</p>
           <h1 className="mt-1 text-2xl font-bold">บทบาท & สิทธิ์ Accounting</h1>
           <p className="mt-2 text-sm text-[#657069]">เฉพาะ admin ระบบเดิมจัดการได้ ผู้ใช้หนึ่งคนมีหนึ่งบทบาท Accounting โดยไม่เปลี่ยนบทบาทหรือสิทธิ์ระบบเดิม</p>
         </div>
@@ -121,7 +121,7 @@ export default function AccountingAccessPage() {
                     <li key={role.id} className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm">
                       <div><strong>{role.name}</strong><p className="text-xs text-[#657069]">{role._count?.assignments || 0} ผู้ใช้ · {role.permissions.length} สิทธิ์</p></div>
                       <div className="flex gap-3">
-                        <button disabled={busy} className="text-[#194d34]" onClick={() => { setEditingId(role.id); setName(role.name); setPermissions([...role.permissions]); }}>แก้ไข</button>
+                        <button disabled={busy} className="text-[#0866ff]" onClick={() => { setEditingId(role.id); setName(role.name); setPermissions([...role.permissions]); }}>แก้ไข</button>
                         <button disabled={busy || Boolean(role._count?.assignments)} className="text-red-700 disabled:opacity-40" title="ลบได้เมื่อไม่มีผู้ใช้ผูกอยู่" onClick={() => {
                           if (!window.confirm(`ลบบทบาท ${role.name}?`)) return;
                           void run(async () => {
@@ -157,7 +157,7 @@ export default function AccountingAccessPage() {
                 </fieldset>
                 <p className="mt-4 text-xs text-[#657069]">แสดงเฉพาะการทำงานที่ API รองรับในปัจจุบัน สิทธิ์แก้ไขเจ้าหนี้ใช้กับการเปลี่ยนสถานะเช็ค ส่วนสิทธิ์ดูจะถูกเลือกอัตโนมัติเมื่อให้สิทธิ์อื่นในหมวดเดียวกัน</p>
                 <div className="mt-4 flex gap-3">
-                  <button disabled={busy || !permissions.length || !name.trim()} className="rounded-md bg-[#194d34] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">บันทึกบทบาท</button>
+                  <button disabled={busy || !permissions.length || !name.trim()} className="rounded-md bg-[#0866ff] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">บันทึกบทบาท</button>
                   {editingId && <button disabled={busy} type="button" className="text-sm" onClick={resetForm}>ยกเลิก / สร้างใหม่</button>}
                 </div>
               </form>
@@ -200,7 +200,7 @@ export default function AccountingAccessPage() {
                   </select>
                 </label>
                 <div className="flex items-end">
-                  <button disabled={busy || !roles.length} className="rounded-md bg-[#194d34] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                  <button disabled={busy || !roles.length} className="rounded-md bg-[#0866ff] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
                     {busy ? "กำลังบันทึก..." : "เพิ่มผู้ใช้"}
                   </button>
                 </div>

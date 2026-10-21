@@ -24,11 +24,11 @@ export default function DashboardPage() {
       <div className="dashboard-enter mx-auto max-w-370">
         <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-bold uppercase text-[#2f7d4b]">Financial overview</p>
+            <p className="text-xs font-bold uppercase text-[#0866ff]">Financial overview</p>
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ภาพรวมบัญชี</h1>
             <p className="mt-2 text-sm text-[#657069]">สถานะเอกสารรับ-จ่าย และงานที่ต้องดำเนินการ</p>
           </div>
-          {createPath && <Link href={createPath} className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28]"><Plus size={17} />สร้างรายการใหม่</Link>}
+          {createPath && <Link href={createPath} className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#0866ff] px-4 text-sm font-bold text-white hover:bg-[#054cbd]"><Plus size={17} />สร้างรายการใหม่</Link>}
         </div>
 
         <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -45,10 +45,10 @@ export default function DashboardPage() {
           <article className="min-h-87.5 rounded-lg border border-[#dfe5de] bg-white p-5 sm:p-6">
             <div className="flex items-start justify-between">
               <div><h2 className="font-bold">กระแสเงินสดรายเดือน</h2><p className="mt-1 text-xs text-[#657069]">พื้นที่แสดงข้อมูลรับและจ่ายของปีบัญชี 2569</p></div>
-              <div className="flex gap-4 text-[11px]"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#2f7d4b]" />รับ</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#f2bd42]" />จ่าย</span></div>
+              <div className="flex gap-4 text-[11px]"><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#0866ff]" />รับ</span><span className="flex items-center gap-1.5"><i className="size-2 rounded-full bg-[#f2bd42]" />จ่าย</span></div>
             </div>
             <div className="mt-8 flex h-58.75 items-end justify-around gap-3 border-b border-l border-[#dfe5de] px-4">
-              {[28, 46, 38, 62, 54, 78, 66, 83, 58].map((height, index) => <div key={index} className="flex h-full flex-1 items-end justify-center gap-1"><div className="w-full max-w-4 bg-[#2f7d4b]/80" style={{ height: `${height}%` }} /><div className="w-full max-w-4 bg-[#f2bd42]/80" style={{ height: `${Math.max(18, height - 17)}%` }} /></div>)}
+              {[28, 46, 38, 62, 54, 78, 66, 83, 58].map((height, index) => <div key={index} className="flex h-full flex-1 items-end justify-center gap-1"><div className="w-full max-w-4 bg-[#0866ff]/80" style={{ height: `${height}%` }} /><div className="w-full max-w-4 bg-[#f2bd42]/80" style={{ height: `${Math.max(18, height - 17)}%` }} /></div>)}
             </div>
             <div className="mt-2 flex justify-between px-4 text-[10px] text-[#7a847d]"><span>ม.ค.</span><span>มี.ค.</span><span>พ.ค.</span><span>ก.ค.</span><span>ก.ย.</span></div>
           </article>

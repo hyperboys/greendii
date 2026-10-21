@@ -97,7 +97,7 @@ export default function InvoicesPage() {
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-bold uppercase text-[#2f7d4b]">Accounts Receivable</p>
+            <p className="text-xs font-bold uppercase text-[#0866ff]">Accounts Receivable</p>
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ลูกหนี้การค้า & ใบแจ้งหนี้</h1>
             <p className="mt-1 text-sm text-[#657069]">จัดการใบส่งของชั่วคราว, ใบแจ้งหนี้/ใบกำกับภาษี และใบวางบิล</p>
           </div>
@@ -105,7 +105,7 @@ export default function InvoicesPage() {
             disabled={!canCreate}
             title={!canCreate ? "ไม่มีสิทธิ์สร้างเอกสารลูกหนี้" : undefined}
             onClick={() => { setFormData(emptyForm()); setFormError(""); setShowModal(true); }}
-            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
+            className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#0866ff] px-4 text-sm font-bold text-white hover:bg-[#054cbd] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />สร้างเอกสารใหม่
           </button>
@@ -123,7 +123,7 @@ export default function InvoicesPage() {
               onClick={() => setActiveSubTab(tab.id)}
               className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                 activeSubTab === tab.id
-                  ? "bg-[#194d34] text-white"
+                  ? "bg-[#0866ff] text-white"
                   : "bg-white text-[#566159] hover:bg-[#e8ece7]"
               }`}
             >
@@ -309,7 +309,7 @@ export default function InvoicesPage() {
                 {activeSubTab === "invoices" && <p className="text-sm">VAT: {invoiceAmounts(formData.items, formData.vatConfig).vat.toFixed(2)} บาท | ยอดสุทธิ: {invoiceAmounts(formData.items, formData.vatConfig).netAmount.toFixed(2)} บาท</p>}
                 <div className="!mt-5 flex justify-end gap-2 pt-3">
                   <button type="button" disabled={saving} onClick={() => setShowModal(false)} className="rounded border border-[#dfe5de] px-4 py-2 text-xs font-bold text-[#566159]">ยกเลิก</button>
-                  <button type="submit" disabled={saving || !canCreate} className="rounded bg-[#194d34] px-4 py-2 text-xs font-bold text-white hover:bg-[#123b28] disabled:opacity-40">{saving ? "กำลังบันทึก..." : "สร้างเอกสาร"}</button>
+                  <button type="submit" disabled={saving || !canCreate} className="rounded bg-[#0866ff] px-4 py-2 text-xs font-bold text-white hover:bg-[#054cbd] disabled:opacity-40">{saving ? "กำลังบันทึก..." : "สร้างเอกสาร"}</button>
                 </div>
               </form>
             </div>

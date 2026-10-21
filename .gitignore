@@ -21,3 +21,12 @@ yarn-error.log*
 pnpm-debug.log*
 api/.env.example
 api/logs/access.log.txt
+Data/customer.csv
+Data/customer.xlsx
+Doc/accounting/Designer.png
+Doc/accounting/Req Acc.txt
+Doc/accounting/สรุป_Customer_Requirements_ระบบบัญชีและคลังสินค้า_ฉบับขยายรายละเอียด.docx
+api/.env.example
+Data/Supplier.csv
+Data/Supplier.xls
+api/.env.example

@@ -44,7 +44,7 @@ export default function ReportsPage() {
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
-            <p className="text-xs font-bold uppercase text-[#2f7d4b]">Financial & Reconciliation Reports</p>
+            <p className="text-xs font-bold uppercase text-[#0866ff]">Financial & Reconciliation Reports</p>
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">รายงานการเงิน & การกระทบยอด</h1>
             <p className="mt-1 text-sm text-[#657069]">รายงานวิเคราะห์อายุหนี้ (AR/AP Aging) และการตรวจสอบความสอดคล้องของเอกสาร</p>
           </div>
@@ -69,7 +69,7 @@ export default function ReportsPage() {
               onClick={() => setActiveTab(tab.id as any)}
               className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                 activeTab === tab.id
-                  ? "bg-[#194d34] text-white"
+                  ? "bg-[#0866ff] text-white"
                   : "bg-white text-[#566159] hover:bg-[#e8ece7]"
               }`}
             >

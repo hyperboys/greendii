@@ -68,19 +68,19 @@ export default function ProfilePage() {
   const field = (key: keyof ProfileForm, label: string, type = "text") => (
     <label className="block text-sm font-bold text-[#566159]">
       {label}
-      <input type={type} value={form[key]} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] bg-white p-2 font-normal outline-none focus:border-[#2f7d4b]" disabled={loading} />
+      <input type={type} value={form[key]} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] bg-white p-2 font-normal outline-none focus:border-[#0866ff]" disabled={loading} />
     </label>
   );
 
   return (
     <AppShell>
       <div className="mx-auto max-w-3xl">
-        <p className="text-xs font-bold uppercase text-[#2f7d4b]">My Account</p>
+        <p className="text-xs font-bold uppercase text-[#0866ff]">My Account</p>
         <h1 className="mt-1 text-2xl font-bold">โปรไฟล์ของฉัน</h1>
         <p className="mt-2 text-sm text-[#657069]">ข้อมูลนี้ใช้ร่วมกับบัญชีผู้ใช้ระบบ GreenDii หลัก</p>
         <form onSubmit={submit} className="mt-6 rounded-lg border border-[#dfe5de] bg-white p-5 sm:p-7">
           <div className="mb-5 flex items-center gap-4 border-b border-[#eef1ed] pb-5">
-            <div className="grid size-14 place-items-center rounded-full bg-[#194d34] text-xl font-bold text-white">{user?.initials || user?.fullName?.charAt(0) || "?"}</div>
+            <div className="grid size-14 place-items-center rounded-full bg-[#0866ff] text-xl font-bold text-white">{user?.initials || user?.fullName?.charAt(0) || "?"}</div>
             <div><p className="font-bold">{user?.fullName || "ผู้ใช้"}</p><p className="text-sm text-[#657069]">{user?.username}</p></div>
           </div>
           <p className="mb-3 text-xs font-bold uppercase tracking-wide text-[#7a847d]">ชื่อภาษาไทย</p>
@@ -107,7 +107,7 @@ export default function ProfilePage() {
           {error && <p role="alert" className="mt-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}
           {message && <p role="status" className="mt-4 rounded-md bg-green-50 p-3 text-sm text-green-800">{message}</p>}
           <div className="mt-5 flex justify-end">
-            <button disabled={loading || !user} className="rounded-md bg-[#194d34] px-5 py-2 text-sm font-bold text-white disabled:opacity-50">
+            <button disabled={loading || !user} className="rounded-md bg-[#0866ff] px-5 py-2 text-sm font-bold text-white disabled:opacity-50">
               {loading ? "กำลังบันทึก..." : "บันทึกโปรไฟล์"}
             </button>
           </div>
