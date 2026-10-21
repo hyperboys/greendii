@@ -15,7 +15,7 @@ export function useAccountingAccess() {
 export function AccountingAccessProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isPublic = pathname === "/login" || pathname === "/change-password";
+  const isPublic = pathname === "/login" || pathname === "/forgot-password" || pathname === "/change-password";
   const [result, setResult] = useState<{ pathname: string; sessionToken: string; access?: AccountingAccess; error?: string } | null>(null);
   const [revision, setRevision] = useState(0);
 

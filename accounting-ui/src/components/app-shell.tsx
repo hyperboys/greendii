@@ -10,10 +10,12 @@ import {
   BookOpenText,
   FileChartColumn,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
   ReceiptText,
+  UserRound,
   Settings,
   WalletCards,
   X,
@@ -79,6 +81,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="border-t border-white/10 p-3">
+            <Link href="/profile" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] ${pathname.startsWith("/profile") ? "bg-white/10 text-white" : "text-[#d8e6dc] hover:bg-white/10"}`}>
+              <UserRound size={18} /><span>โปรไฟล์ของฉัน</span>
+            </Link>
+            <Link href="/change-password" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] ${pathname.startsWith("/change-password") ? "bg-white/10 text-white" : "text-[#d8e6dc] hover:bg-white/10"}`}>
+              <KeyRound size={18} /><span>เปลี่ยนรหัสผ่าน</span>
+            </Link>
             {access?.isAdmin && (
               <Link href="/settings/access" onClick={() => setOpen(false)} className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] text-[#d8e6dc] hover:bg-white/10">
                 <Settings size={18} /><span>บทบาท & สิทธิ์ Accounting</span>

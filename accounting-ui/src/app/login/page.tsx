@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 import { Eye, EyeOff, Landmark, LoaderCircle } from "lucide-react";
 import { hasSession, login } from "@/lib/auth";
 
@@ -73,6 +74,9 @@ export default function LoginPage() {
             {error && <div role="alert" className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">{error}</div>}
             <button className="flex h-12 w-full items-center justify-center gap-2 rounded-md bg-[#194d34] px-5 text-sm font-bold text-white transition hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-60" disabled={loading}>{loading && <LoaderCircle size={17} className="animate-spin" />}{loading ? "กำลังเข้าสู่ระบบ" : "เข้าสู่ระบบ"}</button>
           </form>
+          <div className="mt-4 text-right">
+            <Link href="/forgot-password" className="text-sm font-bold text-[#2f7d4b] hover:underline">ลืมรหัสผ่าน?</Link>
+          </div>
           <p className="mt-8 border-t border-[#dfe5de] pt-5 text-xs leading-5 text-[#657069]">หากไม่สามารถเข้าสู่ระบบได้ กรุณาติดต่อผู้ดูแลระบบเพื่อเปิดสิทธิ์งานบัญชี</p>
         </div>
       </section>

@@ -2,8 +2,18 @@ export type AuthUser = {
   id: string;
   username: string;
   fullName?: string;
+  initials?: string;
   role: string;
   mustChangePassword?: boolean;
+  email?: string | null;
+  phone?: string | null;
+  department?: string | null;
+  position?: string | null;
+  lineUserId?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  firstNameEn?: string | null;
+  lastNameEn?: string | null;
 };
 
 type LoginResponse = {
@@ -68,6 +78,28 @@ export async function changePassword(oldPassword: string, newPassword: string) {
   await parseResponse(response);
   const user = getStoredUser();
   if (user) localStorage.setItem(USER_KEY, JSON.stringify({ ...user, mustChangePassword: false }));
+}
+
+export async function updateProfile(data: Pick<AuthUser, "fullName" | "initials" | "email" | "phone" | "department" | "position" | "lineUserId" | "firstName" | "lastName">) {
+  const user = getStoredUser();
+  if (!user) throw new Error("ไม่พบข้อมูลผู้ใช้ กรุณาเข้าสู่ระบบใหม่");
+  const response = await fetch(`/api/users/${encodeURIComponent(user.id)}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify(data),
+  });
+  const updated = await parseResponse<AuthUser>(response);
+  localStorage.setItem(USER_KEY, JSON.stringify({ ...user, ...updated }));
+  return updated;
+}
+
+export async function forgotPassword(identifier: string) {
+  const response = await fetch("/api/auth/forgot-password", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier }),
+  });
+  return parseResponse<{ message: string }>(response);
 }
 
 function authHeaders(): HeadersInit {

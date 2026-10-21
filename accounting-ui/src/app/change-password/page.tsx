@@ -33,7 +33,7 @@ export default function ChangePasswordPage() {
       <section className="w-full max-w-md rounded-lg border border-[#dfe5de] bg-white p-7 shadow-[0_18px_55px_rgba(23,63,45,0.12)] sm:p-9">
         <div className="mb-6 grid size-11 place-items-center rounded-md bg-[#e3efe7] text-[#194d34]"><KeyRound size={22} /></div>
         <h1 className="text-2xl font-bold">ตั้งรหัสผ่านใหม่</h1>
-        <p className="mt-2 text-sm text-[#657069]">บัญชีนี้ต้องเปลี่ยนรหัสผ่านก่อนเข้าใช้งาน</p>
+        <p className="mt-2 text-sm text-[#657069]">ใช้รหัสผ่านปัจจุบันเพื่อยืนยันตัวตนก่อนตั้งรหัสผ่านใหม่</p>
         <form className="mt-7 space-y-4" onSubmit={submit}>
           <label className="block text-sm font-bold">รหัสผ่านปัจจุบัน<input type="password" required value={oldPassword} onChange={(event) => setOldPassword(event.target.value)} className="mt-2 h-11 w-full rounded-md border border-[#ccd5cd] px-3 outline-none focus:border-[#2f7d4b]" /></label>
           <label className="block text-sm font-bold">รหัสผ่านใหม่<input type="password" required minLength={6} value={newPassword} onChange={(event) => setNewPassword(event.target.value)} className="mt-2 h-11 w-full rounded-md border border-[#ccd5cd] px-3 outline-none focus:border-[#2f7d4b]" /></label>
