@@ -35,18 +35,18 @@ export default function LoginPage() {
 
   return (
     <main className="login-backdrop grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(440px,0.72fr)]">
-      <section className="relative hidden min-h-screen overflow-hidden bg-gradient-to-b from-[#1b5e20] via-[#2d6a2e] to-[#264e27] p-12 text-white lg:flex lg:flex-col lg:justify-between">
+      <section className="relative hidden min-h-screen overflow-hidden bg-[#6aad49] p-12 text-[#17211b] lg:flex lg:flex-col lg:justify-between">
         <div className="absolute -bottom-32 -right-32 size-[520px] rounded-full border-[80px] border-[#b8d538]/15" />
         <div className="relative flex items-center gap-3">
           <div className="grid size-11 place-items-center rounded-md bg-white"><Image src="/logo.jpg" alt="GreenDii" width={36} height={26} /></div>
-          <div><div className="text-lg font-extrabold">GREENDII</div><div className="text-[11px] text-[#c4dfcc]">BUSINESS OPERATIONS</div></div>
+          <div><div className="text-lg font-extrabold">GREENDII</div><div className="text-[11px]">BUSINESS OPERATIONS</div></div>
         </div>
         <div className="relative max-w-xl">
-          <Landmark size={38} className="mb-7 text-[#b8d538]" strokeWidth={1.5} />
+          <Landmark size={38} className="mb-7" strokeWidth={1.5} />
           <h1 className="text-5xl font-bold leading-[1.12]">Accounting,<br />made accountable.</h1>
-          <p className="mt-6 max-w-md text-base leading-7 text-[#c8dbcf]">พื้นที่ทำงานสำหรับทีมบัญชี เชื่อมข้อมูลการขาย เอกสาร และฐานข้อมูลชุดเดียวกับระบบ GreenDii</p>
+          <p className="mt-6 max-w-md text-base leading-7">พื้นที่ทำงานสำหรับทีมบัญชี เชื่อมข้อมูลการขาย เอกสาร และฐานข้อมูลชุดเดียวกับระบบ GreenDii</p>
         </div>
-        <p className="relative text-xs text-[#c4dfcc]">GreenDii Co., Ltd. · Internal system</p>
+        <p className="relative text-xs">GreenDii Co., Ltd. · Internal system</p>
       </section>
 
       <section className="flex min-h-screen items-center justify-center p-5 sm:p-10">
