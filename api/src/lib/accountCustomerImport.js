@@ -1,5 +1,6 @@
 const { validateCustomer } = require('./accountCustomers');
 const { recordAuditLog } = require('./auditTrail');
+const { parseCsv } = require('./csv');
 
 const EXPECTED_HEADER = ['รหัสลูกค้า', 'ชื่อลูกค้า', 'ที่อยู่', 'เลขทะเบียนผู้เสียภาษี', 'ชื่อผู้ติดต่อ', 'อีเมล', 'โทรศัพท์', 'แฟ็กซ์', 'sales', 'เครดิต'];
 // Tax IDs shared by clearly different companies; held back until the source data is corrected.
@@ -8,30 +9,6 @@ const DEFAULT_CREDIT_TERM = 30;
 const DEFAULT_VAT = 'VAT7%';
 const HEAD_OFFICE = /สำนักงานใหญ่|head\s*office/i;
 const EMAIL_PATTERN = /^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/;
-
-function parseCsv(input) {
-  const source = input.replace(/^\uFEFF/, '');
-  const rows = [];
-  let row = [];
-  let field = '';
-  let quoted = false;
-  for (let i = 0; i < source.length; i++) {
-    const char = source[i];
-    if (quoted) {
-      if (char === '"' && source[i + 1] === '"') { field += '"'; i++; }
-      else if (char === '"') quoted = false;
-      else field += char;
-    } else if (char === '"') quoted = true;
-    else if (char === ',') { row.push(field); field = ''; }
-    else if (char === '\n' || char === '\r') {
-      if (char === '\r' && source[i + 1] === '\n') i++;
-      row.push(field); rows.push(row); row = []; field = '';
-    } else field += char;
-  }
-  if (quoted) throw new Error('CSV มีเครื่องหมายคำพูดไม่ครบ');
-  if (field || row.length) { row.push(field); rows.push(row); }
-  return rows;
-}
 
 const clean = value => String(value ?? '').replace(/\s+/g, ' ').trim();
 const saleName = value => clean(value).replace(/^\*\s*/, '');

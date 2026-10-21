@@ -10,6 +10,11 @@ const ACTION_LABELS: Record<AccountingAction, string> = {
   view: "ดู", create: "สร้าง", update: "แก้ไข", delete: "ลบ",
 };
 
+const EMPTY_USER = {
+  username: "", password: "", fullName: "", initials: "", email: "",
+  phone: "", department: "", position: "", lineUserId: "", roleId: "",
+};
+
 const fetchSettings = () => Promise.all([AccountingAccessApi.roles(), AccountingAccessApi.users()]);
 
 export default function AccountingAccessPage() {
@@ -24,6 +29,7 @@ export default function AccountingAccessPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [query, setQuery] = useState("");
+  const [newUser, setNewUser] = useState(EMPTY_USER);
 
   const applySettings = useCallback(([roleData, userData]: Awaited<ReturnType<typeof fetchSettings>>) => {
     setRoles(roleData.roles);
@@ -81,6 +87,14 @@ export default function AccountingAccessPage() {
       else await AccountingAccessApi.createRole(data);
       resetForm();
     }, "บันทึกบทบาท Accounting แล้ว");
+  };
+
+  const createUser = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    void run(async () => {
+      await AccountingAccessApi.createUser(newUser);
+      setNewUser(EMPTY_USER);
+    }, "เพิ่มผู้ใช้ Accounting แล้ว");
   };
 
   const filteredUsers = users.filter(user =>
@@ -147,6 +161,51 @@ export default function AccountingAccessPage() {
                   {editingId && <button disabled={busy} type="button" className="text-sm" onClick={resetForm}>ยกเลิก / สร้างใหม่</button>}
                 </div>
               </form>
+            </section>
+            <section className="rounded-lg border border-[#dfe5de] bg-white p-5">
+              <h2 className="font-bold">เพิ่มผู้ใช้ Accounting</h2>
+              <p className="mt-1 text-xs text-[#657069]">สร้างบัญชีในตารางผู้ใช้ชุดเดียวกับระบบหลัก และกำหนดบทบาท Accounting ให้ทันที</p>
+              <form onSubmit={createUser} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <label className="text-sm">ชื่อผู้ใช้ *
+                  <input required autoComplete="username" value={newUser.username} onChange={event => setNewUser(current => ({ ...current, username: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">ชื่อ-นามสกุล *
+                  <input required value={newUser.fullName} onChange={event => setNewUser(current => ({ ...current, fullName: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">รหัสผ่าน * (อย่างน้อย 6 ตัว)
+                  <input required minLength={6} type="password" autoComplete="new-password" value={newUser.password} onChange={event => setNewUser(current => ({ ...current, password: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">ชื่อย่อ
+                  <input maxLength={3} value={newUser.initials} onChange={event => setNewUser(current => ({ ...current, initials: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">อีเมล
+                  <input type="email" value={newUser.email} onChange={event => setNewUser(current => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">เบอร์โทรศัพท์
+                  <input value={newUser.phone} onChange={event => setNewUser(current => ({ ...current, phone: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">แผนก / ฝ่าย
+                  <input value={newUser.department} onChange={event => setNewUser(current => ({ ...current, department: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">ตำแหน่ง
+                  <input value={newUser.position} onChange={event => setNewUser(current => ({ ...current, position: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">LINE User ID
+                  <input value={newUser.lineUserId} onChange={event => setNewUser(current => ({ ...current, lineUserId: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy} />
+                </label>
+                <label className="text-sm">บทบาท Accounting *
+                  <select required value={newUser.roleId} onChange={event => setNewUser(current => ({ ...current, roleId: event.target.value }))} className="mt-1 w-full rounded-md border border-[#ccd5cd] p-2" disabled={busy || !roles.length}>
+                    <option value="">เลือกบทบาท</option>
+                    {roles.map(role => <option key={role.id} value={role.id}>{role.name}</option>)}
+                  </select>
+                </label>
+                <div className="flex items-end">
+                  <button disabled={busy || !roles.length} className="rounded-md bg-[#194d34] px-4 py-2 text-sm font-bold text-white disabled:opacity-50">
+                    {busy ? "กำลังบันทึก..." : "เพิ่มผู้ใช้"}
+                  </button>
+                </div>
+              </form>
+              {!roles.length && <p className="mt-2 text-xs text-amber-700">สร้างบทบาท Accounting ก่อน จึงจะเพิ่มผู้ใช้ได้</p>}
             </section>
             <section className="rounded-lg border border-[#dfe5de] bg-white p-5">
               <h2 className="font-bold">กำหนดบทบาทให้ผู้ใช้</h2>

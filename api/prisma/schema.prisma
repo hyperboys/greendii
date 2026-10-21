@@ -301,6 +301,10 @@ model Supplier {
   billingAddress  String?  @map("billing_address")
   contactPerson   String?  @map("contact_person")
   tel             String?
+  fax             String?
+  groupCode       String?  @map("group_code")
+  groupName       String?  @map("group_name")
+  creditLimit     Decimal? @map("credit_limit") @db.Decimal(14, 2)
   email           String?
   vatConfig       String?  @default("VAT7%") @map("vat_config")
   paymentTerm     Int      @default(30) @map("payment_term")

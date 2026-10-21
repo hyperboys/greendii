@@ -4,7 +4,8 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 const unexpectedQuery = async () => { throw new Error('Unexpected database call'); };
 const prisma = {
-  user: { findUnique: unexpectedQuery, findMany: unexpectedQuery },
+  user: { findUnique: unexpectedQuery, findMany: unexpectedQuery, create: unexpectedQuery },
+  $transaction: async () => { throw new Error('Unexpected transaction'); },
   accountingRole: {
     create: unexpectedQuery, findMany: unexpectedQuery, findUnique: unexpectedQuery,
     update: unexpectedQuery, delete: unexpectedQuery,
@@ -35,6 +36,12 @@ test('Accounting administration persists roles/assignments independently and res
   t.mock.method(prisma.user, 'findMany', async () => users.map(user => ({
     ...user, accountingAssignment: assignments.has(user.id) ? { roleId: assignments.get(user.id) } : null,
   })));
+  t.mock.method(prisma.user, 'create', async ({ data }) => {
+    const user = { id: `user-${users.length}`, ...data, active: true };
+    users.push(user);
+    return { id: user.id, username: user.username, fullName: user.fullName, role: user.role, active: user.active };
+  });
+  t.mock.method(prisma, '$transaction', async callback => callback(prisma));
   t.mock.method(prisma.accountingRole, 'create', async ({ data }) => {
     const role = { id: `role-${roles.size}`, ...data }; roles.set(role.id, role); return role;
   });
@@ -70,6 +77,7 @@ test('Accounting administration persists roles/assignments independently and res
     assert.equal((await request('/roles', 'GET', undefined, userId)).status, 403);
     assert.equal((await request('/roles', 'POST', { name: 'No', permissions: ['ar.view'] }, userId)).status, 403);
     assert.equal((await request('/users', 'GET', undefined, userId)).status, 403);
+    assert.equal((await request('/users', 'POST', { username: 'new', fullName: 'New User', password: 'secret1', roleId: 'any' }, userId)).status, 403);
     assert.equal((await request('/users/sales/role', 'PUT', { roleId: null }, userId)).status, 403);
     assert.equal((await request('/roles/any', 'PUT', { name: 'No', permissions: ['ar.view'] }, userId)).status, 403);
     assert.equal((await request('/roles/any', 'DELETE', undefined, userId)).status, 403);
@@ -79,6 +87,22 @@ test('Accounting administration persists roles/assignments independently and res
   assert.equal(created.status, 201);
   const role = await created.json();
   assert.equal((await (await request('/roles')).json()).roles[0].name, 'AR Viewer');
+  assert.equal((await request('/users', 'POST', { username: 'new-user', fullName: 'New User', password: '123', roleId: role.id })).status, 400);
+  assert.equal((await request('/users', 'POST', { username: 'new-user', fullName: 'New User', password: 'secret1' })).status, 400);
+  assert.equal((await request('/users', 'POST', { username: 'new-user', fullName: 'New User', password: 'secret1', roleId: 'missing' })).status, 404);
+  const createdUserResponse = await request('/users', 'POST', {
+    username: ' new-user ', fullName: ' New User ', password: 'secret1', email: 'new@example.test',
+    department: 'Finance', roleId: role.id,
+  });
+  assert.equal(createdUserResponse.status, 201);
+  const createdUser = await createdUserResponse.json();
+  assert.deepEqual(createdUser, {
+    id: 'user-3', username: 'new-user', fullName: 'New User', role: 'sales', active: true,
+    accountingAssignment: { roleId: role.id },
+  });
+  assert.equal(Object.hasOwn(createdUser, 'passwordHash'), false);
+  assert.ok(await require('bcryptjs').compare('secret1', users[3].passwordHash));
+  assert.equal(assignments.get(createdUser.id), role.id);
   assert.equal((await request('/users/sales/role', 'PUT', { roleId: role.id })).status, 200);
   const access = await (await request('/me', 'GET', undefined, 'sales')).json();
   assert.equal(access.role.name, 'AR Viewer');
@@ -100,6 +124,7 @@ test('Accounting administration persists roles/assignments independently and res
   assert.equal(users[1].role, 'sales');
   assert.equal((await request('/users/sales/role', 'PUT', { roleId: null })).status, 200);
   assert.equal((await (await request('/me', 'GET', undefined, 'sales')).json()).allowed, false);
+  assert.equal((await request(`/users/${createdUser.id}/role`, 'PUT', { roleId: null })).status, 200);
   assert.equal((await request(`/roles/${role.id}`, 'DELETE')).status, 200);
   assert.equal((await (await request('/roles')).json()).roles.length, 0);
 });

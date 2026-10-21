@@ -7,6 +7,7 @@ import { Building2, Layers, Package, Plus, Store, Users } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { CustomerMaster, SaleMaster } from "@/components/customer-master";
+import { SupplierMaster } from "@/components/supplier-master";
 
 type MasterRecord = {
   id: string; name?: string; code?: string; taxId?: string; category?: string;
@@ -28,10 +29,7 @@ export default function MasterDataPage() {
     setLoading(true);
     setErrorMsg("");
     try {
-      if (activeTab === "suppliers") {
-        const res = await MasterApi.getSuppliers();
-        setDataList(Array.isArray(res) ? res : res.items || []);
-      } else if (activeTab === "products") {
+      if (activeTab === "products") {
         const res = await MasterApi.getProducts();
         setDataList(Array.isArray(res) ? res : res.items || []);
       } else if (activeTab === "warehouses") {
@@ -49,14 +47,13 @@ export default function MasterDataPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    loadData();
+    if (activeTab !== "suppliers") loadData();
   }, [loadData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (activeTab === "suppliers") await MasterApi.createSupplier(formData);
-      else if (activeTab === "products") await MasterApi.createProduct(formData);
+      if (activeTab === "products") await MasterApi.createProduct(formData);
       else if (activeTab === "warehouses") await MasterApi.createWarehouse(formData);
       else if (activeTab === "coa") await MasterApi.createChartOfAccount(formData);
 
@@ -77,7 +74,7 @@ export default function MasterDataPage() {
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ข้อมูลหลัก & ผังบัญชี</h1>
             <p className="mt-1 text-sm text-[#657069]">จัดการลูกค้า, ผู้จำหน่าย, สินค้า, คลังสินค้า และโครงสร้างผังบัญชี</p>
           </div>
-          {activeTab !== "customers" && activeTab !== "sales" && <button
+          {activeTab !== "customers" && activeTab !== "sales" && activeTab !== "suppliers" && <button
             disabled={!canCreate}
             title={!canCreate ? "ไม่มีสิทธิ์สร้างข้อมูลหลัก" : undefined}
             onClick={() => { setFormData({}); setShowModal(true); }}
@@ -112,7 +109,7 @@ export default function MasterDataPage() {
           ))}
         </div>
 
-        {activeTab === "customers" ? <CustomerMaster /> : activeTab === "sales" ? <SaleMaster /> : <>
+        {activeTab === "customers" ? <CustomerMaster /> : activeTab === "sales" ? <SaleMaster /> : activeTab === "suppliers" ? <SupplierMaster /> : <>
         {/* Error Alert */}
         {errorMsg && (
           <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">

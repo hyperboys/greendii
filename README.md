@@ -52,6 +52,52 @@ Greendii/
 
 ## Quick Start
 
+### Supplier CSV Import
+
+Run from `api` in PowerShell. The default is an **offline dry-run**: no database
+connection, schema changes, or inserts. It accepts the 20-column Supplier report,
+including group headers and summary rows.
+
+```powershell
+npm run db:import:suppliers:dry
+# Optional JSON report (new file only; contains supplier/contact data).
+npm run db:import:suppliers:dry -- --report="D:\reports\supplier-preview.json"
+# Optional read-only database code collision check; never inserts or updates.
+npm run db:import:suppliers:dry -- --check-db
+```
+
+Import preserves original string codes (including leading zeros), names, addresses,
+contacts, phones, fax, group code/name, and credit limits. `None` is preserved as a
+literal group code with a null group name. Groups `002` and `003` keep their leading
+zeros. Equal names with different codes remain separate suppliers. Empty credit
+limits stay null, not zero; monetary limits are never used as payment days.
+
+The CSV has no explicit branch, VAT, payment days, or supplier type. The preview
+reports the existing system defaults: head office, `VAT7%`, 30 days, `domestic`,
+and active. **Review these assumptions before applying**, especially for individuals
+and branch suppliers. Tax IDs, email and bank details are not inferred.
+
+Only after approval, back up the database and apply
+[supplier-import-support.sql](api/scripts/sql/supplier-import-support.sql) using
+the normal database deployment process. This additive, re-runnable SQL adds `fax`,
+`group_code`, `group_name`, and `credit_limit DECIMAL(14,2)` without changing existing
+rows. Regenerate the client, then explicitly confirm the import:
+
+```powershell
+npm run db:generate
+npm run db:import:suppliers:apply -- --confirm=IMPORT_SUPPLIERS
+```
+
+The apply command does not deploy schema changes automatically. It checks schema
+and client compatibility, then inserts in one serializable transaction with audit
+logs. Existing codes, including inactive suppliers, are skipped without updates.
+Any insert, concurrent conflict, or audit error aborts the transaction; review and
+rerun rather than overwriting existing suppliers. Use `--file=...` for a different
+input and `--performed-by=...` to attribute imports to an operator.
+
+Supplier GET endpoints return the new stored fields. The current master-data form
+does not provide editors for them; this import does not add a CSV-upload UI.
+
 ### 1. Database Setup
 
 ```bash

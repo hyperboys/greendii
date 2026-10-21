@@ -54,6 +54,10 @@ router.post('/', authenticate, async (req, res, next) => {
       billingAddress,
       contactPerson,
       tel,
+      fax,
+      groupCode,
+      groupName,
+      creditLimit,
       email,
       vatConfig = 'VAT7%',
       paymentTerm = 30,
@@ -64,23 +68,29 @@ router.post('/', authenticate, async (req, res, next) => {
       bankAccountName,
     } = req.body;
 
-    if (!code || !name) {
+    const normalizedCode = String(code || '').trim();
+    const normalizedName = String(name || '').trim();
+    if (!normalizedCode || !normalizedName) {
       return res.status(400).json({ message: 'โปรดระบุ รหัสผู้จำหน่าย (code) และ ชื่อผู้จำหน่าย (name)' });
     }
 
     const item = await prisma.supplier.create({
       data: {
-        code: String(code).trim(),
-        name: String(name).trim(),
+        code: normalizedCode,
+        name: normalizedName,
         taxId,
         branch,
         address,
         billingAddress,
         contactPerson,
         tel,
+        fax,
+        groupCode,
+        groupName,
+        creditLimit,
         email,
         vatConfig,
-        paymentTerm: parseInt(paymentTerm, 10) || 30,
+        paymentTerm: paymentTerm != null ? parseInt(paymentTerm, 10) : 30,
         supplierType,
         bankName,
         bankBranch,
@@ -107,6 +117,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
       billingAddress,
       contactPerson,
       tel,
+      fax,
+      groupCode,
+      groupName,
+      creditLimit,
       email,
       vatConfig,
       paymentTerm,
@@ -129,6 +143,10 @@ router.put('/:id', authenticate, async (req, res, next) => {
         billingAddress,
         contactPerson,
         tel,
+        fax,
+        groupCode,
+        groupName,
+        creditLimit,
         email,
         vatConfig,
         paymentTerm: paymentTerm != null ? parseInt(paymentTerm, 10) : undefined,

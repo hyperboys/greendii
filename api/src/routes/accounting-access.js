@@ -1,4 +1,5 @@
 const router = require('express').Router();
+const bcrypt = require('bcryptjs');
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { ACCOUNTING_MODULES, validateAccountingRole, getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
@@ -79,6 +80,59 @@ router.get('/users', async (_req, res, next) => {
       },
       orderBy: { username: 'asc' },
     }));
+  } catch (error) { next(error); }
+});
+
+router.post('/users', async (req, res, next) => {
+  try {
+    const {
+      username, password, fullName, initials, email, phone, department, position,
+      lineUserId, firstName, lastName, firstNameEn, lastNameEn, roleId,
+    } = req.body || {};
+    const normalizedUsername = typeof username === 'string' ? username.trim() : '';
+    const normalizedFullName = typeof fullName === 'string' ? fullName.trim() : '';
+    if (!normalizedUsername || !normalizedFullName || typeof password !== 'string' || password.length < 6) {
+      return res.status(400).json({ message: 'กรุณาระบุ username, fullName และรหัสผ่านอย่างน้อย 6 ตัวอักษร' });
+    }
+    if (typeof roleId !== 'string' || !roleId.trim()) {
+      return res.status(400).json({ message: 'กรุณาเลือกบทบาท Accounting ให้ผู้ใช้' });
+    }
+    const optionalText = value => typeof value === 'string' && value.trim() ? value.trim() : null;
+    const passwordHash = await bcrypt.hash(password, 10);
+    const user = await prisma.$transaction(async tx => {
+      const accountingRole = await tx.accountingRole.findUnique({
+        where: { id: roleId.trim() }, select: { id: true },
+      });
+      if (!accountingRole) throw Object.assign(new Error('ไม่พบบทบาท Accounting'), { status: 404 });
+      const created = await tx.user.create({
+        data: {
+          username: normalizedUsername,
+          passwordHash,
+          fullName: normalizedFullName,
+          initials: optionalText(initials) || '',
+          role: 'sales',
+          email: optionalText(email),
+          phone: optionalText(phone),
+          department: optionalText(department),
+          position: optionalText(position),
+          lineUserId: optionalText(lineUserId),
+          firstName: optionalText(firstName),
+          lastName: optionalText(lastName),
+          firstNameEn: optionalText(firstNameEn),
+          lastNameEn: optionalText(lastNameEn),
+        },
+        select: {
+          id: true, username: true, fullName: true, role: true, active: true,
+        },
+      });
+      await tx.accountingUserRole.upsert({
+        where: { userId: created.id },
+        create: { userId: created.id, roleId: accountingRole.id },
+        update: { roleId: accountingRole.id },
+      });
+      return { ...created, accountingAssignment: { roleId: accountingRole.id } };
+    });
+    res.status(201).json(user);
   } catch (error) { next(error); }
 });
 

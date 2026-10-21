@@ -27,6 +27,19 @@ export type AccountingUser = {
   accountingAssignment: { roleId: string } | null;
 };
 
+export type NewAccountingUser = {
+  username: string;
+  password: string;
+  fullName: string;
+  initials: string;
+  email: string;
+  phone: string;
+  department: string;
+  position: string;
+  lineUserId: string;
+  roleId: string;
+};
+
 export type PermissionModule = {
   key: AccountingModule;
   label: string;
@@ -57,6 +70,8 @@ export const AccountingAccessApi = {
   me: () => apiFetch<AccountingAccess>(`${BASE}/me`),
   roles: () => apiFetch<{ modules: PermissionModule[]; roles: AccountingRole[] }>(`${BASE}/roles`),
   users: () => apiFetch<AccountingUser[]>(`${BASE}/users`),
+  createUser: (data: NewAccountingUser) =>
+    apiFetch<AccountingUser>(`${BASE}/users`, { method: "POST", body: JSON.stringify(data) }),
   createRole: (data: { name: string; permissions: AccountingPermission[] }) =>
     apiFetch<AccountingRole>(`${BASE}/roles`, { method: "POST", body: JSON.stringify(data) }),
   updateRole: (id: string, data: { name: string; permissions: AccountingPermission[] }) =>

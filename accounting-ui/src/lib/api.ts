@@ -4,6 +4,7 @@
  */
 
 import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
+import type { AccountSupplier, SupplierInput } from "./account-suppliers";
 
 const TOKEN_KEY = "gd_token";
 
@@ -54,10 +55,12 @@ export const MasterApi = {
 
   getSuppliers: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/suppliers${q ? `?${q}` : ""}`);
+    return apiFetch<AccountSupplier[]>(`/api/suppliers${q ? `?${q}` : ""}`);
   },
-  createSupplier: (data: any) => apiFetch("/api/suppliers", { method: "POST", body: JSON.stringify(data) }),
-  updateSupplier: (id: string, data: any) => apiFetch(`/api/suppliers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  createSupplier: (data: SupplierInput) => apiFetch<AccountSupplier>("/api/suppliers", { method: "POST", body: JSON.stringify(data) }),
+  updateSupplier: (id: string, data: Partial<SupplierInput> & { active?: boolean }) =>
+    apiFetch<AccountSupplier>(`/api/suppliers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  deactivateSupplier: (id: string) => apiFetch<{ message: string }>(`/api/suppliers/${id}`, { method: "DELETE" }),
 
   getProducts: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
