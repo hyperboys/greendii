@@ -178,6 +178,7 @@ for (const [route, resource] of ACCOUNTING_RESOURCES) {
 app.use('/api/users', usersRoutes);
 app.use('/api/customers', customersRoutes);
 app.use('/api/account-customers', accountCustomersRoutes);
+app.use('/api/account-sales', require('./routes/account-sales'));
 app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/account-products', accountProductsRoutes);

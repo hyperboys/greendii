@@ -1,29 +1,34 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { MasterApi } from "@/lib/api";
 import { Building2, Layers, Package, Plus, Store, Users } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { CustomerMaster, SaleMaster } from "@/components/customer-master";
+
+type MasterRecord = {
+  id: string; name?: string; code?: string; taxId?: string; category?: string;
+  contactPerson?: string; address?: string; location?: string; description?: string;
+  tel?: string; email?: string; accountMapping?: string; vatConfig?: string;
+  productType?: string; supplierType?: string; createdAt?: string;
+};
 
 export default function MasterDataPage() {
   const canCreate = canUseAccounting(useAccountingAccess(), "master", "create");
-  const [activeTab, setActiveTab] = useState<"customers" | "suppliers" | "products" | "warehouses" | "coa">("customers");
+  const [activeTab, setActiveTab] = useState<"customers" | "sales" | "suppliers" | "products" | "warehouses" | "coa">("customers");
   const [loading, setLoading] = useState(false);
-  const [dataList, setDataList] = useState<any[]>([]);
+  const [dataList, setDataList] = useState<MasterRecord[]>([]);
   const [showModal, setShowModal] = useState(false);
-  const [formData, setFormData] = useState<any>({});
+  const [formData, setFormData] = useState<Record<string, string>>({});
   const [errorMsg, setErrorMsg] = useState("");
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMsg("");
     try {
-      if (activeTab === "customers") {
-        const res = await MasterApi.getCustomers();
-        setDataList(Array.isArray(res) ? res : res.items || []);
-      } else if (activeTab === "suppliers") {
+      if (activeTab === "suppliers") {
         const res = await MasterApi.getSuppliers();
         setDataList(Array.isArray(res) ? res : res.items || []);
       } else if (activeTab === "products") {
@@ -36,22 +41,21 @@ export default function MasterDataPage() {
         const res = await MasterApi.getChartOfAccounts();
         setDataList(Array.isArray(res) ? res : res.items || []);
       }
-    } catch (err: any) {
-      setErrorMsg(err.message || "ไม่สามารถโหลดข้อมูลได้");
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : "ไม่สามารถโหลดข้อมูลได้");
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
     loadData();
-  }, [activeTab]);
+  }, [loadData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      if (activeTab === "customers") await MasterApi.createCustomer(formData);
-      else if (activeTab === "suppliers") await MasterApi.createSupplier(formData);
+      if (activeTab === "suppliers") await MasterApi.createSupplier(formData);
       else if (activeTab === "products") await MasterApi.createProduct(formData);
       else if (activeTab === "warehouses") await MasterApi.createWarehouse(formData);
       else if (activeTab === "coa") await MasterApi.createChartOfAccount(formData);
@@ -59,8 +63,8 @@ export default function MasterDataPage() {
       setShowModal(false);
       setFormData({});
       loadData();
-    } catch (err: any) {
-      alert(err.message || "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
     }
   };
 
@@ -73,28 +77,29 @@ export default function MasterDataPage() {
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">ข้อมูลหลัก & ผังบัญชี</h1>
             <p className="mt-1 text-sm text-[#657069]">จัดการลูกค้า, ผู้จำหน่าย, สินค้า, คลังสินค้า และโครงสร้างผังบัญชี</p>
           </div>
-          <button
+          {activeTab !== "customers" && activeTab !== "sales" && <button
             disabled={!canCreate}
             title={!canCreate ? "ไม่มีสิทธิ์สร้างข้อมูลหลัก" : undefined}
             onClick={() => { setFormData({}); setShowModal(true); }}
             className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#194d34] px-4 text-sm font-bold text-white hover:bg-[#123b28] disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus size={17} />เพิ่มข้อมูลใหม่
-          </button>
+          </button>}
         </div>
 
         {/* Tab Selection */}
         <div className="mb-5 flex flex-wrap gap-2 border-b border-[#dfe5de] pb-3">
-          {[
+          {([
             { id: "customers", label: "ลูกค้า (Customer)", icon: Users },
+            { id: "sales", label: "Sale บัญชี", icon: Users },
             { id: "suppliers", label: "ผู้จำหน่าย / ผู้รับเหมา (Supplier)", icon: Building2 },
             { id: "products", label: "สินค้า & บริการ (Product)", icon: Package },
             { id: "warehouses", label: "คลังสินค้า (Warehouse)", icon: Store },
             { id: "coa", label: "ผังบัญชี (Chart of Accounts)", icon: Layers },
-          ].map((tab) => (
+          ] as const).map((tab) => (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
+              onClick={() => setActiveTab(tab.id)}
               className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition-colors ${
                 activeTab === tab.id
                   ? "bg-[#194d34] text-white"
@@ -107,6 +112,7 @@ export default function MasterDataPage() {
           ))}
         </div>
 
+        {activeTab === "customers" ? <CustomerMaster /> : activeTab === "sales" ? <SaleMaster /> : <>
         {/* Error Alert */}
         {errorMsg && (
           <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-xs text-red-700">
@@ -160,31 +166,15 @@ export default function MasterDataPage() {
           )}
         </div>
 
+        </>}
         {/* Modal for Adding New Record */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">
-                เพิ่มข้อมูล {activeTab === "customers" ? "ลูกค้า" : activeTab === "suppliers" ? "ผู้จำหน่าย" : activeTab === "products" ? "สินค้า" : activeTab === "warehouses" ? "คลังสินค้า" : "ผังบัญชี"}
+                เพิ่มข้อมูล {activeTab === "suppliers" ? "ผู้จำหน่าย" : activeTab === "products" ? "สินค้า" : activeTab === "warehouses" ? "คลังสินค้า" : "ผังบัญชี"}
               </h2>
               <form onSubmit={handleCreate} className="mt-4 space-y-3">
-                {activeTab === "customers" && (
-                  <>
-                    <div>
-                      <label className="block text-xs font-bold text-[#566159]">ชื่อลูกค้า *</label>
-                      <input required type="text" className="mt-1 w-full rounded border border-[#dfe5de] p-2 text-xs" value={formData.name || ""} onChange={e => setFormData({...formData, name: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#566159]">เลขประจำตัวผู้เสียภาษี (Tax ID)</label>
-                      <input type="text" className="mt-1 w-full rounded border border-[#dfe5de] p-2 text-xs" value={formData.taxId || ""} onChange={e => setFormData({...formData, taxId: e.target.value})} />
-                    </div>
-                    <div>
-                      <label className="block text-xs font-bold text-[#566159]">ที่อยู่</label>
-                      <textarea className="mt-1 w-full rounded border border-[#dfe5de] p-2 text-xs" value={formData.address || ""} onChange={e => setFormData({...formData, address: e.target.value})} />
-                    </div>
-                  </>
-                )}
-
                 {activeTab === "suppliers" && (
                   <>
                     <div>

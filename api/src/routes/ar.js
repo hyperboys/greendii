@@ -7,6 +7,7 @@ const { recordAuditLog } = require('../lib/auditTrail');
 const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { processApprovalAction } = require('../lib/approvalEngine');
 const { getPagination, paginated } = require('../lib/pagination');
+const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('../lib/accountCustomers');
 
 // ─── 1. PROVISIONAL DELIVERY ORDERS (SO) ─────────────────────────────────────
 
@@ -136,11 +137,7 @@ router.post('/invoices', authenticate, async (req, res, next) => {
     const {
       ivDate,
       customerId,
-      customerBranch,
-      taxId,
-      address,
       customerPoNo,
-      creditTerm = 30,
       workOrderId,
       provisionalDeliveryOrderId,
       subTotal = 0,
@@ -154,29 +151,38 @@ router.post('/invoices', authenticate, async (req, res, next) => {
     if (!customerId) return res.status(400).json({ message: 'กรุณาระบุลูกค้า (customerId)' });
 
     const result = await prisma.$transaction(async (tx) => {
-      const ivNo = await generateNextRunningNumber('iv', { date: ivDate ? new Date(ivDate) : new Date() }, tx);
+      const customer = await tx.accountCustomer.findUnique({ where: { id: customerId }, include: CUSTOMER_INCLUDE });
+      const defaults = invoiceCustomerDefaults(customer, req.body);
       const calcDueDate = new Date(ivDate ? new Date(ivDate) : new Date());
-      calcDueDate.setDate(calcDueDate.getDate() + (parseInt(creditTerm, 10) || 30));
+      calcDueDate.setDate(calcDueDate.getDate() + defaults.creditTerm);
+      if (Number.isNaN(calcDueDate.getTime())) {
+        throw Object.assign(new Error('วันที่ Invoice ไม่ถูกต้อง'), { status: 400 });
+      }
+      const ivNo = await generateNextRunningNumber('iv', { date: ivDate ? new Date(ivDate) : new Date() }, tx);
+      const invoiceVat = defaults.vatConfig === 'NO_VAT' ? 0 : req.body.vat == null
+        ? Math.round((Number(subTotal) - Number(discount)) * 7) / 100 : Number(vat);
+      const invoiceNet = req.body.netAmount == null || defaults.vatConfig === 'NO_VAT'
+        ? Number(subTotal) - Number(discount) + invoiceVat : Number(netAmount);
+      if (![invoiceVat, invoiceNet].every(value => Number.isFinite(value) && value >= 0)) {
+        throw Object.assign(new Error('ยอดเงิน Invoice ไม่ถูกต้อง'), { status: 400 });
+      }
 
       const doc = await tx.invoice.create({
         data: {
           ivNo,
           ivDate: ivDate ? new Date(ivDate) : new Date(),
           customerId,
-          customerBranch: customerBranch || 'สำนักงานใหญ่',
-          taxId,
-          address,
+          ...defaults,
           salesId: req.user.id,
           customerPoNo,
-          creditTerm: parseInt(creditTerm, 10) || 30,
           dueDate: calcDueDate,
           workOrderId,
           provisionalDeliveryOrderId,
           subTotal: parseFloat(subTotal) || 0,
           discount: parseFloat(discount) || 0,
-          vat: parseFloat(vat) || 0,
-          netAmount: parseFloat(netAmount) || 0,
-          outstandingAmount: parseFloat(netAmount) || 0,
+          vat: invoiceVat,
+          netAmount: invoiceNet,
+          outstandingAmount: invoiceNet,
           status: 'draft',
           remark,
           items: {

@@ -2,6 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate, requireRole } = require('../middleware/auth');
 const { ACCOUNTING_MODULES, validateAccountingRole, getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
+const { CUSTOMER_INCLUDE } = require('../lib/accountCustomers');
 
 router.use(authenticate);
 
@@ -28,7 +29,7 @@ router.get('/lookups/:kind', async (req, res, next) => {
     }
     res.json(await prisma[lookup.model].findMany({
       where: { active: true },
-      select: { id: true, code: true, name: true },
+      ...(req.params.kind === 'customers' ? { include: CUSTOMER_INCLUDE } : { select: { id: true, code: true, name: true } }),
       orderBy: { name: 'asc' },
     }));
   } catch (error) { next(error); }

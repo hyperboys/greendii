@@ -2,6 +2,7 @@ const { getAccountingAccess, hasAccountingPermission } = require('../lib/account
 
 const ACCOUNTING_RESOURCES = [
   ['/api/account-customers', 'master'],
+  ['/api/account-sales', 'master'],
   ['/api/account-products', 'master'],
   ['/api/suppliers', 'master'],
   ['/api/warehouses', 'master'],

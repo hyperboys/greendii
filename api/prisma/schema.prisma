@@ -191,6 +191,10 @@ model AccountCustomer {
   createdAt       DateTime @default(now()) @db.Timestamptz(3)
   updatedAt       DateTime @updatedAt @db.Timestamptz(3)
 
+  responsibleSaleId String? @map("responsible_sale_id")
+  responsibleSale AccountSale? @relation(fields: [responsibleSaleId], references: [id], onDelete: SetNull)
+  branches        AccountCustomerBranch[]
+
   provisionalDeliveryOrders ProvisionalDeliveryOrder[]
   invoices                  Invoice[]
   billingNotes              BillingNote[]
@@ -198,6 +202,47 @@ model AccountCustomer {
   receiptVouchers           ReceiptVoucher[]
 
   @@map("account_customers")
+}
+
+model AccountSale {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  tel       String?
+  email     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  customers AccountCustomer[]
+  invoices  Invoice[]
+
+  @@map("account_sales")
+}
+
+model AccountCustomerBranch {
+  id         String @id @default(cuid())
+  customerId String @map("customer_id")
+  customer   AccountCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  code       String
+  name       String
+  position   Int @default(0)
+  addresses  AccountCustomerAddress[]
+
+  @@unique([customerId, code])
+  @@map("account_customer_branches")
+}
+
+model AccountCustomerAddress {
+  id       String @id @default(cuid())
+  branchId String @map("branch_id")
+  branch   AccountCustomerBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  label    String
+  kind     String @default("both")
+  address  String
+  position Int @default(0)
+
+  @@index([branchId])
+  @@map("account_customer_addresses")
 }
 
 model AccountProduct {
@@ -918,6 +963,11 @@ model Invoice {
   taxId                      String?                   @map("tax_id")
   address                    String?
   salesId                    String?                   @map("sales_id")
+  responsibleSaleId          String?                   @map("responsible_sale_id")
+  responsibleSale            AccountSale?              @relation(fields: [responsibleSaleId], references: [id], onDelete: SetNull)
+  responsibleSaleName        String?                   @map("responsible_sale_name")
+  shippingAddress            String?                   @map("shipping_address")
+  vatConfig                  String?                   @map("vat_config")
   customerPoNo               String?                   @map("customer_po_no")
   creditTerm                 Int                       @default(30) @map("credit_term")
   dueDate                    DateTime?                 @db.Timestamptz(3)

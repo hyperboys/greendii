@@ -3,6 +3,8 @@
  * Handles authentication headers, error parsing, and structured requests.
  */
 
+import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
+
 const TOKEN_KEY = "gd_token";
 
 export function getAuthHeaders(): HeadersInit {
@@ -33,7 +35,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 
 // ─── MASTER DATA ─────────────────────────────────────────────────────────────
 export const AccountingLookupApi = {
-  getCustomers: () => apiFetch("/api/accounting-access/lookups/customers"),
+  getCustomers: () => apiFetch<AccountCustomer[]>("/api/accounting-access/lookups/customers"),
   getSuppliers: () => apiFetch("/api/accounting-access/lookups/suppliers"),
   getProducts: () => apiFetch("/api/accounting-access/lookups/products"),
   getWarehouses: () => apiFetch("/api/accounting-access/lookups/warehouses"),
@@ -42,10 +44,13 @@ export const AccountingLookupApi = {
 export const MasterApi = {
   getCustomers: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/account-customers${q ? `?${q}` : ""}`);
+    return apiFetch<AccountCustomer[]>(`/api/account-customers${q ? `?${q}` : ""}`);
   },
-  createCustomer: (data: any) => apiFetch("/api/account-customers", { method: "POST", body: JSON.stringify(data) }),
-  updateCustomer: (id: string, data: any) => apiFetch(`/api/account-customers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  createCustomer: (data: CustomerInput) => apiFetch<AccountCustomer>("/api/account-customers", { method: "POST", body: JSON.stringify(data) }),
+  updateCustomer: (id: string, data: CustomerInput) => apiFetch<AccountCustomer>(`/api/account-customers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
+  getSales: () => apiFetch<AccountSale[]>("/api/account-sales"),
+  createSale: (data: Omit<AccountSale, "id" | "updatedAt">) => apiFetch<AccountSale>("/api/account-sales", { method: "POST", body: JSON.stringify(data) }),
+  updateSale: (id: string, data: Omit<AccountSale, "id">) => apiFetch<AccountSale>(`/api/account-sales/${id}`, { method: "PUT", body: JSON.stringify(data) }),
 
   getSuppliers: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

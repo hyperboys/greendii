@@ -94,6 +94,100 @@ and `/users/:id/role`. These are separate from the legacy `/api/users` and setti
 endpoints. The role-assignment endpoint accepts `{ "roleId": "..." }` or
 `{ "roleId": null }` to revoke access.
 
+## Accounting customers and Sales registry
+
+Open **ผังบัญชี & ข้อมูลหลัก** (`/master`):
+
+- **ลูกค้า (Customer)** supports create, detail view, edit, search, active/inactive
+  filtering, contact information, VAT and credit terms (including zero days).
+  Customer code and name are required; code uniqueness is enforced by the database.
+  Duplicate Tax IDs produce a visible warning, not a new tax-identity uniqueness
+  rule. No Tax ID format or automatic customer-code numbering is assumed.
+- Each customer has multiple branches identified by a code unique within that
+  customer. Each branch has multiple labelled billing, shipping, or combined
+  addresses. The first branch is the default; a dedicated billing/shipping
+  address takes precedence over a combined address.
+- **Sale บัญชี** is an independent Accounting registry with its own code, name,
+  contact information and active status. It is neither a Sales customer nor a
+  login/user account. Create the registry entry before assigning it to a customer.
+  Deactivated Sale entries cannot be newly assigned but remain visible on
+  customers already assigned to them.
+- Creating requires `master.create`; editing and changing active status require
+  `master.update`. Viewers can inspect customer details but cannot save.
+  Saves are transactional and audited. The form sends `updatedAt` to reject
+  stale edits; on a conflict, close the form, reload, and reopen the record.
+
+Invoice customer selection loads the Accounting Sale, VAT, credit term, Tax ID,
+default branch and matching addresses. Branch and billing/shipping addresses are
+selectable, and VAT/credit term can be overridden on the Invoice. Due date is
+Invoice date plus credit days. The API validates branch/address ownership and
+stores address, Sale-name and VAT snapshots so later master-data changes do not
+rewrite those fields on existing Invoices. Legacy `salesId` retains its existing
+creator-user meaning; `responsibleSaleId` references the Accounting Sale registry.
+This does not add Invoice editing or complete the other AR document workflows.
+
+### Database rollout
+
+The new schema requires
+`api/prisma/migrations/20261021020000_account_customer_management/migration.sql`
+and a regenerated Prisma client **before** starting the updated API.
+The migration preserves existing customers, creates one initial branch per
+customer (with a `LEGACY` branch-code placeholder to review), and copies each
+non-empty legacy address into that branch.
+It does not invent missing customer codes or Sale assignments; complete those
+on the customer edit form. The original scalar address columns remain as a
+first-branch projection for existing readers.
+
+Customer API writes now use `branches: [{ id?, code, name, addresses:
+[{ id?, label, kind, address }] }]`, where `kind` is `billing`, `shipping` or
+`both`. New customers require a code and at least one branch/address.
+Scalar-only address updates are rejected explicitly; migrate older writers to
+the structured payload. Customer updates omitting branches preserve them.
+Accounting Sale endpoints are `GET/POST /api/account-sales` and
+`PUT /api/account-sales/:id`, protected by the master-data permissions.
+The AR-only customer lookup includes defaults/branches without granting
+master-data write access.
+
+Use the normal reviewed migration deployment process on a database with a
+consistent history. If history differs, **do not run all pending migrations or
+reset the database**. First verify the existing schema, then have the database
+operator apply only this migration in a transaction and mark only
+`20261021020000_account_customer_management` as applied. This change prepares the
+migration only; it does not apply it to a shared database.
+
+### Production data protection
+
+The Customer change must not modify the legacy Sales UI, Sales customer/product
+tables, users, quotations, work orders or their existing data. The new Sale
+registry is `account_sales`, not the existing Sales users.
+
+This migration is additive and Accounting-only:
+
+- Create three new Accounting tables.
+- Add nullable columns to `account_customers` and `invoices`. Existing column
+  values and rows are not updated or deleted; the new columns start as NULL.
+- Read existing Accounting customer addresses and insert copies into the new
+  branch/address tables only. This is not a Sales customer import.
+- No reset, seed, cleanup, merge, DROP, TRUNCATE, or UPDATE of existing rows.
+  The canonical API tests include a static migration guard for this scope;
+  this is not a substitute for testing the SQL against a restored database.
+
+Deploying application code is not a database migration. The current `npm start`
+only starts Node; inspect the actual hosting provider's build/pre-deploy/start
+commands separately. Do not use `db:migrate` (development migration), `db:reset`,
+`db:seed`, reset/cleanup scripts, `prisma db push`, or blanket migration deployment
+against the divergent production history.
+
+Before rollout, back up the database and verify it can be restored. Rehearse
+only this migration against the restored copy, compare existing table row counts
+and values before/after, and smoke-test both Sales and Accounting. Schedule the
+schema change because ALTER TABLE can briefly lock Accounting tables. Apply only
+the reviewed migration with explicit operator approval, generate the client, and
+then start the updated API/UI. Deploying the new code without its schema can
+break Accounting customer and Invoice requests even though it does not erase
+data. If application rollback is needed, retain the additive schema; do not drop
+new tables or columns containing user-entered data.
+
 ## Checks
 
 ```powershell

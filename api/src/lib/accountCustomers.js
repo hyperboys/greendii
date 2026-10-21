@@ -1,0 +1,118 @@
+const CUSTOMER_INCLUDE = {
+  responsibleSale: true,
+  branches: { orderBy: { position: 'asc' }, include: { addresses: { orderBy: { position: 'asc' } } } },
+};
+const VAT_CONFIGS = ['VAT7%', 'NO_VAT'];
+function invalid(message, status = 400) {
+  throw Object.assign(new Error(message), { status });
+}
+function text(value, label, required = false) {
+  if (value != null && typeof value !== 'string') invalid(`${label} ไม่ถูกต้อง`);
+  const result = value?.trim() || null;
+  if (required && !result) invalid(`กรุณาระบุ${label}`);
+  return result;
+}
+function creditDays(value) {
+  if (value === null || !['string', 'number'].includes(typeof value) || (typeof value === 'string' && !value.trim())) invalid('Credit Term ไม่ถูกต้อง');
+  const days = Number(value);
+  if (!Number.isSafeInteger(days) || days < 0 || days > 2147483647) invalid('Credit Term ต้องเป็นจำนวนเต็มไม่ติดลบและอยู่ในช่วงที่ฐานข้อมูลรองรับ');
+  return days;
+}
+function activeStatus(value = true) {
+  if (typeof value !== 'boolean') invalid('สถานะใช้งานไม่ถูกต้อง');
+  return value;
+}
+function vatSetting(value = 'VAT7%') {
+  if (!VAT_CONFIGS.includes(value)) invalid('การตั้งค่า VAT ไม่ถูกต้อง');
+  return value;
+}
+function email(value) {
+  const result = text(value, 'อีเมล');
+  if (result && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(result)) invalid('อีเมลไม่ถูกต้อง');
+  return result;
+}
+function validateSale(body) {
+  return {
+    code: text(body.code, 'รหัส Sale', true),
+    name: text(body.name, 'ชื่อ Sale', true),
+    tel: text(body.tel, 'โทรศัพท์'), email: email(body.email), active: activeStatus(body.active),
+  };
+}
+function validateCustomer(body, previous = null) {
+  const merged = { ...previous, ...body };
+  const data = {
+    code: text(merged.code, 'รหัสลูกค้า', true), name: text(merged.name, 'ชื่อลูกค้า', true),
+    taxId: text(merged.taxId, 'Tax ID'), type: text(merged.type ?? 'นิติบุคคล', 'ประเภทลูกค้า', true),
+    contactPerson: text(merged.contactPerson, 'ผู้ติดต่อ'), tel: text(merged.tel, 'โทรศัพท์'),
+    email: email(merged.email), responsibleSaleId: text(merged.responsibleSaleId, 'Sale ผู้ดูแล'),
+    vatConfig: vatSetting(merged.vatConfig === undefined ? 'VAT7%' : merged.vatConfig),
+    creditTerm: creditDays(merged.creditTerm === undefined ? 30 : merged.creditTerm), active: activeStatus(merged.active),
+  };
+  if (body.branches === undefined && previous) {
+    if (['branch', 'address', 'billingAddress', 'shippingAddress'].some(key => body[key] !== undefined)) {
+      invalid('กรุณาแก้ไขสาขาและที่อยู่ผ่าน branches แทนช่องที่อยู่แบบเดิม');
+    }
+    return data;
+  }
+  const branches = body.branches;
+  if (!Array.isArray(branches) || !branches.length) invalid('กรุณาระบุสาขาอย่างน้อยหนึ่งสาขา');
+  data.branches = branches.map(branch => {
+    if (!branch || typeof branch !== 'object') invalid('ข้อมูลสาขาไม่ถูกต้อง');
+    if (!Array.isArray(branch.addresses) || !branch.addresses.length) invalid('กรุณาระบุที่อยู่ของแต่ละสาขา');
+    return {
+      id: text(branch.id, 'รหัสอ้างอิงสาขา'),
+      code: text(branch.code, 'รหัสสาขา', true), name: text(branch.name, 'ชื่อสาขา', true),
+      addresses: branch.addresses.map(address => {
+        if (!address || !['billing', 'shipping', 'both'].includes(address.kind)) invalid('ประเภทที่อยู่ไม่ถูกต้อง');
+        return {
+          id: text(address.id, 'รหัสอ้างอิงที่อยู่'),
+          label: text(address.label, 'ชื่อที่อยู่', true), kind: address.kind,
+          address: text(address.address, 'ที่อยู่', true),
+        };
+      }),
+    };
+  });
+  if (new Set(data.branches.map(b => b.code)).size !== data.branches.length) invalid('รหัสสาขาซ้ำ');
+  const first = data.branches[0];
+  data.branch = first.name;
+  data.address = first.addresses[0].address;
+  data.billingAddress = first.addresses.find(a => a.kind === 'billing')?.address ??
+    first.addresses.find(a => a.kind === 'both')?.address ?? null;
+  data.shippingAddress = first.addresses.find(a => a.kind === 'shipping')?.address ??
+    first.addresses.find(a => a.kind === 'both')?.address ?? null;
+  return data;
+}
+
+function invoiceCustomerDefaults(customer, body) {
+  if (!customer) invalid('ไม่พบลูกค้า', 404);
+  if (!customer.active) invalid('ลูกค้าถูกปิดใช้งาน');
+  const branches = customer.branches || [];
+  let branch = body.customerBranchId ? branches.find(b => b.id === body.customerBranchId) : branches[0];
+  if (body.customerBranchId && !branch) invalid('สาขาไม่ใช่ของลูกค้าที่เลือก กรุณาโหลดข้อมูลใหม่');
+  if (!body.customerBranchId && body.customerBranch && branches.length) {
+    const matches = branches.filter(b => b.name === body.customerBranch || b.code === body.customerBranch);
+    if (matches.length !== 1) invalid('กรุณาเลือกสาขาลูกค้าด้วย customerBranchId ที่ถูกต้อง');
+    branch = matches[0];
+  }
+  const pickAddress = (id, kind) => {
+    const addresses = branch?.addresses || [];
+    const address = id ? addresses.find(a => a.id === id && [kind, 'both'].includes(a.kind))
+      : addresses.find(a => a.kind === kind) || addresses.find(a => a.kind === 'both');
+    if (id && !address) invalid('ที่อยู่ไม่ตรงกับสาขาหรือประเภทที่เลือก กรุณาโหลดข้อมูลใหม่');
+    return address?.address;
+  };
+  return {
+    customerBranch: branch?.name || body.customerBranch || customer.branch || 'สำนักงานใหญ่',
+    taxId: body.taxId ?? customer.taxId,
+    address: body.billingAddressId ? pickAddress(body.billingAddressId, 'billing')
+      : body.address ?? pickAddress(null, 'billing') ?? (branch ? null : customer.billingAddress ?? customer.address),
+    shippingAddress: body.shippingAddressId ? pickAddress(body.shippingAddressId, 'shipping')
+      : body.shippingAddress ?? pickAddress(null, 'shipping') ?? (branch ? null : customer.shippingAddress),
+    responsibleSaleId: customer.responsibleSaleId || null,
+    responsibleSaleName: customer.responsibleSale?.name || null,
+    creditTerm: creditDays(body.creditTerm === undefined ? customer.creditTerm ?? 30 : body.creditTerm),
+    vatConfig: vatSetting(body.vatConfig === undefined ? customer.vatConfig ?? 'VAT7%' : body.vatConfig),
+  };
+}
+
+module.exports = { CUSTOMER_INCLUDE, validateCustomer, validateSale, invoiceCustomerDefaults };
