@@ -53,7 +53,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         {open && (
           <button aria-label="ปิดเมนู" className="fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setOpen(false)} />
         )}
-        <aside className={`fixed inset-y-0 left-0 z-40 flex w-63 flex-col border-r border-white/10 bg-[#173f2d] text-white transition-transform lg:sticky lg:top-0 lg:h-screen ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
+        <aside className={`fixed inset-y-0 left-0 z-40 flex w-63 flex-col border-r border-white/10 bg-gradient-to-b from-[#1b5e20] via-[#2d6a2e] to-[#264e27] text-white transition-transform lg:sticky lg:top-0 lg:h-screen ${open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"}`}>
           <div className="flex h-20 items-center justify-between border-b border-white/10 px-5">
             <Link href="/dashboard" className="flex items-center gap-3" onClick={() => setOpen(false)}>
               <span className="grid size-10 place-items-center rounded-md bg-white">
@@ -61,18 +61,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               </span>
               <span>
                 <span className="block text-[15px] font-bold">GREENDII</span>
-                <span className="block text-[11px] text-[#b9d9c5]">ACCOUNTING</span>
+                <span className="block text-[11px] text-[#c4dfcc]">ACCOUNTING</span>
               </span>
             </Link>
             <button className="lg:hidden" onClick={() => setOpen(false)} aria-label="ปิดเมนู"><X size={20} /></button>
           </div>
 
           <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-5">
-            <p className="px-3 pb-2 text-[10px] font-bold uppercase text-[#8db29a]">งานบัญชี</p>
+            <p className="px-3 pb-2 text-[10px] font-bold uppercase text-[#c4dfcc]">งานบัญชี</p>
             {navigation.filter(item => access && canOpenAccountingPath(access, item.href)).map((item) => {
               const active = item.href !== "#" && pathname.startsWith(item.href);
               return (
-                <Link key={item.label} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center gap-3 rounded-md px-3 text-[13px] transition-colors ${active ? "bg-[#b8d538] font-bold text-[#173f2d]" : "text-[#d8e6dc] hover:bg-white/10 hover:text-white"}`}>
+                <Link key={item.label} href={item.href} onClick={() => setOpen(false)} className={`flex h-11 items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] transition-colors ${active ? "border-[#81c784] bg-white/15 font-bold text-white shadow-sm" : "border-transparent text-white/70 hover:bg-white/10 hover:text-white"}`}>
                   <item.icon size={18} strokeWidth={1.8} />
                   <span>{item.label}</span>
                 </Link>
@@ -81,14 +81,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </nav>
 
           <div className="border-t border-white/10 p-3">
-            <Link href="/profile" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] ${pathname.startsWith("/profile") ? "bg-white/10 text-white" : "text-[#d8e6dc] hover:bg-white/10"}`}>
+            <Link href="/profile" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/profile") ? "border-[#81c784] bg-white/15 text-white shadow-sm" : "border-transparent text-white/70 hover:bg-white/10 hover:text-white"}`}>
               <UserRound size={18} /><span>โปรไฟล์ของฉัน</span>
             </Link>
-            <Link href="/change-password" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] ${pathname.startsWith("/change-password") ? "bg-white/10 text-white" : "text-[#d8e6dc] hover:bg-white/10"}`}>
+            <Link href="/change-password" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/change-password") ? "border-[#81c784] bg-white/15 text-white shadow-sm" : "border-transparent text-white/70 hover:bg-white/10 hover:text-white"}`}>
               <KeyRound size={18} /><span>เปลี่ยนรหัสผ่าน</span>
             </Link>
             {access?.isAdmin && (
-              <Link href="/settings/access" onClick={() => setOpen(false)} className="flex h-11 w-full items-center gap-3 rounded-md px-3 text-[13px] text-[#d8e6dc] hover:bg-white/10">
+              <Link href="/settings/access" onClick={() => setOpen(false)} className={`flex h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 text-[13px] ${pathname.startsWith("/settings/access") ? "border-[#81c784] bg-white/15 text-white shadow-sm" : "border-transparent text-white/70 hover:bg-white/10 hover:text-white"}`}>
                 <Settings size={18} /><span>บทบาท & สิทธิ์ Accounting</span>
               </Link>
             )}
