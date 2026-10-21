@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MasterApi } from "@/lib/api";
 import { AccountCustomer, AccountSale, CustomerBranch, CustomerInput, customerForm, newBranch } from "@/lib/account-customers";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
@@ -15,7 +17,8 @@ function message(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถดำเนินการได้ กรุณาลองอีกครั้ง";
 }
 
-export function CustomerMaster() {
+export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "new" | "view" | "edit"; recordId?: string }) {
+  const router = useRouter();
   const access = useAccountingAccess();
   const canCreate = canUseAccounting(access, "master", "create");
   const canUpdate = canUseAccounting(access, "master", "update");
@@ -38,14 +41,18 @@ export function CustomerMaster() {
       const [customerList, saleList] = await Promise.all([MasterApi.getCustomers(), MasterApi.getSales()]);
       setCustomers(customerList);
       setSales(saleList);
+      if (mode !== "list") {
+        if (mode !== "new" && !recordId) throw new Error("ไม่พบรหัสลูกค้า");
+        const customer = recordId ? await MasterApi.getCustomer(recordId) : undefined;
+        setForm(customerForm(customer));
+        setModal({ customer, readOnly: mode === "view" });
+      }
     } catch (err) { setError(message(err)); }
     finally { setLoading(false); }
-  }, []);
+  }, [mode, recordId]);
   useEffect(() => { void load(); }, [load]);
   const open = (customer?: AccountCustomer, readOnly = false) => {
-    setForm(customerForm(customer));
-    setFormError("");
-    setModal({ customer, readOnly });
+    router.push(customer ? `/master/customers/${encodeURIComponent(customer.id)}${readOnly ? "" : "/edit"}` : "/master/customers/new");
   };
   const updateBranch = (index: number, patch: Partial<CustomerBranch>) => {
     setForm(current => ({ ...current, branches: current.branches.map((b, i) => i === index ? { ...b, ...patch } : b) }));
@@ -59,7 +66,7 @@ export function CustomerMaster() {
     try {
       const saved = modal.customer ? await MasterApi.updateCustomer(modal.customer.id, form) : await MasterApi.createCustomer(form);
       setCustomers(current => [...current.filter(c => c.id !== saved.id), saved].sort((a, b) => a.name.localeCompare(b.name)));
-      setModal(null);
+      router.push("/master?tab=customers");
     } catch (err) { setFormError(message(err)); }
     finally { savingRef.current = false; setSaving(false); }
   };
@@ -68,6 +75,8 @@ export function CustomerMaster() {
     [customer.code, customer.name, customer.taxId, customer.responsibleSale?.name, ...customer.branches.map(b => b.code),
       ...(customer.secondarySales ?? []).map(s => s.sale?.name)].some(value => value?.toLowerCase().includes(query.toLowerCase())));
   return <section aria-label="จัดการลูกค้าบัญชี">
+    {mode !== "list" && <Link href="/master?tab=customers" className={`${buttonClass} mb-4 inline-block`}>กลับรายการลูกค้า</Link>}
+    {mode === "list" && <>
     <div className="mb-4 flex flex-wrap items-end gap-3">
       <Field label="ค้นหารหัส / รหัสเดิม / ชื่อ / Tax ID / Sale"><input className={inputClass} value={query} onChange={e => setQuery(e.target.value)} /></Field>
       <Field label="สถานะ"><select className={inputClass} value={status} onChange={e => setStatus(e.target.value)}>
@@ -98,8 +107,11 @@ export function CustomerMaster() {
           </tr>)}</tbody>
       </table>
     </div>
-    {modal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="customer-title" className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+    </>}
+    {mode !== "list" && loading && <p className="p-6 text-sm">กำลังโหลดข้อมูลลูกค้า...</p>}
+    {mode !== "list" && error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
+    {mode !== "list" && !loading && !error && modal && <div>
+      <div aria-labelledby="customer-title" className="w-full rounded-lg border border-[#dfe5de] bg-white p-6 shadow-sm">
         <h2 id="customer-title" className="text-lg font-bold">{modal.readOnly ? "ข้อมูลลูกค้า" : modal.customer ? "แก้ไขลูกค้า" : "เพิ่มลูกค้า"}</h2>
         <p className="mt-1 text-xs text-[#657069]">ลูกค้าบัญชีและทะเบียน Sale บัญชีแยกจากระบบ Sales</p>
         <form onSubmit={save} className="mt-4 space-y-4">
@@ -152,7 +164,7 @@ export function CustomerMaster() {
             </section>)}
           </fieldset>
           <div className="flex justify-end gap-2 border-t pt-4">
-            <button type="button" disabled={saving} className={buttonClass} onClick={() => setModal(null)}>ปิด</button>
+            <Link href="/master?tab=customers" className={buttonClass}>กลับรายการ</Link>
             {!modal.readOnly && <button disabled={saving || !writable} className={`${buttonClass} bg-[#0866ff] text-white`} type="submit">{saving ? "กำลังบันทึก..." : "บันทึกข้อมูลลูกค้า"}</button>}
           </div>
         </form>

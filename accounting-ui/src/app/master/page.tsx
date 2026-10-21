@@ -25,6 +25,11 @@ export default function MasterDataPage() {
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [errorMsg, setErrorMsg] = useState("");
 
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get("tab");
+    if (tab === "customers" || tab === "suppliers") setActiveTab(tab);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     setErrorMsg("");
@@ -48,7 +53,7 @@ export default function MasterDataPage() {
 
   useEffect(() => {
     if (activeTab !== "suppliers") loadData();
-  }, [loadData]);
+  }, [activeTab, loadData]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();

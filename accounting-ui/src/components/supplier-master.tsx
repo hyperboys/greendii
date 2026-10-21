@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { MasterApi } from "@/lib/api";
 import { AccountSupplier, SupplierInput, supplierForm } from "@/lib/account-suppliers";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
@@ -17,7 +19,8 @@ function message(error: unknown) {
   return error instanceof Error ? error.message : "ไม่สามารถดำเนินการได้ กรุณาลองอีกครั้ง";
 }
 
-export function SupplierMaster() {
+export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "new" | "view" | "edit"; recordId?: string }) {
+  const router = useRouter();
   const access = useAccountingAccess();
   const canCreate = canUseAccounting(access, "master", "create");
   const canUpdate = canUseAccounting(access, "master", "update");
@@ -40,21 +43,25 @@ export function SupplierMaster() {
     setLoading(true);
     setError("");
     try {
-      const supplierList = await MasterApi.getSuppliers();
-      setSuppliers(supplierList);
+      if (mode === "list") {
+        setSuppliers(await MasterApi.getSuppliers());
+      } else {
+        if (mode !== "new" && !recordId) throw new Error("ไม่พบรหัสผู้จำหน่าย");
+        const supplier = recordId ? await MasterApi.getSupplier(recordId) : undefined;
+        setForm(supplierForm(supplier));
+        setModal({ supplier, readOnly: mode === "view" });
+      }
     } catch (err) {
       setError(message(err));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [mode, recordId]);
 
   useEffect(() => { void load(); }, [load]);
 
   const open = (supplier?: AccountSupplier, readOnly = false) => {
-    setForm(supplierForm(supplier));
-    setFormError("");
-    setModal({ supplier, readOnly });
+    router.push(supplier ? `/master/suppliers/${encodeURIComponent(supplier.id)}${readOnly ? "" : "/edit"}` : "/master/suppliers/new");
   };
 
   const save = async (event: React.FormEvent) => {
@@ -69,7 +76,7 @@ export function SupplierMaster() {
         : await MasterApi.createSupplier(form);
       setSuppliers(current => [...current.filter(supplier => supplier.id !== saved.id), saved]
         .sort((a, b) => a.code.localeCompare(b.code)));
-      setModal(null);
+      router.push("/master?tab=suppliers");
     } catch (err) {
       setFormError(message(err));
     } finally {
@@ -103,6 +110,8 @@ export function SupplierMaster() {
   );
 
   return <section aria-label="จัดการผู้จำหน่าย">
+    {mode !== "list" && <Link href="/master?tab=suppliers" className={`${buttonClass} mb-4 inline-block`}>กลับรายการผู้จำหน่าย</Link>}
+    {mode === "list" && <>
     <div className="mb-4 flex flex-wrap items-end gap-3">
       <Field label="ค้นหารหัส / ชื่อ / Tax ID / ผู้ติดต่อ">
         <input className={inputClass} value={query} onChange={event => setQuery(event.target.value)} />
@@ -150,9 +159,11 @@ export function SupplierMaster() {
         </tbody>
       </table>
     </div>
-
-    {modal && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div role="dialog" aria-modal="true" aria-labelledby="supplier-title" className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
+    </>}
+    {mode !== "list" && loading && <p className="p-6 text-sm">กำลังโหลดข้อมูลผู้จำหน่าย...</p>}
+    {mode !== "list" && error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
+    {mode !== "list" && !loading && !error && modal && <div>
+      <div aria-labelledby="supplier-title" className="w-full rounded-lg border border-[#dfe5de] bg-white p-6 shadow-sm">
         <h2 id="supplier-title" className="text-lg font-bold">{modal.readOnly ? "ข้อมูลผู้จำหน่าย" : modal.supplier ? "แก้ไขผู้จำหน่าย" : "เพิ่มผู้จำหน่าย"}</h2>
         <form onSubmit={save} className="mt-4 space-y-4">
           {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
@@ -191,7 +202,7 @@ export function SupplierMaster() {
             </div>
           </fieldset>
           <div className="flex justify-end gap-2">
-            <button type="button" className={buttonClass} onClick={() => setModal(null)}>ปิด</button>
+            <Link href="/master?tab=suppliers" className={buttonClass}>กลับรายการ</Link>
             {!modal.readOnly && <button type="submit" className={`${buttonClass} bg-[#0866ff] text-white`} disabled={!writable || saving}>
               {saving ? "กำลังบันทึก..." : "บันทึก"}
             </button>}

@@ -47,6 +47,7 @@ export const MasterApi = {
     const q = new URLSearchParams(params).toString();
     return apiFetch<AccountCustomer[]>(`/api/account-customers${q ? `?${q}` : ""}`);
   },
+  getCustomer: (id: string) => apiFetch<AccountCustomer>(`/api/account-customers/${encodeURIComponent(id)}`),
   createCustomer: (data: CustomerInput) => apiFetch<AccountCustomer>("/api/account-customers", { method: "POST", body: JSON.stringify(data) }),
   updateCustomer: (id: string, data: CustomerInput) => apiFetch<AccountCustomer>(`/api/account-customers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
   getSales: () => apiFetch<AccountSale[]>("/api/account-sales"),
@@ -57,6 +58,7 @@ export const MasterApi = {
     const q = new URLSearchParams(params).toString();
     return apiFetch<AccountSupplier[]>(`/api/suppliers${q ? `?${q}` : ""}`);
   },
+  getSupplier: (id: string) => apiFetch<AccountSupplier>(`/api/suppliers/${encodeURIComponent(id)}`),
   createSupplier: (data: SupplierInput) => apiFetch<AccountSupplier>("/api/suppliers", { method: "POST", body: JSON.stringify(data) }),
   updateSupplier: (id: string, data: Partial<SupplierInput> & { active?: boolean }) =>
     apiFetch<AccountSupplier>(`/api/suppliers/${id}`, { method: "PUT", body: JSON.stringify(data) }),

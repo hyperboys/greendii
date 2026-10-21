@@ -75,10 +75,12 @@ test("Invoice VAT and due date respect no-VAT and immediate payment including mo
   assert.equal(model.invoiceDueDate("2026-10-21", 15), "2026-11-05");
 });
 
-test("Customer UI renders saved details, edit fields and read-only permissions", () => {
+test("Customer pages render full forms, save existing fields and navigate back to the customer list", async () => {
   let permissions = ["master.view", "master.update", "master.create"];
   let readOnly = false;
   let index = 0;
+  const paths = [];
+  let savedInput;
   const { CustomerMaster } = load(["components", "customer-master.tsx"], {
     react: { ...React, useState: initial => {
       const states = [
@@ -86,24 +88,60 @@ test("Customer UI renders saved details, edit fields and read-only permissions",
         { customer, readOnly }, model.customerForm(customer), false, "",
       ];
       return [states[index++] ?? (typeof initial === "function" ? initial() : initial), () => {}];
-    } },
-    "@/lib/api": { MasterApi: {} },
+    }, useRef: value => ({ current: value }), useEffect: () => {}, useCallback: callback => callback },
+    "@/lib/api": { MasterApi: { updateCustomer: async (id, input) => {
+      assert.equal(id, customer.id);
+      savedInput = input;
+      return customer;
+    } } },
+    "next/navigation": { useRouter: () => ({ push: path => paths.push(path) }) },
     "@/lib/account-customers": model,
     "@/components/accounting-access-provider": { useAccountingAccess: () => ({ allowed: true, permissions }) },
     "@/lib/accounting-access": { canUseAccounting: (access, module, action) => access.permissions.includes(`${module}.${action}`) },
   });
-  const html = renderToStaticMarkup(React.createElement(CustomerMaster));
-  for (const text of ["รหัสลูกค้า", "ชื่อลูกค้า", "Tax ID", "ผู้ติดต่อ", "โทรศัพท์", "อีเมล", "Sale ผู้ดูแล", "Credit Term", "การตั้งค่า VAT", "เปิดใช้งานลูกค้า", "เพิ่มสาขา", "เพิ่มที่อยู่", "บันทึกข้อมูลลูกค้า"]) {
+  const html = renderToStaticMarkup(React.createElement(CustomerMaster, { mode: "edit", recordId: customer.id }));
+  for (const text of ["รหัสลูกค้า", "ชื่อลูกค้า", "Tax ID", "ผู้ติดต่อ", "โทรศัพท์", "อีเมล", "Sale หลัก", "Credit Term", "การตั้งค่า VAT", "เปิดใช้งานลูกค้า", "เพิ่มสาขา", "เพิ่มที่อยู่", "บันทึกข้อมูลลูกค้า"]) {
     assert.ok(html.includes(text), text);
   }
   assert.ok(html.includes('value="C001"'));
   assert.ok(html.includes("Billing A"));
   assert.ok(html.includes("Shipping A"));
-  assert.ok(html.includes("ปิดใช้งาน"));
+  assert.equal(html.includes('role="dialog"'), false);
+  assert.equal(html.includes("fixed inset-0"), false);
+  assert.ok(html.includes('href="/master?tab=customers"'));
   permissions = ["master.view"];
   readOnly = true;
   index = 0;
-  const viewerHtml = renderToStaticMarkup(React.createElement(CustomerMaster));
+  const viewerHtml = renderToStaticMarkup(React.createElement(CustomerMaster, { mode: "view", recordId: customer.id }));
   assert.ok(viewerHtml.includes("<fieldset disabled="));
   assert.equal(viewerHtml.includes("บันทึกข้อมูลลูกค้า"), false);
+  index = 0;
+  const listHtml = renderToStaticMarkup(React.createElement(CustomerMaster));
+  assert.ok(listHtml.includes("ดูข้อมูล"));
+  assert.ok(listHtml.includes("แก้ไข"));
+  assert.equal(listHtml.includes("<form"), false);
+  const find = (node, predicate) => {
+    if (!node || typeof node !== "object") return undefined;
+    if (predicate(node)) return node;
+    return React.Children.toArray(node.props?.children).map(child => find(child, predicate)).find(Boolean);
+  };
+  index = 0;
+  const list = CustomerMaster({});
+  find(list, node => node.type === "button" && node.props.children === "ดูข้อมูล").props.onClick();
+  assert.equal(paths.pop(), `/master/customers/${customer.id}`);
+  permissions = ["master.view", "master.update", "master.create"];
+  index = 0;
+  find(CustomerMaster({}), node => node.type === "button" && node.props.children === "เพิ่มลูกค้า").props.onClick();
+  assert.equal(paths.pop(), "/master/customers/new");
+  index = 0;
+  find(CustomerMaster({}), node => node.type === "button" && node.props.children === "แก้ไข").props.onClick();
+  assert.equal(paths.pop(), `/master/customers/${customer.id}/edit`);
+  readOnly = false;
+  index = 0;
+  const editor = CustomerMaster({ mode: "edit", recordId: customer.id });
+  await find(editor, node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  assert.equal(savedInput.branches[0].addresses[0].address, "Billing A");
+  assert.equal(savedInput.creditTerm, 0);
+  assert.equal(savedInput.updatedAt, customer.updatedAt);
+  assert.equal(paths.pop(), "/master?tab=customers");
 });

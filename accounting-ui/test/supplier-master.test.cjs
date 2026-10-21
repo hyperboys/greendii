@@ -44,8 +44,11 @@ test("Supplier form preserves zero values and defaults new suppliers", () => {
   assert.equal(empty.supplierType, "domestic");
 });
 
-test("Supplier master exposes complete details and protects changes by permission", () => {
+test("Supplier pages render full forms, enforce read-only permissions and return to the supplier list", async () => {
   let index = 0;
+  let permissions = ["master.view"];
+  const paths = [];
+  let savedInput;
   const states = [
     [supplier], false, "", "", "all", { supplier, readOnly: true },
     model.supplierForm(supplier), false, "", "", "",
@@ -58,19 +61,51 @@ test("Supplier master exposes complete details and protects changes by permissio
       useEffect: () => {},
       useRef: value => ({ current: value }),
     },
-    "@/lib/api": { MasterApi: {} },
+    "@/lib/api": { MasterApi: { updateSupplier: async (id, input) => {
+      assert.equal(id, supplier.id);
+      savedInput = input;
+      return supplier;
+    } } },
+    "next/navigation": { useRouter: () => ({ push: path => paths.push(path) }) },
     "@/lib/account-suppliers": model,
-    "@/components/accounting-access-provider": { useAccountingAccess: () => ({ allowed: true, permissions: ["master.view"] }) },
+    "@/components/accounting-access-provider": { useAccountingAccess: () => ({ allowed: true, permissions }) },
     "@/lib/accounting-access": {
       canUseAccounting: (access, module, action) => access.permissions.includes(`${module}.${action}`),
     },
   });
-  const html = renderToStaticMarkup(React.createElement(SupplierMaster));
-  for (const text of ["Tax ID", "ประเภทผู้ขาย", "วงเงินเครดิต", "เงื่อนไขชำระเงิน", "ที่อยู่วางบิล", "ธนาคาร", "เลขที่บัญชี", "ดูข้อมูล", "แก้ไข"]) {
+  const html = renderToStaticMarkup(React.createElement(SupplierMaster, { mode: "view", recordId: supplier.id }));
+  for (const text of ["Tax ID", "ประเภทผู้ขาย", "วงเงินเครดิต", "เงื่อนไขชำระเงิน", "ที่อยู่วางบิล", "ธนาคาร", "เลขที่บัญชี"]) {
     assert.ok(html.includes(text), text);
   }
   assert.ok(html.includes('value="V001"'));
   assert.ok(html.includes("<fieldset disabled="));
   assert.ok(html.includes('disabled=""'));
-  assert.ok(html.includes("เพิ่มผู้จำหน่าย"));
+  assert.equal(html.includes('role="dialog"'), false);
+  assert.equal(html.includes("fixed inset-0"), false);
+  assert.ok(html.includes('href="/master?tab=suppliers"'));
+  index = 0;
+  const listHtml = renderToStaticMarkup(React.createElement(SupplierMaster));
+  assert.ok(listHtml.includes("เพิ่มผู้จำหน่าย"));
+  assert.ok(listHtml.includes("ดูข้อมูล"));
+  assert.ok(listHtml.includes("แก้ไข"));
+  assert.equal(listHtml.includes("<form"), false);
+  const find = (node, predicate) => {
+    if (!node || typeof node !== "object") return undefined;
+    if (predicate(node)) return node;
+    return React.Children.toArray(node.props?.children).map(child => find(child, predicate)).find(Boolean);
+  };
+  index = 0;
+  find(SupplierMaster({}), node => node.type === "button" && node.props.children === "ดูข้อมูล").props.onClick();
+  assert.equal(paths.pop(), `/master/suppliers/${supplier.id}`);
+  permissions = ["master.view", "master.update", "master.create"];
+  index = 0;
+  find(SupplierMaster({}), node => node.type === "button" && node.props.children === "แก้ไข").props.onClick();
+  assert.equal(paths.pop(), `/master/suppliers/${supplier.id}/edit`);
+  states[5] = { supplier, readOnly: false };
+  index = 0;
+  const editor = SupplierMaster({ mode: "edit", recordId: supplier.id });
+  await find(editor, node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  assert.equal(savedInput.bankAccountNo, "001");
+  assert.equal(savedInput.paymentTerm, 0);
+  assert.equal(paths.pop(), "/master?tab=suppliers");
 });

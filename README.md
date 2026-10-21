@@ -52,6 +52,17 @@ Greendii/
 
 ## Quick Start
 
+### Accounting customer and supplier pages
+
+In Accounting, open Master Data and select Customers or Suppliers. Add, View,
+and Edit open full-page forms rather than dialogs. Use Back to List to return
+to the same master-data tab after viewing or saving.
+
+- Customers: `/master/customers/new`, `/master/customers/<id>`, `/master/customers/<id>/edit`
+- Suppliers: `/master/suppliers/new`, `/master/suppliers/<id>`, `/master/suppliers/<id>/edit`
+
+These pages use the existing Accounting master-data permissions and APIs.
+
 ### Supplier CSV Import
 
 Run from `api` in PowerShell. The default is an **offline dry-run**: no database
