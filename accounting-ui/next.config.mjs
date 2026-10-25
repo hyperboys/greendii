@@ -12,6 +12,10 @@ const createNextConfig = (phase) => ({
         source: "/api/:path*",
         destination: `${process.env.API_URL || "http://localhost:4000/api"}/:path*`,
       },
+      {
+        source: "/uploads/:path*",
+        destination: `${(process.env.API_URL || "http://localhost:4000/api").replace(/\/api\/?$/, "")}/uploads/:path*`,
+      },
     ];
   },
 });

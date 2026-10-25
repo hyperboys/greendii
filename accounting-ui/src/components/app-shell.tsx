@@ -143,7 +143,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {items.filter(child => access && canOpenAccountingPath(access, child.href.split("?")[0])).map(child => {
                       const childPath = child.href.split("?")[0];
                       const recordTab = pathname.startsWith("/master/customers/") ? "customers"
-                        : pathname.startsWith("/master/suppliers/") ? "suppliers" : null;
+                        : pathname.startsWith("/master/suppliers/") ? "suppliers"
+                        : pathname.startsWith("/ap/vouchers/") ? "po" : null;
                       const childActive = active && (recordTab ? child.id === recordTab
                         : child.id === "receipts" ? pathname === childPath
                         : pathname === childPath && child.id === currentTab);

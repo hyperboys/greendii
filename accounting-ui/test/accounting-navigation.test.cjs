@@ -61,6 +61,9 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/ar/receipts";
   html = render();
   assert.match(html, /href="\/ar\/receipts" aria-current="page"/);
+  pathname = "/ap/vouchers/po-1/edit";
+  html = render();
+  assert.match(html, /href="\/ap\/vouchers\?tab=po" aria-current="page"/);
   access = { ...fullAccess, isAdmin: false, permissions: ["ar.view"] };
   html = render();
   assert.equal(html.includes('href="/master?tab=suppliers"'), false);
@@ -241,10 +244,13 @@ test("Responsive styles bound modal height and retain touch-friendly controls an
   assert.equal(table.declarations["min-width"], "640px");
   for (const segments of [
     ["app", "ar", "invoices", "page.tsx"], ["app", "ar", "receipts", "page.tsx"],
-    ["app", "ap", "vouchers", "page.tsx"], ["app", "inventory", "page.tsx"],
+    ["app", "inventory", "page.tsx"],
     ["app", "master", "page.tsx"], ["components", "customer-master.tsx"],
   ]) {
     const source = fs.readFileSync(path.join(__dirname, "..", "src", ...segments), "utf8");
     assert.match(source, /accounting-modal fixed inset-0/);
   }
+  const poPage = fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-orders.tsx"), "utf8");
+  assert.doesNotMatch(poPage, /accounting-modal|aria-modal/);
+  assert.match(poPage, /grid-cols-2 gap-2.*md:grid-cols-6 xl:grid-cols-12/);
 });

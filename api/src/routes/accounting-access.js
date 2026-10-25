@@ -25,12 +25,24 @@ router.get('/lookups/:kind', async (req, res, next) => {
     const lookup = Object.hasOwn(LOOKUPS, req.params.kind) ? LOOKUPS[req.params.kind] : null;
     if (!lookup) return res.status(404).json({ message: 'ไม่พบประเภทข้อมูลอ้างอิง' });
     const access = await getAccountingAccess(req.user);
-    if (!lookup.modules.some(module => hasAccountingPermission(access, module, 'create'))) {
+    const canUseLookup = lookup.modules.some(module =>
+      hasAccountingPermission(access, module, 'create') || hasAccountingPermission(access, module, 'update'));
+    if (!canUseLookup) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ใช้ข้อมูลอ้างอิง Accounting' });
     }
     res.json(await prisma[lookup.model].findMany({
       where: { active: true },
-      ...(req.params.kind === 'customers' ? { include: CUSTOMER_INCLUDE } : { select: { id: true, code: true, name: true } }),
+      ...(req.params.kind === 'customers'
+        ? { include: CUSTOMER_INCLUDE }
+        : req.params.kind === 'suppliers'
+          ? {
+            select: {
+              id: true, code: true, name: true, taxId: true, branch: true, address: true,
+              billingAddress: true, contactPerson: true, tel: true, email: true,
+              vatConfig: true, paymentTerm: true, supplierType: true,
+            },
+          }
+          : { select: { id: true, code: true, name: true } }),
       orderBy: { name: 'asc' },
     }));
   } catch (error) { next(error); }

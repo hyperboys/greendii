@@ -8,6 +8,7 @@ const { APPROVAL_ATTACHMENT_LOCK_MESSAGE, isEditableApprovalDocStatus } = requir
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
+const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -236,6 +237,30 @@ async function assertPurchaseRequestAttachmentEditable(req, purchaseRequestId) {
   }
 }
 
+async function assertPurchaseOrderAttachmentEditable(req, purchaseOrderId) {
+  if (!purchaseOrderId) return;
+  const purchaseOrder = await prisma.purchaseOrder.findUnique({
+    where: { id: purchaseOrderId },
+    select: { id: true, status: true },
+  });
+  if (!purchaseOrder) {
+    const error = new Error('ไม่พบใบสั่งซื้อ');
+    error.status = 404;
+    throw error;
+  }
+  if (purchaseOrder.status !== 'draft') {
+    const error = new Error('แก้ไขเอกสารแนบได้เฉพาะใบสั่งซื้อสถานะ Draft');
+    error.status = 409;
+    throw error;
+  }
+  const access = await getAccountingAccess(req.user);
+  if (!hasAccountingPermission(access, 'ap', 'create') && !hasAccountingPermission(access, 'ap', 'update')) {
+    const error = new Error('ไม่มีสิทธิ์จัดการเอกสารแนบของใบสั่งซื้อ');
+    error.status = 403;
+    throw error;
+  }
+}
+
 async function assertQuotationAttachmentEditable(req, quotationId) {
   if (!quotationId) return;
   const quotation = await prisma.quotation.findUnique({
@@ -258,7 +283,7 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
   try {
-    const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId, poAmount } = req.body;
+    const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId, purchaseOrderId, poAmount } = req.body;
     const normalizedCategory = normalizeAttachmentCategory(category);
     const parsedPoAmount = parsePoAmount(poAmount);
     if (handOverJobId) {
@@ -277,6 +302,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
     await assertWorkOrderAttachmentEditable(req, workOrderId, normalizedCategory);
     await assertHandoverAttachmentEditable(req, handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, purchaseRequestId);
+    await assertPurchaseOrderAttachmentEditable(req, purchaseOrderId);
     const saved = [];
     for (const file of req.files || []) {
       let filename, fileUrl;
@@ -306,6 +332,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
           workOrderId: workOrderId || null,
           handOverJobId: handOverJobId || null,
           purchaseRequestId: purchaseRequestId || null,
+          purchaseOrderId: purchaseOrderId || null,
         },
       });
 
@@ -382,6 +409,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
     await assertWorkOrderAttachmentEditable(req, att.workOrderId, normalizedCategory);
     await assertHandoverAttachmentEditable(req, att.handOverJobId);
     await assertPurchaseRequestAttachmentEditable(req, att.purchaseRequestId);
+    await assertPurchaseOrderAttachmentEditable(req, att.purchaseOrderId);
     const hasOtherReferences = await prisma.attachment.count({
       where: { filename: att.filename, id: { not: att.id } },
     });

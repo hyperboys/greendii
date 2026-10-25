@@ -7,6 +7,8 @@ import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { AccountCustomer, branchDefaults, invoiceAmounts, invoiceDefaults, invoiceDueDate } from "@/lib/account-customers";
 import { AccountingSearchParams, invoiceTabs, selectedTab } from "@/lib/accounting-navigation";
+import { DateInput } from "@/components/date-input";
+import { formatAccountingDate } from "@/lib/accounting-date";
 
 type InvoiceRow = {
   id: string; ivNo?: string; soNo?: string; biNo?: string; customer?: { name: string };
@@ -144,7 +146,7 @@ export default function InvoicesPage({ searchParams = {} }: { searchParams?: Acc
                         <div className="text-[11px] text-[#7a847d]">{doc.customerBranch || "สำนักงานใหญ่"}</div>
                       </td>
                       <td className="p-3.5 text-[#566159]">
-                        {documentDate ? new Date(documentDate).toLocaleDateString("th-TH") : "-"}
+                        {formatAccountingDate(documentDate)}
                       </td>
                       <td className="p-3.5 font-bold text-[#17211b]">
                         ฿{Number(doc.netAmount || doc.totalAmount || 0).toLocaleString("th-TH", { minimumFractionDigits: 2 })}
@@ -228,13 +230,13 @@ export default function InvoicesPage({ searchParams = {} }: { searchParams?: Acc
                       </select>
                     </label>
                     <label className="text-xs font-bold text-[#566159]">วันที่ Invoice
-                      <input required type="date" className="mt-1 w-full rounded border p-2 text-sm" value={formData.ivDate} onChange={e => setFormData({ ...formData, ivDate: e.target.value })} />
+                      <DateInput required className="mt-1 w-full rounded border p-2 text-sm" value={formData.ivDate} onChange={value => setFormData({ ...formData, ivDate: value })} />
                     </label>
                     <label className="text-xs font-bold text-[#566159]">Credit Term (วัน)
                       <input required type="number" min={0} max={2147483647} step={1} className="mt-1 w-full rounded border p-2 text-sm" value={Number.isNaN(formData.creditTerm) ? "" : formData.creditTerm} onChange={e => setFormData({ ...formData, creditTerm: e.target.valueAsNumber })} />
                     </label>
                     <label className="text-xs font-bold text-[#566159]">วันครบกำหนด
-                      <input readOnly type="date" className="mt-1 w-full rounded border bg-[#f4f6f2] p-2 text-sm" value={invoiceDueDate(formData.ivDate, formData.creditTerm)} />
+                      <DateInput readOnly className="mt-1 w-full rounded border bg-[#f4f6f2] p-2 text-sm" value={invoiceDueDate(formData.ivDate, formData.creditTerm)} />
                     </label>
                   </>}
                 </div>}

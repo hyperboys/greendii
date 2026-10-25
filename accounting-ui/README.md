@@ -265,6 +265,46 @@ codes or Tax ID already exists; it never updates or deletes Accounting rows and
 never reads or writes Sales tables or users. Missing Accounting Sales are created
 in `account_sales`.
 
+## Accounting Purchase Orders
+
+PO creation, editing and detail/printing use full pages at `/ap/vouchers/new`,
+`/ap/vouchers/:id/edit` and `/ap/vouchers/:id`. They support direct links and
+browser history; the PO sidebar entry stays selected on each page.
+
+The PO form supports optional references to multiple active Sale PRs. PRs are
+linked by their document numbers only; their item lines are not copied into the
+PO. PO lines are entered separately and support multiple rows, item code,
+description, quantity, unit, unit price, line discount and remark. Totals are
+recomputed by the API using the existing 7% VAT convention or No VAT selection.
+The supplier lookup supplies the initial supplier name, address, contact,
+payment term, purchase type and VAT setting; these values can be adjusted on
+the draft PO. Drafts can be edited and printed/downloaded through the browser's
+print dialog. Approval and email delivery are not part of this phase.
+
+The printable document uses the attached PO image as its layout reference and
+reads company identity from the existing Settings record. The creator's name and
+signature come from the user record. Approval signature areas remain unfilled
+because this phase does not include an approval workflow. No unconfirmed footer
+terms are added. Both PR attachments and PO-uploaded attachments are listed on
+the document.
+
+Before deploying these changes, back up the database and have an operator review
+and apply `api/scripts/sql/accounting-purchase-orders.sql` to the target database.
+It adds PO fields, attachment linkage, and a many-to-many PR reference table, and
+backfills existing single-PR links. Generate the Prisma client from `api/` after
+the reviewed schema rollout, then restart the API so it loads the generated
+client. `Attachment.purchaseOrderId` maps to the SQL column `purchase_order_id`;
+do not add a separate camel-case column. Do not apply a blanket migration or
+reset a shared database.
+
+## Date format
+
+Accounting dates use `dd/mm/yyyy` with Gregorian years and the Asia/Bangkok
+timezone, including PO printouts, lists and reports. Date fields accept this
+format, validate actual calendar dates, and retain ISO `yyyy-mm-dd` values for
+API requests and due-date calculations. Inventory timestamps retain their time
+alongside the formatted date. This does not change the Sales UI.
+
 ## Checks
 
 ```powershell

@@ -8,6 +8,7 @@ import { canUseAccounting } from "@/lib/accounting-access";
 import { CustomerMaster, SaleMaster } from "@/components/customer-master";
 import { SupplierMaster } from "@/components/supplier-master";
 import { AccountingSearchParams, masterTabs, selectedTab } from "@/lib/accounting-navigation";
+import { formatAccountingDate } from "@/lib/accounting-date";
 
 type MasterRecord = {
   id: string; name?: string; code?: string; taxId?: string; category?: string;
@@ -130,7 +131,7 @@ export default function MasterDataPage({ searchParams = {} }: { searchParams?: A
                         </span>
                       </td>
                       <td className="p-3.5 text-right text-[#7a847d]">
-                        {item.createdAt ? new Date(item.createdAt).toLocaleDateString("th-TH") : "-"}
+                        {formatAccountingDate(item.createdAt)}
                       </td>
                     </tr>
                   ))}

@@ -5,6 +5,7 @@ import { ArApi } from "@/lib/api";
 import { Plus, WalletCards } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { formatAccountingDate } from "@/lib/accounting-date";
 
 export default function ReceiptsPage() {
   const canCreate = canUseAccounting(useAccountingAccess(), "ar", "create");
@@ -110,7 +111,7 @@ export default function ReceiptsPage() {
                     <tr key={inv.id} className="hover:bg-[#f9faf8]">
                       <td className="p-3.5 font-bold text-[#173f2d]">{inv.ivNo}</td>
                       <td className="p-3.5 font-medium">{inv.customer?.name || "ไม่ระบุ"}</td>
-                      <td className="p-3.5 text-[#657069]">{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString("th-TH") : "-"}</td>
+                      <td className="p-3.5 text-[#657069]">{formatAccountingDate(inv.dueDate)}</td>
                       <td className="p-3.5 font-bold">฿{Number(inv.netAmount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
                       <td className="p-3.5 font-bold text-[#9a6514]">฿{Number(inv.outstandingAmount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
                       <td className="p-3.5 text-right">

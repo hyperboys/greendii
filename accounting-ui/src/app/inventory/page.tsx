@@ -6,6 +6,7 @@ import { ArrowDownLeft, ArrowUpRight, Package, Plus, Store } from "lucide-react"
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { AccountingSearchParams, inventoryTabs, selectedTab } from "@/lib/accounting-navigation";
+import { formatAccountingDateTime } from "@/lib/accounting-date";
 
 export default function InventoryPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "inventory", "create");
@@ -157,7 +158,7 @@ export default function InventoryPage({ searchParams = {} }: { searchParams?: Ac
                   <tbody className="divide-y divide-[#dfe5de]">
                     {movements.map((m) => (
                       <tr key={m.id} className="hover:bg-[#f9faf8]">
-                        <td className="p-3.5 text-[#657069]">{new Date(m.transactionDate).toLocaleString("th-TH")}</td>
+                        <td className="p-3.5 text-[#657069]">{formatAccountingDateTime(m.transactionDate)}</td>
                         <td className="p-3.5">
                           {m.movementType === "in" ? (
                             <span className="flex items-center gap-1 font-bold text-[#23653e]"><ArrowDownLeft size={15} />รับเข้า</span>

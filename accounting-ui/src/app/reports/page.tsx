@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ReportsApi } from "@/lib/api";
 import { FileChartColumn, FileSpreadsheet, RefreshCw } from "lucide-react";
 import { AccountingSearchParams, reportTabs, selectedTab } from "@/lib/accounting-navigation";
+import { formatAccountingDate } from "@/lib/accounting-date";
 
 export default function ReportsPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const [errorMsg, setErrorMsg] = useState("");
@@ -85,7 +86,7 @@ export default function ReportsPage({ searchParams = {} }: { searchParams?: Acco
                     <tr key={idx} className="hover:bg-[#f9faf8]">
                       <td className="p-3.5 font-bold text-[#173f2d]">{r.ivNo}</td>
                       <td className="p-3.5 font-medium">{r.customerName}</td>
-                      <td className="p-3.5 text-[#657069]">{r.dueDate ? new Date(r.dueDate).toLocaleDateString("th-TH") : "-"}</td>
+                      <td className="p-3.5 text-[#657069]">{formatAccountingDate(r.dueDate)}</td>
                       <td className="p-3.5 text-right font-bold">฿{Number(r.outstandingAmount).toLocaleString()}</td>
                       <td className="p-3.5 text-right text-[#23653e]">฿{Number(r.current).toLocaleString()}</td>
                       <td className="p-3.5 text-right text-[#9a6514]">฿{Number(r.days1To30).toLocaleString()}</td>
@@ -116,7 +117,7 @@ export default function ReportsPage({ searchParams = {} }: { searchParams?: Acco
                     <tr key={idx} className="hover:bg-[#f9faf8]">
                       <td className="p-3.5 font-bold text-[#173f2d]">{r.poNo}</td>
                       <td className="p-3.5 font-medium">{r.supplierName}</td>
-                      <td className="p-3.5 text-[#657069]">{r.poDate ? new Date(r.poDate).toLocaleDateString("th-TH") : "-"}</td>
+                      <td className="p-3.5 text-[#657069]">{formatAccountingDate(r.poDate)}</td>
                       <td className="p-3.5 text-right font-bold">฿{Number(r.netAmount).toLocaleString()}</td>
                       <td className="p-3.5 text-right text-[#23653e]">฿{Number(r.current).toLocaleString()}</td>
                       <td className="p-3.5 text-right text-[#9a6514]">฿{Number(r.days1To30).toLocaleString()}</td>
@@ -143,7 +144,7 @@ export default function ReportsPage({ searchParams = {} }: { searchParams?: Acco
                   {reportData.rows.map((r: any, idx: number) => (
                     <tr key={idx} className="hover:bg-[#f9faf8]">
                       <td className="p-3.5 font-bold text-[#173f2d]">{r.soNo || r.poNo}</td>
-                      <td className="p-3.5 text-[#657069]">{r.docDate || r.poDate ? new Date(r.docDate || r.poDate).toLocaleDateString("th-TH") : "-"}</td>
+                      <td className="p-3.5 text-[#657069]">{formatAccountingDate(r.docDate || r.poDate)}</td>
                       <td className="p-3.5 font-medium">{r.customerName || r.supplierName}</td>
                       <td className="p-3.5 text-[#566159]">
                         {r.linkedInvoices?.join(", ") || r.goodsReceipts?.join(", ") || "ยังไม่มีเอกสารปลายทาง"}

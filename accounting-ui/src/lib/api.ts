@@ -5,6 +5,10 @@
 
 import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
 import type { AccountSupplier, SupplierInput } from "./account-suppliers";
+import type {
+  PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderInput,
+  PurchaseOrderSupplier, PurchaseRequestReference,
+} from "./accounting-purchase-orders";
 
 const TOKEN_KEY = "gd_token";
 
@@ -37,7 +41,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 // ─── MASTER DATA ─────────────────────────────────────────────────────────────
 export const AccountingLookupApi = {
   getCustomers: () => apiFetch<AccountCustomer[]>("/api/accounting-access/lookups/customers"),
-  getSuppliers: () => apiFetch("/api/accounting-access/lookups/suppliers"),
+  getSuppliers: () => apiFetch<PurchaseOrderSupplier[]>("/api/accounting-access/lookups/suppliers"),
   getProducts: () => apiFetch("/api/accounting-access/lookups/products"),
   getWarehouses: () => apiFetch("/api/accounting-access/lookups/warehouses"),
 };
@@ -113,11 +117,29 @@ export const ArApi = {
 
 // ─── ACCOUNTS PAYABLE (AP) ───────────────────────────────────────────────────
 export const ApApi = {
+  getPurchaseRequests: (q = "") => apiFetch<PurchaseRequestReference[]>(`/api/ap/purchase-requests${q ? `?q=${encodeURIComponent(q)}` : ""}`),
   getPurchaseOrders: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/ap/purchase-orders${q ? `?${q}` : ""}`);
+    return apiFetch<PurchaseOrderDocument[]>(`/api/ap/purchase-orders${q ? `?${q}` : ""}`);
   },
-  createPurchaseOrder: (data: any) => apiFetch("/api/ap/purchase-orders", { method: "POST", body: JSON.stringify(data) }),
+  getPurchaseOrder: (id: string) => apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}`),
+  createPurchaseOrder: (data: PurchaseOrderInput) => apiFetch<PurchaseOrderDocument>("/api/ap/purchase-orders", { method: "POST", body: JSON.stringify(data) }),
+  updatePurchaseOrder: (id: string, data: PurchaseOrderInput) => apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  uploadPurchaseOrderFiles: async (id: string, files: File[]) => {
+    const form = new FormData();
+    form.set("category", "accounting-po");
+    form.set("purchaseOrderId", id);
+    files.forEach(file => form.append("files", file));
+    const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: form,
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.message || `อัปโหลดไฟล์ไม่สำเร็จ (${response.status})`);
+    return data;
+  },
 
   createContractorPayment: (data: any) => apiFetch("/api/ap/contractor-payments", { method: "POST", body: JSON.stringify(data) }),
 
@@ -155,4 +177,8 @@ export const ReportsApi = {
   getApAging: (asOfDate?: string) => apiFetch(`/api/accounting-reports/ap/aging${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
   getReconDeliveryToInvoice: () => apiFetch("/api/accounting-reports/recon/delivery-to-invoice"),
   getReconPoToGoodsReceipt: () => apiFetch("/api/accounting-reports/recon/po-to-goods-receipt"),
+};
+
+export const AccountingSettingsApi = {
+  get: () => apiFetch<PurchaseOrderCompanySettings>("/api/settings"),
 };

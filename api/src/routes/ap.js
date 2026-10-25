@@ -6,8 +6,79 @@ const { validateStateTransition } = require('../lib/stateTransition');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { getPagination, paginated } = require('../lib/pagination');
+const {
+  normalizePurchaseOrderItems,
+  calculatePurchaseOrderTotals,
+  normalizePaymentTerm,
+} = require('../lib/purchaseOrder');
 
 // ─── 1. PURCHASE ORDERS (PO) ──────────────────────────────────────────────────
+
+const PURCHASE_ORDER_INCLUDE = {
+  supplier: true,
+  createdBy: { select: { id: true, fullName: true, position: true, signatureText: true, signatureUrl: true } },
+  items: { orderBy: { seq: 'asc' } },
+  pr: { select: { id: true, prNo: true } },
+  purchaseRequestReferences: {
+    include: {
+      purchaseRequest: {
+        select: {
+          id: true, prNo: true, status: true, customer: true, projectRef: true,
+          workOrder: { select: { woNo: true } },
+          attachments: {
+            select: { id: true, originalName: true, mimeType: true, fileUrl: true, uploadedAt: true },
+            orderBy: { uploadedAt: 'asc' },
+          },
+        },
+      },
+    },
+    orderBy: { purchaseRequestId: 'asc' },
+  },
+  attachments: {
+    select: { id: true, originalName: true, mimeType: true, fileUrl: true, uploadedAt: true },
+    orderBy: { uploadedAt: 'asc' },
+  },
+};
+
+function normalizePurchaseRequestIds(body) {
+  const raw = body.purchaseRequestIds === undefined
+    ? (body.prId ? [body.prId] : [])
+    : body.purchaseRequestIds;
+  if (!Array.isArray(raw) || raw.some(id => typeof id !== 'string' || !id.trim())) {
+    throw Object.assign(new Error('รายการ PR อ้างอิงไม่ถูกต้อง'), { status: 400 });
+  }
+  return [...new Set(raw.map(id => id.trim()))];
+}
+
+// GET /api/ap/purchase-requests — PR references available to Accounting PO users
+router.get('/purchase-requests', authenticate, async (req, res, next) => {
+  try {
+    const q = String(req.query.q || '').trim();
+    const requests = await prisma.purchaseRequest.findMany({
+      where: {
+        active: true,
+        ...(q ? {
+          OR: [
+            { prNo: { contains: q, mode: 'insensitive' } },
+            { customer: { contains: q, mode: 'insensitive' } },
+            { projectRef: { contains: q, mode: 'insensitive' } },
+          ],
+        } : {}),
+      },
+      select: {
+        id: true, prNo: true, status: true, customer: true, projectRef: true,
+        workOrder: { select: { woNo: true } },
+        attachments: {
+          select: { id: true, originalName: true, mimeType: true, fileUrl: true, uploadedAt: true },
+          orderBy: { uploadedAt: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    });
+    res.json(requests);
+  } catch (e) { next(e); }
+});
 
 // GET /api/ap/purchase-orders
 router.get('/purchase-orders', authenticate, async (req, res, next) => {
@@ -26,7 +97,7 @@ router.get('/purchase-orders', authenticate, async (req, res, next) => {
           orderBy: { poDate: 'desc' },
           skip: pg.skip,
           take: pg.take,
-          include: { supplier: true, items: true, pr: true },
+          include: PURCHASE_ORDER_INCLUDE,
         }),
         prisma.purchaseOrder.count({ where }),
       ]);
@@ -35,9 +106,19 @@ router.get('/purchase-orders', authenticate, async (req, res, next) => {
     const list = await prisma.purchaseOrder.findMany({
       where,
       orderBy: { poDate: 'desc' },
-      include: { supplier: true, items: true, pr: true },
+      include: PURCHASE_ORDER_INCLUDE,
     });
     res.json(list);
+  } catch (e) { next(e); }
+});
+
+router.get('/purchase-orders/:id', authenticate, async (req, res, next) => {
+  try {
+    const doc = await prisma.purchaseOrder.findUniqueOrThrow({
+      where: { id: req.params.id },
+      include: PURCHASE_ORDER_INCLUDE,
+    });
+    res.json(doc);
   } catch (e) { next(e); }
 });
 
@@ -51,22 +132,34 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
       supplierBranch,
       address,
       contactPerson,
-      prId,
-      subTotal = 0,
-      vat = 0,
-      netAmount = 0,
+      remarks,
+      vatConfig = 'VAT7%',
       paymentTerm = 30,
       deliveryDate,
       deliveryLocation,
-      items = [],
     } = req.body;
 
     if (!supplierId) return res.status(400).json({ message: 'กรุณาระบุผู้จำหน่าย (supplierId)' });
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'ต้องมีรายการสั่งซื้ออย่างน้อย 1 รายการ' });
+    if (!['VAT7%', 'NO_VAT'].includes(vatConfig)) {
+      return res.status(400).json({ message: 'รูปแบบ VAT ไม่ถูกต้อง' });
     }
+    const items = normalizePurchaseOrderItems(req.body.items);
+    if (items.some(item => !item.desc)) {
+      return res.status(400).json({ message: 'กรุณาระบุรายละเอียดสินค้า/บริการทุกรายการ' });
+    }
+    const requestIds = normalizePurchaseRequestIds(req.body);
+    const totals = calculatePurchaseOrderTotals(items, vatConfig);
 
     const result = await prisma.$transaction(async (tx) => {
+      if (requestIds.length > 0) {
+        const requests = await tx.purchaseRequest.findMany({
+          where: { id: { in: requestIds }, active: true },
+          select: { id: true },
+        });
+        if (requests.length !== requestIds.length) {
+          throw Object.assign(new Error('พบ PR อ้างอิงที่ไม่มีอยู่หรือถูกปิดใช้งาน กรุณาโหลดรายการใหม่'), { status: 400 });
+        }
+      }
       const poNo = await generateNextRunningNumber('po', { date: poDate ? new Date(poDate) : new Date() }, tx);
       const doc = await tx.purchaseOrder.create({
         data: {
@@ -77,28 +170,24 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
           supplierBranch: supplierBranch || 'สำนักงานใหญ่',
           address,
           contactPerson,
-          prId,
-          subTotal: parseFloat(subTotal) || 0,
-          vat: parseFloat(vat) || 0,
-          netAmount: parseFloat(netAmount) || 0,
-          paymentTerm: parseInt(paymentTerm, 10) || 30,
+          remarks,
+          prId: requestIds[0] || null,
+          purchaseRequestReferences: {
+            create: requestIds.map(purchaseRequestId => ({ purchaseRequestId })),
+          },
+          subTotal: totals.subTotal,
+          discount: totals.discount,
+          vat: totals.vat,
+          vatConfig,
+          netAmount: totals.netAmount,
+          paymentTerm: normalizePaymentTerm(paymentTerm),
           deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
           deliveryLocation,
           createdById: req.user.id,
           status: 'draft',
-          items: {
-            create: items.map((it, idx) => ({
-              seq: idx,
-              productId: it.productId || null,
-              desc: String(it.desc || ''),
-              qty: parseFloat(it.qty) || 0,
-              unitPrice: parseFloat(it.unitPrice) || 0,
-              discount: parseFloat(it.discount) || 0,
-              amount: parseFloat(it.amount) || 0,
-            })),
-          },
+          items: { create: items },
         },
-        include: { items: true, supplier: true },
+        include: PURCHASE_ORDER_INCLUDE,
       });
 
       await recordAuditLog({
@@ -114,6 +203,94 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
     });
 
     res.status(201).json(result);
+  } catch (e) { next(e); }
+});
+
+router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
+  try {
+    const {
+      poDate,
+      purchaseType = 'domestic',
+      supplierId,
+      supplierBranch,
+      address,
+      contactPerson,
+      remarks,
+      purchaseRequestIds,
+      vatConfig = 'VAT7%',
+      paymentTerm = 30,
+      deliveryDate,
+      deliveryLocation,
+    } = req.body;
+    if (!supplierId) return res.status(400).json({ message: 'กรุณาระบุผู้จำหน่าย (supplierId)' });
+    if (!['VAT7%', 'NO_VAT'].includes(vatConfig)) {
+      return res.status(400).json({ message: 'รูปแบบ VAT ไม่ถูกต้อง' });
+    }
+    const items = normalizePurchaseOrderItems(req.body.items);
+    if (items.some(item => !item.desc)) {
+      return res.status(400).json({ message: 'กรุณาระบุรายละเอียดสินค้า/บริการทุกรายการ' });
+    }
+    const requestIds = normalizePurchaseRequestIds(req.body);
+    const totals = calculatePurchaseOrderTotals(items, vatConfig);
+
+    const result = await prisma.$transaction(async (tx) => {
+      const previous = await tx.purchaseOrder.findUniqueOrThrow({
+        where: { id: req.params.id },
+        include: PURCHASE_ORDER_INCLUDE,
+      });
+      if (previous.status !== 'draft') {
+        throw Object.assign(new Error('แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft'), { status: 409 });
+      }
+      if (requestIds.length > 0) {
+        const requests = await tx.purchaseRequest.findMany({
+          where: { id: { in: requestIds }, active: true },
+          select: { id: true },
+        });
+        if (requests.length !== requestIds.length) {
+          throw Object.assign(new Error('พบ PR อ้างอิงที่ไม่มีอยู่หรือถูกปิดใช้งาน กรุณาโหลดรายการใหม่'), { status: 400 });
+        }
+      }
+
+      await tx.purchaseOrderLine.deleteMany({ where: { purchaseOrderId: previous.id } });
+      await tx.purchaseOrderPurchaseRequest.deleteMany({ where: { purchaseOrderId: previous.id } });
+      const updated = await tx.purchaseOrder.update({
+        where: { id: previous.id },
+        data: {
+          poDate: poDate ? new Date(poDate) : previous.poDate,
+          purchaseType,
+          supplierId,
+          supplierBranch: supplierBranch || 'สำนักงานใหญ่',
+          address,
+          contactPerson,
+          remarks,
+          prId: requestIds[0] || null,
+          purchaseRequestReferences: {
+            create: requestIds.map(purchaseRequestId => ({ purchaseRequestId })),
+          },
+          subTotal: totals.subTotal,
+          discount: totals.discount,
+          vat: totals.vat,
+          vatConfig,
+          netAmount: totals.netAmount,
+          paymentTerm: normalizePaymentTerm(paymentTerm),
+          deliveryDate: deliveryDate ? new Date(deliveryDate) : null,
+          deliveryLocation,
+          items: { create: items },
+        },
+        include: PURCHASE_ORDER_INCLUDE,
+      });
+      await recordAuditLog({
+        entityType: 'purchase_order',
+        entityId: updated.id,
+        docNo: updated.poNo,
+        action: 'update',
+        oldValue: previous,
+        newValue: updated,
+        req,
+      }, tx);
+      return updated;
+    });
+    res.json(result);
   } catch (e) { next(e); }
 });
 
