@@ -297,6 +297,62 @@ client. `Attachment.purchaseOrderId` maps to the SQL column `purchase_order_id`;
 do not add a separate camel-case column. Do not apply a blanket migration or
 reset a shared database.
 
+## Invoice lifecycle and preprinted output
+
+Open **ลูกหนี้ / รับชำระเงิน → ใบแจ้งหนี้ / ใบกำกับภาษี**.
+`/ar/invoices` and `?tab=invoices` open the register. Create, detail and edit
+are full pages at `/ar/invoices/new`, `/ar/invoices/:id` and
+`/ar/invoices/:id/edit`.
+
+- New lifecycle invoices start as Draft with zero outstanding balance.
+  Users with `ar.create` can edit Drafts, confirm and cancel; `ar.view` is read-only.
+  Confirmation records an audit event, changes status to `approved` (shown as
+  confirmed) and sets outstanding to the net amount once. It does not post Stock
+  or GL journals and does not run a multi-step approval chain.
+- Multiple lines support integer quantities, unit, product/code or manual entry,
+  description/remark, prices excluding VAT, line/document discounts in baht and
+  VAT 7% / No VAT. The server recomputes amounts in satang, ignoring client totals.
+  The compact item editor is shared with SO.
+- Optional SO selection copies all lines, shipping, credit, VAT and discounts
+  from one non-cancelled SO, authoritatively on the server. Source rows are
+  read-only. Only one non-cancelled Invoice may reference a given SO, including
+  existing legacy links. Cancelled invoices release the SO for a new invoice.
+  The source cannot change after saving; cancel and recreate instead.
+- Confirmed invoices cannot be edited. Cancellation requires a reason, rejects
+  active BI/RV/CN dependencies or an inconsistent remaining balance, and leaves
+  the document/history intact with zero outstanding. Invoice writes, BI, RV and CN
+  serialize on the same invoice row; SO selection serializes with SO edits/cancel.
+- New Drafts cannot be billed, received against or credited, including direct API
+  requests. The unpaid lookup excludes them. These guards do not complete the
+  remaining BI/RV/CN screens, WHT/fee rules or reversal workflows.
+- `lifecycleVersion = 0` identifies existing records. Their statuses and balances
+  are not rewritten; they are read-only in the new lifecycle. Existing non-cancelled
+  legacy documents retain their previous downstream eligibility until reviewed
+  under a separate reconciliation/migration procedure.
+- Confirmed new invoices print **data only** onto preprinted stationery using
+  the field geometry from `Doc/accounting/invoice.pdf`. The user confirmed that
+  stationery despite its printed RECEIPT heading. No logo, form title, table
+  borders, payment-method entries, receipt signatures or payment acknowledgement
+  are generated. Preview is intentionally mostly blank. Totals appear on the
+  final page only; oversized rows continue without repeating quantities/money.
+  Printing is blocked for Draft/cancelled/legacy documents and for header data
+  which cannot fit even after bounded font reduction.
+  Use A4 portrait, actual size 100%, disable browser headers/footers, and calibrate
+  on the actual printer/stationery before issuing documents. A browser PDF check
+  is not physical-printer certification.
+
+Before deployment, back up and have an operator review/apply
+`api/scripts/sql/accounting-invoices.sql` alongside the earlier SO PDF schema
+rollout. It adds lifecycle/snapshot/line columns and a partial source uniqueness
+index; there is no historical balance/status update. Then run Prisma generate
+in `api` and restart API/update UI together. Do not reset a shared database.
+The agent has validated/generated the client locally but **has not applied this
+SQL to the target database**. Avoid mixed old/new API instances during rollout.
+
+Validation includes real Express HTTP handlers with an in-memory transactional
+test substitute and browser flows with mocked persistence. PostgreSQL lock/
+concurrency tests, legacy reconciliation and target-database/printer UAT remain.
+
 ## Provisional Delivery Orders (SO) — Draft phase
 
 Open **ลูกหนี้ / รับชำระเงิน → ใบส่งของชั่วคราว**. Existing

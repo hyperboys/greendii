@@ -81,7 +81,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
     invoice: {
       findUnique: async ({ where }) => included(state.invoices.find(doc => doc.id === where.id)),
       findUniqueOrThrow: async ({ where }) => included(state.invoices.find(doc => doc.id === where.id)),
-      findMany: async () => state.invoices.map(included),
+      findMany: async ({ where } = {}) => state.invoices.filter(doc => !where?.id?.in || where.id.in.includes(doc.id)).map(included),
       count: async ({ where }) => state.invoices.filter(doc => matches(doc, where)).length,
       create: async ({ data }) => {
         const doc = { ...data, id: `iv-${++sequence}`, updatedAt: new Date(Date.now() + sequence), items: data.items.create };
@@ -96,7 +96,18 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
     },
     billingNoteInvoice: { count: async ({ where }) => state.bi.filter(id => id === where.invoiceId).length },
     receiptAllocation: { count: async ({ where }) => state.rv.filter(id => id === where.invoiceId).length },
-    creditNote: { count: async ({ where }) => state.cn.filter(id => id === where.invoiceId).length },
+    creditNote: {
+      count: async ({ where }) => state.cn.filter(id => id === where.invoiceId).length,
+      create: async ({ data }) => { state.cn.push(data.invoiceId); return { id: 'cn', ...data }; },
+    },
+    billingNote: { create: async ({ data }) => {
+      state.bi.push(...data.invoices.create.map(row => row.invoiceId));
+      return { id: 'bi', ...data };
+    } },
+    receiptVoucher: { create: async ({ data }) => {
+      state.rv.push(...data.allocations.create.map(row => row.invoiceId));
+      return { id: 'rv', ...data };
+    } },
     auditLog: {
       create: async ({ data }) => { if (failAudit) throw new Error('Audit unavailable'); state.audits.push(data); return data; },
       findMany: async ({ where }) => state.audits.filter(log => log.entityId === where.entityId),
@@ -131,7 +142,10 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   const payload = { ivDate: '2026-10-25', customerId: 'c', creditTerm: 0, discount: 5, items: source.items, subTotal: 1, netAmount: 1 };
   assert.equal((await request('/invoices', 'POST', payload, null)).status, 401);
   assert.equal((await request('/invoices', 'POST', payload, 'viewer')).status, 403);
-  for (const patch of [{ ivDate: '2026-02-31' }, { items: [] }, { discount: 71 }, { creditTerm: 2147483647 },
+  assert.equal((await request('/invoices/sources')).status, 200);
+  assert.equal((await request('/invoices/sources', 'GET', undefined, 'viewer')).status, 403);
+  assert.equal((await request('/invoices')).status, 200);
+  for (const patch of [{ ivDate: '2026-02-31' }, { items: [] }, { items: {} }, { items: [null] }, { discount: 71 }, { creditTerm: 2147483647 },
     { items: [{ desc: 'Bad', qty: 1.5, unit: 'pcs' }] }, { items: [{ desc: 'Bad', qty: 1, unit: 'pcs', unitPrice: -1 }] }]) {
     assert.equal((await request('/invoices', 'POST', { ...payload, ...patch })).status, 400, JSON.stringify(patch));
   }
@@ -161,6 +175,20 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(doc.status, 'approved');
   assert.equal(doc.outstandingAmount, 65);
   assert.equal((await request(`/invoices/${id}`, 'PUT', { ...payload, updatedAt: doc.updatedAt })).status, 409);
+  const paid = (await request('/invoices', 'POST', payload)).data;
+  const posted = (await request(`/invoices/${paid.id}/confirm`, 'POST', { updatedAt: paid.updatedAt })).data;
+  assert.equal((await request('/receipt-vouchers', 'POST', { customerId: 'foreign', allocations: [{ invoiceId: posted.id, receivedAmount: 1 }] })).status, 400);
+  assert.equal((await request('/receipt-vouchers', 'POST', { customerId: 'c', allocations: [{ invoiceId: posted.id, receivedAmount: -1 }] })).status, 400);
+  assert.equal((await request('/receipt-vouchers', 'POST', { customerId: 'c', allocations: [{ invoiceId: posted.id, receivedAmount: 70 }] })).status, 400);
+  assert.equal((await request('/receipt-vouchers', 'POST', { customerId: 'c', totalReceived: 10, allocations: [{ invoiceId: posted.id, receivedAmount: 10 }] })).status, 201);
+  const afterPayment = state.invoices.find(row => row.id === paid.id);
+  assert.equal(afterPayment.outstandingAmount, 59.55);
+  assert.equal((await request(`/invoices/${paid.id}/cancel`, 'POST', { updatedAt: afterPayment.updatedAt, reason: 'Cannot' })).status, 409);
+  assert.equal((await request('/credit-notes', 'POST', { invoiceId: paid.id, netAmount: 1 })).status, 201);
+  assert.equal(state.invoices.find(row => row.id === paid.id).outstandingAmount, 58.55);
+  assert.equal((await request('/billing-notes', 'POST', { customerId: 'c', invoiceIds: [id] })).status, 201);
+  assert.equal((await request(`/invoices/${id}/cancel`, 'POST', { updatedAt: doc.updatedAt, reason: 'Blocked by BI' })).status, 409);
+  state.bi = [];
   for (const key of ['bi', 'rv', 'cn']) {
     state[key].push(id);
     assert.equal((await request(`/invoices/${id}/cancel`, 'POST', { updatedAt: doc.updatedAt, reason: 'Test' })).status, 409);
@@ -174,6 +202,10 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   doc = (await request(`/invoices/${id}/cancel`, 'POST', { updatedAt: doc.updatedAt, reason: 'Cancelled' })).data;
   assert.equal(doc.outstandingAmount, 0);
   assert.equal(doc.status, 'cancelled');
+  customer.branches.push(
+    { id: 'hq', name: 'Head office', addresses: [{ kind: 'billing', address: 'HQ billing' }] },
+    { id: 'main', name: 'Main', addresses: [{ kind: 'billing', address: 'Source branch billing' }] },
+  );
   const fromSource = { ...payload, provisionalDeliveryOrderId: 'so', items: [{ desc: 'Forged' }], discount: 999 };
   const attempts = await Promise.all([request('/invoices', 'POST', fromSource), request('/invoices', 'POST', fromSource)]);
   assert.deepEqual(attempts.map(row => row.status).sort(), [201, 409]);
@@ -181,10 +213,18 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(linked.netAmount, 69.55);
   assert.equal(linked.items.length, 2);
   assert.equal(linked.items[0].desc, 'Source line');
+  assert.equal(linked.customerBranch, 'Main');
+  assert.equal(linked.address, 'Source branch billing');
   assert.equal((await request('/invoices', 'POST', { ...fromSource, customerId: 'foreign' })).status, 400);
   assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...payload, updatedAt: linked.updatedAt })).status, 409);
   await request(`/invoices/${linked.id}/cancel`, 'POST', { updatedAt: linked.updatedAt, reason: 'Replace' });
-  assert.equal((await request('/invoices', 'POST', fromSource)).status, 201);
+  const replacement = await request('/invoices', 'POST', fromSource);
+  assert.equal(replacement.status, 201);
+  await request(`/invoices/${replacement.data.id}/cancel`, 'POST', { updatedAt: replacement.data.updatedAt, reason: 'Replace' });
+  source.customerBranch = 'Historical branch';
+  const historicalBranch = await request('/invoices', 'POST', fromSource);
+  assert.equal(historicalBranch.status, 201);
+  assert.equal(historicalBranch.data.customerBranch, 'Historical branch');
   source.status = 'cancelled';
   assert.equal((await request('/invoices', 'POST', fromSource)).status, 409);
   state.invoices.push({ id: 'legacy', lifecycleVersion: 0, status: 'draft', outstandingAmount: 100, updatedAt: new Date() });
@@ -192,4 +232,14 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(state.invoices.find(row => row.id === 'legacy').outstandingAmount, 100);
   assert.equal((await request('/invoices/missing')).status, 404);
   assert.ok((await request(`/invoices/${id}`)).data.history.some(log => log.action === 'confirm'));
+});
+
+test('Invoice SQL rollout preserves historical balances and scopes source uniqueness to the new lifecycle', () => {
+  const sql = require('node:fs').readFileSync(require('node:path').join(__dirname, '..', 'scripts', 'sql', 'accounting-invoices.sql'), 'utf8');
+  assert.match(sql, /BEGIN;/);
+  assert.match(sql, /COMMIT;/);
+  assert.match(sql, /lifecycle_version INTEGER NOT NULL DEFAULT 0/);
+  assert.match(sql, /CREATE UNIQUE INDEX IF NOT EXISTS invoices_live_source_v1/);
+  assert.match(sql, /WHERE lifecycle_version = 1 AND status <> 'cancelled'/);
+  assert.doesNotMatch(sql, /\b(?:UPDATE|DELETE|DROP|TRUNCATE)\b/);
 });

@@ -6,6 +6,7 @@
 import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
 import type { AccountSupplier, SupplierInput } from "./account-suppliers";
 import type { DeliveryOrder, DeliveryOrderInput, DeliveryOrderProduct, DeliveryOrderWorkOrder } from "./delivery-order";
+import type { Invoice, InvoiceInput, InvoiceSource } from "./invoice";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderInput,
   PurchaseOrderSupplier, PurchaseRequestReference,
@@ -105,9 +106,14 @@ export const ArApi = {
 
   getInvoices: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/ar/invoices${q ? `?${q}` : ""}`);
+    return apiFetch<Invoice[] | { items: Invoice[] }>(`/api/ar/invoices${q ? `?${q}` : ""}`);
   },
-  createInvoice: (data: any) => apiFetch("/api/ar/invoices", { method: "POST", body: JSON.stringify(data) }),
+  getInvoice: (id: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`),
+  getInvoiceSources: (q: string) => apiFetch<InvoiceSource[]>(`/api/ar/invoices/sources?q=${encodeURIComponent(q)}`),
+  createInvoice: (data: InvoiceInput) => apiFetch<Invoice>("/api/ar/invoices", { method: "POST", body: JSON.stringify(data) }),
+  updateInvoice: (id: string, data: InvoiceInput) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  confirmInvoice: (id: string, updatedAt: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({ updatedAt }) }),
+  cancelInvoice: (id: string, updatedAt: string, reason: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ updatedAt, reason }) }),
 
   getBillingNotes: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

@@ -11,9 +11,10 @@ import { AccountingSearchParams, invoiceTabs, selectedTab } from "@/lib/accounti
 import { DateInput } from "@/components/date-input";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import { DeliveryOrders } from "@/components/delivery-orders";
+import { Invoices } from "@/components/invoices";
 
 type InvoiceRow = {
-  id: string; ivNo?: string; soNo?: string; biNo?: string; customer?: { name: string };
+  id: string; ivNo?: string; soNo?: string; biNo?: string; customer?: { name: string } | null;
   customerBranch?: string; ivDate?: string; docDate?: string; billingDate?: string;
   netAmount?: number | string; totalAmount?: number | string; outstandingAmount?: number | string; status?: string;
 };
@@ -33,6 +34,7 @@ export default function InvoicesPage({ searchParams = {} }: { searchParams?: Acc
   const query = useSearchParams();
   const tab = query.get("tab") ?? searchParams.tab;
   if (selectedTab(invoiceTabs, tab) === "so") return <DeliveryOrders />;
+  if (selectedTab(invoiceTabs, tab) === "invoices") return <Invoices />;
   return <InvoiceDocumentsPage searchParams={{ tab }} />;
 }
 
@@ -82,15 +84,7 @@ function InvoiceDocumentsPage({ searchParams = {} }: { searchParams?: Accounting
     setSaving(true);
     setFormError("");
     try {
-      const totals = invoiceAmounts(formData.items, formData.vatConfig);
-
-      const payload = {
-        ...formData,
-        ...totals,
-        items: formData.items.map(item => ({ ...item, amount: Math.round(Number(item.qty) * Number(item.unitPrice) * 100) / 100 })),
-      };
-
-      if (activeSubTab === "invoices") await ArApi.createInvoice(payload);
+      if (activeSubTab === "invoices") throw new Error("กรุณาสร้าง Invoice จากหน้าเอกสารใหม่");
 
       setShowModal(false);
       setFormData(emptyForm());

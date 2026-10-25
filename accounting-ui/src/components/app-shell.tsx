@@ -145,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       const recordTab = pathname.startsWith("/master/customers/") ? "customers"
                         : pathname.startsWith("/master/suppliers/") ? "suppliers"
                         : pathname === "/ar/delivery-orders" || pathname.startsWith("/ar/delivery-orders/") ? "so"
+                        : pathname.startsWith("/ar/invoices/") ? "invoices"
                         : pathname.startsWith("/ap/vouchers/") ? "po" : null;
                       const childActive = active && (recordTab ? child.id === recordTab
                         : child.id === "receipts" ? pathname === childPath

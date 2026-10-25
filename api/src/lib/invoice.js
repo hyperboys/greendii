@@ -39,6 +39,7 @@ function assertInvoiceVersion(doc, updatedAt) {
 }
 
 async function invoiceData(tx, body, previous = null) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) invalid('ข้อมูล Invoice ไม่ถูกต้อง');
   const sourceId = text(body.provisionalDeliveryOrderId, 'SO');
   if (previous && sourceId !== previous.provisionalDeliveryOrderId) invalid('ไม่สามารถเปลี่ยน SO อ้างอิงหลังบันทึก กรุณายกเลิกแล้วสร้างใหม่', 409);
   let input = body;
@@ -58,9 +59,12 @@ async function invoiceData(tx, body, previous = null) {
     };
   }
   const customer = await tx.accountCustomer.findUnique({ where: { id: input.customerId }, include: CUSTOMER_INCLUDE });
-  const defaults = invoiceCustomerDefaults(customer, input);
+  const defaults = invoiceCustomerDefaults(customer, sourceId ? {
+    ...input, customerBranch: undefined,
+    customerBranchId: customer?.branches?.find(branch => branch.name === input.customerBranch)?.id,
+  } : input);
   const data = await deliveryOrderData(tx, { ...defaults, ...input, docDate: body.ivDate,
-    items: input.items?.map(item => ({ ...item, discount: item.discount ?? item.lineDiscount ?? 0 })) });
+    items: Array.isArray(input.items) ? input.items.map(item => ({ ...item, discount: item?.discount ?? item?.lineDiscount ?? 0 })) : input.items });
   const dueDate = new Date(data.docDate);
   dueDate.setUTCDate(dueDate.getUTCDate() + data.creditTerm);
   if (Number.isNaN(dueDate.getTime()) || dueDate.getUTCFullYear() > 9999) invalid('วันครบกำหนดเกินช่วงวันที่ที่รองรับ');

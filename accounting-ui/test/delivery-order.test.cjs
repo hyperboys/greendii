@@ -44,6 +44,7 @@ test("Existing SO menu reads the live URL query rather than stale static page pr
     "@/lib/accounting-navigation": load(["lib", "accounting-navigation.ts"]),
     "@/components/date-input": {},
     "@/components/delivery-orders": { DeliveryOrders: SO },
+    "@/components/invoices": { Invoices: () => null },
     "@/components/accounting-access-provider": {},
     "@/lib/accounting-access": {},
   }).default;
@@ -64,6 +65,7 @@ test("SO is a full-page Draft form with integer quantities and PDF monetary fiel
     "@/lib/accounting-date": dates,
     "@/components/date-input": load(["components", "date-input.tsx"], { "@/lib/accounting-date": dates }),
     "@/components/searchable-select": load(["components", "searchable-select.tsx"]),
+    "@/components/document-items": load(["components", "document-items.tsx"], { "@/lib/delivery-order": load(["lib", "delivery-order.ts"]) }),
     "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
     "@/lib/accounting-access": { canUseAccounting: () => writable },
     "@/components/delivery-order-document": { DeliveryOrderPrintStyles: () => null },

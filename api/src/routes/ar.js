@@ -61,7 +61,7 @@ router.post('/billing-notes', authenticate, async (req, res, next) => {
 
       for (const inv of invs) {
         if (inv.customerId !== customerId) {
-          throw new Error(`ใบแจ้งหนี้ ${inv.ivNo} ไม่ใช่ของลูกค้ารายนี้`);
+          invalid(`ใบแจ้งหนี้ ${inv.ivNo} ไม่ใช่ของลูกค้ารายนี้`);
         }
       }
 
@@ -122,7 +122,7 @@ router.post('/credit-notes', authenticate, async (req, res, next) => {
       if (requestedCN <= 0) invalid('ยอดลดหนี้ต้องมากกว่า 0');
 
       if (requestedCN > Number(inv.outstandingAmount)) {
-        throw new Error(`ยอดใบลดหนี้ (฿${requestedCN}) เกินกว่ายอดลูกหนี้คงค้างของ Invoice (฿${inv.outstandingAmount})`);
+        invalid(`ยอดใบลดหนี้ (฿${requestedCN}) เกินกว่ายอดลูกหนี้คงค้างของ Invoice (฿${inv.outstandingAmount})`);
       }
 
       const cnNo = await generateNextRunningNumber('cn', { date: cnDate ? new Date(cnDate) : new Date() }, tx);
@@ -203,7 +203,7 @@ router.post('/receipt-vouchers', authenticate, async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const ids = allocations.map(allocation => allocation.invoiceId);
+      const ids = allocations.map(allocation => allocation?.invoiceId);
       if (ids.some(id => typeof id !== 'string') || new Set(ids).size !== ids.length) invalid('รายการ Invoice รับชำระซ้ำหรือไม่ถูกต้อง');
       for (const id of [...ids].sort()) {
         const invoice = await lockInvoice(tx, id);
@@ -218,7 +218,7 @@ router.post('/receipt-vouchers', authenticate, async (req, res, next) => {
         const recv = moneyCents(alloc.receivedAmount, 'ยอดรับชำระ') / 100;
         if (recv <= 0) invalid('ยอดรับชำระต้องมากกว่า 0');
         if (recv > Number(inv.outstandingAmount)) {
-          throw new Error(`ยอดรับชำระเกินกว่ายอดคงค้างของใบแจ้งหนี้ ${inv.ivNo}`);
+          invalid(`ยอดรับชำระเกินกว่ายอดคงค้างของใบแจ้งหนี้ ${inv.ivNo}`);
         }
         const newOutstanding = Math.max(0, Number(inv.outstandingAmount) - recv);
         await tx.invoice.update({
