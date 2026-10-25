@@ -33,6 +33,8 @@ import { useEffect, useState } from 'react'
 import clsx from 'clsx'
 import { useSettingsStore } from '@/store/settings'
 import { hasRole } from '@/lib/roleAliases'
+import { PrTypesAPI } from '@/lib/api'
+import toast from 'react-hot-toast'
 
 interface NavItem {
   href: string
@@ -75,6 +77,19 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   const { user, logout } = useAuthStore()
   const { menuAccessConfig, canViewMenuByPermission } = useSettingsStore()
   const [collapsed, setCollapsed] = useState(false)
+  const [prViewerId, setPrViewerId] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPrViewerId(null)
+    if (!user?.id) return
+    let cancelled = false
+    PrTypesAPI.list()
+      .then(types => {
+        if (!cancelled && types.some(type => type.viewerIds?.includes(user.id))) setPrViewerId(user.id)
+      })
+      .catch(() => { if (!cancelled) toast.error('โหลดสิทธิ์ดู PR ไม่สำเร็จ') })
+    return () => { cancelled = true }
+  }, [user?.id, pathname])
 
   // Persist collapsed state across reloads
   useEffect(() => {
@@ -106,6 +121,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen: boolean; onClose:
   // For NAV/MASTER menus: check against DB-driven menuAccessConfig (falls back to hardcoded roles)
   const canSeeMenu = (menuKey: string, fallbackRoles?: UserRole[]) => {
     if (!user) return false
+    if (menuKey === 'pr' && prViewerId === user.id) return true
     const configRoles = menuAccessConfig[menuKey]
     const roles = configRoles ?? fallbackRoles
     const allowedByRole = !roles || hasRole(user.role, roles)

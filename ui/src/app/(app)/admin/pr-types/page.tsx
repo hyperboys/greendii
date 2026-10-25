@@ -1,8 +1,8 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { PrTypesAPI, SettingsAPI } from '@/lib/api'
-import type { PrType } from '@/types'
+import { PrTypesAPI, SettingsAPI, UsersAPI } from '@/lib/api'
+import type { PrType, User } from '@/types'
 import { DEFAULT_STEP_ROLE } from '@/types'
 import { useSettingsStore } from '@/store/settings'
 import { Plus, Pencil, Trash2, Save, X, ArrowUp, ArrowDown } from 'lucide-react'
@@ -11,11 +11,12 @@ import toast from 'react-hot-toast'
 interface Draft {
   name: string
   approvalStages: string[][]
+  viewerIds: string[]
 }
 
 type StageStep = number | number[]
 
-const emptyDraft = (): Draft => ({ name: '', approvalStages: [] })
+const emptyDraft = (): Draft => ({ name: '', approvalStages: [], viewerIds: [] })
 
 function normalizeApprovalStages(steps: unknown): number[][] {
   if (!Array.isArray(steps)) return []
@@ -39,6 +40,8 @@ export default function PrTypesPage() {
   const allRoles = rolePermissionsConfig.roles
 
   const [rows, setRows] = useState<PrType[]>([])
+  const [users, setUsers] = useState<User[]>([])
+  const [loadError, setLoadError] = useState(false)
   const [stepRoleConfig, setStepRoleConfig] = useState<Record<string, string>>(DEFAULT_STEP_ROLE)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -49,9 +52,10 @@ export default function PrTypesPage() {
 
   const load = () => {
     setLoading(true)
-    PrTypesAPI.list()
-      .then(setRows)
-      .catch(() => toast.error('โหลดไม่สำเร็จ'))
+    setLoadError(false)
+    Promise.all([PrTypesAPI.list(), UsersAPI.list()])
+      .then(([types, userList]) => { setRows(types); setUsers(userList) })
+      .catch(() => { setLoadError(true); toast.error('โหลดประเภท PR หรือรายชื่อผู้ใช้ไม่สำเร็จ') })
       .finally(() => setLoading(false))
   }
 
@@ -137,7 +141,7 @@ export default function PrTypesPage() {
     setSaving(true)
     try {
       const approvalSteps = await stagesToSteps(creating.approvalStages)
-      await PrTypesAPI.create({ name: creating.name.trim(), approvalSteps })
+      await PrTypesAPI.create({ name: creating.name.trim(), approvalSteps, viewerIds: creating.viewerIds })
       setCreating(null)
       load()
       toast.success('เพิ่มประเภท PR สำเร็จ')
@@ -148,14 +152,14 @@ export default function PrTypesPage() {
   // ── edit ──────────────────────────────────────────────────────────────────
   const startEdit = (t: PrType) => {
     setEditingId(t.id)
-    setEditDraft({ name: t.name, approvalStages: stepsToStages(t.approvalSteps ?? []) })
+    setEditDraft({ name: t.name, approvalStages: stepsToStages(t.approvalSteps ?? []), viewerIds: t.viewerIds ?? [] })
   }
   const saveEdit = async () => {
     if (!editDraft.name.trim()) { toast.error('กรุณาระบุชื่อประเภท'); return }
     setSaving(true)
     try {
       const approvalSteps = await stagesToSteps(editDraft.approvalStages)
-      await PrTypesAPI.update(editingId!, { name: editDraft.name.trim(), approvalSteps })
+      await PrTypesAPI.update(editingId!, { name: editDraft.name.trim(), approvalSteps, viewerIds: editDraft.viewerIds })
       setEditingId(null)
       load()
       toast.success('บันทึกสำเร็จ')
@@ -175,13 +179,19 @@ export default function PrTypesPage() {
   }
 
   if (loading) return <div className="text-center py-16 text-gray-400">กำลังโหลด…</div>
+  if (loadError) return (
+    <div className="text-center py-16 space-y-3">
+      <p className="text-red-600">โหลดประเภท PR หรือรายชื่อผู้ใช้ไม่สำเร็จ</p>
+      <button className="btn-outline btn-sm" onClick={load}>ลองใหม่</button>
+    </div>
+  )
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="page-title">ประเภทใบขอซื้อ (PR)</h2>
-          <p className="page-sub">กำหนดประเภท PR และสายการอนุมัติเฉพาะของแต่ละประเภท</p>
+          <p className="page-sub">กำหนดประเภท PR สายการอนุมัติ และผู้มีสิทธิ์ดูรายบุคคล</p>
         </div>
         {!creating && (
           <button className="btn-primary btn-sm" onClick={() => setCreating(emptyDraft())}>
@@ -214,6 +224,8 @@ export default function PrTypesPage() {
             getRoleLabel={getRoleChipLabel}
             onChange={stages => setCreating(d => d ? { ...d, approvalStages: stages } : d)}
           />
+          <ViewerEditor users={users} viewerIds={creating.viewerIds}
+            onChange={viewerIds => setCreating(d => d ? { ...d, viewerIds } : d)} />
           <div className="flex justify-end gap-2">
             <button className="btn-outline btn-sm" onClick={() => setCreating(null)}>ยกเลิก</button>
             <button className="btn-primary btn-sm" onClick={saveCreate} disabled={saving}>
@@ -240,6 +252,8 @@ export default function PrTypesPage() {
                   getRoleLabel={getRoleChipLabel}
                   onChange={stages => setEditDraft(d => ({ ...d, approvalStages: stages }))}
                 />
+                <ViewerEditor users={users} viewerIds={editDraft.viewerIds}
+                  onChange={viewerIds => setEditDraft(d => ({ ...d, viewerIds }))} />
                 <div className="flex justify-end gap-2">
                   <button className="btn-outline btn-sm" onClick={() => setEditingId(null)}>ยกเลิก</button>
                   <button className="btn-primary btn-sm" onClick={saveEdit} disabled={saving}>
@@ -283,6 +297,14 @@ export default function PrTypesPage() {
                     ))
                   )}
                 </div>
+                <div className="mt-3 text-xs text-gray-600">
+                  <span className="font-semibold">ผู้มีสิทธิ์ดู PR ทุกขั้น: </span>
+                  {(t.viewerIds ?? []).length === 0 ? 'ไม่ได้กำหนดเพิ่มเติม' : (t.viewerIds ?? [])
+                    .map(id => {
+                      const viewer = users.find(u => u.id === id)
+                      return viewer ? `${viewer.fullName} (${viewer.username})${viewer.active ? '' : ' [ปิดใช้งาน]'}` : id
+                    }).join(', ')}
+                </div>
               </div>
             )}
           </div>
@@ -292,6 +314,41 @@ export default function PrTypesPage() {
         )}
       </div>
     </div>
+  )
+}
+
+function ViewerEditor({ users, viewerIds, onChange }: {
+  users: User[]
+  viewerIds: string[]
+  onChange: (ids: string[]) => void
+}) {
+  const [search, setSearch] = useState('')
+  const query = search.trim().toLowerCase()
+  const visibleUsers = users.filter(user =>
+    `${user.fullName} ${user.username}`.toLowerCase().includes(query),
+  )
+  return (
+    <fieldset className="space-y-2">
+      <legend className="form-label">ผู้มีสิทธิ์ดู PR (รายบุคคล)</legend>
+      <p className="text-xs text-gray-500">
+        ดู PR ประเภทนี้ได้ทุกขั้นและทุกสถานะ รวมถึงพิมพ์เอกสาร โดยไม่เพิ่มสิทธิ์อนุมัติหรือแก้ไข
+      </p>
+      <input className="form-input" aria-label="ค้นหาผู้มีสิทธิ์ดู PR" placeholder="ค้นหาชื่อหรือชื่อผู้ใช้"
+        value={search} onChange={e => setSearch(e.target.value)} />
+      <div className="max-h-48 overflow-y-auto rounded-lg border p-3 space-y-2">
+        {visibleUsers.map(user => (
+          <label key={user.id} className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={viewerIds.includes(user.id)}
+              onChange={e => onChange(e.target.checked
+                ? [...viewerIds, user.id]
+                : viewerIds.filter(id => id !== user.id))} />
+            <span>{user.fullName} ({user.username}){!user.active && ' [ปิดใช้งาน]'}</span>
+          </label>
+        ))}
+        {visibleUsers.length === 0 && <p className="text-xs text-gray-400">ไม่พบผู้ใช้</p>}
+      </div>
+      <p className="text-xs text-gray-500">เลือกแล้ว {viewerIds.length} คน</p>
+    </fieldset>
   )
 }
 

@@ -208,6 +208,7 @@ export interface PrType {
   id: string
   name: string
   approvalSteps: ApprovalFlowStages
+  viewerIds: string[]
   active: boolean
   sortOrder: number
   createdAt?: string

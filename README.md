@@ -52,6 +52,23 @@ Greendii/
 
 ## Quick Start
 
+### PR Type viewers
+
+In **PR Types**, create or edit a type and select individual users under
+**ผู้มีสิทธิ์ดู PR (รายบุคคล)**. Selected users can list, open and print all PRs
+of that type across approval stages and statuses, including existing documents.
+They also see the Purchase Request menu regardless of their role's PR menu setting.
+This grants read access only; existing approval, edit, attachment and other action
+permissions remain unchanged. Removing a user revokes this extra access immediately
+on subsequent API requests; owner/approver permissions still apply. Deactivating a
+type does not revoke access to its existing documents.
+
+Before deploying this feature, apply
+[pr-type-viewers.sql](api/scripts/sql/pr-type-viewers.sql) through the normal
+database deployment process, run `npm run db:generate` from `api`, and restart the
+API. The additive, re-runnable SQL defaults existing types to no extra viewers.
+No database schema changes are applied automatically by the application.
+
 ### Accounting customer and supplier pages
 
 In Accounting, open Master Data and select Customers or Suppliers. Add, View,

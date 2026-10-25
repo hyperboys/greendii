@@ -71,7 +71,7 @@ const prValidators = [
 
 const INCLUDE_FULL = {
   sales: { select: { id: true, fullName: true, role: true, signatureText: true } },
-  prType: { select: { id: true, name: true, approvalSteps: true } },
+  prType: { select: { id: true, name: true, approvalSteps: true, viewerIds: true } },
   previousPurchaseRequest: {
     select: {
       id: true,
@@ -212,6 +212,7 @@ async function isPendingPrCurrentApprover(user, pr, stepRole) {
 
 async function isPrAccessibleForUser(user, pr, stepRole) {
   if (!pr) return false;
+  if (pr.prType?.viewerIds?.includes(user.id)) return true;
   if (pr.salesId === user.id) return true;
   if (hasUserApprovedOrRejected(pr, user.id)) return true;
   return isPendingPrCurrentApprover(user, pr, stepRole);
@@ -221,6 +222,7 @@ function buildPrAccessWhere(user, canBypass, approverSteps = []) {
   if (canBypass) return {};
 
   const accessClauses = [
+    { prType: { viewerIds: { has: user.id } } },
     { salesId: user.id },
     {
       approvalLogs: {
@@ -363,7 +365,7 @@ router.get('/', authenticate, async (req, res, next) => {
         status: true,
         approvalStep: true,
         sales: { select: { role: true } },
-        prType: { select: { approvalSteps: true } },
+        prType: { select: { approvalSteps: true, viewerIds: true } },
         approvalLogs: {
           where: {
             approverId: req.user.id,
@@ -427,7 +429,7 @@ router.get('/:id/pdf', authenticate, async (req, res, next) => {
           select: { role: true },
         },
         prType: {
-          select: { approvalSteps: true },
+          select: { approvalSteps: true, viewerIds: true },
         },
         approvalLogs: {
           select: { approverId: true, action: true },
@@ -652,6 +654,9 @@ router.post('/:id/submit', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: { prType: { select: { approvalSteps: true } }, sales: { select: { role: true } } },
     });
+    if (pr.salesId !== req.user.id && !canManageAllDocs(req.user.role)) {
+      return res.status(403).json({ message: 'ไม่มีสิทธิ์ส่งอนุมัติเอกสารของผู้อื่น' });
+    }
     if (!['draft', 'rejected'].includes(pr.status)) return res.status(400).json({ message: 'ส่งได้เฉพาะ Draft หรือ Rejected เท่านั้น' });
     if (pr.revisionNo > 0 && !String(pr.revisionReason || '').trim()) {
       return res.status(400).json({ message: 'กรุณาระบุเหตุผลในการทำ Revision ก่อนส่งอนุมัติ' });

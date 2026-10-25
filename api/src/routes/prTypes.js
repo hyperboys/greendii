@@ -4,6 +4,25 @@ const { authenticate, requireRole } = require('../middleware/auth');
 
 const ADMIN_ROLES = ['admin', 'director', 'admin_mgr'];
 
+async function validateViewerIds(viewerIds) {
+  if (!Array.isArray(viewerIds) || viewerIds.some(id => typeof id !== 'string' || !id.trim())) {
+    const error = new Error('viewerIds ต้องเป็นรายการรหัสผู้ใช้');
+    error.status = 400;
+    throw error;
+  }
+  const ids = [...new Set(viewerIds)];
+  const users = await prisma.user.findMany({
+    where: { id: { in: ids } },
+    select: { id: true },
+  });
+  if (users.length !== ids.length) {
+    const error = new Error('ไม่พบผู้ใช้ที่เลือกบางรายการ');
+    error.status = 400;
+    throw error;
+  }
+  return ids;
+}
+
 function normalizeStageEntry(entry) {
   if (Array.isArray(entry)) {
     const stage = entry
@@ -46,12 +65,14 @@ router.get('/', authenticate, async (req, res, next) => {
 // POST /api/pr-types  (admin only)
 router.post('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
   try {
-    const { name, approvalSteps, sortOrder } = req.body;
+    const { name, approvalSteps, sortOrder, viewerIds = [] } = req.body;
     if (!name || !name.trim()) return res.status(400).json({ message: 'name required' });
+    const validatedViewerIds = await validateViewerIds(viewerIds);
     const item = await prisma.prType.create({
       data: {
         name: name.trim(),
         approvalSteps: normalizeSteps(approvalSteps),
+        viewerIds: validatedViewerIds,
         sortOrder: Number.isInteger(sortOrder) ? sortOrder : 0,
       },
     });
@@ -62,10 +83,11 @@ router.post('/', authenticate, requireRole(...ADMIN_ROLES), async (req, res, nex
 // PUT /api/pr-types/:id  (admin only)
 router.put('/:id', authenticate, requireRole(...ADMIN_ROLES), async (req, res, next) => {
   try {
-    const { name, approvalSteps, active, sortOrder } = req.body;
+    const { name, approvalSteps, active, sortOrder, viewerIds } = req.body;
     const data = {};
     if (name !== undefined) data.name = String(name).trim();
     if (approvalSteps !== undefined) data.approvalSteps = normalizeSteps(approvalSteps);
+    if (viewerIds !== undefined) data.viewerIds = await validateViewerIds(viewerIds);
     if (active !== undefined) data.active = !!active;
     if (sortOrder !== undefined) data.sortOrder = Number(sortOrder) || 0;
     const item = await prisma.prType.update({ where: { id: req.params.id }, data });
