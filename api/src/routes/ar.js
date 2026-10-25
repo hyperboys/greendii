@@ -7,215 +7,16 @@ const { recordAuditLog } = require('../lib/auditTrail');
 const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { processApprovalAction } = require('../lib/approvalEngine');
 const { getPagination, paginated } = require('../lib/pagination');
-const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('../lib/accountCustomers');
+const { invalid, moneyCents } = require('../lib/deliveryOrder');
+const { lockInvoice, assertPostedInvoice } = require('../lib/invoice');
 
 // ─── 1. PROVISIONAL DELIVERY ORDERS (SO) ─────────────────────────────────────
 
-// GET /api/ar/delivery-orders
-router.get('/delivery-orders', authenticate, async (req, res, next) => {
-  try {
-    const { status, customerId, q } = req.query;
-    const where = {};
-    if (status) where.status = status;
-    if (customerId) where.customerId = customerId;
-    if (q) where.soNo = { contains: q, mode: 'insensitive' };
-
-    const pg = getPagination(req.query);
-    if (pg) {
-      const [data, total] = await prisma.$transaction([
-        prisma.provisionalDeliveryOrder.findMany({
-          where,
-          orderBy: { docDate: 'desc' },
-          skip: pg.skip,
-          take: pg.take,
-          include: { customer: true, items: true, workOrder: true },
-        }),
-        prisma.provisionalDeliveryOrder.count({ where }),
-      ]);
-      return res.json(paginated(data, total, pg));
-    }
-    const list = await prisma.provisionalDeliveryOrder.findMany({
-      where,
-      orderBy: { docDate: 'desc' },
-      include: { customer: true, items: true, workOrder: true },
-    });
-    res.json(list);
-  } catch (e) { next(e); }
-});
-
-// POST /api/ar/delivery-orders
-router.post('/delivery-orders', authenticate, async (req, res, next) => {
-  try {
-    const { docDate, customerId, customerBranch, shippingAddress, receiver, workOrderId, remark, items = [] } = req.body;
-    if (!customerId) return res.status(400).json({ message: 'กรุณาระบุลูกค้า (customerId)' });
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'ต้องมีรายการสินค้าอย่างน้อย 1 รายการ' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const soNo = await generateNextRunningNumber('so', { date: docDate ? new Date(docDate) : new Date() }, tx);
-      const doc = await tx.provisionalDeliveryOrder.create({
-        data: {
-          soNo,
-          docDate: docDate ? new Date(docDate) : new Date(),
-          customerId,
-          customerBranch: customerBranch || 'สำนักงานใหญ่',
-          shippingAddress,
-          receiver,
-          workOrderId,
-          remark,
-          salesId: req.user.id,
-          status: 'draft',
-          items: {
-            create: items.map((it, idx) => ({
-              seq: idx,
-              productId: it.productId || null,
-              desc: String(it.desc || ''),
-              qty: parseFloat(it.qty) || 0,
-              unit: it.unit || '',
-              remark: it.remark || null,
-            })),
-          },
-        },
-        include: { items: true, customer: true },
-      });
-
-      await recordAuditLog({
-        entityType: 'provisional_delivery_order',
-        entityId: doc.id,
-        docNo: doc.soNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
-
-      return doc;
-    });
-
-    res.status(201).json(result);
-  } catch (e) { next(e); }
-});
+router.use('/delivery-orders', require('./delivery-orders'));
 
 // ─── 2. INVOICES (IV) ─────────────────────────────────────────────────────────
 
-// GET /api/ar/invoices
-router.get('/invoices', authenticate, async (req, res, next) => {
-  try {
-    const { status, customerId, q, unpaidOnly } = req.query;
-    const where = {};
-    if (status) where.status = status;
-    if (customerId) where.customerId = customerId;
-    if (unpaidOnly === 'true') where.outstandingAmount = { gt: 0 };
-    if (q) where.ivNo = { contains: q, mode: 'insensitive' };
-
-    const pg = getPagination(req.query);
-    if (pg) {
-      const [data, total] = await prisma.$transaction([
-        prisma.invoice.findMany({
-          where,
-          orderBy: { ivDate: 'desc' },
-          skip: pg.skip,
-          take: pg.take,
-          include: { customer: true, items: true },
-        }),
-        prisma.invoice.count({ where }),
-      ]);
-      return res.json(paginated(data, total, pg));
-    }
-    const list = await prisma.invoice.findMany({
-      where,
-      orderBy: { ivDate: 'desc' },
-      include: { customer: true, items: true },
-    });
-    res.json(list);
-  } catch (e) { next(e); }
-});
-
-// POST /api/ar/invoices
-router.post('/invoices', authenticate, async (req, res, next) => {
-  try {
-    const {
-      ivDate,
-      customerId,
-      customerPoNo,
-      workOrderId,
-      provisionalDeliveryOrderId,
-      subTotal = 0,
-      discount = 0,
-      vat = 0,
-      netAmount = 0,
-      remark,
-      items = [],
-    } = req.body;
-
-    if (!customerId) return res.status(400).json({ message: 'กรุณาระบุลูกค้า (customerId)' });
-
-    const result = await prisma.$transaction(async (tx) => {
-      const customer = await tx.accountCustomer.findUnique({ where: { id: customerId }, include: CUSTOMER_INCLUDE });
-      const defaults = invoiceCustomerDefaults(customer, req.body);
-      const calcDueDate = new Date(ivDate ? new Date(ivDate) : new Date());
-      calcDueDate.setDate(calcDueDate.getDate() + defaults.creditTerm);
-      if (Number.isNaN(calcDueDate.getTime())) {
-        throw Object.assign(new Error('วันที่ Invoice ไม่ถูกต้อง'), { status: 400 });
-      }
-      const ivNo = await generateNextRunningNumber('iv', { date: ivDate ? new Date(ivDate) : new Date() }, tx);
-      const invoiceVat = defaults.vatConfig === 'NO_VAT' ? 0 : req.body.vat == null
-        ? Math.round((Number(subTotal) - Number(discount)) * 7) / 100 : Number(vat);
-      const invoiceNet = req.body.netAmount == null || defaults.vatConfig === 'NO_VAT'
-        ? Number(subTotal) - Number(discount) + invoiceVat : Number(netAmount);
-      if (![invoiceVat, invoiceNet].every(value => Number.isFinite(value) && value >= 0)) {
-        throw Object.assign(new Error('ยอดเงิน Invoice ไม่ถูกต้อง'), { status: 400 });
-      }
-
-      const doc = await tx.invoice.create({
-        data: {
-          ivNo,
-          ivDate: ivDate ? new Date(ivDate) : new Date(),
-          customerId,
-          ...defaults,
-          salesId: req.user.id,
-          customerPoNo,
-          dueDate: calcDueDate,
-          workOrderId,
-          provisionalDeliveryOrderId,
-          subTotal: parseFloat(subTotal) || 0,
-          discount: parseFloat(discount) || 0,
-          vat: invoiceVat,
-          netAmount: invoiceNet,
-          outstandingAmount: invoiceNet,
-          status: 'draft',
-          remark,
-          items: {
-            create: items.map((it, idx) => ({
-              seq: idx,
-              productId: it.productId || null,
-              desc: String(it.desc || ''),
-              qty: parseFloat(it.qty) || 0,
-              unitPrice: parseFloat(it.unitPrice) || 0,
-              lineDiscount: parseFloat(it.lineDiscount) || 0,
-              vat: parseFloat(it.vat) || 0,
-              amount: parseFloat(it.amount) || 0,
-            })),
-          },
-        },
-        include: { items: true, customer: true },
-      });
-
-      await recordAuditLog({
-        entityType: 'invoice',
-        entityId: doc.id,
-        docNo: doc.ivNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
-
-      return doc;
-    });
-
-    res.status(201).json(result);
-  } catch (e) { next(e); }
-});
+router.use('/invoices', require('./invoices'));
 
 // ─── 3. BILLING NOTES (BI) ───────────────────────────────────────────────────
 
@@ -246,6 +47,13 @@ router.post('/billing-notes', authenticate, async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const ids = [...new Set(invoiceIds)];
+      if (ids.length !== invoiceIds.length || ids.some(id => typeof id !== 'string')) invalid('รายการ Invoice ซ้ำหรือไม่ถูกต้อง');
+      for (const id of [...ids].sort()) {
+        const invoice = await lockInvoice(tx, id);
+        assertPostedInvoice(invoice);
+        if (Number(invoice.outstandingAmount) <= 0) invalid('Invoice ไม่มียอดค้างรับ', 409);
+      }
       // Validate invoices belong to same customer and have outstanding balance
       const invs = await tx.invoice.findMany({
         where: { id: { in: invoiceIds } },
@@ -308,8 +116,10 @@ router.post('/credit-notes', authenticate, async (req, res, next) => {
     if (!invoiceId) return res.status(400).json({ message: 'กรุณาระบุใบแจ้งหนี้อ้างอิง (invoiceId)' });
 
     const result = await prisma.$transaction(async (tx) => {
-      const inv = await tx.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
-      const requestedCN = parseFloat(netAmount) || 0;
+      const inv = await lockInvoice(tx, invoiceId);
+      assertPostedInvoice(inv);
+      const requestedCN = moneyCents(netAmount, 'ยอดลดหนี้') / 100;
+      if (requestedCN <= 0) invalid('ยอดลดหนี้ต้องมากกว่า 0');
 
       if (requestedCN > Number(inv.outstandingAmount)) {
         throw new Error(`ยอดใบลดหนี้ (฿${requestedCN}) เกินกว่ายอดลูกหนี้คงค้างของ Invoice (฿${inv.outstandingAmount})`);
@@ -393,12 +203,20 @@ router.post('/receipt-vouchers', authenticate, async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      const ids = allocations.map(allocation => allocation.invoiceId);
+      if (ids.some(id => typeof id !== 'string') || new Set(ids).size !== ids.length) invalid('รายการ Invoice รับชำระซ้ำหรือไม่ถูกต้อง');
+      for (const id of [...ids].sort()) {
+        const invoice = await lockInvoice(tx, id);
+        assertPostedInvoice(invoice);
+        if (invoice.customerId !== customerId) invalid('Invoice ไม่ใช่ของลูกค้าที่เลือก');
+      }
       const rvNo = await generateNextRunningNumber('rv', { date: receiptDate ? new Date(receiptDate) : new Date() }, tx);
 
       // Process allocations & update invoice outstanding balances
       for (const alloc of allocations) {
         const inv = await tx.invoice.findUniqueOrThrow({ where: { id: alloc.invoiceId } });
-        const recv = parseFloat(alloc.receivedAmount) || 0;
+        const recv = moneyCents(alloc.receivedAmount, 'ยอดรับชำระ') / 100;
+        if (recv <= 0) invalid('ยอดรับชำระต้องมากกว่า 0');
         if (recv > Number(inv.outstandingAmount)) {
           throw new Error(`ยอดรับชำระเกินกว่ายอดคงค้างของใบแจ้งหนี้ ${inv.ivNo}`);
         }

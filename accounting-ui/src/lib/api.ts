@@ -5,6 +5,7 @@
 
 import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
 import type { AccountSupplier, SupplierInput } from "./account-suppliers";
+import type { DeliveryOrder, DeliveryOrderInput, DeliveryOrderProduct, DeliveryOrderWorkOrder } from "./delivery-order";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderInput,
   PurchaseOrderSupplier, PurchaseRequestReference,
@@ -42,7 +43,7 @@ export async function apiFetch<T = any>(endpoint: string, options: RequestInit =
 export const AccountingLookupApi = {
   getCustomers: () => apiFetch<AccountCustomer[]>("/api/accounting-access/lookups/customers"),
   getSuppliers: () => apiFetch<PurchaseOrderSupplier[]>("/api/accounting-access/lookups/suppliers"),
-  getProducts: () => apiFetch("/api/accounting-access/lookups/products"),
+  getProducts: () => apiFetch<DeliveryOrderProduct[]>("/api/accounting-access/lookups/products"),
   getWarehouses: () => apiFetch("/api/accounting-access/lookups/warehouses"),
 };
 
@@ -94,9 +95,13 @@ export const MasterApi = {
 export const ArApi = {
   getDeliveryOrders: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/ar/delivery-orders${q ? `?${q}` : ""}`);
+    return apiFetch<DeliveryOrder[]>(`/api/ar/delivery-orders${q ? `?${q}` : ""}`);
   },
-  createDeliveryOrder: (data: any) => apiFetch("/api/ar/delivery-orders", { method: "POST", body: JSON.stringify(data) }),
+  getDeliveryOrder: (id: string) => apiFetch<DeliveryOrder>(`/api/ar/delivery-orders/${encodeURIComponent(id)}`),
+  createDeliveryOrder: (data: DeliveryOrderInput) => apiFetch<DeliveryOrder>("/api/ar/delivery-orders", { method: "POST", body: JSON.stringify(data) }),
+  updateDeliveryOrder: (id: string, data: DeliveryOrderInput) => apiFetch<DeliveryOrder>(`/api/ar/delivery-orders/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  cancelDeliveryOrder: (id: string, reason: string) => apiFetch<DeliveryOrder>(`/api/ar/delivery-orders/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ reason }) }),
+  getDeliveryWorkOrders: (q: string) => apiFetch<DeliveryOrderWorkOrder[]>(`/api/ar/delivery-orders/work-orders?q=${encodeURIComponent(q)}`),
 
   getInvoices: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

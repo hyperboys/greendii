@@ -30,3 +30,15 @@ api/.env.example
 Data/Supplier.csv
 Data/Supplier.xls
 api/.env.example
+Doc/accounting/invoice.pdf
+Doc/accounting/PO เปล่า.pdf
+Doc/accounting/ใบปะหน้า ภงด.3.pdf
+Doc/accounting/ใบปะหน้า ภงด.53.pdf
+Doc/accounting/ใบลดหนี้.pdf
+Doc/accounting/ใบวางบิล.pdf
+Doc/accounting/ใบส่งของชั่วคราว.pdf
+Doc/accounting/ใบสำคัญจ่าย.pdf
+Doc/accounting/ใบสำคัญรับ.pdf
+Doc/accounting/ใบหัก ณ ที่จ่าย , ใบปะหน้าสำคัญจ่าย.pdf
+Doc/accounting/ภงด.3.pdf
+Doc/accounting/ภงด.53.pdf

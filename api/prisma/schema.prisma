@@ -951,6 +951,15 @@ model ProvisionalDeliveryOrder {
   customer        AccountCustomer? @relation(fields: [customerId], references: [id])
   customerBranch  String?          @default("สำนักงานใหญ่") @map("customer_branch")
   shippingAddress String?          @map("shipping_address")
+  customerTel     String?          @map("customer_tel")
+  customerFax     String?          @map("customer_fax")
+  deliveryDate    DateTime?        @map("delivery_date") @db.Timestamptz(3)
+  creditTerm      Int              @default(30) @map("credit_term")
+  vatConfig       String           @default("VAT7%") @map("vat_config")
+  subTotal        Decimal          @default(0) @map("sub_total") @db.Decimal(12, 2)
+  discount        Decimal          @default(0) @db.Decimal(12, 2)
+  vat             Decimal          @default(0) @db.Decimal(12, 2)
+  netAmount       Decimal          @default(0) @map("net_amount") @db.Decimal(12, 2)
   receiver        String?
   workOrderId     String?          @map("work_order_id")
   workOrder       WorkOrder?       @relation(fields: [workOrderId], references: [id])
@@ -974,10 +983,14 @@ model ProvisionalDeliveryOrderLine {
   seq                        Int                      @default(0)
   productId                  String?                  @map("product_id")
   product                    AccountProduct?          @relation(fields: [productId], references: [id])
+  partNo                     String?                  @map("part_no")
   desc                       String
   qty                        Decimal                  @default(0) @db.Decimal(12, 3)
   unit                       String?
   remark                     String?
+  unitPrice                  Decimal                  @default(0) @map("unit_price") @db.Decimal(12, 2)
+  discount                   Decimal                  @default(0) @db.Decimal(12, 2)
+  amount                     Decimal                  @default(0) @db.Decimal(12, 2)
 
   @@map("provisional_delivery_order_lines")
 }
@@ -1011,6 +1024,10 @@ model Invoice {
   outstandingAmount          Decimal                   @default(0) @map("outstanding_amount") @db.Decimal(12, 2)
   status                     DocStatus                 @default(draft)
   approvalStep               Int                       @default(0)
+  lifecycleVersion           Int                       @default(0) @map("lifecycle_version")
+  confirmedAt                DateTime?                 @map("confirmed_at") @db.Timestamptz(3)
+  customerName               String?                   @map("customer_name")
+  customerCode               String?                   @map("customer_code")
   remark                     String?
   createdAt                  DateTime                  @default(now()) @db.Timestamptz(3)
   updatedAt                  DateTime                  @updatedAt @db.Timestamptz(3)
@@ -1034,6 +1051,9 @@ model InvoiceLine {
   qty          Decimal         @default(0) @db.Decimal(12, 3)
   unitPrice    Decimal         @default(0) @map("unit_price") @db.Decimal(12, 2)
   lineDiscount Decimal         @default(0) @map("line_discount") @db.Decimal(12, 2)
+  partNo       String?         @map("part_no")
+  unit         String?
+  remark       String?
   vat          Decimal         @default(0) @db.Decimal(12, 2)
   amount       Decimal         @default(0) @db.Decimal(12, 2)
 

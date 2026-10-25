@@ -51,7 +51,7 @@ test('Customer and Sale HTTP flows persist edits, enforce permissions and snapsh
   const invoicePayload = {
     customerId: customer.id, customerBranchId: customer.branches[1].id,
     billingAddressId: customer.branches[1].addresses[0].id, shippingAddressId: customer.branches[1].addresses[0].id,
-    ivDate: '2026-10-21', subTotal: 100, items: [{ desc: 'Item', qty: 1, unitPrice: 100, amount: 100 }],
+    ivDate: '2026-10-21', subTotal: 100, items: [{ desc: 'Item', qty: 1, unit: 'pcs', unitPrice: 100, amount: 100 }],
   };
   assert.equal((await request('/ar/invoices', 'POST', { ...invoicePayload, customerBranchId: customer2.branches[0].id }, 'ar')).status, 400);
   const invoiceResponse = await request('/ar/invoices', 'POST', invoicePayload, 'ar');

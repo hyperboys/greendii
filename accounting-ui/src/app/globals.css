@@ -43,6 +43,10 @@ input[type="radio"] {
   min-width: 0;
 }
 
+.accounting-shell table.so-items-table {
+  min-width: 0;
+}
+
 .accounting-modal > div {
   max-height: calc(100vh - 2rem);
   max-height: calc(100dvh - 2rem);

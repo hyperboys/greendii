@@ -1,0 +1,152 @@
+const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const test = require("node:test");
+const vm = require("node:vm");
+const ts = require("typescript");
+const React = require("react");
+const { renderToStaticMarkup } = require("react-dom/server");
+
+function load(relativePath, imports = {}) {
+  const filename = path.join(__dirname, "..", "src", ...relativePath);
+  const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,
+  }).outputText;
+  const module = { exports: {} };
+  vm.runInNewContext(source, {
+    module, exports: module.exports,
+    require: name => Object.hasOwn(imports, name) ? imports[name] : require(name),
+  }, { filename });
+  return module.exports;
+}
+
+test("SO routes support direct new/view/edit and reject invalid actions", () => {
+  const Page = load(["app", "ar", "delivery-orders", "[...record]", "page.tsx"], {
+    "next/navigation": { notFound: () => { throw new Error("Not found"); } },
+    "@/components/delivery-orders": { DeliveryOrders: () => null },
+  }).default;
+  for (const [record, mode] of [[["new"], "new"], [["so-1"], "view"], [["so-1", "edit"], "edit"]]) {
+    assert.equal(Page({ params: { record } }).props.mode, mode);
+  }
+  for (const record of [["new", "edit"], ["so-1", "confirm"], ["so-1", "edit", "extra"]]) {
+    assert.throws(() => Page({ params: { record } }), /Not found/);
+  }
+});
+
+test("Existing SO menu reads the live URL query rather than stale static page props", () => {
+  let tab = "so";
+  const SO = () => null;
+  const Page = load(["app", "ar", "invoices", "page.tsx"], {
+    "next/navigation": { useSearchParams: () => new URLSearchParams({ tab }) },
+    "@/lib/api": {},
+    "@/lib/account-customers": {},
+    "@/lib/accounting-date": {},
+    "@/lib/accounting-navigation": load(["lib", "accounting-navigation.ts"]),
+    "@/components/date-input": {},
+    "@/components/delivery-orders": { DeliveryOrders: SO },
+    "@/components/accounting-access-provider": {},
+    "@/lib/accounting-access": {},
+  }).default;
+  assert.equal(Page({ searchParams: { tab: "invoices" } }).type, SO);
+  tab = "invoices";
+  assert.notEqual(Page({ searchParams: { tab: "so" } }).type, SO);
+});
+
+test("SO is a full-page Draft form with integer quantities and PDF monetary fields; viewers cannot write", () => {
+  let writable = true;
+  const dates = load(["lib", "accounting-date.ts"]);
+  const { DeliveryOrders } = load(["components", "delivery-orders.tsx"], {
+    "next/navigation": { useRouter: () => ({ push() {} }) },
+    "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+    "@/lib/api": {},
+    "@/lib/delivery-order": load(["lib", "delivery-order.ts"]),
+    "@/lib/account-customers": load(["lib", "account-customers.ts"]),
+    "@/lib/accounting-date": dates,
+    "@/components/date-input": load(["components", "date-input.tsx"], { "@/lib/accounting-date": dates }),
+    "@/components/searchable-select": load(["components", "searchable-select.tsx"]),
+    "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
+    "@/lib/accounting-access": { canUseAccounting: () => writable },
+    "@/components/delivery-order-document": { DeliveryOrderPrintStyles: () => null },
+  });
+  const render = mode => renderToStaticMarkup(React.createElement(DeliveryOrders, { mode }));
+  const html = render("new");
+  assert.doesNotMatch(html, /role="dialog"|aria-modal|fixed inset-0|ยืนยัน SO/);
+  assert.match(html, /placeholder="dd\/mm\/yyyy"/);
+  assert.match(html, /type="number" min="1" max="999999999" step="1"/);
+  assert.match(html, /เพิ่มรายการ/);
+  assert.match(html, /<table aria-label="รายการส่งสินค้า/);
+  assert.match(html, /role="region" aria-labelledby="so-items-heading"/);
+  assert.match(html, /data-so-item="1"/);
+  assert.match(html, /colSpan="8"/);
+  assert.doesNotMatch(html, /min-w-\[1240px\]|จอเล็กเลื่อนตาราง/);
+  assert.match(html, /<textarea required="" rows="2"/);
+  assert.match(html, /aria-label="ลบรายการ 1" disabled=""/);
+  assert.match(html, /aria-label="จำนวนเงินรายการ 1"/);
+  assert.match(html, /aria-label="รวมเงินรายการ"/);
+  assert.match(html, /ยังไม่ตัด Stock/);
+  assert.equal((html.match(/role="combobox"/g) || []).length, 2);
+  assert.doesNotMatch(html, /ค้นหาลูกค้า|ค้นหา WO \(ไม่บังคับ\)/);
+  for (const field of ["ราคา/หน่วย", "ส่วนลดรายการ (บาท)", "ส่วนลดท้ายเอกสาร (บาท)", "VAT 7%", "No VAT", "วันที่กำหนดส่ง", "จำนวนวันเครดิต", "โทรสารลูกค้า"]) assert.ok(html.includes(field), field);
+  writable = false;
+  for (const mode of ["new", "edit"]) {
+    assert.match(render(mode), /ไม่มีสิทธิ์สร้างหรือแก้ไขใบส่งของ/);
+    assert.doesNotMatch(render(mode), /<form/);
+  }
+});
+
+test("SO print matches PDF headings, seven columns, totals, blank reservation and three signature boxes", () => {
+  const { DeliveryOrderDocument } = load(["components", "delivery-order-document.tsx"], {
+    "next/image": { default: props => React.createElement("img", props) },
+    "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
+    "@/lib/delivery-order": load(["lib", "delivery-order.ts"]),
+  });
+  const html = renderToStaticMarkup(React.createElement(DeliveryOrderDocument, {
+    document: {
+      id: "so", soNo: "SO2610-00001", docDate: "2026-10-25", status: "draft",
+      customer: { name: "Customer" }, workOrder: { woNo: "WO-001" },
+      customerTel: "111", customerFax: "222", creditTerm: 0, deliveryDate: "2026-10-30", vatConfig: "VAT7%",
+      createdBy: { fullName: "Sender Name" }, subTotal: 70, discount: 5, vat: 4.55, netAmount: 69.55,
+      items: [{ partNo: "P001", desc: "First", qty: 3, unit: "pcs", unitPrice: "10.25", discount: "0.75", amount: 30 }, { desc: "Second", qty: 2, unit: "set", unitPrice: 20, discount: 0, amount: 40 }],
+    }, company: { companyName: "Company" },
+  }));
+  for (const text of ["First", "Second", "25/10/2026", "Draft", "WO-001", "Company", "TEMPORARY INVOICE", "30/10/2026", "69.55", "4.55", "Sender Name", "จำนวนวันเครดิต", "ใบสั่งจอง", "เงื่อนไขการวางบิล"]) assert.ok(html.includes(text), text);
+  assert.equal((html.match(/<th>/g) || []).length, 14); // Number/date, seven line columns, five totals.
+  for (const role of ["ผู้รับสินค้า", "ผู้ส่งสินค้า", "ผู้มีอำนาจ"]) assert.ok(html.includes(role));
+  assert.doesNotMatch(html, /PROVISIONAL DELIVERY ORDER|โลโก้บริษัท/);
+  assert.match(html, /หน้า 1 \/ 1/);
+});
+
+test("SO monetary preview agrees with server cents calculation for discounts, VAT, zero and rounding", () => {
+  const { deliveryOrderAmounts } = load(["lib", "delivery-order.ts"]);
+  const items = [{ qty: 3, unitPrice: "10.25", discount: "0.75" }, { qty: 2, unitPrice: 20, discount: 0 }];
+  const taxed = deliveryOrderAmounts(items, "5", "VAT7%");
+  assert.equal(taxed.subTotal, 70);
+  assert.equal(taxed.taxableAmount, 65);
+  assert.equal(taxed.vat, 4.55);
+  assert.equal(taxed.netAmount, 69.55);
+  assert.equal(deliveryOrderAmounts(items, 5, "NO_VAT").netAmount, 65);
+  assert.equal(deliveryOrderAmounts([{ qty: 3, unitPrice: "0.05", discount: 0 }], 0, "VAT7%").netAmount, 0.16);
+  assert.equal(deliveryOrderAmounts(items, 70, "VAT7%").netAmount, 0);
+});
+
+test("PDF pages preserve every row and print totals only once on the final page", () => {
+  const print = load(["components", "delivery-order-document.tsx"], {
+    "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
+    "@/lib/delivery-order": load(["lib", "delivery-order.ts"]),
+  });
+  const items = Array.from({ length: 80 }, (_, index) => ({ partNo: `P${index}`, desc: `Line ${index}`, qty: 1, unit: "pcs", unitPrice: 1, discount: 0, remark: "" }));
+  const pages = print.deliveryOrderPrintPages(items);
+  assert.equal(pages.reduce((count, rows) => count + rows.length, 0), 80);
+  assert.ok(pages.length > 1);
+  const html = renderToStaticMarkup(React.createElement(print.DeliveryOrderDocument, { company: {}, document: {
+    items, status: "draft", soNo: "SO", docDate: "2026-10-25", subTotal: 80, discount: 0, vat: 5.6, netAmount: 85.6, vatConfig: "VAT7%",
+  } }));
+  assert.equal((html.match(/85\.60/g) || []).length, 1);
+  assert.ok(html.includes(`หน้า ${pages.length} / ${pages.length}`));
+  const longItem = { ...items[0], desc: "LongDescription".repeat(200), remark: "Note" };
+  const continued = print.deliveryOrderPrintPages([longItem]).flat();
+  assert.ok(continued.length > 1);
+  assert.equal(continued.filter(row => !row.continuation).length, 1);
+  assert.equal(continued.map(row => row.item.desc).join("").replace(/\n/g, ""), `${longItem.desc}Note`);
+  assert.ok(continued.every(row => row.height <= 430));
+});

@@ -297,6 +297,91 @@ client. `Attachment.purchaseOrderId` maps to the SQL column `purchase_order_id`;
 do not add a separate camel-case column. Do not apply a blanket migration or
 reset a shared database.
 
+## Provisional Delivery Orders (SO) — Draft phase
+
+Open **ลูกหนี้ / รับชำระเงิน → ใบส่งของชั่วคราว**. Existing
+`/ar/invoices?tab=so` links display the new SO list; `/ar/delivery-orders`
+also opens it directly. New, detail/print and edit pages are
+`/ar/delivery-orders/new`, `/ar/delivery-orders/:id` and
+`/ar/delivery-orders/:id/edit`. The SO sidebar entry remains active on each route.
+
+- Create and edit Drafts with multiple lines, active Accounting products or
+  manually entered item codes/descriptions, positive integer quantities (step 1),
+  units, unit prices, line discounts in baht and line/document remarks. Customer
+  and document date are required, as are each line's description, quantity and unit.
+  Items are edited in a compact table with product/code, quantity, unit, price,
+  discount and live amount columns. Each item's multiline description and remark
+  sit underneath its main row rather than occupying a separate column.
+  Add-row buttons are available above and below the table; at least one row must
+  remain. Small screens stack fields with labels, without horizontal scrolling.
+- Select a customer/branch and shipping address from Accounting master data;
+  shipping address and receiver can be entered on the document. Optional Work
+  Orders are searched by number/project and referenced only, without copying
+  their lines or changing Sales records.
+  Customer and Work Order each use one searchable dropdown: open the field,
+  type a code/name or WO number/project, then click a result or use arrow keys
+  and Enter. Escape or leaving the field discards the search without changing
+  the selection. Choose **ไม่อ้างอิง WO** to clear the optional reference.
+  WO searches show loading/error/empty states and retain the selected label
+  even when it is not in the current search results. Customer selection still
+  fills the existing branch/address, contact, credit and VAT defaults.
+- **No SO confirmation/approval or Stock posting is enabled in this phase.**
+  Creating, editing, printing or cancelling SO does not change Stock.
+- `ar.view` permits list/detail/print. `ar.create` additionally permits creation,
+  Draft editing and cancellation; SO PUT uses this existing permission rather
+  than introducing an unapproved AR role action. Read-only users cannot write.
+- Cancellation requires a reason and preserves an audit trail. Editing and
+  cancellation are blocked if any non-cancelled Invoice references the SO.
+  Cancelled SOs are read-only and cannot be used by the Invoice create API.
+  Edit requests require the loaded `updatedAt` to prevent overwriting a newer
+  revision. SO edits/cancellation and Invoice creation lock the same SO row.
+- The A4 print layout follows
+  [ใบส่งของชั่วคราว.pdf](../Doc/accounting/ใบส่งของชั่วคราว.pdf):
+  **TEMPORARY INVOICE**, company header from Settings (no added logo), number/date
+  box, customer address/phone/fax, delivery date, credit days, seven item columns,
+  monetary summary and three signature boxes. The creator's name appears under
+  the sender; recipient and authorized-person signatures remain blank. Status
+  and the no-Stock notice appear in remarks, not as an approval claim.
+  Reservation number/date and billing conditions deliberately remain blank per
+  the user's decision, not substituted with WO. Existing optional WO/receiver
+  information is retained in remarks. Print/Save PDF uses the browser dialog.
+  Standard multi-page documents repeat the header, show page numbers and print
+  document totals only on the last page.
+- Prices exclude VAT. Each line amount is quantity × unit price minus line
+  discount; **รวมเงิน** sums those net line amounts. The document discount in baht
+  is then deducted before calculating 7% VAT (or No VAT). API calculations use
+  integer satang and ignore client-supplied totals. Price/discount inputs allow
+  at most two decimal places, cannot be negative or exceed their applicable
+  gross/net base, and totals must fit the existing Decimal(12,2) range.
+- Product selection initially fills code/unit/price; customer/branch selection
+  fills phone/fax, and customer selection fills credit/VAT defaults. These
+  document fields remain editable in Draft, are saved and are not replaced from
+  today's master when reopening an existing document. These SO amounts do not
+  create receivables or alter the future Invoice workflow.
+
+API routes: `GET/POST /api/ar/delivery-orders`,
+`GET/PUT /api/ar/delivery-orders/:id`,
+`POST /api/ar/delivery-orders/:id/cancel` with `{ "reason": "..." }`,
+and `GET /api/ar/delivery-orders/work-orders?q=...` for the create-permission
+lookup. Existing optional paginated SO list responses remain supported.
+
+The PDF-field extension requires
+[`api/scripts/sql/accounting-delivery-orders.sql`](../api/scripts/sql/accounting-delivery-orders.sql).
+Back up the target database, review and apply that additive, transaction-wrapped,
+re-runnable script before running this API. It adds monetary/header fields to
+existing SO/line tables only; **no shared database migration is applied by the
+assistant**. Existing documents retain zero monetary values and credit default
+30; historical prices and contact information are not inferred from today's
+master. Review existing Drafts before printing them as priced documents.
+After rollout, stop the API, run `npx prisma generate` from `api/`, restart the
+API, and rebuild/restart the UI. Do not use `prisma db push`, reset the database
+or deploy unrelated migrations to install these fields.
+The previously required Accounting master/audit schema must already be present.
+HTTP tests use real Express/auth/permission handlers with an isolated in-memory
+database substitute; production PostgreSQL locking and target-database UAT still
+need verification. Invoice line import/partial invoicing is the next process,
+not part of this Draft batch.
+
 ## Date format
 
 Accounting dates use `dd/mm/yyyy` with Gregorian years and the Asia/Bangkok

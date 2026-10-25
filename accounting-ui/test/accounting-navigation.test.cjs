@@ -61,6 +61,9 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/ar/receipts";
   html = render();
   assert.match(html, /href="\/ar\/receipts" aria-current="page"/);
+  pathname = "/ar/delivery-orders/so-1/edit";
+  html = render();
+  assert.match(html, /href="\/ar\/invoices\?tab=so" aria-current="page"/);
   pathname = "/ap/vouchers/po-1/edit";
   html = render();
   assert.match(html, /href="\/ap\/vouchers\?tab=po" aria-current="page"/);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArApi, AccountingLookupApi } from "@/lib/api";
 import { Plus } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
@@ -9,6 +10,7 @@ import { AccountCustomer, branchDefaults, invoiceAmounts, invoiceDefaults, invoi
 import { AccountingSearchParams, invoiceTabs, selectedTab } from "@/lib/accounting-navigation";
 import { DateInput } from "@/components/date-input";
 import { formatAccountingDate } from "@/lib/accounting-date";
+import { DeliveryOrders } from "@/components/delivery-orders";
 
 type InvoiceRow = {
   id: string; ivNo?: string; soNo?: string; biNo?: string; customer?: { name: string };
@@ -28,6 +30,13 @@ const emptyForm = (): InvoiceForm => ({
 });
 
 export default function InvoicesPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
+  const query = useSearchParams();
+  const tab = query.get("tab") ?? searchParams.tab;
+  if (selectedTab(invoiceTabs, tab) === "so") return <DeliveryOrders />;
+  return <InvoiceDocumentsPage searchParams={{ tab }} />;
+}
+
+function InvoiceDocumentsPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "ar", "create");
   const [errorMsg, setErrorMsg] = useState("");
   const activeSubTab = selectedTab(invoiceTabs, searchParams.tab);
@@ -48,9 +57,6 @@ export default function InvoicesPage({ searchParams = {} }: { searchParams?: Acc
     try {
       if (activeSubTab === "invoices") {
         const res = await ArApi.getInvoices();
-        setList(Array.isArray(res) ? res : res.items || []);
-      } else if (activeSubTab === "so") {
-        const res = await ArApi.getDeliveryOrders();
         setList(Array.isArray(res) ? res : res.items || []);
       } else if (activeSubTab === "billingNotes") {
         const res = await ArApi.getBillingNotes();
@@ -85,7 +91,6 @@ export default function InvoicesPage({ searchParams = {} }: { searchParams?: Acc
       };
 
       if (activeSubTab === "invoices") await ArApi.createInvoice(payload);
-      else if (activeSubTab === "so") await ArApi.createDeliveryOrder(payload);
 
       setShowModal(false);
       setFormData(emptyForm());

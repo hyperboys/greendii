@@ -16,7 +16,7 @@ router.get('/me', async (req, res, next) => {
 const LOOKUPS = {
   customers: { model: 'accountCustomer', modules: ['ar'] },
   suppliers: { model: 'supplier', modules: ['ap'] },
-  products: { model: 'accountProduct', modules: ['inventory'] },
+  products: { model: 'accountProduct', modules: ['inventory', 'ar'] },
   warehouses: { model: 'warehouse', modules: ['inventory'] },
 };
 
@@ -42,7 +42,9 @@ router.get('/lookups/:kind', async (req, res, next) => {
               vatConfig: true, paymentTerm: true, supplierType: true,
             },
           }
-          : { select: { id: true, code: true, name: true } }),
+          : req.params.kind === 'products'
+            ? { select: { id: true, code: true, name: true, unit: true, productType: true, price: true } }
+            : { select: { id: true, code: true, name: true } }),
       orderBy: { name: 'asc' },
     }));
   } catch (error) { next(error); }

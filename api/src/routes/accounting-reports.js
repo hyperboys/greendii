@@ -120,8 +120,8 @@ router.get('/recon/delivery-to-invoice', authenticate, async (req, res, next) =>
       docDate: so.docDate,
       customerName: so.customer ? so.customer.name : 'N/A',
       status: so.status,
-      linkedInvoices: so.invoices.map(i => i.ivNo),
-      isInvoiced: so.invoices.length > 0,
+      linkedInvoices: so.invoices.filter(i => i.status !== 'cancelled').map(i => i.ivNo),
+      isInvoiced: so.invoices.some(i => i.status !== 'cancelled' && (i.lifecycleVersion !== 1 || i.status === 'approved')),
     }));
 
     res.json({ rows });
