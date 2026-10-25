@@ -8,7 +8,7 @@
 
 **Accounting ยังไม่ครบตาม spec และยังไม่ควรถือว่าทุกเมนูพร้อมทำธุรกรรมเงินจริง/Stock จริง**
 
-- Customer, Sale บัญชี และ Supplier มีหน้าจัดการที่เป็นรูปเป็นร่างกว่าส่วนอื่น แต่ Supplier ยังไม่รองรับหลายสาขาและหลายบัญชีธนาคารแบบเป็นรายการ
+- ข้อมูลหลักครบ 6 กลุ่มตาม scope ที่ยืนยันรอบ 1.8: หน้าแยก/ค้นหา/กรอง/แบ่งหน้า/CSV/ประวัติ/active และลบเมื่อไม่เคยใช้งาน; Supplier เพิ่มหลายสาขา/หลายบัญชีแล้ว ยังรอ SQL และ UAT ฐานข้อมูลจริง
 - SO Draft และ Invoice ปรับเป็นหน้าแยกหลายรายการแล้ว; Invoice ใหม่มี Draft → ยืนยันตั้งหนี้ → ยกเลิกแบบมีเงื่อนไข ดูหัวข้อ 1.1–1.4 ยังรอ rollout/UAT จริง ไม่ใช่ AR ครบทุก Process
 - ใบวางบิล BI ปรับเป็นหน้าแยกหลาย Invoice/ยอดบางส่วน พร้อม Draft → ยืนยัน/ยกเลิก/พิมพ์กรอบลงกระดาษเปล่าตามตัวอย่างแล้ว ดูหัวข้อ 1.5; ยังรอ SQL และ UAT ฐานข้อมูล/เครื่องพิมพ์จริง
 - ใบลดหนี้ CN มีเมนู/หน้าแยกหลายรายการ Draft/ยืนยัน/ยกเลิกคืนยอดและพิมพ์ตาม PDF แล้วตาม 1.7; ใบเบิกจ่ายผู้รับเหมา PS และใบคืนสินค้ายังไม่มีเมนูจัดการเฉพาะ
@@ -206,6 +206,46 @@ Rollout: backup/review/apply prerequisite SO/IV/BI/RV SQL แล้ว [accounti
 
 ยังค้าง: UAT ฐานข้อมูล PostgreSQL จริง/คำขอพร้อมกันจริง/เครื่องพิมพ์ A4 100% ปิด browser headers-footers, refunds/credit balance/คืนสินค้า/GL/approval หลายขั้น/ไฟล์แนบ CN/notification/as-of และ Legacy conversion ไม่อยู่ในรอบนี้ **Process ถัดไปที่เสนอ: PS ใบเบิกจ่ายผู้รับเหมา ตาม Q-10** หรือ GR หากต้องการเดินสายสินค้า โดยต้องยืนยัน policy ก่อน
 
+### 1.8 ข้อมูลหลักครบ 6 กลุ่มตามขอบเขตที่ยืนยัน (25/10/2026)
+
+**ผู้ใช้ยืนยันขอบเขตและกติกาครบทั้ง 6 กลุ่มแล้ว; เป็น implementation ตาม scope ไม่ใช่ sign-off ฐานข้อมูลจริง**
+
+ขอบเขตที่ตกลง:
+
+1. ลูกค้า, Sale บัญชี, Supplier/ผู้รับเหมา, สินค้าและบริการ, คลัง และผังบัญชี มีทะเบียนค้นหา/กรองสถานะ/แบ่งหน้า 20 รายการ หน้าแยกเพิ่ม/ดู/แก้ CSV ของข้อมูลที่ผ่านตัวกรองทั้งหมด (ไม่ใช่เฉพาะหน้าปัจจุบัน) และประวัติราย record
+2. รหัส/ชื่อบังคับ รหัสห้ามซ้ำ; Tax ID ไม่บังคับ แต่ในประเทศถ้าระบุต้องเป็นตัวเลข 13 หลัก; Tax ID ซ้ำเป็นคำเตือน ไม่ห้ามบริษัท/ต่างสาขาใช้ซ้ำ; Supplier overseas ไม่บังคับรูปแบบ 13 หลัก
+3. Supplier ใช้รหัสระดับบริษัท มีหลายสาขา แต่ละสาขามีที่อยู่ติดต่อ/วางบิล/ผู้ติดต่อ/โทรศัพท์/แฟกซ์/อีเมล และหลายบัญชีธนาคาร เลือกสาขาเริ่มต้นหนึ่งแห่งและบัญชีเริ่มต้นหนึ่งบัญชีต่อสาขาที่มีธนาคาร
+4. ลูกค้ายังคงหลายสาขา/หลายที่อยู่/ผู้ดูแลหลักและรอง/VAT/credit term เดิม; Sale บัญชียังแยกจากบัญชีผู้ใช้ Sales
+5. สินค้ามีรหัส ชื่อ stored/manufactured/service หน่วย หมวดหมู่ VAT ราคาขาย ต้นทุนอ้างอิง รายละเอียด active; แก้ราคา/ต้นทุนไม่ปรับยอดหรือมูลค่า Stock และไม่ให้เปลี่ยนประเภทสินค้าที่เคยใช้แล้ว
+6. คลังมีรหัส ชื่อ ที่ตั้ง รายละเอียด active; ผังบัญชีมีหมวด asset/liability/equity/revenue/expense, header/detail, mapping AR/AP/SALES/CASH/BANK/VAT_INPUT/VAT_OUTPUT และ active; บัญชีหัวห้าม mapping แต่ยังไม่มี GL posting/ปิดงวด
+7. ใช้สิทธิ์ Master เดิม: view/create/update/delete; ปิดใช้งานผ่านหน้าแก้ไข ลบถาวรใช้ delete และอนุญาตเฉพาะข้อมูลไม่มีรายการอ้างอิง; มีการยืนยันก่อนลบและ API ตรวจซ้ำ ไม่ลบเอกสารธุรกิจตาม
+
+สิ่งที่ทำ:
+
+- แทนฟอร์มย่อ/Popup ของสินค้า คลัง ผังบัญชี และ Sale ด้วยหน้าแยก; ลูกค้า/Supplier เพิ่มแบ่งหน้า/CSV/history; sidebar highlight หน้ารายละเอียดของทุกกลุ่ม
+- API validate แบบ whitelist, ราคา/ต้นทุนไม่ติดลบและไม่เกิน Decimal(12,2), เงื่อนไขวันเป็นจำนวนเต็ม, ตรวจ enum/active/email/Tax ID และคืน error ชัดเจน
+- ทุก write มี transactional audit; ใช้ Serializable/row lock/revision กับข้อมูลเดิม, ตรวจความสัมพันธ์ก่อนลบ; ประวัติมีผู้ทำ เวลา action และข้อมูลก่อน/หลัง แบ่งหน้าได้; ข้อมูลเก่าไม่มีการสร้างประวัติย้อนหลังปลอม
+- Lookup ของเอกสารใหม่ส่งเฉพาะ active และเพิ่ม API guards ฝั่ง PO/PS/GR/PV/เบิก/คืนสำหรับ master ที่อ้างอิง; Sale ที่ปิดแล้วไม่เป็น default ผู้ดูแลบน Invoice ใหม่
+- PO ใช้สาขาเริ่มต้นของ Supplier และเลือกสาขาอื่นจากรายการได้; บันทึกชื่อ/รหัส/Tax ID/โทรศัพท์เป็น supplierSnapshot เพื่อไม่ให้แก้ master แล้วแบบพิมพ์ PO เปลี่ยนตาม; address/contact/branch เดิมเป็นข้อมูลบน PO อยู่แล้ว
+- เพิ่ม [accounting-master-data.sql](../../api/scripts/sql/accounting-master-data.sql): ตาราง supplier_branches/supplier_banks, description คลัง และ supplierSnapshot PO; seed สาขา/บัญชีจาก scalar เดิมเฉพาะที่ยังไม่มี และเติม snapshot เฉพาะ PO ที่ยังไม่มี ไม่เปลี่ยนยอด Stock/หนี้/สถานะธุรกิจ
+
+หลักฐาน:
+
+- API suite **65/65**, UI suite **54/54**, production build/type-check, focused ESLint และ Prisma validate ผ่าน
+- Browser ใช้ UI จริง + Express/auth/router/validators จริงกับ transactional in-memory Prisma substitute: ครบทั้ง 6 กลุ่ม create/reopen/edit/view/history/search, แบ่ง 26 รายการเป็น 20+6, CSV/สิทธิ์ viewer, Supplier 2 สาขา/default/ธนาคาร/เตือน Tax ID ซ้ำ ผ่าน 133 HTTP requests ไม่มี page error
+- แบบฟอร์มผ่านความกว้าง 320/390/768/1024/1440 โดยไม่มี page overflow; ไม่ใช่ผลทดสอบ PostgreSQL/concurrency จริง
+
+Rollout และข้อจำกัด:
+
+- **ยังไม่ได้ apply SQL กับฐานข้อมูลร่วม**; สำรองข้อมูล ตรวจ prerequisite ของ Accounting เดิม และ review/run script ก่อนใช้งาน
+- `prisma generate` รอบนี้ติด Windows `EPERM` เพราะ query engine DLL ถูก process อื่นใช้งาน ไม่ได้หยุด API ของผู้ใช้เอง: ผู้ดูแลต้องหยุด API → `cd api` → `npx prisma generate` → เปิด API ใหม่ แล้ว deploy UI ให้ตรงกัน
+- การเติม PO snapshot เก่าแช่ค่าที่มีอยู่ ณ rollout เท่านั้น ไม่สามารถกู้ชื่อ/Tax ID เดิมก่อน master ถูกแก้ในอดีตได้; ข้อมูลเก่าที่ format ไม่ตรงต้องแก้ก่อนบันทึกใหม่ ไม่มีการล้าง/แก้ Tax ID อัตโนมัติ
+- CSV เก็บสาขา/ธนาคาร/ที่อยู่ซ้อนเป็น JSON ในเซลล์ เก็บเลขบัญชีเป็นข้อความ มี BOM/escape และป้องกัน formula; ใช้ master.view เดิม ไม่เพิ่มสิทธิ์ export แยกในรอบนี้
+- ยังไม่รวมตำแหน่งย่อยคลัง ยอดยกมา โอนคลัง Stock ต่ำ valuation, GL/ปิดงวด, notification, reports เชิงบัญชี, สิทธิ์แยกแต่ละ master หรือ workflow อนุมัติ; สิ่งเหล่านี้เป็น Process ถัดไป ไม่ใช่ความสามารถที่ทำแล้ว
+- รอ target DB rollout/ข้อมูลจริง/การทำพร้อมกัน UAT; PO และ AR เดิมยังต้อง UAT ตาม 1.1–1.7
+
+Process ถัดไปเสนอ **PS ตาม Q-10** หรือ UAT สาย AR/ข้อมูลหลักก่อนเริ่มฝั่งจ่าย
+
 ## 2. Scope Baseline และวิธีตรวจ
 
 ### 2.1 แหล่งข้อกำหนด
@@ -246,12 +286,12 @@ Rollout: backup/review/apply prerequisite SO/IV/BI/RV SQL แล้ว [accounti
 | เมนู / งาน | สิ่งที่มีแล้ว | ยังขาด / ผลต่อผู้ใช้ | สถานะ |
 |---|---|---|---|
 | Dashboard | การ์ดและกราฟ UI, ลิงก์ตามสิทธิ์ | ยอด 0, กราฟและจำนวนงานเป็นข้อมูลกำหนดไว้ ไม่ได้คำนวณจากเอกสาร; รอบบัญชีใน header ยังเป็นข้อความคงที่ | ตัวอย่างหน้าจอ |
-| ลูกค้า | แยกจาก Sales, ค้นหา, สร้าง/ดู/แก้หน้าแยก, หลายสาขา/ที่อยู่, Sale, VAT, credit term, active, เตือน Tax ID ซ้ำ | ทะเบียนรายงาน/Export/ประวัติยังไม่มีใน UI; ต้องยืนยันนโยบายข้อมูลซ้ำและ field บังคับ | ทำแล้วส่วนหลัก แต่ยังไม่ครบทุกมิติ |
-| Sale บัญชี | ทะเบียนอิสระ, เพิ่ม/แก้/active, ผูกลูกค้า | ยังไม่มีรายงาน/ประวัติเฉพาะ; ต้องยืนยันสิทธิ์การมอบหมายลูกค้า | ทำบางส่วน |
-| Supplier / ผู้รับเหมา | ค้นหา, หน้าเพิ่ม/ดู/แก้, active, VAT, term, ข้อมูลติดต่อและธนาคาร | สาขาเดียวใน record, ที่อยู่ทั่วไป/วางบิลเป็นข้อความ, บัญชีธนาคารหนึ่งชุด; ไม่ใช่หลายสาขา/หลายบัญชีตาม spec | ทำบางส่วน |
-| สินค้าและบริการ | รายการและเพิ่มรหัส/ชื่อ/ประเภท/ราคา; API มีข้อมูลเพิ่มเติม | UI ขาดหน่วย, category, VAT, cost, description, edit/detail/active และการค้นหา/filter ที่ครบ | ฟอร์มย่อ |
-| คลังสินค้า | รายการและเพิ่ม code/name; API มี location และ CRUD | UI ไม่ให้จัดการ location/edit/active; ยังไม่มีตำแหน่งย่อยหรือการตั้งค่าสต็อกต่ำ | ฟอร์มย่อ |
-| ผังบัญชี | รายการ, เพิ่ม code/name/category; API มี accountType/accountMapping | UI ยังไม่จัดการชนิด header/detail, mapping, edit/active; ไม่พบ GL posting จากธุรกรรม Accounting ที่ตรวจ | ทำบางส่วน |
+| ลูกค้า | หน้าแยก/หลายสาขา/ที่อยู่/Sale หลัก-รอง/VAT/term/active/Tax ID warning/แบ่งหน้า/CSV/history/guarded delete | รอ DB UAT; รายงานธุรกิจ/สิทธิ์แยกกลุ่มอยู่นอก scope | Implemented agreed scope ตาม 1.8 |
+| Sale บัญชี | ทะเบียนอิสระ หน้าแยกเพิ่ม/ดู/แก้/active/ค้นหา/แบ่งหน้า/CSV/history/guarded delete | ไม่ใช่ผู้ใช้ Sales; รอ DB UAT | Implemented agreed scope ตาม 1.8 |
+| Supplier / ผู้รับเหมา | หลายสาขา/หลายธนาคาร/default/ที่อยู่/เครดิต/VAT/active/หน้าแยก/CSV/history/guarded delete; PO snapshot | รอ SQL/generate/DB UAT; ข้อมูลเก่าผิดรูปแบบต้องตรวจแก้ | Implemented agreed scope ตาม 1.8 |
+| สินค้าและบริการ | หน้าแยกเพิ่ม/ดู/แก้ หน่วย/category/VAT/type/price/cost/description/active ค้นหา/กรอง/แบ่งหน้า/CSV/history/guarded delete | ไม่ลง Stock/valuation; ไม่เปลี่ยนประเภทที่ใช้แล้ว; รอ DB UAT | Implemented agreed scope ตาม 1.8 |
+| คลังสินค้า | หน้าแยก code/name/location/description/active ค้นหา/กรอง/แบ่งหน้า/CSV/history/guarded delete | ไม่รวมตำแหน่งย่อย/ยอดยกมา/โอน/Stock ต่ำ; รอ SQL/DB UAT | Implemented agreed scope ตาม 1.8 |
+| ผังบัญชี | หน้าแยก code/name/category/header-detail/mapping/active ค้นหา/กรอง/แบ่งหน้า/CSV/history/delete | ทะเบียนเท่านั้น ไม่ลง GL/สมุดรายวัน/ปิดงวด; รอ DB UAT | Implemented agreed scope ตาม 1.8 |
 | ใบส่งของชั่วคราว SO | หน้าแยก Draft หลายรายการ, ค้นหาลูกค้า/WO, ตารางย่อ, ดู/แก้/พิมพ์/ยกเลิก/history; ดึงทั้งใบไป Invoice ได้ | ยังไม่เปิดยืนยัน/ตัด Stock ตาม scope; ไม่ทำ partial Invoice; UAT DB จริงยังค้าง | ทำแล้วระยะ Draft ดูหัวข้อ 1.1–1.4 |
 | Invoice IV | หน้าแยก list/new/edit/view/history, หลายรายการ/ส่วนลด/VAT, คัดลอก SO ทั้งใบและกันซ้ำ, Draft/ยืนยันตั้งหนี้/ยกเลิกแบบมีเงื่อนไข, พิมพ์ข้อมูลทับแบบฟอร์ม | รอ SQL/UAT/เครื่องพิมพ์จริง; Legacy ไม่ย้ายอัตโนมัติ; ยังไม่มีไฟล์แนบ/approval หลายขั้น/WO selector อิสระ/partial SO | ทำแล้วตาม scope รอบนี้ ดู 1.4 ไม่ใช่ AR ครบ |
 | ใบวางบิล BI | หน้าแยกหลาย Invoice/partial, Draft/ยืนยัน/ยกเลิก/history/print; รับผ่าน RV ครบส่วนแล้วปิด-ปล่อยยอดเหลือ, reversal เปิดกลับพร้อม guard | รอ SQL/DB/concurrency/เครื่องพิมพ์ UAT; Legacy อ่านอย่างเดียว; CN และ GL แยก scope | ทำแล้วตาม 1.5–1.6 |
@@ -301,11 +341,11 @@ Rollout: backup/review/apply prerequisite SO/IV/BI/RV SQL แล้ว [accounti
 - **Approval:** [approvalEngine.js](../../api/src/lib/approvalEngine.js) และ [pending approvals](../../api/src/routes/approvals.js) รองรับเอกสาร Sales เป็นหลัก (quotation/workOrder/handover/pr); ไม่ใช่สายอนุมัติ PS/PV/Stock ที่พร้อมใช้กับ Accounting แล้ว
 - **สิทธิ์:** [accountingAccess.js](../../api/src/lib/accountingAccess.js) เปิด ar=view/create, ap=view/create/update, inventory=view/create, master=CRUD, reports=view; ยังไม่พอสำหรับสิทธิ์ตาม action ใน spec
 - **สิทธิ์รายงาน:** Aging เรียก assertActionAuthorized(..., export) ของ [legacy policy](../../api/src/lib/authorizationPolicy.js) เพิ่มด้วย ผู้มี reports.view ใน Accounting อย่างเดียวจึงอาจยังถูกปฏิเสธ ต้องทำ policy ให้สอดคล้องกันโดยไม่ไปเปลี่ยน role ระบบ Sales
-- **Audit:** หลาย create เขียน recordAuditLog แล้ว และมี [domain logs API](../../api/src/routes/audit.js) แต่ Accounting ไม่มีหน้า timeline/history และยังไม่มีทุก action ตาม spec; Product/Warehouse/COA routes ที่ตรวจยังไม่ได้เรียก audit helper ใน write handlers
+- **Audit:** AR ตาม 1.4–1.7 และข้อมูลหลักทั้ง 6 กลุ่มตาม 1.8 มีประวัติราย record แล้ว; Product/Warehouse/COA writes มี transactional audit แล้ว แต่ยังไม่มี Accounting history กลาง/เหตุการณ์ทุก action ของ AP/คลังตาม spec
 - **Notification:** มี [API เดิม](../../api/src/routes/notifications.js) แต่ไม่พบ Accounting UI inbox และการสร้าง event ใกล้ครบกำหนด/Stock ต่ำ/PS/PV รออนุมัติใน flow ที่ตรวจ
 - **Cancel/Reversal:** AR/AP/Inventory routes ที่ตรวจยังไม่มี cancellation ที่คืน outstanding/Stock/payment allocation ครบ ไม่ใช่แค่เพิ่มปุ่มเปลี่ยน status
 - **Print/Export:** ตอนนี้พบแบบพิมพ์ PO ใน Accounting; ยังไม่พบแบบพิมพ์ IV/SO/BI/CN/RV/PS/GR/PV/เช็ค/เบิก/คืน และ export รายงานใน UI
-- **ข้อมูลหลัก/เอกสารย้อนหลัง:** PO อ่านชื่อ/Tax ID/โทรศัพท์จาก Supplier relation ปัจจุบัน ไม่ใช่ snapshot ทั้งหมด ต้องตกลงว่าการแก้ master ภายหลังควรเปลี่ยนเอกสารเก่าหรือไม่
+- **ข้อมูลหลัก/เอกสารย้อนหลัง:** PO ใช้ supplierSnapshot แล้วตาม 1.8; rollout เติมเฉพาะ snapshot ที่ว่างด้วยค่าปัจจุบัน ส่วนการกู้ข้อมูลก่อน master ถูกแก้ในอดีตและเอกสาร AP ชนิดอื่นต้องตรวจใน Process นั้น
 - **Schema rollout:** เคยพบ Attachment.purchaseOrderId ไม่ตรง SQL purchase_order_id และแก้ mapping ใน schema แล้ว แต่ยังต้อง verify generate/restart/DB เป้าหมาย ไม่ถือว่ารัน script แล้วทุก environment ตรงกัน
 - **ข้อความ error:** ภาพ error ล่าสุดแสดง Prisma invocation และ path ของ server ให้ผู้ใช้เห็น; ต้องจัด user-facing error และเก็บรายละเอียดสำหรับผู้ดูแลอย่างเหมาะสม
 
@@ -313,7 +353,7 @@ Rollout: backup/review/apply prerequisite SO/IV/BI/RV SQL แล้ว [accounti
 
 | กลุ่ม | สิ่งที่มี | งานค้าง |
 |---|---|---|
-| Master | หน้ารายการ CRUD บางส่วน | รายงานข้อมูลซ้ำ/ไม่ครบ, mapping, export ทะเบียน |
+| Master | หน้าแยก CRUD/active/ค้นหา/แบ่งหน้า/CSV/history ครบ 6 กลุ่มตาม 1.8 | รายงานคุณภาพข้อมูล/ความครบถ้วนและรายงานธุรกิจเพิ่มเติมยังแยก scope; รอ target DB UAT |
 | AR | AR Aging เบื้องต้น | Invoice/Billing/CN/RV registers, outstanding/overdue ที่ตรง effective state, Customer Statement |
 | AP | AP Aging เบื้องต้น | PO register, PR-PO reference/outstanding ตาม scope ใหม่, GR status, PV report, ภาษี, cheque register |
 | Inventory | Balance/Movement tables | Stock Card แบบยอดต่อเนื่อง, Low/Out of Stock, Issue/Return, Stock by WO, Valuation |
@@ -329,11 +369,11 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | ID | ข้อกำหนด/ผลลัพธ์ที่ต้องได้ | มีแล้ว → ช่องว่าง | ตำแหน่งที่เกี่ยวข้อง | Test / เกณฑ์พิสูจน์ | สถานะ |
 |---|---|---|---|---|---|
 | REQ-001 | Dashboard ใช้ยอดจริงตามสิทธิ์ | UI ตัวอย่าง → query และนิยามยอด | dashboard/page.tsx; reports API | ยอดตรงชุดเอกสารตัวอย่างและสถานะ | Blocked Q-18 |
-| REQ-002 | Customer/Sale ครบข้อมูลที่ยืนยัน | CRUD/หลายสาขามี → reports/history/policy duplicate | customer-master.tsx; account-customers/account-sales API | บันทึก-เปิดใหม่คงทุกสาขา/ที่อยู่, active และ duplicate | In Progress |
-| REQ-003 | Supplier หลายสาขา/ที่อยู่/ธนาคาร | scalar ชุดเดียว → entities/form/snapshot | supplier-master.tsx; suppliers.js; schema | ผู้ขาย 2 สาขา 2 บัญชีเลือกบนเอกสารได้ | Blocked Q-02 |
-| REQ-004 | Product จัดการ field และสถานะครบ | API CRUD → UI เต็มและ validation | master/page.tsx; account-products.js | บันทึก unit/category/VAT/type แล้วเปิดแก้ไม่หาย | In Progress |
-| REQ-005 | Warehouse จัดการ location/active | API CRUD → UI เต็ม | master/page.tsx; warehouses.js | ปิดคลังแล้วไม่เลือกสร้างใหม่; ประวัติยังอ่านได้ | In Progress |
-| REQ-006 | COA จัดการ accountType/mapping | API field → UI/validation/กติกา mapping | master/page.tsx; chart-of-accounts.js | mapping ที่ยืนยันบันทึกและอ่านกลับได้ | Blocked Q-19 |
+| REQ-002 | Customer/Sale ครบข้อมูลที่ยืนยัน | หน้าแยก/หลายสาขา/active/duplicate policy/CSV/history/guarded delete ทำแล้ว | customer-master.tsx; simple-master.tsx; account-customers/account-sales API | HTTP/browser save/reopen/edit/CSV/permissions ผ่าน | Implemented agreed scope ตาม 1.8; รอ DB UAT |
+| REQ-003 | Supplier หลายสาขา/ที่อยู่/ธนาคาร | entities/default/form/PO snapshot/CSV/history ทำแล้ว | supplier-master.tsx; supplier-branches.tsx; suppliers.js; accountingMaster.js; schema | หลายสาขา/ธนาคาร/default/PO identity ผ่าน HTTP/browser; SQL ยังไม่ apply | Implemented agreed scope ตาม 1.8; รอ DB UAT |
+| REQ-004 | Product จัดการ field และสถานะครบ | UI เต็ม/validation/CSV/history/active/guarded delete ทำแล้ว | simple-master.tsx; account-products.js; accountingMaster.js | unit/category/VAT/type/price/cost เปิดแก้ไม่หาย/readonly ผ่าน | Implemented agreed scope ตาม 1.8; รอ DB UAT |
+| REQ-005 | Warehouse จัดการ location/active | UI เต็ม/description/CSV/history/active/guarded delete ทำแล้ว | simple-master.tsx; warehouses.js; accountingMaster.js | HTTP/browser/lookup guard ผ่าน; ไม่เปลี่ยน Stock | Implemented agreed scope ตาม 1.8; รอ DB UAT |
+| REQ-006 | COA จัดการ accountType/mapping | UI/validation/ทะเบียน mapping ทำแล้ว ไม่ลง GL | simple-master.tsx; chart-of-accounts.js; accountingMaster.js | หมวด/header-detail/mapping/readonly ผ่าน HTTP/browser | Implemented registry scope ตาม 1.8; GL แยกภายหลัง |
 | REQ-007 | SO หลายรายการและต้นทางที่เลือกได้ | Draft form/detail/edit/print/cancel และ Invoice full-copy ทำแล้ว; SO confirm/Stock ไม่อยู่ในระยะนี้ | delivery-orders.tsx; delivery-orders.js; invoice.js | Draft และคัดลอก SO ทั้งใบ/กัน IV ซ้ำ ผ่าน mock tests; ไม่ทำ partial | Implemented agreed scope; รอ DB UAT |
 | REQ-008 | IV ครบ header/lines/references | หน้าแยก/หลายรายการ/SO/PO ลูกค้า/discount/confirm/cancel/data-only print ทำแล้ว; attachments/WO อิสระยังค้าง | invoices.tsx; invoices.js; schema | ดึง SO/คำนวณใหม่/กันซ้ำ/พิมพ์หลายหน้า ผ่าน tests; รอเครื่องพิมพ์จริง | Implemented current scope; remaining backlog |
 | REQ-009 | ยอด Invoice คำนวณจากข้อมูลที่ตรวจแล้ว | API authoritative; Draft=0/confirm ตั้งหนี้/guard ปลายทางทำแล้ว; Legacy คงเดิม | invoice.js; invoices.js; ar.js | forged totals ถูกแทนด้วยยอดคำนวณจริง ยืนยันซ้ำไม่เพิ่มหนี้ และ Draft ใหม่ใช้ต่อไม่ได้ | Implemented; รอ DB/concurrency UAT |
@@ -366,8 +406,8 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q | เรื่อง | ข้อมูล/คำตอบที่ต้องการ | ใช้กับงาน |
 |---|---|---|---|
 | Q-01 | สายอนุมัติและสิทธิ์ | PS/PV/เบิก/คืนใช้กี่ขั้น, ใคร, วงเงิน/แผนก/ประเภท, แทนกันได้ไหม, สิทธิ์ submit/reject/return/cancel และคนเดียวสร้าง-อนุมัติได้หรือไม่ | REQ-020/021 และเอกสารที่มี approval |
-| Q-02 | Supplier หลายสาขา | code ต่อบริษัทหรือสาขา, สาขา default, ที่อยู่แต่ละประเภท, บัญชีธนาคารหลายบัญชีและบัญชี default; ธุรกรรมเก่าต้องคง snapshot ใด | REQ-003 |
-| Q-03 | Master quality | Tax ID ซ้ำเตือนหรือห้ามตามประเภท/สาขา; field บังคับ, หน่วย/หมวดหมู่สินค้า, ต้องเก็บจำนวนทศนิยมในเอกสารอื่นหรือไม่ (PO ยืนยันจำนวนเต็มแล้ว) | REQ-002/004/005 |
+| Q-02 | Supplier หลายสาขา — ตอบแล้ว 1.8 | code ระดับบริษัท, หลายสาขา/ที่อยู่ติดต่อ-วางบิล, หลายธนาคาร/default; PO snapshot/คงข้อมูลเก่า ไม่เปลี่ยนยอดย้อนหลัง | REQ-003 |
+| Q-03 | Master quality — ตอบแล้ว scope 1.8 | รหัส/ชื่อบังคับ/รหัส unique; Tax ID optional ถ้าในประเทศต้อง 13 หลัก ซ้ำเตือน; หน่วย/หมวด/ราคา/ต้นทุน/VAT/type/active; quantity เอกสารคลังยังรอ Process นั้น | REQ-002/004/005 |
 | Q-04 | สูตร Invoice — ตอบแล้วรอบ 1.4 | ราคาไม่รวม VAT, ส่วนลดรายการและท้ายเอกสารเป็นบาท, ปัด 2 ตำแหน่ง; ar.create แก้ Draft แบบไม่ผูก SO ได้, แบบดึง SO คงสูตรต้นทาง | REQ-008/009 |
 | Q-05 | สถานะที่ตั้งหนี้ — ตอบแล้วสำหรับ Invoice ใหม่ | Draft ไม่มีหนี้/ใช้ BI/RV/CN ไม่ได้; ar.create ยืนยันแล้วตั้งหนี้; ยืนยันห้ามแก้; ยกเลิกต้องเหตุผลและไม่มี BI/RV/CN active ไม่รวมการย้าย Legacy/reversal | REQ-007/009/022/024 |
 | Q-06 | SO → IV และ BI ตอบแล้ว | SO full-copy ตาม 1.4; BI partial/ไม่ซ้ำ active รวม Draft/Legacy; RV รับครบส่วนแล้วปิด-ปล่อยยอดเหลือและเปิดกลับเมื่อกลับ RV โดยไม่มี BI ใหม่ ตาม 1.6 | REQ-007/008/010 |
@@ -383,8 +423,8 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q-16 | รายงานบัญชี | Aging bucket/วันฐาน/หนี้เริ่มจากเอกสารใด, as-of แบบย้อนหลัง, เลือกชุดรายงานเร่งด่วน, tax format, Excel/CSV/PDF, วิธี reconcile และเกณฑ์ปิดหนี้ | REQ-024/025 |
 | Q-17 | ประวัติ/แจ้งเตือน | ใครดูข้อมูลเดิม/ธนาคาร/Export ได้, แจ้งในระบบหรืออีเมล, ผู้รับและกำหนดเวลา/stock threshold, วิธี retry และไม่แจ้งซ้ำ | REQ-021/023 |
 | Q-18 | Dashboard | ยอดค้าง/ใกล้ครบกำหนด/งานรอทำคิดจากสถานะใด, cash flow ใช้รับจ่ายจริงหรือคาดการณ์, รอบบัญชีเริ่มวันใด | REQ-001 |
-| Q-19 | ผังบัญชี/GL | ต้องแค่ทะเบียนรหัสและ mapping หรือรวมสมุดรายวัน/ลงบัญชี/ปิดงวด; ใครรับรอง mapping และ posting rule | REQ-006 |
-| Q-20 | UX เมนูอื่น | ยืนยันและทำหน้าแยกสำหรับ PO/SO/IV/BI/RV/CN แล้ว; เบิก/สินค้า/คลัง/COA รอยืนยันใน Process นั้น | ทุก UI ถัดไป |
+| Q-19 | ผังบัญชี/GL — ตอบแล้วทะเบียน 1.8 | code/name/category/header-detail/mapping ตามชนิดเดิม/active; ไม่ลง GL/ปิดงวด; posting rule ต้องยืนยันแยกก่อนทำ | REQ-006 |
+| Q-20 | UX เมนูอื่น | PO/SO/IV/BI/RV/CN และข้อมูลหลักทั้ง 6 กลุ่มทำหน้าแยกแล้ว; เบิก/คืนและ AP ที่เหลือรอยืนยันใน Process นั้น | ทุก UI ถัดไป |
 | Q-21 | ต่างประเทศ | สกุลเงิน/อัตราแลกเปลี่ยน/วันที่ใช้ rate/ภาษีและยอดฐาน THB; ไม่อนุมานจากการเลือก overseas อย่างเดียว | PO/PS/PV/รายงานอนาคต |
 
 ## 8. User Scenarios & Testing
@@ -425,7 +465,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 
 ## 10. Recommended Implementation Order
 
-สถานะหลังรอบ 1.7: SO/Invoice/BI/RV/CN ทำแล้วตาม scope และคำตอบ Q-04/Q-05/Q-06/Q-07/Q-08; ยังรอ rollout/DB/printer UAT ไม่ใช่ sign-off ทั้งระบบ **เสนอ PS เป็น Process ถัดไปตาม Q-10** หรือ GR ตาม Q-11 หากเดินสายสินค้า ไม่ต้องตอบคำถามที่ปิดแล้วซ้ำ ลำดับด้านล่างเป็นแผนภาพรวมจากการวิเคราะห์เดิม ไม่ใช่สถานะล่าสุดของ F-01 ที่แก้แล้ว
+สถานะหลังรอบ 1.8: SO/Invoice/BI/RV/CN และข้อมูลหลักทั้ง 6 กลุ่มทำแล้วตาม scope/คำตอบที่ยืนยัน; ยังรอ rollout/generate/DB/printer UAT ไม่ใช่ sign-off ทั้งระบบ **เสนอ PS เป็น Process ถัดไปตาม Q-10** หรือ GR ตาม Q-11 หากเดินสายสินค้า ไม่ต้องตอบคำถามที่ปิดแล้วซ้ำ ลำดับด้านล่างเป็นแผนภาพรวมจากการวิเคราะห์เดิม ไม่ใช่สถานะล่าสุดของรายการที่แก้แล้ว
 
 1. **แก้สิ่งที่ชวนเข้าใจผิดก่อน:** BI save ไม่ทำงาน, SO date field, ป้ายสถานะ prototype ของ Dashboard/AP Aging และ user-facing error
 2. **ยืนยัน flow ที่มีผลต่อยอด:** Q-01, Q-04/05, Q-08, Q-11/12/13, Q-15/16 ก่อนลง posting จริง

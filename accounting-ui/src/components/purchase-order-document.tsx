@@ -45,6 +45,7 @@ export function PurchaseOrderDocumentView({
   const discount = Number(document.discount || 0);
   const taxableAmount = subtotal - discount;
   const signature = document.createdBy?.signatureUrl;
+  const supplier = document.supplierSnapshot ?? document.supplier;
 
   return (
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-6 text-[12px] leading-5 text-black sm:p-8">
@@ -65,11 +66,11 @@ export function PurchaseOrderDocumentView({
 
       <section className="mt-3 grid grid-cols-2 gap-2">
         <div className="min-h-24 rounded border border-blue-700 p-2">
-          <p><strong>รหัสผู้ขาย</strong>　{document.supplier?.code || "-"}</p>
-          <p><strong>ชื่อผู้ขาย</strong>　{document.supplier?.name || "-"}</p>
+          <p><strong>รหัสผู้ขาย</strong>　{supplier?.code || "-"}</p>
+          <p><strong>ชื่อผู้ขาย</strong>　{supplier?.name || "-"}</p>
           <p><strong>ที่อยู่</strong>　{document.address || "-"}</p>
-          <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}　โทร. {document.supplier?.tel || "-"}</p>
-          <p><strong>เลขประจำตัวผู้เสียภาษี</strong>　{document.supplier?.taxId || "-"}</p>
+          <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}　โทร. {supplier?.tel || "-"}</p>
+          <p><strong>เลขประจำตัวผู้เสียภาษี</strong>　{supplier?.taxId || "-"}</p>
         </div>
         <div className="min-h-24 rounded border border-blue-700 p-2">
           <p><strong>เลขที่เอกสาร</strong>　{document.poNo}</p>

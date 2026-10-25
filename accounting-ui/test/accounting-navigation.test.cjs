@@ -254,10 +254,13 @@ test("Responsive styles bound modal height and retain touch-friendly controls an
   assert.equal(table.declarations["min-width"], "640px");
   for (const segments of [
     ["app", "inventory", "page.tsx"],
-    ["app", "master", "page.tsx"], ["components", "customer-master.tsx"],
   ]) {
     const source = fs.readFileSync(path.join(__dirname, "..", "src", ...segments), "utf8");
     assert.match(source, /accounting-modal fixed inset-0/);
+  }
+  for (const file of ["simple-master.tsx", "supplier-master.tsx"]) {
+    const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", file), "utf8");
+    assert.doesNotMatch(source, /accounting-modal|aria-modal/);
   }
   const poPage = fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-orders.tsx"), "utf8");
   assert.doesNotMatch(poPage, /accounting-modal|aria-modal/);

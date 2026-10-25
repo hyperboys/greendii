@@ -7,6 +7,9 @@ import { MasterApi } from "@/lib/api";
 import { AccountSupplier, SupplierInput, supplierForm } from "@/lib/account-suppliers";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { SupplierBranches } from "@/components/supplier-branches";
+import { MasterPagination, MasterRecordTools } from "@/components/master-record-tools";
+import { exportMasterCsv } from "@/lib/master-data";
 
 const inputClass = "mt-1 w-full rounded border border-[#dfe5de] bg-white p-2 text-sm disabled:bg-[#f4f6f2]";
 const buttonClass = "rounded border border-[#dfe5de] px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40";
@@ -37,6 +40,8 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
   const [formError, setFormError] = useState("");
   const [actionError, setActionError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [page, setPage] = useState(1);
+  const [supplierType, setSupplierType] = useState("");
   const writable = modal && !modal.readOnly && (modal.supplier ? canUpdate : canCreate);
 
   const load = useCallback(async () => {
@@ -48,6 +53,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
       } else {
         if (mode !== "new" && !recordId) throw new Error("ไม่พบรหัสผู้จำหน่าย");
         const supplier = recordId ? await MasterApi.getSupplier(recordId) : undefined;
+        setSuppliers(await MasterApi.getSuppliers());
         setForm(supplierForm(supplier));
         setModal({ supplier, readOnly: mode === "view" });
       }
@@ -90,11 +96,11 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
     setBusyId(supplier.id);
     try {
       if (supplier.active) {
-        await MasterApi.deactivateSupplier(supplier.id);
-        setSuppliers(current => current.map(item => item.id === supplier.id ? { ...item, active: false } : item));
+        const deactivated = await MasterApi.deactivateSupplier(supplier.id, supplier.updatedAt);
+        setSuppliers(current => current.map(item => item.id === supplier.id ? { ...item, active: false, updatedAt: deactivated.updatedAt } : item));
         return;
       }
-      const updated = await MasterApi.updateSupplier(supplier.id, { active: true });
+      const updated = await MasterApi.updateSupplier(supplier.id, { active: true, updatedAt: supplier.updatedAt });
       setSuppliers(current => current.map(item => item.id === updated.id ? updated : item));
     } catch (err) {
       setActionError(message(err));
@@ -105,24 +111,30 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
 
   const filtered = suppliers.filter(supplier =>
     (status === "all" || supplier.active === (status === "active")) &&
+    (!supplierType || supplier.supplierType === supplierType) &&
     [supplier.code, supplier.name, supplier.taxId, supplier.contactPerson, supplier.groupName, supplier.tel, supplier.email]
       .some(value => value?.toLowerCase().includes(query.toLowerCase())),
   );
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 20)));
+  const duplicateTax = form.taxId.trim() ? suppliers.filter(item => item.id !== modal?.supplier?.id && item.taxId?.trim() === form.taxId.trim()) : [];
 
   return <section aria-label="จัดการผู้จำหน่าย">
     {mode !== "list" && <Link href="/master?tab=suppliers" className={`${buttonClass} mb-4 inline-block`}>กลับรายการผู้จำหน่าย</Link>}
     {mode === "list" && <>
     <div className="mb-4 flex flex-wrap items-end gap-3">
       <Field label="ค้นหารหัส / ชื่อ / Tax ID / ผู้ติดต่อ">
-        <input className={inputClass} value={query} onChange={event => setQuery(event.target.value)} />
+        <input className={inputClass} value={query} onChange={event => { setQuery(event.target.value); setPage(1); }} />
       </Field>
       <Field label="สถานะ">
-        <select className={inputClass} value={status} onChange={event => setStatus(event.target.value)}>
+        <select className={inputClass} value={status} onChange={event => { setStatus(event.target.value); setPage(1); }}>
           <option value="all">ทั้งหมด</option>
           <option value="active">ใช้งาน</option>
           <option value="inactive">ปิดใช้งาน</option>
         </select>
       </Field>
+      <Field label="ประเภท"><select className={inputClass} value={supplierType} onChange={e => { setSupplierType(e.target.value); setPage(1); }}>
+        <option value="">ทั้งหมด</option><option value="domestic">ในประเทศ</option><option value="overseas">ต่างประเทศ</option><option value="contractor">ผู้รับเหมา</option></select></Field>
+      <button className={buttonClass} disabled={loading || Boolean(error) || !filtered.length} onClick={() => exportMasterCsv("suppliers", filtered)}>Export CSV ({filtered.length})</button>
       <button className={buttonClass} onClick={() => void load()} disabled={loading}>โหลดใหม่</button>
       <button className={`${buttonClass} ml-auto bg-[#0866ff] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>
         เพิ่มผู้จำหน่าย
@@ -138,7 +150,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
         <tbody>
           {loading ? <tr><td className="p-6 text-center" colSpan={6}>กำลังโหลดข้อมูล...</td></tr>
             : filtered.length === 0 ? <tr><td className="p-6 text-center" colSpan={6}>ไม่พบข้อมูลผู้จำหน่าย</td></tr>
-              : filtered.map(supplier => <tr key={supplier.id} className="border-t border-[#dfe5de]">
+              : filtered.slice((currentPage - 1) * 20, currentPage * 20).map(supplier => <tr key={supplier.id} className="border-t border-[#dfe5de]">
                 <td className="p-3"><div className="font-bold">{supplier.name}</div><div>{supplier.code}</div></td>
                 <td className="p-3"><div>{supplier.taxId || "-"}</div><div>{supplier.contactPerson || supplier.tel || "-"}</div></td>
                 <td className="p-3">{supplier.supplierType === "overseas" ? "ต่างประเทศ" : supplier.supplierType === "contractor" ? "ผู้รับเหมา" : "ในประเทศ"}</td>
@@ -154,6 +166,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
                       : <button className={buttonClass} disabled={!canUpdate || busyId === supplier.id} title={!canUpdate ? "ไม่มีสิทธิ์แก้ไขข้อมูลหลัก" : undefined}
                         onClick={() => void changeActive(supplier)}>เปิดใช้งาน</button>}
                   </div>
+                  <MasterPagination total={filtered.length} page={currentPage} onPage={setPage} />
                 </td>
               </tr>)}
         </tbody>
@@ -167,6 +180,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
         <h2 id="supplier-title" className="text-lg font-bold">{modal.readOnly ? "ข้อมูลผู้จำหน่าย" : modal.supplier ? "แก้ไขผู้จำหน่าย" : "เพิ่มผู้จำหน่าย"}</h2>
         <form onSubmit={save} className="mt-4 space-y-4">
           {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
+          {duplicateTax.length > 0 && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-800">Tax ID ซ้ำกับ: {duplicateTax.map(item => `${item.code} ${item.name}`).join(", ")} กรุณาตรวจสอบ (ไม่บล็อกการบันทึก)</p>}
           <fieldset disabled={modal.readOnly || !writable || saving} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="รหัสผู้จำหน่าย *"><input required className={inputClass} value={form.code} onChange={event => setForm(current => ({ ...current, code: event.target.value }))} /></Field>
@@ -176,14 +190,13 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
                   <option value="domestic">ในประเทศ</option><option value="overseas">ต่างประเทศ</option><option value="contractor">ผู้รับเหมา</option>
                 </select>
               </Field>
-              <Field label="Tax ID"><input className={inputClass} value={form.taxId} onChange={event => setForm(current => ({ ...current, taxId: event.target.value }))} /></Field>
-              <Field label="สาขา"><input className={inputClass} value={form.branch} onChange={event => setForm(current => ({ ...current, branch: event.target.value }))} /></Field>
+              <Field label="Tax ID"><input pattern={form.supplierType === "overseas" ? undefined : "[0-9]{13}"} className={inputClass} value={form.taxId} onChange={event => setForm(current => ({ ...current, taxId: event.target.value }))} /></Field>
               <Field label="กลุ่มผู้จำหน่าย"><input className={inputClass} value={form.groupName} onChange={event => setForm(current => ({ ...current, groupName: event.target.value }))} /></Field>
               <Field label="รหัสกลุ่มผู้จำหน่าย"><input className={inputClass} value={form.groupCode} onChange={event => setForm(current => ({ ...current, groupCode: event.target.value }))} /></Field>
               <Field label="ผู้ติดต่อ"><input className={inputClass} value={form.contactPerson} onChange={event => setForm(current => ({ ...current, contactPerson: event.target.value }))} /></Field>
               <Field label="โทรศัพท์"><input className={inputClass} value={form.tel} onChange={event => setForm(current => ({ ...current, tel: event.target.value }))} /></Field>
               <Field label="แฟกซ์"><input className={inputClass} value={form.fax} onChange={event => setForm(current => ({ ...current, fax: event.target.value }))} /></Field>
-              <Field label="อีเมล"><input type="email" className={inputClass} value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></Field>
+              <Field label="อีเมล"><input type="email" multiple className={inputClass} value={form.email} onChange={event => setForm(current => ({ ...current, email: event.target.value }))} /></Field>
               <Field label="วงเงินเครดิต"><input type="number" min="0" step="0.01" className={inputClass} value={form.creditLimit ?? ""} onChange={event => setForm(current => ({ ...current, creditLimit: event.target.value === "" ? null : Number(event.target.value) }))} /></Field>
               <Field label="เงื่อนไขชำระเงิน (วัน)"><input type="number" min="0" step="1" className={inputClass} value={form.paymentTerm} onChange={event => setForm(current => ({ ...current, paymentTerm: Number(event.target.value) }))} /></Field>
               <Field label="ภาษีมูลค่าเพิ่ม">
@@ -192,14 +205,8 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
                 </select>
               </Field>
             </div>
-            <Field label="ที่อยู่"><textarea className={inputClass} rows={2} value={form.address} onChange={event => setForm(current => ({ ...current, address: event.target.value }))} /></Field>
-            <Field label="ที่อยู่วางบิล"><textarea className={inputClass} rows={2} value={form.billingAddress} onChange={event => setForm(current => ({ ...current, billingAddress: event.target.value }))} /></Field>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="ธนาคาร"><input className={inputClass} value={form.bankName} onChange={event => setForm(current => ({ ...current, bankName: event.target.value }))} /></Field>
-              <Field label="สาขาธนาคาร"><input className={inputClass} value={form.bankBranch} onChange={event => setForm(current => ({ ...current, bankBranch: event.target.value }))} /></Field>
-              <Field label="เลขที่บัญชี"><input className={inputClass} value={form.bankAccountNo} onChange={event => setForm(current => ({ ...current, bankAccountNo: event.target.value }))} /></Field>
-              <Field label="ชื่อบัญชี"><input className={inputClass} value={form.bankAccountName} onChange={event => setForm(current => ({ ...current, bankAccountName: event.target.value }))} /></Field>
-            </div>
+            <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />เปิดใช้งานผู้จำหน่าย</label>
+            <SupplierBranches branches={form.branches} onChange={branches => setForm({ ...form, branches })} />
           </fieldset>
           <div className="flex justify-end gap-2">
             <Link href="/master?tab=suppliers" className={buttonClass}>กลับรายการ</Link>
@@ -207,6 +214,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
               {saving ? "กำลังบันทึก..." : "บันทึก"}
             </button>}
           </div>
+          {modal.supplier && <MasterRecordTools kind="suppliers" id={modal.supplier.id} updatedAt={modal.supplier.updatedAt} />}
         </form>
       </div>
     </div>}

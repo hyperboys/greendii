@@ -1,4 +1,15 @@
 export type SupplierType = "domestic" | "overseas" | "contractor";
+export type SupplierBank = {
+  bankName: string; bankBranch?: string | null; bankAccountNo: string; bankAccountName: string; isDefault: boolean;
+};
+export type SupplierBranch = {
+  code: string; name: string; address?: string | null; billingAddress?: string | null;
+  contactPerson?: string | null; tel?: string | null; fax?: string | null; email?: string | null;
+  isDefault: boolean; banks: SupplierBank[];
+};
+export function newSupplierBranch(): SupplierBranch {
+  return { code: "", name: "", address: "", billingAddress: "", contactPerson: "", tel: "", fax: "", email: "", isDefault: false, banks: [] };
+}
 
 export type AccountSupplier = {
   id: string;
@@ -24,6 +35,8 @@ export type AccountSupplier = {
   bankAccountName: string | null;
   active: boolean;
   createdAt: string;
+  updatedAt?: string;
+  branches?: SupplierBranch[];
 };
 
 export type SupplierInput = {
@@ -47,6 +60,9 @@ export type SupplierInput = {
   bankBranch: string;
   bankAccountNo: string;
   bankAccountName: string;
+  active: boolean;
+  updatedAt?: string;
+  branches: SupplierBranch[];
 };
 
 export function supplierForm(supplier?: AccountSupplier): SupplierInput {
@@ -71,5 +87,13 @@ export function supplierForm(supplier?: AccountSupplier): SupplierInput {
     bankBranch: supplier?.bankBranch ?? "",
     bankAccountNo: supplier?.bankAccountNo ?? "",
     bankAccountName: supplier?.bankAccountName ?? "",
+    active: supplier?.active ?? true,
+    updatedAt: supplier?.updatedAt,
+    branches: supplier?.branches?.length ? supplier.branches.map(branch => ({ ...branch, banks: branch.banks.map(bank => ({ ...bank })) }))
+      : [{ ...newSupplierBranch(), code: "00000", name: supplier?.branch || "สำนักงานใหญ่", isDefault: true,
+        address: supplier?.address ?? "", billingAddress: supplier?.billingAddress ?? "",
+        contactPerson: supplier?.contactPerson ?? "", tel: supplier?.tel ?? "", fax: supplier?.fax ?? "", email: supplier?.email ?? "",
+        banks: supplier?.bankAccountNo ? [{ bankName: supplier.bankName ?? "", bankBranch: supplier.bankBranch ?? "",
+          bankAccountNo: supplier.bankAccountNo, bankAccountName: supplier.bankAccountName ?? "", isDefault: true }] : [] }],
   };
 }

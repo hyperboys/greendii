@@ -31,6 +31,7 @@ function createCustomerApp() {
     })) : previous?.branches || [],
   });
   const prisma = {
+    $queryRawUnsafe: async () => [],
     user: { findUnique: async ({ where }) => ({ id: where.id, role: where.id === 'admin' ? 'admin' : 'sales', active: true }) },
     accountingUserRole: { findUnique: async ({ where }) => ({
       role: { id: 'role', name: 'Test', permissions: where.userId === 'viewer' ? ['master.view'] : ['ar.view', 'ar.create'] },

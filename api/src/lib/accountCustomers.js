@@ -36,6 +36,11 @@ function email(value) {
   if (!parts.length || parts.some(part => !EMAIL_PATTERN.test(part))) invalid('อีเมลไม่ถูกต้อง');
   return parts.join(', ');
 }
+function taxId(value, overseas = false) {
+  const result = text(value, 'Tax ID');
+  if (result && !overseas && !/^\d{13}$/.test(result)) invalid('Tax ID ในประเทศต้องเป็นตัวเลข 13 หลัก');
+  return result;
+}
 function saleIds(value, primaryId) {
   if (!Array.isArray(value) || value.some(id => typeof id !== 'string' || !id.trim())) invalid('Sale รองไม่ถูกต้อง');
   const ids = value.map(id => id.trim());
@@ -54,7 +59,7 @@ function validateCustomer(body, previous = null) {
   const merged = { ...previous, ...body };
   const data = {
     code: text(merged.code, 'รหัสลูกค้า', true), name: text(merged.name, 'ชื่อลูกค้า', true),
-    taxId: text(merged.taxId, 'Tax ID'), type: text(merged.type ?? 'นิติบุคคล', 'ประเภทลูกค้า', true),
+    taxId: taxId(merged.taxId), type: text(merged.type ?? 'นิติบุคคล', 'ประเภทลูกค้า', true),
     contactPerson: text(merged.contactPerson, 'ผู้ติดต่อ'), tel: text(merged.tel, 'โทรศัพท์'),
     fax: text(merged.fax, 'แฟกซ์'),
     email: email(merged.email), responsibleSaleId: text(merged.responsibleSaleId, 'Sale ผู้ดูแล'),
@@ -127,11 +132,11 @@ function invoiceCustomerDefaults(customer, body) {
       : body.address ?? pickAddress(null, 'billing') ?? (branch ? null : customer.billingAddress ?? customer.address),
     shippingAddress: body.shippingAddressId ? pickAddress(body.shippingAddressId, 'shipping')
       : body.shippingAddress ?? pickAddress(null, 'shipping') ?? (branch ? null : customer.shippingAddress),
-    responsibleSaleId: customer.responsibleSaleId || null,
-    responsibleSaleName: customer.responsibleSale?.name || null,
+    responsibleSaleId: customer.responsibleSale?.active ? customer.responsibleSaleId : null,
+    responsibleSaleName: customer.responsibleSale?.active ? customer.responsibleSale.name : null,
     creditTerm: creditDays(body.creditTerm === undefined ? customer.creditTerm ?? 30 : body.creditTerm),
     vatConfig: vatSetting(body.vatConfig === undefined ? customer.vatConfig ?? 'VAT7%' : body.vatConfig),
   };
 }
 
-module.exports = { CUSTOMER_INCLUDE, validateCustomer, validateSale, invoiceCustomerDefaults };
+module.exports = { CUSTOMER_INCLUDE, validateCustomer, validateSale, invoiceCustomerDefaults, email, taxId };

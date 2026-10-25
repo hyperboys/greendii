@@ -322,8 +322,44 @@ model Supplier {
   contractorPaymentRequests ContractorPaymentRequest[]
   goodsReceipts             GoodsReceipt[]
   paymentVouchers           PaymentVoucher[]
+  branches                  SupplierBranch[]
 
   @@map("suppliers")
+}
+
+model SupplierBranch {
+  id             String @id @default(cuid())
+  supplierId     String @map("supplier_id")
+  supplier       Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  code           String
+  name           String
+  address        String?
+  billingAddress String? @map("billing_address")
+  contactPerson  String? @map("contact_person")
+  tel            String?
+  fax            String?
+  email          String?
+  isDefault      Boolean @default(false) @map("is_default")
+  position       Int @default(0)
+  banks          SupplierBank[]
+
+  @@unique([supplierId, code])
+  @@map("supplier_branches")
+}
+
+model SupplierBank {
+  id              String @id @default(cuid())
+  branchId        String @map("branch_id")
+  branch          SupplierBranch @relation(fields: [branchId], references: [id], onDelete: Cascade)
+  bankName        String @map("bank_name")
+  bankBranch      String? @map("bank_branch")
+  bankAccountNo   String @map("bank_account_no")
+  bankAccountName String @map("bank_account_name")
+  isDefault       Boolean @default(false) @map("is_default")
+  position        Int @default(0)
+
+  @@index([branchId])
+  @@map("supplier_banks")
 }
 
 model EmailHistory {
@@ -358,6 +394,7 @@ model Warehouse {
   code          String         @unique
   name          String
   location      String?
+  description   String?
   active        Boolean        @default(true)
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
@@ -1236,6 +1273,7 @@ model PurchaseOrder {
   supplierId       String?          @map("supplier_id")
   supplier         Supplier?        @relation(fields: [supplierId], references: [id])
   supplierBranch   String?          @default("สำนักงานใหญ่") @map("supplier_branch")
+  supplierSnapshot Json?            @map("supplier_snapshot")
   address          String?
   contactPerson    String?          @map("contact_person")
   remarks          String?

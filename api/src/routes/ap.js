@@ -6,6 +6,7 @@ const { validateStateTransition } = require('../lib/stateTransition');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { getPagination, paginated } = require('../lib/pagination');
+const { assertActive } = require('../lib/accountingMaster');
 const {
   normalizePurchaseOrderItems,
   calculatePurchaseOrderTotals,
@@ -151,6 +152,8 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
     const totals = calculatePurchaseOrderTotals(items, vatConfig);
 
     const result = await prisma.$transaction(async (tx) => {
+      const supplier = await assertActive(tx, 'supplier', supplierId, 'ผู้จำหน่าย');
+      for (const item of items) if (item.productId) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
       if (requestIds.length > 0) {
         const requests = await tx.purchaseRequest.findMany({
           where: { id: { in: requestIds }, active: true },
@@ -167,6 +170,7 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
           poDate: poDate ? new Date(poDate) : new Date(),
           purchaseType,
           supplierId,
+          supplierSnapshot: { code: supplier.code, name: supplier.name, taxId: supplier.taxId, tel: supplier.tel },
           supplierBranch: supplierBranch || 'สำนักงานใหญ่',
           address,
           contactPerson,
@@ -241,6 +245,11 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
       if (previous.status !== 'draft') {
         throw Object.assign(new Error('แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft'), { status: 409 });
       }
+      const supplier = previous.supplierId === supplierId ? previous.supplier
+        : await assertActive(tx, 'supplier', supplierId, 'ผู้จำหน่าย');
+      for (const item of items) if (item.productId && !previous.items.some(old => old.productId === item.productId)) {
+        await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
+      }
       if (requestIds.length > 0) {
         const requests = await tx.purchaseRequest.findMany({
           where: { id: { in: requestIds }, active: true },
@@ -259,6 +268,8 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
           poDate: poDate ? new Date(poDate) : previous.poDate,
           purchaseType,
           supplierId,
+          supplierSnapshot: previous.supplierId === supplierId && previous.supplierSnapshot
+            ? previous.supplierSnapshot : { code: supplier.code, name: supplier.name, taxId: supplier.taxId, tel: supplier.tel },
           supplierBranch: supplierBranch || 'สำนักงานใหญ่',
           address,
           contactPerson,
@@ -317,6 +328,7 @@ router.post('/contractor-payments', authenticate, async (req, res, next) => {
 
     const result = await prisma.$transaction(async (tx) => {
       const po = await tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId } });
+      await assertActive(tx, 'supplier', supplierId || po.supplierId, 'ผู้จำหน่าย');
 
       // Calculate previously requested amounts for this PO
       const previousRequests = await tx.contractorPaymentRequest.findMany({
@@ -396,6 +408,9 @@ router.post('/goods-receipts', authenticate, async (req, res, next) => {
         where: { id: poId },
         include: { items: { include: { product: true } } },
       });
+      await assertActive(tx, 'supplier', supplierId || po.supplierId, 'ผู้จำหน่าย');
+      if (warehouseId) await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
+      for (const item of items) if (item.productId) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
 
       const grNo = await generateNextRunningNumber('gr', { date: receiptDate ? new Date(receiptDate) : new Date() }, tx);
 
@@ -518,6 +533,7 @@ router.post('/payment-vouchers', authenticate, async (req, res, next) => {
 
     const result = await prisma.$transaction(async (tx) => {
       const pvNo = await generateNextRunningNumber('pv', { date: pvDate ? new Date(pvDate) : new Date() }, tx);
+      if (supplierId) await assertActive(tx, 'supplier', supplierId, 'ผู้จำหน่าย');
       const doc = await tx.paymentVoucher.create({
         data: {
           pvNo,

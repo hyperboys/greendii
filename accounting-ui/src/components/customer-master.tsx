@@ -7,6 +7,8 @@ import { MasterApi } from "@/lib/api";
 import { AccountCustomer, AccountSale, CustomerBranch, CustomerInput, customerForm, newBranch } from "@/lib/account-customers";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { MasterPagination, MasterRecordTools } from "@/components/master-record-tools";
+import { exportMasterCsv } from "@/lib/master-data";
 
 const inputClass = "mt-1 w-full rounded border border-[#dfe5de] bg-white p-2 text-sm disabled:bg-[#f4f6f2]";
 const buttonClass = "rounded border border-[#dfe5de] px-3 py-2 text-sm font-bold disabled:cursor-not-allowed disabled:opacity-40";
@@ -33,6 +35,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
   const [saving, setSaving] = useState(false);
   const savingRef = useRef(false);
   const [formError, setFormError] = useState("");
+  const [page, setPage] = useState(1);
   const writable = modal && !modal.readOnly && (modal.customer ? canUpdate : canCreate);
   const load = useCallback(async () => {
     setLoading(true);
@@ -74,15 +77,17 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
   const filtered = customers.filter(customer => (status === "all" || customer.active === (status === "active")) &&
     [customer.code, customer.name, customer.taxId, customer.responsibleSale?.name, ...customer.branches.map(b => b.code),
       ...(customer.secondarySales ?? []).map(s => s.sale?.name)].some(value => value?.toLowerCase().includes(query.toLowerCase())));
+  const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 20)));
   return <section aria-label="จัดการลูกค้าบัญชี">
     {mode !== "list" && <Link href="/master?tab=customers" className={`${buttonClass} mb-4 inline-block`}>กลับรายการลูกค้า</Link>}
     {mode === "list" && <>
     <div className="mb-4 flex flex-wrap items-end gap-3">
-      <Field label="ค้นหารหัส / รหัสเดิม / ชื่อ / Tax ID / Sale"><input className={inputClass} value={query} onChange={e => setQuery(e.target.value)} /></Field>
-      <Field label="สถานะ"><select className={inputClass} value={status} onChange={e => setStatus(e.target.value)}>
+      <Field label="ค้นหารหัส / รหัสเดิม / ชื่อ / Tax ID / Sale"><input className={inputClass} value={query} onChange={e => { setQuery(e.target.value); setPage(1); }} /></Field>
+      <Field label="สถานะ"><select className={inputClass} value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}>
         <option value="all">ทั้งหมด</option><option value="active">ใช้งาน</option><option value="inactive">ปิดใช้งาน</option>
       </select></Field>
       <button className={buttonClass} onClick={() => void load()} disabled={loading}>โหลดใหม่</button>
+      <button className={buttonClass} disabled={loading || Boolean(error) || !filtered.length} onClick={() => exportMasterCsv("customers", filtered)}>Export CSV ({filtered.length})</button>
       <button className={`${buttonClass} ml-auto bg-[#0866ff] text-white`} disabled={!canCreate || loading || Boolean(error)} onClick={() => open()}>เพิ่มลูกค้า</button>
     </div>
     {error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
@@ -91,7 +96,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
         <thead className="bg-[#f8faf7] text-[#566159]"><tr>{["รหัส / ชื่อลูกค้า", "Tax ID / ผู้ติดต่อ", "สาขา", "Sale ผู้ดูแล", "VAT / Credit Term", "สถานะ", "จัดการ"].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
         <tbody>{loading ? <tr><td className="p-6 text-center" colSpan={7}>กำลังโหลดข้อมูล...</td></tr> : filtered.length === 0
           ? <tr><td className="p-6 text-center" colSpan={7}>ไม่พบข้อมูลลูกค้า</td></tr>
-          : filtered.map(customer => <tr key={customer.id} className="border-t border-[#dfe5de]">
+          : filtered.slice((currentPage - 1) * 20, currentPage * 20).map(customer => <tr key={customer.id} className="border-t border-[#dfe5de]">
             <td className="p-3"><div className="font-bold">{customer.name}</div><div>{customer.code || "ยังไม่ระบุรหัส"}</div></td>
             <td className="p-3"><div>{customer.taxId || "-"}</div><div>{customer.contactPerson || customer.tel || "-"}</div></td>
             <td className="p-3">{customer.branches.length || 1} สาขา
@@ -107,6 +112,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
           </tr>)}</tbody>
       </table>
     </div>
+    <MasterPagination total={filtered.length} page={currentPage} onPage={setPage} />
     </>}
     {mode !== "list" && loading && <p className="p-6 text-sm">กำลังโหลดข้อมูลลูกค้า...</p>}
     {mode !== "list" && error && <p role="alert" className="mb-3 text-sm text-red-700">{error}</p>}
@@ -121,7 +127,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
             <div className="grid gap-3 sm:grid-cols-2">
               <Field label="รหัสลูกค้า *"><input required className={inputClass} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></Field>
               <Field label="ชื่อลูกค้า *"><input required className={inputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-              <Field label="Tax ID"><input className={inputClass} value={form.taxId} onChange={e => setForm({ ...form, taxId: e.target.value })} /></Field>
+              <Field label="Tax ID"><input pattern="[0-9]{13}" className={inputClass} value={form.taxId} onChange={e => setForm({ ...form, taxId: e.target.value })} /></Field>
               <Field label="ประเภทลูกค้า"><select className={inputClass} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option>นิติบุคคล</option><option>บุคคลธรรมดา</option></select></Field>
               <Field label="ผู้ติดต่อ"><input className={inputClass} value={form.contactPerson} onChange={e => setForm({ ...form, contactPerson: e.target.value })} /></Field>
               <Field label="โทรศัพท์"><input type="tel" className={inputClass} value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} /></Field>
@@ -169,69 +175,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
           </div>
         </form>
       </div>
+      {modal.customer && <MasterRecordTools kind="customers" id={modal.customer.id} updatedAt={modal.customer.updatedAt} />}
     </div>}
-  </section>;
-}
-
-const emptySale = { code: "", name: "", tel: "", email: "", active: true };
-export function SaleMaster() {
-  const access = useAccountingAccess();
-  const canCreate = canUseAccounting(access, "master", "create");
-  const canUpdate = canUseAccounting(access, "master", "update");
-  const [sales, setSales] = useState<AccountSale[]>([]);
-  const [editing, setEditing] = useState<AccountSale | null>(null);
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState(emptySale);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const savingRef = useRef(false);
-  const writable = editing ? canUpdate : canCreate;
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError("");
-    try { setSales(await MasterApi.getSales()); }
-    catch (err) { setError(message(err)); }
-    finally { setLoading(false); }
-  }, []);
-  useEffect(() => { void load(); }, [load]);
-  const save = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!writable || savingRef.current) return;
-    savingRef.current = true;
-    setSaving(true);
-    setError("");
-    try {
-      const saved = editing ? await MasterApi.updateSale(editing.id, { ...form, updatedAt: editing.updatedAt }) : await MasterApi.createSale(form);
-      setSales(current => [...current.filter(s => s.id !== saved.id), saved].sort((a, b) => a.code.localeCompare(b.code)));
-      setShowForm(false);
-    } catch (err) { setError(message(err)); }
-    finally { savingRef.current = false; setSaving(false); }
-  };
-  return <section aria-label="ทะเบียน Sale บัญชี">
-    <div className="mb-4 flex items-center justify-between gap-3"><p className="text-sm text-[#657069]">ทะเบียน Sale สำหรับบัญชีเท่านั้น ไม่ใช่บัญชีผู้ใช้หรือข้อมูล Sale ในระบบ Sales</p>
-      <button disabled={!canCreate || loading} className={`${buttonClass} bg-[#0866ff] text-white`} onClick={() => { setEditing(null); setForm(emptySale); setError(""); setShowForm(true); }}>เพิ่ม Sale บัญชี</button></div>
-    {error && <p role="alert" className="mb-4 text-sm text-red-700">{error}</p>}
-    {loading ? <p>กำลังโหลด...</p> : <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left text-sm">
-      <thead><tr>{["รหัส", "ชื่อ", "โทรศัพท์", "อีเมล", "สถานะ", "จัดการ"].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
-      <tbody>{sales.length === 0 ? <tr><td colSpan={6} className="p-6 text-center">ยังไม่มี Sale บัญชี</td></tr> : sales.map(sale => <tr key={sale.id} className="border-t">
-        <td className="p-3">{sale.code}</td><td className="p-3">{sale.name}</td><td className="p-3">{sale.tel || "-"}</td><td className="p-3">{sale.email || "-"}</td><td className="p-3">{sale.active ? "ใช้งาน" : "ปิดใช้งาน"}</td>
-        <td className="p-3"><button disabled={!canUpdate} className={buttonClass} onClick={() => { setEditing(sale); setForm({ ...sale, tel: sale.tel ?? "", email: sale.email ?? "" }); setError(""); setShowForm(true); }}>แก้ไข</button></td>
-      </tr>)}</tbody>
-    </table></div>}
-    {showForm && <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="sale-title" className="w-full max-w-lg rounded-lg bg-white p-6">
-      <h2 id="sale-title" className="text-lg font-bold">{editing ? "แก้ไข" : "เพิ่ม"} Sale บัญชี</h2>
-      <form onSubmit={save} className="mt-4 space-y-3">
-        {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
-        <fieldset disabled={saving || !writable} className="space-y-3">
-          <Field label="รหัส Sale *"><input required className={inputClass} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></Field>
-          <Field label="ชื่อ Sale *"><input required className={inputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
-          <Field label="โทรศัพท์"><input type="tel" className={inputClass} value={form.tel} onChange={e => setForm({ ...form, tel: e.target.value })} /></Field>
-          <Field label="อีเมล"><input type="email" className={inputClass} value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} /></Field>
-          <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={form.active} onChange={e => setForm({ ...form, active: e.target.checked })} />เปิดใช้งาน</label>
-        </fieldset>
-        <div className="flex justify-end gap-2"><button type="button" disabled={saving} className={buttonClass} onClick={() => setShowForm(false)}>ปิด</button><button type="submit" disabled={saving || !writable} className={`${buttonClass} bg-[#0866ff] text-white`}>{saving ? "กำลังบันทึก..." : "บันทึก Sale"}</button></div>
-      </form>
-    </div></div>}
   </section>;
 }

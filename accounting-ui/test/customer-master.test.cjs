@@ -96,6 +96,8 @@ test("Customer pages render full forms, save existing fields and navigate back t
     } } },
     "next/navigation": { useRouter: () => ({ push: path => paths.push(path) }) },
     "@/lib/account-customers": model,
+    "@/lib/master-data": load(["lib", "master-data.ts"]),
+    "@/components/master-record-tools": { MasterPagination: () => null, MasterRecordTools: () => null },
     "@/components/accounting-access-provider": { useAccountingAccess: () => ({ allowed: true, permissions }) },
     "@/lib/accounting-access": { canUseAccounting: (access, module, action) => access.permissions.includes(`${module}.${action}`) },
   });

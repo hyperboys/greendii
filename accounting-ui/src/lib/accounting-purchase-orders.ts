@@ -1,4 +1,5 @@
 import type { PurchaseOrderLineDraft } from "./purchase-order";
+import type { SupplierBranch } from "./account-suppliers";
 
 export type PurchaseOrderSupplier = {
   id: string;
@@ -14,6 +15,7 @@ export type PurchaseOrderSupplier = {
   vatConfig?: string | null;
   paymentTerm?: number | null;
   supplierType?: string;
+  branches?: SupplierBranch[];
 };
 
 export type PurchaseOrderAttachment = {
@@ -41,6 +43,7 @@ export type PurchaseOrderDocument = {
   purchaseType: string;
   supplierId: string;
   supplierBranch?: string | null;
+  supplierSnapshot?: Pick<PurchaseOrderSupplier, "code" | "name" | "taxId" | "tel"> | null;
   address?: string | null;
   contactPerson?: string | null;
   remarks?: string | null;

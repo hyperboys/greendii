@@ -179,12 +179,13 @@ export function PurchaseOrders({
     if (!supplier) return;
     setSupplierFilter(`${supplier.code} - ${supplier.name}`);
     setSupplierSearchOpen(false);
+    const branch = supplier.branches?.find(branch => branch.isDefault) ?? supplier.branches?.[0];
     setFormData(current => ({
       ...current,
       supplierId,
-      supplierBranch: supplier?.branch || "",
-      address: supplier?.billingAddress || supplier?.address || "",
-      contactPerson: supplier?.contactPerson || "",
+      supplierBranch: branch?.name || supplier.branch || "",
+      address: branch?.billingAddress || branch?.address || supplier.billingAddress || supplier.address || "",
+      contactPerson: branch?.contactPerson || supplier.contactPerson || "",
       paymentTerm: supplier?.paymentTerm ?? 30,
       vatConfig: supplier?.vatConfig === "NO_VAT" ? "NO_VAT" : "VAT7%",
       purchaseType: supplier?.supplierType === "overseas" ? "overseas" : "domestic",
@@ -385,7 +386,14 @@ export function PurchaseOrders({
                     )}
                   </div>
                   <label className={fieldClass}>สาขาผู้ขาย
-                    <input className={inputClass} value={formData.supplierBranch} onChange={event => setFormData(current => ({ ...current, supplierBranch: event.target.value }))} />
+                    <input className={inputClass} list="po-supplier-branches" value={formData.supplierBranch} onChange={event => {
+                      const supplier = suppliers.find(item => item.id === formData.supplierId);
+                      const branch = supplier?.branches?.find(branch => branch.name === event.target.value);
+                      setFormData(current => ({ ...current, supplierBranch: event.target.value,
+                        ...(branch ? { address: branch.billingAddress || branch.address || "", contactPerson: branch.contactPerson || supplier?.contactPerson || "" } : {}) }));
+                    }} />
+                    <datalist id="po-supplier-branches">{suppliers.find(item => item.id === formData.supplierId)?.branches?.map(branch =>
+                      <option key={branch.code} value={branch.name}>{branch.code}</option>)}</datalist>
                   </label>
                   <label className={`${fieldClass} sm:col-span-2`}>ที่อยู่ผู้ขาย
                     <textarea rows={2} className={inputClass} value={formData.address} onChange={event => setFormData(current => ({ ...current, address: event.target.value }))} />

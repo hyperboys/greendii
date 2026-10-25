@@ -71,7 +71,7 @@ export const MasterApi = {
   createSupplier: (data: SupplierInput) => apiFetch<AccountSupplier>("/api/suppliers", { method: "POST", body: JSON.stringify(data) }),
   updateSupplier: (id: string, data: Partial<SupplierInput> & { active?: boolean }) =>
     apiFetch<AccountSupplier>(`/api/suppliers/${id}`, { method: "PUT", body: JSON.stringify(data) }),
-  deactivateSupplier: (id: string) => apiFetch<{ message: string }>(`/api/suppliers/${id}`, { method: "DELETE" }),
+  deactivateSupplier: (id: string, updatedAt?: string) => apiFetch<{ message: string; updatedAt: string }>(`/api/suppliers/${id}`, { method: "DELETE", body: JSON.stringify({ updatedAt }) }),
 
   getProducts: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

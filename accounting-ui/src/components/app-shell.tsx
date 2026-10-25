@@ -125,7 +125,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {navigation.filter(item => access && canOpenAccountingPath(access, item.href)).map((item) => {
               const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
               const items = item.children ?? item.tabs?.map(tab => ({ ...tab, href: `${item.href}?tab=${tab.id}` }));
-              const currentTab = item.tabs ? selectedTab(item.tabs, searchParams.get("tab") ?? undefined)
+              const currentTab = item.tabs ? selectedTab(item.tabs, item.href === "/master" && pathname.startsWith("/master/")
+                ? pathname.split("/")[2] : searchParams.get("tab") ?? undefined)
                 : selectedTab(invoiceTabs, searchParams.get("tab") ?? undefined);
               const isExpanded = expanded[item.href] ?? active;
               const navClass = `flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-left text-[15px] transition-colors ${active ? "border-white bg-[#054cbd] font-bold shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`;
@@ -143,8 +144,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <div id={`nav-${item.href.replaceAll("/", "-")}`} hidden={!isExpanded} className={`ml-5 mt-1 space-y-1 border-l border-white/20 pl-3 ${collapsed ? "lg:hidden" : ""}`}>
                     {items.filter(child => access && canOpenAccountingPath(access, child.href.split("?")[0])).map(child => {
                       const childPath = child.href.split("?")[0];
-                      const recordTab = pathname.startsWith("/master/customers/") ? "customers"
-                        : pathname.startsWith("/master/suppliers/") ? "suppliers"
+                      const recordTab = pathname.startsWith("/master/") ? pathname.split("/")[2]
                         : pathname === "/ar/delivery-orders" || pathname.startsWith("/ar/delivery-orders/") ? "so"
                         : pathname === "/ar/billing-notes" || pathname.startsWith("/ar/billing-notes/") ? "billingNotes"
                         : pathname === "/ar/credit-notes" || pathname.startsWith("/ar/credit-notes/") ? "creditNotes"

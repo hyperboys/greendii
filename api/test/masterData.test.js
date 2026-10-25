@@ -1,5 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
+require('./accountingMaster.test');
 
 function calculateAvailableQuantity(onHand, reserved) {
   const oh = Number(onHand) || 0;

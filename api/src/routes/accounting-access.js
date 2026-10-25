@@ -40,6 +40,10 @@ router.get('/lookups/:kind', async (req, res, next) => {
               id: true, code: true, name: true, taxId: true, branch: true, address: true,
               billingAddress: true, contactPerson: true, tel: true, email: true,
               vatConfig: true, paymentTerm: true, supplierType: true,
+              branches: { orderBy: { position: 'asc' }, select: {
+                id: true, code: true, name: true, address: true, billingAddress: true,
+                contactPerson: true, tel: true, fax: true, email: true, isDefault: true,
+              } },
             },
           }
           : req.params.kind === 'products'

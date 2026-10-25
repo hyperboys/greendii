@@ -26,6 +26,55 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Navigation
 
+### Accounting master data (six groups)
+
+Customer, Accounting Sale, Supplier/Contractor, Product/Service, Warehouse and
+Chart of Accounts now have full-page new/detail/edit routes. Their registers
+support search, active status filtering, 20-row pagination and CSV export of all
+filtered records (not just the visible page). Products additionally filter by
+type, suppliers by supplier type, and accounts by category.
+
+Customer branches/addresses and primary/secondary Accounting Sales are preserved.
+Suppliers support multiple branches with contact/billing addresses and multiple
+bank accounts per branch; select exactly one default branch and one default bank
+when a branch has banks. Existing scalar supplier fields remain compatible and
+mirror the selected default address/bank. PO defaults use the selected branch;
+saved PO printing uses a supplier identity snapshot rather than the live master.
+
+Codes/names are required and codes unique. Domestic Tax ID is optional but must
+be 13 digits if entered; duplicates warn without blocking. Overseas supplier IDs
+are not restricted to 13 digits. Prices/costs are nonnegative two-decimal values,
+credit days are nonnegative integers, and emails support comma-separated entries.
+Editing a referenced product cannot change its stored/manufactured/service type.
+Warehouse description/location and account header/detail/mapping are editable.
+These actions do not post GL or change Stock quantities/valuation.
+
+Existing `master.view/create/update/delete` permissions apply. Record history
+shows transactional before/after values, actor and time, with pagination. Old
+records without audit entries are labelled as such. Permanent deletion requires
+confirmation and is rejected when references exist; use inactive status instead.
+Master lookups exclude inactive entries; new document writes also validate their
+master references. Historical documents remain readable. Invoice-based BI/RV/CN
+retain the agreed snapshot/debt settlement rules rather than re-reading customer
+master identity. CSV contains nested branch/address/bank objects as JSON cells,
+has a UTF-8 BOM, quoted fields and spreadsheet formula protection. Export/history
+use the existing Master view permission, not a new per-field or export permission.
+
+**Rollout:** Back up/review and apply
+[`accounting-master-data.sql`](../api/scripts/sql/accounting-master-data.sql) after
+the existing Accounting tables/scripts. It seeds missing supplier branches/banks
+from scalar data and fills only missing PO snapshots with currently available
+identity; it cannot recover earlier identity edits. No balance/status changes.
+Stop the API, run `npx prisma generate` in `api`, restart it, and deploy this UI
+together. Generation in this session encountered Windows `EPERM` on a loaded
+engine DLL; no unrelated/user API process was stopped. Schema validation passed,
+but target DB rollout and real-data/concurrency UAT remain pending.
+
+Not included: sublocations, opening balances, stock transfers/thresholds/valuation,
+GL/journals/period closing, Accounting approvals, notification delivery or advanced
+business reports. API tests use transactional Prisma substitutes; browser checks
+exercise the real Express routes/validators, not a target PostgreSQL database.
+
 The root layout owns the shared sidebar and header so they remain mounted while
 switching between Accounting pages. The blue sidebar groups AR, AP, inventory,
 master data and reports into collapsible parent/child menus. Mobile navigation

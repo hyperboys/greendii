@@ -3,6 +3,7 @@ const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { getPagination, paginated } = require('../lib/pagination');
+const { assertActive } = require('../lib/accountingMaster');
 
 // ─── 1. STOCK ISSUES ─────────────────────────────────────────────────────────
 
@@ -48,6 +49,7 @@ router.post('/issues', authenticate, async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
       // 1. Generate Issue Number
       const count = await tx.stockIssue.count();
       const issueNo = `IS-${String(count + 1).padStart(5, '0')}`;
@@ -55,6 +57,7 @@ router.post('/issues', authenticate, async (req, res, next) => {
       // 2. Validate Stock Balances
       for (const item of items) {
         const product = await tx.accountProduct.findUniqueOrThrow({ where: { id: item.productId } });
+        if (!product.active) throw Object.assign(new Error('สินค้าถูกปิดใช้งาน'), { status: 400 });
         if (product.productType === 'service') {
           throw new Error(`ไม่สามารถเบิกสินค้าประเภทบริการ (${product.name}) ออกจากคลังได้`);
         }
@@ -161,6 +164,8 @@ router.post('/returns', authenticate, async (req, res, next) => {
     if (!warehouseId) return res.status(400).json({ message: 'กรุณาระบุคลังสินค้า (warehouseId)' });
 
     const result = await prisma.$transaction(async (tx) => {
+      await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
+      for (const item of items) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
       // Validate returned qty against original issue if referencing stockIssueId
       if (stockIssueId) {
         const issue = await tx.stockIssue.findUniqueOrThrow({

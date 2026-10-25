@@ -67,6 +67,14 @@ test('Accounting Sale has its own code, contact and active status', () => {
   assert.deepEqual(validateSale({ code: ' S01 ', name: ' Sale ', active: false }), {
     code: 'S01', name: 'Sale', tel: null, email: null, active: false,
   });
+
+  test('Customer Tax ID is optional, exactly 13 digits when provided; inactive Sale is not used for new document defaults', () => {
+    assert.equal(validateCustomer({ ...customer, taxId: '1234567890123' }).taxId, '1234567890123');
+    assert.throws(() => validateCustomer({ ...customer, taxId: '123' }), /13/);
+    const defaults = invoiceCustomerDefaults({ active: true, responsibleSaleId: 'old', responsibleSale: { active: false, name: 'Disabled' } }, {});
+    assert.equal(defaults.responsibleSaleId, null);
+    assert.equal(defaults.responsibleSaleName, null);
+  });
   assert.throws(() => validateSale({ code: '', name: 'Sale' }), /รหัส/);
 });
 

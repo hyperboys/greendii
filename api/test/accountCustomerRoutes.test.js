@@ -28,7 +28,7 @@ test('Customer and Sale HTTP flows persist edits, enforce permissions and snapsh
   assert.equal((await request('/account-sales', 'POST', { code: 'S001', name: 'Duplicate' })).status, 409);
   assert.equal((await request(`/account-sales/${sale.id}`, 'PUT', sale)).status, 409);
   const payload = {
-    code: 'C001', name: 'Customer', taxId: '123', responsibleSaleId: sale.id,
+    code: 'C001', name: 'Customer', taxId: '1234567890123', responsibleSaleId: sale.id,
     creditTerm: 0, vatConfig: 'NO_VAT', contactPerson: 'Contact', tel: '456', email: 'customer@example.test',
     branches: [{ code: '00000', name: 'Main', addresses: [
       { label: 'Billing', kind: 'billing', address: 'Bill A' }, { label: 'Shipping', kind: 'shipping', address: 'Ship A' },

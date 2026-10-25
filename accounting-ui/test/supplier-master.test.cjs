@@ -68,6 +68,9 @@ test("Supplier pages render full forms, enforce read-only permissions and return
     } } },
     "next/navigation": { useRouter: () => ({ push: path => paths.push(path) }) },
     "@/lib/account-suppliers": model,
+    "@/lib/master-data": load(["lib", "master-data.ts"]),
+    "@/components/supplier-branches": load(["components", "supplier-branches.tsx"], { "@/lib/account-suppliers": model }),
+    "@/components/master-record-tools": { MasterPagination: () => null, MasterRecordTools: () => null },
     "@/components/accounting-access-provider": { useAccountingAccess: () => ({ allowed: true, permissions }) },
     "@/lib/accounting-access": {
       canUseAccounting: (access, module, action) => access.permissions.includes(`${module}.${action}`),
