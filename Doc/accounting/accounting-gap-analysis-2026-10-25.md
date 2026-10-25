@@ -10,10 +10,10 @@
 
 - Customer, Sale บัญชี และ Supplier มีหน้าจัดการที่เป็นรูปเป็นร่างกว่าส่วนอื่น แต่ Supplier ยังไม่รองรับหลายสาขาและหลายบัญชีธนาคารแบบเป็นรายการ
 - SO Draft และ Invoice ปรับเป็นหน้าแยกหลายรายการแล้ว; Invoice ใหม่มี Draft → ยืนยันตั้งหนี้ → ยกเลิกแบบมีเงื่อนไข ดูหัวข้อ 1.1–1.4 ยังรอ rollout/UAT จริง ไม่ใช่ AR ครบทุก Process
-- ใบวางบิลมีหน้ารายการและปุ่มสร้าง แต่การ submit ใน UI ยังไม่เรียก API สร้างใบวางบิล
-- ใบลดหนี้ (CN), ใบเบิกจ่ายผู้รับเหมา (PS) และใบคืนสินค้ายังไม่มีเมนูจัดการเฉพาะ แม้มี API สร้างบางส่วน
+- ใบวางบิล BI ปรับเป็นหน้าแยกหลาย Invoice/ยอดบางส่วน พร้อม Draft → ยืนยัน/ยกเลิก/พิมพ์กรอบลงกระดาษเปล่าตามตัวอย่างแล้ว ดูหัวข้อ 1.5; ยังรอ SQL และ UAT ฐานข้อมูล/เครื่องพิมพ์จริง
+- ใบลดหนี้ CN มีเมนู/หน้าแยกหลายรายการ Draft/ยืนยัน/ยกเลิกคืนยอดและพิมพ์ตาม PDF แล้วตาม 1.7; ใบเบิกจ่ายผู้รับเหมา PS และใบคืนสินค้ายังไม่มีเมนูจัดการเฉพาะ
 - GR, PV และเช็คจ่ายมีชื่อเมนู แต่หน้า Accounting ปัจจุบันแสดงข้อความว่ายังไม่อยู่ในขอบเขตที่ทำ
-- หน้ารับชำระเงินแสดง Invoice ค้างรับ ไม่ใช่ทะเบียนใบรับชำระที่บันทึกไปแล้ว
+- รับชำระ RV เป็นทะเบียน/หน้าแยกหลาย Invoice หรือ BI พร้อม WHT/ค่าธรรมเนียม, Draft → ยืนยันลดหนี้ → ยกเลิกคืนยอด, หลักฐานแนบและแบบพิมพ์แล้ว ดู 1.6; ยังรอ rollout/UAT จริง
 - การเบิก/คืนสินค้าและ GR ใน API มีการบันทึกเป็น approved และกระทบ Stock ทันที ยังไม่ใช่ workflow อนุมัติตาม spec
 - รายงานมีเพียง 4 หน้าหลัก และบางสูตรยังไม่ใช่ยอดทางบัญชีที่ยืนยันแล้ว โดยเฉพาะ AP Aging
 - Approval, การยกเลิกและกลับยอด, ประวัติ, การพิมพ์/Export และ Notification ยังไม่ได้เชื่อมครบสำหรับเอกสาร Accounting
@@ -119,8 +119,92 @@ API เพิ่ม detail/update/cancel และ validation ของวัน
 - UAT บน PostgreSQL เป้าหมายหลัง SQL รวมการส่งคำขอพร้อมกันจริง (HTTP tests ใช้ฐานข้อมูลจำลอง ไม่พิสูจน์ locking ของ PostgreSQL)
 - ทดลองเครื่องพิมพ์กับกระดาษจริง: A4, actual size 100%, ปิด browser headers/footers และตรวจระยะป้อนกระดาษ; ยังไม่รับรองตำแหน่งกับเครื่องพิมพ์ทุกเครื่อง
 - ทบทวน/ย้าย Legacy แยกต่างหาก ห้ามล้างยอด Draft เดิมตามกติกาใหม่โดยไม่มีการตรวจ
-- BI UI ยังเป็น gap เดิม: เลือกหลาย IV/สร้างจริง/ดู/แก้/ยกเลิก/พิมพ์/กันวางบิลซ้ำ เป็น **Process ถัดไปที่เสนอ**
+- ณ รอบ Invoice เสนอ BI เป็น Process ถัดไป; ได้ทำต่อแล้วในหัวข้อ 1.5 ไม่ใช่ gap ปุ่มบันทึกเดิมอีกต่อไป
 - RV/CN workflow เต็ม, สูตร WHT/fee, reversal, attachments, approval หลายขั้น, รายงาน as-of และ GL ยังไม่ได้ทำครบ; ไม่ถือว่าการเพิ่ม guard ในรอบนี้ปิด gap เหล่านี้แล้ว
+
+### 1.5 Process ใบวางบิล BI (25/10/2026)
+
+**ทำแล้วตามกติกาที่ผู้ใช้ยืนยันในรอบนี้; ยังไม่ apply SQL ฐานข้อมูลร่วม และยังไม่ผ่าน UAT กับข้อมูล/เครื่องพิมพ์จริง**
+
+ข้อสรุปและขอบเขต:
+
+1. เลือก **หลาย Invoice ของลูกค้าเดียวกัน และกรอกยอดบางส่วนต่อใบได้**; ยอดต่อใบต้องมากกว่า 0 ไม่เกินยอดค้างรับปัจจุบัน เลือกได้เฉพาะ Invoice วงจรใหม่ที่ยืนยันแล้ว ไม่ใช่ Legacy/Draft/ยกเลิก/ปิดหนี้แล้ว
+2. Invoice หนึ่งใบอยู่ใน **BI ที่ยังไม่ยกเลิกได้เพียงใบเดียว รวม Draft BI และ BI Legacy เดิม** แม้วางบิลเพียงบางส่วน ยอดเหลือไม่ได้เปิดให้วางบิลใบใหม่ซ้ำพร้อมกัน หากต้องออกใหม่ต้องยกเลิกใบเดิมตามเงื่อนไขก่อน
+3. หน้าแยก list/new/view/edit; ลูกค้า/Invoice เป็น dropdown ค้นหา; วันที่ dd/mm/yyyy; มีสาขา/ที่อยู่/ผู้ติดต่อ/วันนัดชำระ/เงื่อนไขการจ่าย/หมายเหตุ และรายการแสดงยอดตามใบกำกับ ค้างรับ และยอดวางบิลแยกกัน
+4. Draft → ยืนยันวางบิล ใช้ `ar.create` โดยตรง ไม่มี approval หลายขั้น; ยืนยันแล้วห้ามแก้; `ar.view` ดู/พิมพ์ใบที่ยืนยันแล้วได้ BI **ไม่เพิ่มหรือลดยอดหนี้ Invoice ไม่ตัด Stock/GL และไม่ใช่หลักฐานรับเงิน**
+5. ยกเลิกโดย `ar.create` ต้องมีเหตุผล และไม่มี RV/CN ที่ยังมีผลสร้างหลังจัดทำ BI อ้าง Invoice ในนั้น ตรวจ timestamp ที่ระบบสร้าง ไม่ใช่วันเอกสารที่ผู้ใช้ย้อนหลังได้; ตรวจยอดค้างรับเปลี่ยนไปด้วย ก่อนยกเลิกจะ lock Invoice ร่วมกับการรับชำระ/ลดหนี้
+6. Draft ไม่อนุญาตเปลี่ยนรายการหลังมีรับชำระ/ลดหนี้ที่มีผลหลังจัดทำ เพื่อไม่ให้เอา Invoice ออกจากใบแล้วหลบกติกายกเลิก; ถ้าเกิดกรณีนี้ต้องตรวจเอกสารต่อเนื่อง/กระบวนการแก้ไขแยกต่างหาก ไม่มีปุ่ม force-cancel หรือ reversal ในรอบนี้
+7. ก่อนยืนยันตรวจยอดค้างรับอีกครั้ง หากเปลี่ยนต้องทบทวน Draft ไม่ยืนยันยอดเก่าเงียบ ๆ; เมื่อมีรายการชำระ/ลดหนี้ที่มีผลตามข้อ 6 การแก้/ยกเลิกจะยังถูกปฏิเสธ ไม่ถือว่าบันทึกซ้ำแล้วปลดเงื่อนไขได้
+8. ผู้ใช้ยืนยันให้สร้าง **ทั้งกรอบและข้อมูลลงกระดาษเปล่า** ตาม [ใบวางบิล.pdf](ใบวางบิล.pdf) ไม่ใช่ data-only overlay แบบ Invoice: ชื่อ/ที่อยู่/โทรศัพท์/Tax ID บริษัทจาก Settings, หัวใบวางบิล, กล่องลูกค้า/เลขที่/วันที่/วันนัดชำระ/เงื่อนไข, 7 คอลัมน์, ยอดรวม/หมายเหตุ และช่องผู้วางบิล/ผู้รับวางบิล โดยไม่เติมลายเซ็นจริง
+
+สิ่งที่ทำและหลักฐาน:
+
+- [หน้า BI](../../accounting-ui/src/components/billing-notes.tsx) และเส้นทาง `/ar/billing-notes`, `/new`, `/:id`, `/:id/edit`; เมนูเดิม `/ar/invoices?tab=billingNotes` เปิด component ใหม่ ไม่ใช้ popup เดิมที่ปิดโดยไม่ได้สร้างเอกสารแล้ว
+- [API BI](../../api/src/routes/billing-notes.js) list/search/filter/detail/history/sources/create/update/confirm/cancel และ [กติกา BI](../../api/src/lib/billingNote.js) คำนวณยอดแบบ satang จากรายการที่ตรวจแล้ว ไม่รับ total/header/snapshot จาก client เป็นความจริง ใช้ revision กันเขียนทับและ audit ใน transaction เดียวกัน
+- lock Invoice ตาม id ที่เรียงเหมือนกันก่อนตรวจ BI ซ้ำ/บันทึก รวมเอกสารที่ถอดออกขณะแก้; ทำงานร่วมกับ Invoice cancel/RV/CN โดยไม่อ้างว่าทดสอบ mock พิสูจน์ PostgreSQL concurrency แล้ว
+- เก็บ snapshot ชื่อ/รหัส/ที่อยู่ลูกค้า และเลขที่/วันที่/ครบกำหนด/มูลค่า Invoice; หน้าพิมพ์ใช้ค่าที่บันทึก ไม่เปลี่ยนยอดวางบิลตาม outstanding ปัจจุบัน การเปิดแก้ Draft แสดงยอดค้างรับล่าสุดเพื่อให้ทบทวน
+- [เอกสารพิมพ์](../../accounting-ui/src/components/billing-note-document.tsx) A4 portrait แบ่ง 17 รายการต่อหน้า ยอดรวมเฉพาะหน้าสุดท้าย ทุกหน้ามีหัวตาราง/เลขหน้า; ข้อความยาวลดขนาดในขอบเขตที่กำหนดและปิดการพิมพ์พร้อม error ถ้าไม่พอดี ไม่ตัดทิ้งเงียบ ๆ; Draft/ยกเลิก/Legacy พิมพ์เป็นใบยืนยันไม่ได้
+- [HTTP tests](../../api/test/ar.test.js) ตรวจ partial totals, ลูกค้าต่างกัน, invalid/date/ยอดศูนย์/เกิน/ซ้ำ, Draft/Legacy Invoice, BI Legacy กันซ้ำ, save/edit/reopen, stale writes, ยืนยันซ้ำ, รับชำระ/ลดหนี้กันยกเลิกและกันลบรายการหลบเงื่อนไข, audit rollback และการคืนสิทธิ์ออกใหม่หลังยกเลิก
+- [UI tests](../../accounting-ui/test/billing-note.test.cjs) ตรวจเส้นทาง, tab เดิม, สิทธิ์, hydration/ยอด satang และแม่แบบหลายหน้า; browser จำลอง persistence ร่วมกับ `billingData` จริงตรวจค้นหา/เลือกหลายใบ/partial/แก้/ยืนยัน/ยกเลิก/Legacy/viewer ผ่าน 6 ความกว้าง 320–1440px ไม่มี form overflow; PDF 2 รายการ = 1 หน้า, 40 รายการ = 3 หน้า ตรวจภาพตัวอย่างเทียบโครงสร้างแม่แบบแล้ว และยืนยันข้อความยาวเกินพื้นที่ทำให้ปิดปุ่มพิมพ์/ซ่อนข้อมูลใน print media พร้อม error แทนการตัดข้อความเงียบ ๆ
+
+ผลตรวจรอบนี้: **API 54/54**, **UI 42/42**, production build/type-check, focused BI lint และ Prisma validate/generate ผ่าน โดยทดสอบ HTTP/transactions ด้วยฐานข้อมูลจำลอง ยังไม่รับรองคำขอพร้อมกันบน PostgreSQL จริง
+
+Rollout: สำรองและให้ operator ตรวจ/รัน [accounting-billing-notes.sql](../../api/scripts/sql/accounting-billing-notes.sql) แบบ additive ร่วมกับ Invoice/SO prerequisites ที่ยังไม่ได้ติดตั้ง แล้ว generate Prisma และ restart API/อัปเดต UI เป็นรุ่นเดียวกัน **ยังไม่ได้รัน SQL นี้ให้บน DB ร่วม** ข้อมูล BI เดิม `lifecycleVersion=0` อ่านได้อย่างเดียว ไม่เปลี่ยนยอด/สถานะ/เติม snapshot ย้อนหลังอัตโนมัติ; ต้องตรวจและย้าย Legacy แยกต่างหาก
+
+ข้อค้าง ณ สิ้นรอบ BI: target DB UAT/real concurrency, เครื่องพิมพ์, RV/ปิด-ปลด BI/WHT/fee/reversal/ไฟล์แนบ และรายงาน as-of **รายการ RV และ BI completion ทำต่อแล้วตาม 1.6 ด้านล่าง ซึ่งใช้แทนกติกา BI active/รับเงินใน 1.5**; notification/as-of และ UAT จริงยังค้าง
+
+### 1.6 Process รับชำระ RV และปิด/เปิด BI กลับ (25/10/2026)
+
+**ทำตามขอบเขตที่ผู้ใช้ยืนยันแล้ว ไม่ได้รัน SQL กับฐานข้อมูลร่วม ไม่ใช่การรับรอง production หรือ PostgreSQL concurrency**
+
+กติกาที่รับรองในรอบนี้:
+
+1. หน้าแยกทะเบียน/new/view/edit เลือกลูกค้าและหลาย Invoice หรือ BI ที่ยืนยันแล้วด้วย dropdown ค้นหา กรอกเงินเข้าสุทธิ/WHT/ค่าธรรมเนียมเป็นจำนวนบาทต่อ Invoice ไม่คำนวณเปอร์เซ็นต์ ไม่รับเกินหนี้/เงินล่วงหน้า
+2. **ยอดลดหนี้ = เงินเข้าสุทธิ + WHT + ค่าธรรมเนียมที่บริษัทรับภาระ** เช่น หนี้ 1,000 เงินเข้า 960 + WHT 30 + fee 10 ปิดหนี้ 1,000; header รวมจาก allocations ฝั่ง server แบบ satang ไม่เชื่อยอดรวมที่ client ส่ง
+3. Draft ไม่ลดหนี้; `ar.create` สร้าง/แก้ Draft/ยืนยันโดยตรง/ยกเลิกพร้อมเหตุผลได้; ยืนยันแล้วแก้ไม่ได้ `ar.view` ดู/พิมพ์ใบที่ยืนยันแล้วได้ Legacy version 0 อ่านอย่างเดียว ไม่เปลี่ยนยอดหรือสถานะย้อนหลัง
+4. รับตรง Invoice ที่อยู่ใน BI ยืนยันค้างอยู่จะผูก BI อัตโนมัติ ไม่เกินส่วนวางบิลที่ยังไม่รับ หากติด BI Draft/Legacy ต้องจัดการ BI ก่อน; ยืนยัน RV ตรวจ source/BI link และยอดล่าสุดซ้ำ หาก link เปลี่ยนต้องเปิดแก้ทบทวนก่อน
+5. รับครบ **ส่วนที่วางบิล** จะตั้ง `completedAt` ของ BI (status ยัง approved) และปล่อย Invoice ให้วางบิลหนี้ส่วนเหลือได้ ขณะยังไม่ปิด Invoice ถูกจองโดย BI เดียวรวม Draft/Legacy; ไม่ใช่การปล่อยให้วางบิลซ้ำพร้อมกัน
+6. ยกเลิก RV ยืนยันแล้วคืนยอดเงิน+WHT+fee ทั้งหมดและเปิด BI กลับ แต่ห้ามถ้ามี BI ใหม่ที่ยังไม่ยกเลิกบน Invoice ใดใน BI เดิมหลังปิด BI เดิม; ยกเลิกซ้ำไม่คืนซ้ำ และ BI ที่ปิดแล้วห้ามยกเลิกตรง ๆ
+7. รับเงินสด/โอนเท่านั้น โอนบังคับชื่อธนาคารและเลขอ้างอิง; มี WHT บังคับเลขหนังสือรับรอง; หลักฐานแนบไม่บังคับ แนบ/ลบได้หลังบันทึก Draft เท่านั้น มี row lock/revision/สิทธิ์/audit ร่วมกับการยืนยัน ไม่เปิดเช็ครับในรอบนี้
+8. พิมพ์กรอบและข้อมูลลงกระดาษเปล่าตาม [ใบสำคัญรับ.pdf](ใบสำคัญรับ.pdf): journal/header, 6 คอลัมน์บัญชี, สมุดเงินฝาก, ช่องลงนาม และรายละเอียด Invoice/BI เพิ่ม; **ผู้ใช้ยืนยันให้แสดงชื่อรายการและเดบิต/เครดิตจากยอดรับ/WHT/fee/ลูกหนี้ แต่เว้นรหัสบัญชี แผนก โครงการ ช่องลงนาม ไม่ลง GL จริง** ไม่คัดลอกเลขบัญชีจากตัวอย่าง
+
+หลักฐาน:
+
+- [RV UI](../../accounting-ui/src/components/receipt-vouchers.tsx), [model](../../accounting-ui/src/lib/receipt-voucher.ts), [API](../../api/src/routes/receipt-vouchers.js), [validation/settlement/reversal](../../api/src/lib/receiptVoucher.js), [หลักฐานแนบ](../../api/src/routes/upload.js)
+- [แบบพิมพ์](../../accounting-ui/src/components/receipt-voucher-document.tsx) A4 portrait 6 Invoice ต่อหน้า, ทุกแถวพิมพ์ครั้งเดียว เดบิต/เครดิตและยอดรวมเฉพาะหน้าสุดท้าย ตรวจข้อความและขอบหน้าก่อนอนุญาตพิมพ์ รวม Ctrl+P; ไม่ยอมพิมพ์เป็นฉบับยืนยันเมื่อเป็น Draft/ยกเลิก/Legacy หรือ fit ไม่ผ่าน
+- [HTTP tests](../../api/test/ar.test.js) ตรวจเงินจริงแบบ satang, source/ลูกค้า/สถานะ/วันที่/ยอดผิด, mandatory fields, Draft ไม่ลดหนี้, update/revision/permission, ยืนยันซ้ำและ RV สองใบแย่งยอด, ปิด/ปล่อย/วางบิลใหม่/กันกลับยอด/เปิด BI, ยกเลิกคืนครบ, audit rollback และ upload/delete จริงผ่าน multipart บน disk ชั่วคราว
+- [UI tests](../../accounting-ui/test/receipt-voucher.test.cjs), production build/type-check/focused lint ผ่าน; browser จำลอง persistence โดยใช้ `receiptData` จริง ตรวจค้นหา BI/Invoice หลายใบ/save/edit/reopen/confirm/cancel guard/viewer, 6 ความกว้าง 320–1440 ไม่ล้นฟอร์ม, PDF 2 รายการ=1 หน้า และ 14 รายการ=3 หน้า, ข้อความยาวปิดพิมพ์ **API รวม 56/56 และ UI รวม 46/46 ผ่าน** ไม่ใช่ DB จริง
+- [SQL additive RV](../../api/scripts/sql/accounting-receipts.sql) เพิ่ม lifecycle/snapshot/fee ต่อ allocation/BI link/completedAt/attachment link; ต้อง backup/review และรันหลัง SQL prerequisite SO/IV/BI จากนั้น generate Prisma และ restart API/deploy UI พร้อมกัน **ยังไม่ได้ apply โดยผู้ช่วย**; generate Prisma เฉพาะ local แล้ว
+
+ข้อค้าง ณ สิ้นรอบ RV: PostgreSQL schema/rollout/concurrency UAT, printer A4 actual size 100% ปิด headers/footers, เช็ครับ/เงินล่วงหน้า/คืนเงิน/GL mapping+posting/approval หลายขั้น/notification/historical as-of/ย้าย Legacy โดย **CN ทำต่อแล้วตาม 1.7** ไม่ได้ทำ refunds/Stock/GL เพิ่ม
+
+### 1.7 Process ใบลดหนี้ CN (25/10/2026)
+
+**ทำตามคำตอบผู้ใช้ Q-07 แล้ว; SQL ยังไม่ได้ apply กับฐานข้อมูลร่วม และยังไม่ผ่าน UAT ฐานข้อมูล/เครื่องพิมพ์จริง**
+
+ขอบเขตที่ยืนยัน:
+
+1. อ้างอิง Invoice ใหม่ที่ยืนยันแล้วหนึ่งใบ ค้นหาจากเลข Invoice/ลูกค้า ดึงชื่อ/รหัส/สาขา/ที่อยู่/Tax ID/วันที่/VAT จากต้นฉบับเป็น snapshot ไม่เปลี่ยนลูกค้าเอง และเปลี่ยน Invoice หลังบันทึกไม่ได้
+2. หลายรายการลดหนี้ ระบุคำอธิบาย/รหัสสินค้า/หน่วย/จำนวนเต็มบวก/ราคาลดต่อหน่วยก่อน VAT ไม่แก้ Invoice ต้นฉบับ ไม่ใช่การคืนสินค้า **ไม่เพิ่ม/ลด Stock ไม่คืนเงิน ไม่สร้างเครดิตล่วงหน้า ไม่ลง GL**
+3. ใช้ VAT ตาม Invoice (`VAT7%` หรือ `NO_VAT`) คำนวณจำนวน × ราคาลดแบบ satang รวมยอดก่อน VAT แล้วปัด VAT 2 ตำแหน่ง แจก VAT ต่อบรรทัดด้วยผลต่างยอดสะสมให้ผลรวมเท่าหัวเอกสาร ไม่รับยอดรวม/VAT/ข้อมูลลูกค้าปลอมจาก client
+4. คุม CN ที่ยืนยันและยังไม่ยกเลิกสะสมรวม Legacy แยกยอด **ก่อน VAT / VAT / ยอดสุทธิ** ไม่เกิน Invoice และยอด CN ใบใหม่ต้องไม่เกินค้างรับปัจจุบัน แม้รับบางส่วนแล้วลดได้เฉพาะหนี้ที่เหลือ ชำระเต็มแล้วทำ CN ไม่ได้ หาก VAT ที่เหลือไม่พอจากการปัดหลายใบ จะแจ้งให้ปรับยอด ไม่ลดภาษีอัตโนมัติเงียบ ๆ
+5. `ar.create` สร้าง/แก้ Draft/ยืนยันลดหนี้ได้โดยตรง ยืนยันแล้วแก้ไม่ได้ ยกเลิกต้องมีเหตุผลและคืนยอดครั้งเดียว; `ar.view` อ่าน/พิมพ์เอกสารยืนยันได้ Legacy version 0 อ่านอย่างเดียว ไม่เปลี่ยน status/balance ย้อนหลัง
+6. Draft ไม่ลดหนี้ และบันทึกไว้ระหว่างติด BI ได้ แต่ **ห้ามยืนยัน CN ขณะ Invoice อยู่ใน BI ที่ยังไม่ปิด** ต้องจัดการ RV/ยกเลิก BI เดิมก่อนตามเงื่อนไข ไม่แก้ยอด BI หรือปิด BI ด้วยยอด CN อัตโนมัติ; Draft CN ไม่ถือเป็นยอดลดหนี้ที่กันแก้/ยกเลิก BI
+7. ยกเลิก CN ยืนยันแล้วได้เมื่อไม่มี BI ใหม่หรือ RV ยืนยันที่ยังมีผลภายหลังยืนยัน CN ใช้เวลายืนยันของ RV ไม่ใช่วันย้อนหลัง/Draft creation; ตรวจ BI active/เวลาแก้ไขด้วย ป้องกันเอา Invoice ไปใส่ BI Draft เก่าหลัง CN แล้วหลบ guard; BI create บันทึก createdAt หลังได้ Invoice lock ไม่ใช้ transaction-start timestamp
+8. หน้าแยก list/new/view/edit/history มีเมนู **ใบลดหนี้** ใต้ AR วันที่ dd/mm/yyyy จำนวนเพิ่มทีละ 1 รายละเอียดอยู่ใต้แถวตัวเลข ไม่มี Popup/ฟอร์มเลื่อนแนวนอน
+9. พิมพ์ทั้งกรอบ+ข้อมูลลงกระดาษเปล่าตาม [ใบลดหนี้.pdf](ใบลดหนี้.pdf): หัวบริษัทจาก Settings กล่องลูกค้า/เอกสาร/Invoice เดิม/สาเหตุ 7 คอลัมน์ มูลค่าเดิมก่อน VAT มูลค่าที่ถูกต้องหลัง CN สะสม ยอดลดใบนี้/VAT/รวม หมายเหตุและช่องลงนามว่าง **ไม่คัดลอกข้อความรับสินค้า/สงวนกรรมสิทธิ์** เพราะ scope นี้ไม่คืนสินค้า ราคาบนบรรทัดคือราคาที่ลดต่อหน่วย ช่องส่วนลดเพิ่มเติมเว้นเป็นขีด ไม่หักซ้ำอีกชั้น
+
+หลักฐาน:
+
+- [CN API](../../api/src/routes/credit-notes.js), [คำนวณ/สะสม/locks/guards](../../api/src/lib/creditNote.js), [schema](../../api/prisma/schema.prisma), [SQL additive](../../api/scripts/sql/accounting-credit-notes.sql)
+- CN update/confirm/cancel lock CN แล้ว Invoice; ใช้ Invoice lock ร่วมกับ RV/BI/Invoice cancel เพื่อ revalidate ยอดปัจจุบันทุกครั้ง เขียนยอด/status/audit ใน transaction เดียว มี revision กันแก้ทับและ rollback เมื่อ audit ล้มเหลว ไม่มีการแตะ Stock/GL
+- [CN UI](../../accounting-ui/src/components/credit-notes.tsx), [model](../../accounting-ui/src/lib/credit-note.ts), [แบบพิมพ์](../../accounting-ui/src/components/credit-note-document.tsx) A4 portrait 12 รายการต่อหน้า ทุกแถวพิมพ์ครั้งเดียว ยอดรวมเฉพาะหน้าสุดท้าย ตรวจ text/page fit และปิด print/Ctrl+P เมื่อข้อมูลไม่พอดีหรือไม่ใช่เอกสารยืนยัน
+- [HTTP regression](../../api/test/ar.test.js): Draft ไม่มีหนี้ลด, VAT/NO_VAT/forged totals, สะสมแยกก่อน VAT/VAT, วันที่ผิด/จำนวนทศนิยม, legacy/สิทธิ์/revision, BI กันยืนยัน, RV/BI กันยกเลิก, concurrent CN, ยกเลิกคืนยอด/กันซ้ำ, confirm/cancel audit rollback, SQL ไม่แปลงยอดเก่า **API รวม 59/59 และ UI รวม 50/50 ผ่าน** build/type-check/focused lint/Prisma validate+generate ผ่าน
+- [UI tests](../../accounting-ui/test/credit-note.test.cjs) และ browser จำลอง persistence ด้วย `creditData`/capacity/guards จริง: สร้าง/แก้/เปิดใหม่/ค้นหา/หลายรายการ/BI block/confirm/cancel/readonly, ความกว้าง 320–1440, PDF 2 รายการ=1 หน้า และ 25 รายการ=3 หน้า, เต็มหน้า 12 รายการรวมท้ายเอกสารและปิดพิมพ์เมื่อ remark ยาว
+
+Rollout: backup/review/apply prerequisite SO/IV/BI/RV SQL แล้ว [accounting-credit-notes.sql](../../api/scripts/sql/accounting-credit-notes.sql) จากนั้น generate Prisma/restart API/deploy UI พร้อมกัน **ผู้ช่วยไม่ได้รัน SQL หรือ reset ฐานข้อมูล**; เป็น additive columns/index ไม่ย้าย Legacy อัตโนมัติ
+
+ยังค้าง: UAT ฐานข้อมูล PostgreSQL จริง/คำขอพร้อมกันจริง/เครื่องพิมพ์ A4 100% ปิด browser headers-footers, refunds/credit balance/คืนสินค้า/GL/approval หลายขั้น/ไฟล์แนบ CN/notification/as-of และ Legacy conversion ไม่อยู่ในรอบนี้ **Process ถัดไปที่เสนอ: PS ใบเบิกจ่ายผู้รับเหมา ตาม Q-10** หรือ GR หากต้องการเดินสายสินค้า โดยต้องยืนยัน policy ก่อน
 
 ## 2. Scope Baseline และวิธีตรวจ
 
@@ -133,7 +217,7 @@ API เพิ่ม detail/update/cancel และ validation ของวัน
 
 ตรวจเมนูจาก [accounting-navigation.ts](../../accounting-ui/src/lib/accounting-navigation.ts) และ [app-shell.tsx](../../accounting-ui/src/components/app-shell.tsx), อ่านหน้าจอ/แบบฟอร์ม, API client, route handlers, schema, permission และ tests ที่เกี่ยวข้อง
 
-ครอบคลุมหน้าหลัก/เมนูย่อย 23 จุด: Dashboard 1, AR 4, AP 4, Inventory 2, Master 6, Reports 4, บทบาทและสิทธิ์ 1, Profile 1 รวมทั้งงานตาม spec ที่ไม่มีเมนู เช่น CN, PS, คืนสินค้า, Approval และ Audit
+ครอบคลุมหน้าหลัก/เมนูย่อยเดิม 23 จุด; เพิ่ม CN เป็น 24 จุด: Dashboard 1, AR 5, AP 4, Inventory 2, Master 6, Reports 4, บทบาทและสิทธิ์ 1, Profile 1 รวมทั้งงานตาม spec ที่ยังไม่มีเมนู เช่น PS, คืนสินค้า, Approval และ Audit
 
 หน้า login, ลืมรหัสผ่านและเปลี่ยนรหัสผ่านเป็นส่วนสนับสนุนที่มีอยู่ ไม่ได้ทดสอบการส่งอีเมลหรือ identity workflow ใหม่ในรายงานนี้
 
@@ -170,9 +254,9 @@ API เพิ่ม detail/update/cancel และ validation ของวัน
 | ผังบัญชี | รายการ, เพิ่ม code/name/category; API มี accountType/accountMapping | UI ยังไม่จัดการชนิด header/detail, mapping, edit/active; ไม่พบ GL posting จากธุรกรรม Accounting ที่ตรวจ | ทำบางส่วน |
 | ใบส่งของชั่วคราว SO | หน้าแยก Draft หลายรายการ, ค้นหาลูกค้า/WO, ตารางย่อ, ดู/แก้/พิมพ์/ยกเลิก/history; ดึงทั้งใบไป Invoice ได้ | ยังไม่เปิดยืนยัน/ตัด Stock ตาม scope; ไม่ทำ partial Invoice; UAT DB จริงยังค้าง | ทำแล้วระยะ Draft ดูหัวข้อ 1.1–1.4 |
 | Invoice IV | หน้าแยก list/new/edit/view/history, หลายรายการ/ส่วนลด/VAT, คัดลอก SO ทั้งใบและกันซ้ำ, Draft/ยืนยันตั้งหนี้/ยกเลิกแบบมีเงื่อนไข, พิมพ์ข้อมูลทับแบบฟอร์ม | รอ SQL/UAT/เครื่องพิมพ์จริง; Legacy ไม่ย้ายอัตโนมัติ; ยังไม่มีไฟล์แนบ/approval หลายขั้น/WO selector อิสระ/partial SO | ทำแล้วตาม scope รอบนี้ ดู 1.4 ไม่ใช่ AR ครบ |
-| ใบวางบิล BI | API list/create และตารางรายการ | UI ไม่มีเลือกหลาย Invoice และไม่มีการเรียก createBillingNote ตอน submit; ขาดดู/แก้/ยกเลิก/พิมพ์ | ปุ่มสร้างยังไม่ทำงานจริง |
-| ใบลดหนี้ CN | API สร้างและลดยอด Invoice | ไม่มีเมนู/ฟอร์ม/list/detail/edit/print/cancel; ยังต้องตรวจยอดสะสมและ concurrency | API บางส่วน ไม่มี UI |
-| รับชำระ / RV | เลือก Invoice หนึ่งใบ, ยอดรับ/วิธีรับ/ธนาคาร/WHT บางส่วน; API allocations หลายใบ | ไม่มีทะเบียน RV, เลือก BI, หลาย Invoice ใน UI, รายละเอียดเช็ค/วันรับ/เลขอ้างอิง/ค่าธรรมเนียมที่ครบ, พิมพ์/ยกเลิก/กลับยอด | ทำบางส่วน |
+| ใบวางบิล BI | หน้าแยกหลาย Invoice/partial, Draft/ยืนยัน/ยกเลิก/history/print; รับผ่าน RV ครบส่วนแล้วปิด-ปล่อยยอดเหลือ, reversal เปิดกลับพร้อม guard | รอ SQL/DB/concurrency/เครื่องพิมพ์ UAT; Legacy อ่านอย่างเดียว; CN และ GL แยก scope | ทำแล้วตาม 1.5–1.6 |
+| ใบลดหนี้ CN | เมนู/หน้าแยกหลายรายการ/ค้นหา Invoice/Draft/ยืนยันลดหนี้/ยกเลิกคืนยอด/history/พิมพ์ตาม PDF; คุมยอดก่อน VAT/VAT/รวมสะสม | รอ SQL/DB/printer UAT; ไม่คืน Stock/เงิน/GL ไม่ย้าย Legacy/ไม่มี CN attachments | ทำแล้ว agreed scope ตาม 1.7 |
+| รับชำระ / RV | หน้าแยกทะเบียน/หลาย Invoice/BI/เงินสุทธิ+WHT+fee, Draft/ยืนยันลดหนี้/ยกเลิกคืนยอด/BI completion+reversal guard, หลักฐาน/history/พิมพ์ตาม PDF | รอ SQL/DB UAT/เครื่องพิมพ์; ไม่เปิดเช็ค/เงินล่วงหน้า/คืนเงิน/GL/ย้าย Legacy | ทำแล้ว agreed scope ตาม 1.6 |
 | PO | หน้า list/new/edit/view/print, ค้นหาผู้ขาย, หลาย lines/PR, แนบไฟล์ | ยังเป็น Draft-only ตาม scope; รายการกรอกเองยังไม่เชื่อม Product master เพื่อ GR; ต้องตรวจ schema/client และทดสอบกับฐานข้อมูลจริง | ทำตามระยะ Draft ไม่ใช่ AP เต็ม |
 | เบิกจ่ายผู้รับเหมา PS | API create, คำนวณยอดที่เคยขอและคงเหลือ PO | ไม่มีเมนู/ทะเบียน/ฟอร์ม/ดู/แก้/อนุมัติ/พิมพ์; ไม่มีเส้นทาง PS approved → PV ที่ครบ | API บางส่วน ไม่มี UI |
 | รับสินค้า GR | API create และ posting Stock/Movement สำหรับสินค้าที่ไม่ใช่ Service | เมนู placeholder, ไม่พบการบังคับยอดรับคงเหลือจาก PO lines ที่คำนวณเอง; ไม่มี cancel/reversal | ยังไม่พร้อมใช้งานเต็ม |
@@ -195,12 +279,12 @@ API เพิ่ม detail/update/cancel และ validation ของวัน
 
 | Finding | หลักฐานปัจจุบัน | ผลกระทบ / สิ่งที่ต้องทำ |
 |---|---|---|
-| F-01 BI กดบันทึกแต่ไม่สร้าง | [Invoices UI](../../accounting-ui/src/app/ar/invoices/page.tsx): handleCreateInvoice มี branch เฉพาะ invoices/so แต่ปิด form ต่อแม้เป็น billingNotes | ผู้ใช้อาจเข้าใจว่าสร้างแล้ว; ต้องทำฟอร์ม BI และเรียก API พร้อมตรวจผลจริง |
+| F-01 แก้แล้ว: BI บันทึกจริง | tab เดิมเปิดหน้า BI ใหม่ เรียก create/update API และไปหน้าเอกสารตาม id ที่คืน ไม่ปิดฟอร์มแบบ success-shaped เดิม | ผ่าน HTTP/browser จำลอง; รอ DB rollout/UAT ตาม 1.5 |
 | F-02 แก้แล้วใน SO Draft: field วันที่ | ฟอร์ม SO ใหม่ส่ง docDate โดยตรงและ API ตรวจวันที่จริง | มีกรณีทดสอบวันที่ผิด/บันทึก-เปิดใหม่; Invoice process ยังแยกทำต่อ |
 | F-03 แก้แล้วสำหรับ Invoice ใหม่: authoritative totals | Invoice API คำนวณใหม่จากรายการที่ตรวจแล้ว และคัดลอก SO โดย server | สูตรเงินยืนยันแล้วตาม 1.4; ไม่คำนวณย้อนหลังทับเอกสารเก่า รอ DB UAT |
 | F-04 แก้แล้วสำหรับ Invoice ใหม่: Draft ไม่ตั้งหนี้ | lifecycleVersion=1 สร้าง outstanding=0; confirm ตั้งหนี้ครั้งเดียว; unpaidOnly/BI/RV/CN กัน Draft ใหม่ | Legacy ยังคงยอดและกติกาเดิม ต้องตรวจการย้ายข้อมูลแยกต่างหาก |
-| F-05 Billing Note ยังตรวจเอกสารต้นทางไม่ครบ | รอบ Invoice เพิ่ม lock/ตรวจ missing/status/ยอดบวก/ลูกค้า และ id ซ้ำใน request แล้ว แต่ยังไม่กันอยู่ใน BI active ซ้ำ | ยังต้องทำ BI UI/workflow และ concurrent duplicate billing ใน Process ถัดไป |
-| F-06 RV/WHT และยอดจัดสรรยังไม่ครบ | RV API ตัด Invoice ด้วย receivedAmount เท่านั้น; UI ส่ง whtAmount ต่อ allocation แต่ยอด WHT ระดับหัวไม่ได้ส่งให้สอดคล้อง | ต้องยืนยันว่า WHT/fee ลดหนี้อย่างไร ตรวจผลรวม header/allocations และ customer/status ทุกใบ |
+| F-05 แก้แล้วตาม BI scope | ตรวจ Invoice ยืนยันใหม่/ลูกค้า/ยอดค้างรับ/partial/รายการซ้ำ และ BI active ซ้ำรวม Legacy ภายใต้ Invoice lock; confirm ตรวจยอดเปลี่ยน | ผ่าน mock HTTP รวมคำขอพร้อมกันแบบ serialized; ต้องตรวจ PostgreSQL จริงก่อนรับรอง concurrency |
+| F-06 แก้แล้วสำหรับ RV ใหม่ | ยืนยันลดหนี้ด้วยเงินสุทธิ+WHT+fee ต่อ allocation; server รวม header/ตรวจลูกค้า/สถานะ/วงเงิน/BI; ยกเลิกคืนครบแบบ transaction+audit | ทดสอบ HTTP/browser จำลองผ่านตาม 1.6; Legacy คงเดิม รอ DB จริง/เครื่องพิมพ์ |
 | F-07 GR รับยอดคงเหลือจาก request | [AP API](../../api/src/routes/ap.js) เก็บ ordered/previouslyReceived/remaining/current จาก request; [GR line schema](../../api/prisma/schema.prisma) ไม่มี FK ไป PO line | ไม่พิสูจน์ว่ารับไม่เกินจริง; ต้องอ้าง PO line และรวมการรับเดิมที่มีผลก่อน posting |
 | F-08 PO ปัจจุบันยังไม่ส่ง productId จาก UI | [PO form](../../accounting-ui/src/components/purchase-orders.tsx) ใช้ partNo/desc/unit อิสระ; [PO draft type](../../accounting-ui/src/lib/purchase-order.ts) ไม่มี productId | ต่อ GR อัตโนมัติยังไม่ได้ ต้อง map Product/Service อย่างชัดเจน ไม่ถือ partNo ว่าเป็น FK |
 | F-09 Stock เบิก/คืนยังไม่ผ่าน approval | [Inventory API](../../api/src/routes/inventory.js) create ตั้ง approved และสร้าง movement ทันที; GR ก็มีลักษณะ immediate posting | ขัด flow approval ที่ระบุ; ต้องแยกบันทึกร่าง/อนุมัติ/posting และทำ reversal |
@@ -253,9 +337,9 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | REQ-007 | SO หลายรายการและต้นทางที่เลือกได้ | Draft form/detail/edit/print/cancel และ Invoice full-copy ทำแล้ว; SO confirm/Stock ไม่อยู่ในระยะนี้ | delivery-orders.tsx; delivery-orders.js; invoice.js | Draft และคัดลอก SO ทั้งใบ/กัน IV ซ้ำ ผ่าน mock tests; ไม่ทำ partial | Implemented agreed scope; รอ DB UAT |
 | REQ-008 | IV ครบ header/lines/references | หน้าแยก/หลายรายการ/SO/PO ลูกค้า/discount/confirm/cancel/data-only print ทำแล้ว; attachments/WO อิสระยังค้าง | invoices.tsx; invoices.js; schema | ดึง SO/คำนวณใหม่/กันซ้ำ/พิมพ์หลายหน้า ผ่าน tests; รอเครื่องพิมพ์จริง | Implemented current scope; remaining backlog |
 | REQ-009 | ยอด Invoice คำนวณจากข้อมูลที่ตรวจแล้ว | API authoritative; Draft=0/confirm ตั้งหนี้/guard ปลายทางทำแล้ว; Legacy คงเดิม | invoice.js; invoices.js; ar.js | forged totals ถูกแทนด้วยยอดคำนวณจริง ยืนยันซ้ำไม่เพิ่มหนี้ และ Draft ใหม่ใช้ต่อไม่ได้ | Implemented; รอ DB/concurrency UAT |
-| REQ-010 | BI เลือกหลาย IV ลูกค้าเดียวกัน | API create → UI ทำงานจริงและกัน active ซ้ำ | invoices/page.tsx; ar.js; BillingNoteInvoice | บันทึกแล้วมี BI จริง, ข้ามลูกค้า/ยอดศูนย์/ซ้ำต้องไม่ผ่าน | In Progress |
-| REQ-011 | CN มีวงจรเอกสารและคืนยอดได้ | API create → UI/read/update/cancel/print/limit | ar.js; CreditNote | 2 CN พร้อมกันไม่เกินยอด; cancel คืนยอดถูก | Blocked Q-07 |
-| REQ-012 | RV หลาย IV/BI, ภาษีและจัดสรรครบ | 1 IV ใน UI → form/registry/detail/print/reversal | receipts/page.tsx; ar.js; ReceiptAllocation | partial/full/WHT/fee ยอดตรงและไม่รับซ้ำ | Blocked Q-08 |
+| REQ-010 | BI เลือกหลาย IV ลูกค้าเดียวกัน | full-page/partial/Draft/confirm/cancel/print/history และกัน active ซ้ำทำแล้ว | billing-notes.tsx; billing-notes.js; billingNote.js | หลายใบ/เปิดใหม่/ยอดตรง/ข้ามลูกค้า/ศูนย์/เกิน/ซ้ำถูกปฏิเสธ ผ่าน HTTP/browser จำลอง | Implemented agreed scope; รอ DB UAT |
+| REQ-011 | CN มีวงจรเอกสารและคืนยอดได้ | full-page/multi-lines/Draft/confirm/guarded cancel/print/history; authoritative VAT และสะสมแยกภาษี | credit-notes.tsx; credit-notes.js; creditNote.js; accounting-credit-notes.sql | HTTP concurrent แบบจำลอง/rollback/ยอด/BI-RV guards ผ่าน; รอ DB concurrency UAT | Implemented agreed scope ตาม 1.7 |
+| REQ-012 | RV หลาย IV/BI, ภาษีและจัดสรรครบ | full-page/registry/detail/edit/confirm/cancel/history/evidence/print; BI completion/release/reversal guard ทำแล้ว | receipt-vouchers.tsx; receipt-vouchers.js; receiptVoucher.js; accounting-receipts.sql | partial/full/WHT/fee/BI/rollback/สิทธิ์/กันรับเกิน ผ่าน HTTP+browser จำลอง; รอ target DB UAT | Implemented agreed scope ตาม 1.6; เช็ค/advance/GL ยังไม่ทำ |
 | REQ-013 | PS หลายรอบและวงเงินคงเหลือ | API Draft → menu/list/detail/edit/approve/print/duplicate round | ap.js; ContractorPaymentRequest | เบิกสะสมไม่เกิน PO รวม concurrent round | Blocked Q-10 |
 | REQ-014 | GR รับตาม PO line คงเหลือจริง | API posting → UI/line linkage/validation/reversal | ap.js; GoodsReceiptLine; StockBalance | PO 10 รับ 6+4 ได้ รับเพิ่มไม่ได้; Service ไม่เพิ่ม Stock | Blocked Q-11 |
 | REQ-015 | PV เลือกยอดอนุมัติที่ยังไม่จ่าย | API Draft → approved-source selector/allocation/approval/print | ap.js; PaymentVoucher | source ที่ไม่ approved/จ่ายซ้ำ/เกินยอดถูกปฏิเสธ | Blocked Q-12 |
@@ -270,7 +354,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | REQ-024 | Aging ใช้ฐานหนี้และ as-of ที่ยืนยัน | report 4 endpoints → สูตร/history/filter | accounting-reports.js; reports/page.tsx | รับ/จ่ายหลัง as-of ไม่เปลี่ยนยอดก่อน as-of | Blocked Q-16 |
 | REQ-025 | Reports/Reconciliation/Export ครบตามลำดับที่ตกลง | 4 หน้าเบื้องต้น → registers/variance/export | accounting-reports.js; reports/page.tsx | total/export ตรงหน้าจอและ source; discrepancy ระบุได้ | Blocked Q-16 |
 | REQ-026 | เลขเอกสารเป็นรูปแบบที่รับรองและไม่ชน | atomic sequence บางชนิด → IS/SR และ pattern pending | runningNumber.js; inventory.js; DocumentSequence | สร้างพร้อมกัน/เปลี่ยนเดือน/rollback/ยกเลิกไม่ชน | Blocked Q-15 |
-| REQ-027 | เอกสารพิมพ์ข้อมูลคงที่ตามกติกา | PO/SO template และ IV data-only overlay ทำแล้ว; snapshot/page overflow ตาม scope; เอกสารอื่นยังค้าง | purchase-order-document.tsx; delivery-order-document.tsx; invoice-document.tsx | หลายหน้าไม่ตกบรรทัด; IV snapshot ไม่เปลี่ยนตาม master; รอเครื่องพิมพ์จริงและ policy เอกสารอื่น | Partial: ดู 1.4; remaining Q-09 |
+| REQ-027 | เอกสารพิมพ์ข้อมูลคงที่ตามกติกา | PO/SO/BI/RV/CN template และ IV data-only ทำแล้ว; snapshot/page overflow ตาม scope; เอกสารอื่นยังค้าง | purchase-order-document.tsx; delivery-order-document.tsx; invoice-document.tsx; billing-note-document.tsx; receipt-voucher-document.tsx; credit-note-document.tsx | หลายหน้าไม่ตกบรรทัด; IV/BI/RV/CN snapshot; ไม่ลง GL; รอ printer UAT | Partial: ดู 1.4–1.7; remaining Q-09 |
 | REQ-028 | PO ตาม scope ล่าสุดและวันที่กลาง | หน้าแยก/Draft/วันที่มีแล้ว → DB smoke และต่อ Product-GR | purchase-orders.tsx; accounting-date.ts; schema/SQL | save/detail/edit/print กับ DB เป้าหมาย; dd/mm/yyyy ทุกหน้า | In Progress |
 
 ตำแหน่งในตารางย่อชื่อไฟล์เพื่ออ่านง่าย: UI ใต้ [accounting-ui/src](../../accounting-ui/src), API ใต้ [api/src](../../api/src), models ใต้ [schema.prisma](../../api/prisma/schema.prisma)
@@ -286,10 +370,10 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q-03 | Master quality | Tax ID ซ้ำเตือนหรือห้ามตามประเภท/สาขา; field บังคับ, หน่วย/หมวดหมู่สินค้า, ต้องเก็บจำนวนทศนิยมในเอกสารอื่นหรือไม่ (PO ยืนยันจำนวนเต็มแล้ว) | REQ-002/004/005 |
 | Q-04 | สูตร Invoice — ตอบแล้วรอบ 1.4 | ราคาไม่รวม VAT, ส่วนลดรายการและท้ายเอกสารเป็นบาท, ปัด 2 ตำแหน่ง; ar.create แก้ Draft แบบไม่ผูก SO ได้, แบบดึง SO คงสูตรต้นทาง | REQ-008/009 |
 | Q-05 | สถานะที่ตั้งหนี้ — ตอบแล้วสำหรับ Invoice ใหม่ | Draft ไม่มีหนี้/ใช้ BI/RV/CN ไม่ได้; ar.create ยืนยันแล้วตั้งหนี้; ยืนยันห้ามแก้; ยกเลิกต้องเหตุผลและไม่มี BI/RV/CN active ไม่รวมการย้าย Legacy/reversal | REQ-007/009/022/024 |
-| Q-06 | SO → IV ตอบแล้ว / BI ยังรอ | SO หนึ่งใบคัดลอกทั้งหมดไป IV หนึ่งใบที่ยังไม่ยกเลิก ไม่ออกบางส่วน/รวมหลาย SO; ไม่อ้าง SO ก็ได้; BI ยังรอเต็มยอดหรือบางส่วนและกติกาออกใหม่ | REQ-007/008/010 |
-| Q-07 | ลดหนี้ CN | ลดเป็นยอดหรือหลายรายการ, คืนสินค้าหรือไม่, VAT ลดอย่างไร, ต้องอนุมัติไหม, ลดหลังรับเงินเต็มแล้วได้ไหม/คืนเงินอย่างไร | REQ-011 |
-| Q-08 | รับเงิน RV | WHT/ค่าธรรมเนียมนับเป็นยอดปิดหนี้อย่างไร, หลาย IV ผ่าน BI, จัดสรรเกิน/เงินล่วงหน้า, เช็ครับผ่านบัญชีเมื่อใด, หลักฐานแนบและเลขอ้างอิงใดบังคับ | REQ-012 |
-| Q-09 | แม่แบบและ snapshot — ตอบบางส่วน | SO ตาม PDF และ IV พิมพ์ข้อมูลล้วนทับกระดาษที่ยืนยันแล้วตาม 1.4; BI/CN/RV/PS/GR/PV/เช็ค/เบิก/คืน ยังรอแบบ/สำเนา/ลายเซ็น/เงื่อนไข/นโยบาย snapshot ในแต่ละ Process | REQ-027 |
+| Q-06 | SO → IV และ BI ตอบแล้ว | SO full-copy ตาม 1.4; BI partial/ไม่ซ้ำ active รวม Draft/Legacy; RV รับครบส่วนแล้วปิด-ปล่อยยอดเหลือและเปิดกลับเมื่อกลับ RV โดยไม่มี BI ใหม่ ตาม 1.6 | REQ-007/008/010 |
+| Q-07 | ลดหนี้ CN — ตอบแล้วรอบ 1.7 | หลายรายการ/จำนวนเต็ม/ราคาลดก่อน VAT ไม่คืน Stock; VAT ตาม Invoice คุมสะสม; Draft/ar.create confirm/cancel; ไม่เกินหนี้ค้าง ไม่คืนเงิน; BI active กันยืนยัน และ BI ใหม่/RV มีผลหลังยืนยันกันยกเลิก | REQ-011 |
+| Q-08 | รับเงิน RV — ตอบแล้ว scope รอบ 1.6 | ลดหนี้=เงินสุทธิ+WHT+fee; หลาย IV/BI; ไม่รับเกิน/advance; cash/transfer บังคับธนาคาร+ref โอน/WHT certificate; หลักฐานไม่บังคับ; Draft-confirm-cancel และ BI complete/reopen guard; เช็ค/GL แยกภายหลัง | REQ-012 |
+| Q-09 | แม่แบบและ snapshot — ตอบบางส่วน | SO/IV/BI ตาม 1.4–1.5; RV ตาม 1.6; CN กระดาษเปล่าตาม PDF/เว้นลายเซ็น/ไม่คัดลอกข้อความรับสินค้า ตาม 1.7; PS/GR/PV/เช็ค/เบิก/คืน ยังรอ | REQ-027 |
 | Q-10 | เบิกจ่ายผู้รับเหมา | ฐานวงเงินใช้ก่อนหรือรวม VAT, รอบซ้ำ/revision, % retention/WHT, เงื่อนไขคืน retention และผู้มีสิทธิ์สร้าง PS | REQ-013 |
 | Q-11 | รับสินค้า GR | map PO manual lines เข้าสินค้า/บริการอย่างไร, รับตาม line/คลังหลายแห่ง, ตรวจรับบริการแบบจำนวนหรือผลงาน, ของเสีย/คืนผู้ขาย/PO ปิดเมื่อใด | REQ-014 |
 | Q-12 | PV และการจ่าย | ใช้ PR/PO/PS แบบใดจริง, ยอด ready-to-pay เกิดเมื่อใด, จ่ายบางส่วน/รวมหลาย source/PV หลายวิธีจ่ายได้ไหม, บัญชีธนาคารและหลักฐาน/ภาษีบังคับ | REQ-015/016 |
@@ -300,7 +384,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q-17 | ประวัติ/แจ้งเตือน | ใครดูข้อมูลเดิม/ธนาคาร/Export ได้, แจ้งในระบบหรืออีเมล, ผู้รับและกำหนดเวลา/stock threshold, วิธี retry และไม่แจ้งซ้ำ | REQ-021/023 |
 | Q-18 | Dashboard | ยอดค้าง/ใกล้ครบกำหนด/งานรอทำคิดจากสถานะใด, cash flow ใช้รับจ่ายจริงหรือคาดการณ์, รอบบัญชีเริ่มวันใด | REQ-001 |
 | Q-19 | ผังบัญชี/GL | ต้องแค่ทะเบียนรหัสและ mapping หรือรวมสมุดรายวัน/ลงบัญชี/ปิดงวด; ใครรับรอง mapping และ posting rule | REQ-006 |
-| Q-20 | UX เมนูอื่น | ยืนยันและทำหน้าแยกสำหรับ PO/SO/IV แล้ว; BI/RV/เบิก/สินค้า/คลัง/COA รอยืนยันใน Process นั้น | ทุก UI ถัดไป |
+| Q-20 | UX เมนูอื่น | ยืนยันและทำหน้าแยกสำหรับ PO/SO/IV/BI/RV/CN แล้ว; เบิก/สินค้า/คลัง/COA รอยืนยันใน Process นั้น | ทุก UI ถัดไป |
 | Q-21 | ต่างประเทศ | สกุลเงิน/อัตราแลกเปลี่ยน/วันที่ใช้ rate/ภาษีและยอดฐาน THB; ไม่อนุมานจากการเลือก overseas อย่างเดียว | PO/PS/PV/รายงานอนาคต |
 
 ## 8. User Scenarios & Testing
@@ -341,7 +425,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 
 ## 10. Recommended Implementation Order
 
-สถานะหลังรอบ 1.4: SO date/หน้าเอกสาร และ Invoice ใหม่ตาม Q-04/Q-05 ทำแล้วตามขอบเขต; **BI เป็น Process ถัดไป** โดยยังต้องตอบส่วน BI ใน Q-06 ก่อนออกแบบยอด/ยกเลิก ไม่ต้องตอบคำถาม Invoice ที่ปิดแล้วซ้ำ ลำดับด้านล่างเป็นแผนภาพรวมจากการวิเคราะห์เดิม
+สถานะหลังรอบ 1.7: SO/Invoice/BI/RV/CN ทำแล้วตาม scope และคำตอบ Q-04/Q-05/Q-06/Q-07/Q-08; ยังรอ rollout/DB/printer UAT ไม่ใช่ sign-off ทั้งระบบ **เสนอ PS เป็น Process ถัดไปตาม Q-10** หรือ GR ตาม Q-11 หากเดินสายสินค้า ไม่ต้องตอบคำถามที่ปิดแล้วซ้ำ ลำดับด้านล่างเป็นแผนภาพรวมจากการวิเคราะห์เดิม ไม่ใช่สถานะล่าสุดของ F-01 ที่แก้แล้ว
 
 1. **แก้สิ่งที่ชวนเข้าใจผิดก่อน:** BI save ไม่ทำงาน, SO date field, ป้ายสถานะ prototype ของ Dashboard/AP Aging และ user-facing error
 2. **ยืนยัน flow ที่มีผลต่อยอด:** Q-01, Q-04/05, Q-08, Q-11/12/13, Q-15/16 ก่อนลง posting จริง

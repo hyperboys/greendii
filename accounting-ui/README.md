@@ -297,6 +297,154 @@ client. `Attachment.purchaseOrderId` maps to the SQL column `purchase_order_id`;
 do not add a separate camel-case column. Do not apply a blanket migration or
 reset a shared database.
 
+## Billing Notes (BI)
+
+Open **ลูกหนี้ / รับชำระเงิน → ใบวางบิล**. The existing
+`/ar/invoices?tab=billingNotes` opens the new register; direct pages are
+`/ar/billing-notes`, `/ar/billing-notes/new`, `/ar/billing-notes/:id` and
+`/ar/billing-notes/:id/edit`.
+
+- Choose one customer and multiple confirmed new-lifecycle invoices with positive
+  outstanding balances. Each billing amount can be partial, strictly positive and
+  at most the current outstanding balance. The API recomputes the total in satang.
+- A given Invoice can be reserved by only one non-cancelled, not-completed BI,
+  including Draft and existing legacy BI records. RV completion releases the
+  remaining debt for rebilling; partial payment alone does not. Source checks run
+  under shared, sorted Invoice locks, followed by BI locks.
+- `ar.create` permits create/edit Draft, direct confirmation and reason-required
+  cancellation. Confirmed documents cannot be edited. `ar.view` permits read/print.
+  BI never creates/reduces Invoice debt and never posts Stock or GL.
+- Confirmation checks current balances again; a changed balance requires Draft
+  review, not silent confirmation of stale amounts. Cancellation and Draft edits
+  are blocked by effective confirmed RV/CN after the BI was created (or a
+  confirmed RV explicitly linked to that BI). RV confirmation time, not Draft
+  creation/document date, is used for new receipts. Draft RV does not block BI.
+  Cancellation also rejects inconsistent remaining balances. No force-cancel or
+  downstream reversal is included.
+- Customer identity/address and invoice number/date/due date/net amount are saved
+  as snapshots. Printed totals are billing snapshots, not current AR balances.
+  During Draft editing the form shows the linked invoices' current outstanding.
+- Printing recreates the full form on **plain paper** from
+  [ใบวางบิล.pdf](../Doc/accounting/ใบวางบิล.pdf), unlike Invoice data-only printing.
+  It includes company Settings, customer/document boxes, seven columns, final-page
+  total, remarks and blank billing-party/recipient signature areas. A4 portrait,
+  17 invoices per page; headers/page numbers repeat, rows do not. Print is enabled
+  only for confirmed new records after text-fit validation. Use actual size 100%
+  with browser headers/footers off and run physical-printer UAT.
+- Run the reviewed additive
+  [accounting-billing-notes.sql](../api/scripts/sql/accounting-billing-notes.sql)
+  after backup and the SO/Invoice prerequisites. Generate Prisma, restart the API
+  and deploy UI together; do not reset the database. This SQL has **not** been
+  applied to the target database by the agent. Legacy BI records remain version 0,
+  read-only in this lifecycle, without status/balance backfills.
+
+BI receipt selection, automatic completion/release and guarded reopening are
+implemented by RV below. HTTP tests use transactional database substitutes, and
+browser tests mock persistence: target PostgreSQL concurrency/rollout and real-data
+UAT remain required.
+
+## Receipt Vouchers (RV)
+
+**รับชำระเงิน** opens the RV register at `/ar/receipts`, not an unpaid-invoice
+list. New/view/edit routes are `/ar/receipts/new`, `/ar/receipts/:id` and
+`/ar/receipts/:id/edit`; all use full pages and dd/mm/yyyy dates.
+
+- Search one customer, add multiple confirmed new-lifecycle Invoices or a
+  confirmed BI's eligible invoices. A direct Invoice receipt automatically
+  links its active confirmed BI. Draft/legacy BI reservations must be resolved
+  first. A changed BI link requires Draft review before confirmation.
+- Enter baht per Invoice: **debt reduction = net cash + WHT + company-borne bank
+  fee**. Debt 1,000 / cash 960 / WHT 30 / fee 10 closes 1,000. The API validates
+  exact satang, current Invoice balance and remaining billed portion, then sums
+  headers. No overpayment, advance, percentage calculation or cheque processing.
+- Cash and transfer only. Transfer requires bank name/reference; WHT requires
+  certificate number. `ar.create` manages Drafts, confirms directly and cancels
+  with a reason; `ar.view` reads/prints. Draft does not change debt; confirmed RV
+  cannot be edited. Legacy version 0 remains read-only and is not converted.
+- Confirmed allocations fully settling a BI's **billed portion** set its
+  `completedAt` while retaining `approved` status. This releases the Invoice for
+  billing remaining debt. Cancellation restores cash+WHT+fee and reopens the BI,
+  but is blocked if any non-cancelled BI was created after completion on any
+  Invoice in the original BI. Cancel that newer BI first, subject to its guards.
+  Cancellation cannot restore the same amount twice.
+- Optional evidence files can be uploaded/deleted on a saved Draft's detail page.
+  Both operations check `ar.create`, RV row lock/revision and Draft state,
+  update revision and write audit records transactionally. Confirmed/legacy/
+  cancelled RV evidence cannot be changed. Upload uses existing storage/type/
+  size limits (up to 10 files per request).
+- Plain-paper printing follows [ใบสำคัญรับ.pdf](../Doc/accounting/ใบสำคัญรับ.pdf):
+  journal header, six-column debit/credit grid, deposit-bank row, blank signature
+  boxes and Invoice/BI allocation detail. Per user confirmation, account names
+  and debit/credit settlement summaries are shown, but account codes, department,
+  project and signatures remain blank: **this does not post GL**. Six Invoice
+  lines per A4 page; summary totals only on the final page. Final printing,
+  including Ctrl+P, is blocked for unconfirmed/legacy records or text/page
+  overflow. Use actual size 100%, browser headers/footers off; printer UAT remains.
+
+Rollout: back up and review/apply SO/Invoice/BI prerequisite SQL, then
+[accounting-receipts.sql](../api/scripts/sql/accounting-receipts.sql). From `api`,
+run `npx prisma generate`, restart the API and deploy UI together. The additive SQL
+preserves historical balances/statuses; **it has not been applied by the agent**.
+Local Prisma validation/generation does not migrate the target database.
+
+Real PostgreSQL concurrent transactions, evidence storage deployment and printer/
+real-data UAT remain operator checks. CN is implemented below; refunds,
+cheques, advances, GL mappings/posting, multi-step approval, notifications and
+historical as-of reporting are separate processes, not silently inferred here.
+
+## Credit Notes (CN)
+
+Open **ลูกหนี้ / รับชำระเงิน → ใบลดหนี้** at `/ar/credit-notes`. Create/view/edit
+use `/ar/credit-notes/new`, `/ar/credit-notes/:id` and
+`/ar/credit-notes/:id/edit`, with full-page forms, searchable Invoice and
+dd/mm/yyyy dates. No modal.
+
+- One confirmed new-lifecycle Invoice per CN; customer/branch/address/tax and
+  Invoice number/date/VAT are copied from the Invoice, not editable master data.
+  The Invoice reference cannot change after saving.
+- Enter multiple credit lines with description, optional item code, unit, positive
+  integer quantity and credit unit price **before VAT**. These are price-credit
+  descriptions, not returns or changes to original Invoice lines. No Stock,
+  refunds, advance credit or GL posting occurs.
+- The API computes satang totals and document-rounded VAT from the original
+  Invoice's `VAT7%`/`NO_VAT`. Per-line VAT uses cumulative differences so it sums
+  to the header. Confirmed non-cancelled CNs, including Legacy, consume separate
+  pre-VAT, VAT and net capacities. All three must stay within the original Invoice
+  and the new credit cannot exceed current outstanding. A fully paid Invoice is
+  ineligible; partial payment permits only the remaining debt. Tax-cap rounding
+  conflicts are rejected explicitly, not silently adjusted.
+- Draft has no balance effect. `ar.create` manages Draft/confirmation/cancellation,
+  `ar.view` reads/prints. Confirmation revalidates under the shared Invoice lock,
+  reduces debt once and freezes the CN. Cancellation requires a reason and
+  restores the exact net credit once. Revision and transactional audit protect
+  all writes. Legacy version 0 remains read-only, with no historical conversion.
+- Draft CN may be saved while BI is active, but confirmation is blocked until the
+  non-completed BI (including Draft/Legacy) is resolved. Reverse its effective
+  RVs and cancel the BI where its guards permit; CN never silently adjusts BI.
+  Draft CN no longer counts as an effective credit blocking BI editing/cancel.
+- Confirmed CN cannot be cancelled while a later effective RV or a newer/reused
+  non-cancelled BI depends on the Invoice. RV confirmation time matters, not its
+  Draft creation/document date. BI active/updated timestamps also prevent reusing
+  an old Draft to bypass the dependency guard. BI creation timestamps are assigned
+  after Invoice locks, avoiding PostgreSQL transaction-start timestamp ordering.
+- Plain-paper output follows [ใบลดหนี้.pdf](../Doc/accounting/ใบลดหนี้.pdf):
+  company Settings, customer/source/reason boxes, seven-column credit grid,
+  original pre-VAT value, corrected value after cumulative CNs, this CN's
+  pre-VAT/VAT/net totals and blank signatures. Prices are amounts being credited;
+  the separate sample discount column shows a dash, not another deduction.
+  Delivery/ownership assertions from the sample are intentionally omitted.
+  Twelve lines per A4 page, final-page totals only; text/page fit guards block
+  final print and Ctrl+P on overflow, Draft/cancelled/Legacy. Use 100% actual size,
+  browser headers/footers off and validate against the physical printer.
+
+Back up/review/apply SO/Invoice/BI/RV prerequisite SQL, then
+[accounting-credit-notes.sql](../api/scripts/sql/accounting-credit-notes.sql).
+Run `npx prisma generate` from `api`, restart the API and deploy UI together.
+**The agent has not applied SQL to the shared database.** PostgreSQL concurrency,
+real-data and printer UAT remain outstanding. Multi-step approval, CN attachments,
+refunds/returns, GL, notifications and historical as-of reports are not in this
+agreed CN phase.
+
 ## Invoice lifecycle and preprinted output
 
 Open **ลูกหนี้ / รับชำระเงิน → ใบแจ้งหนี้ / ใบกำกับภาษี**.

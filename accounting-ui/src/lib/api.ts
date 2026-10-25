@@ -7,6 +7,9 @@ import type { AccountCustomer, AccountSale, CustomerInput } from "./account-cust
 import type { AccountSupplier, SupplierInput } from "./account-suppliers";
 import type { DeliveryOrder, DeliveryOrderInput, DeliveryOrderProduct, DeliveryOrderWorkOrder } from "./delivery-order";
 import type { Invoice, InvoiceInput, InvoiceSource } from "./invoice";
+import type { BillingNote, BillingInput, BillingSource } from "./billing-note";
+import type { ReceiptVoucher, ReceiptInput, ReceiptSources, ReceiptAttachment } from "./receipt-voucher";
+import type { CreditNote, CreditInput, CreditSource } from "./credit-note";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderInput,
   PurchaseOrderSupplier, PurchaseRequestReference,
@@ -117,13 +120,42 @@ export const ArApi = {
 
   getBillingNotes: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
-    return apiFetch(`/api/ar/billing-notes${q ? `?${q}` : ""}`);
+    return apiFetch<BillingNote[]>(`/api/ar/billing-notes${q ? `?${q}` : ""}`);
   },
-  createBillingNote: (data: any) => apiFetch("/api/ar/billing-notes", { method: "POST", body: JSON.stringify(data) }),
+  getBillingNote: (id: string) => apiFetch<BillingNote>(`/api/ar/billing-notes/${encodeURIComponent(id)}`),
+  getBillingSources: (params: Record<string, string>) => apiFetch<BillingSource[]>(`/api/ar/billing-notes/sources?${new URLSearchParams(params)}`),
+  createBillingNote: (data: BillingInput) => apiFetch<BillingNote>("/api/ar/billing-notes", { method: "POST", body: JSON.stringify(data) }),
+  updateBillingNote: (id: string, data: BillingInput) => apiFetch<BillingNote>(`/api/ar/billing-notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  confirmBillingNote: (id: string, updatedAt: string) => apiFetch<BillingNote>(`/api/ar/billing-notes/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({ updatedAt }) }),
+  cancelBillingNote: (id: string, updatedAt: string, reason: string) => apiFetch<BillingNote>(`/api/ar/billing-notes/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ updatedAt, reason }) }),
 
-  createCreditNote: (data: any) => apiFetch("/api/ar/credit-notes", { method: "POST", body: JSON.stringify(data) }),
+  getCreditNotes: (params?: Record<string, string>) => apiFetch<CreditNote[]>(`/api/ar/credit-notes?${new URLSearchParams(params)}`),
+  getCreditNote: (id: string) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}`),
+  getCreditSources: (q: string) => apiFetch<CreditSource[]>(`/api/ar/credit-notes/sources?q=${encodeURIComponent(q)}`),
+  getCreditSource: (id: string) => apiFetch<CreditSource>(`/api/ar/credit-notes/sources/${encodeURIComponent(id)}`),
+  createCreditNote: (data: CreditInput) => apiFetch<CreditNote>("/api/ar/credit-notes", { method: "POST", body: JSON.stringify(data) }),
+  updateCreditNote: (id: string, data: CreditInput) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  confirmCreditNote: (id: string, updatedAt: string) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({ updatedAt }) }),
+  cancelCreditNote: (id: string, updatedAt: string, reason: string) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ updatedAt, reason }) }),
 
-  createReceiptVoucher: (data: any) => apiFetch("/api/ar/receipt-vouchers", { method: "POST", body: JSON.stringify(data) }),
+  getReceiptVouchers: (params?: Record<string, string>) => apiFetch<ReceiptVoucher[]>(`/api/ar/receipt-vouchers?${new URLSearchParams(params)}`),
+  getReceiptVoucher: (id: string) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}`),
+  getReceiptSources: (params: Record<string, string>) => apiFetch<ReceiptSources>(`/api/ar/receipt-vouchers/sources?${new URLSearchParams(params)}`),
+  createReceiptVoucher: (data: ReceiptInput) => apiFetch<ReceiptVoucher>("/api/ar/receipt-vouchers", { method: "POST", body: JSON.stringify(data) }),
+  updateReceiptVoucher: (id: string, data: ReceiptInput) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  confirmReceiptVoucher: (id: string, updatedAt: string) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({ updatedAt }) }),
+  cancelReceiptVoucher: (id: string, updatedAt: string, reason: string) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}/cancel`, { method: "POST", body: JSON.stringify({ updatedAt, reason }) }),
+  uploadReceiptFiles: async (id: string, updatedAt: string, files: File[]): Promise<ReceiptAttachment[]> => {
+    const form = new FormData();
+    form.set("receiptVoucherId", id); form.set("updatedAt", updatedAt);
+    files.forEach(file => form.append("files", file));
+    const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+    const response = await fetch("/api/upload", { method: "POST", headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.message || `อัปโหลดไม่สำเร็จ (${response.status})`);
+    return data;
+  },
+  deleteReceiptFile: (id: string, updatedAt: string) => apiFetch(`/api/upload/${encodeURIComponent(id)}`, { method: "DELETE", body: JSON.stringify({ updatedAt }) }),
 };
 
 // ─── ACCOUNTS PAYABLE (AP) ───────────────────────────────────────────────────

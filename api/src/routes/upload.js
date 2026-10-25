@@ -9,6 +9,9 @@ const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
 const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
+const { lockReceipt } = require('../lib/receiptVoucher');
+const { invalid } = require('../lib/deliveryOrder');
+const { recordAuditLog } = require('../lib/auditTrail');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -282,6 +285,37 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
+  if (req.body.receiptVoucherId) {
+    const storedKeys = [];
+    try {
+      if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ar', 'create')) invalid('ไม่มีสิทธิ์จัดการเอกสารแนบ RV', 403);
+      if (['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId', 'purchaseOrderId'].some(key => req.body[key])) invalid('ไฟล์ RV ต้องไม่ผูกเอกสารประเภทอื่นพร้อมกัน');
+      if (!req.files?.length) invalid('กรุณาเลือกไฟล์แนบ');
+      const saved = await prisma.$transaction(async tx => {
+        const doc = await lockReceipt(tx, req.body.receiptVoucherId, req.body.updatedAt);
+        if (doc.status !== 'draft') invalid('จัดการหลักฐานได้เฉพาะ RV Draft', 409);
+        const results = [];
+        for (const file of req.files) {
+          const filename = isR2Enabled ? `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}` : file.filename;
+          const fileUrl = isR2Enabled ? await uploadToR2(filename, file.buffer, file.mimetype) : `/uploads/${filename}`;
+          storedKeys.push(filename);
+          results.push(await tx.attachment.create({ data: { filename, fileUrl, originalName: normalizeOriginalFileName(file.originalname),
+            mimeType: file.mimetype, size: file.size, category: 'receipt-evidence', receiptVoucherId: doc.id } }));
+        }
+        await tx.receiptVoucher.update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
+        await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo,
+          action: 'attach', newValue: results, req }, tx);
+        return results;
+      });
+      return res.status(201).json(saved);
+    } catch (error) {
+      try {
+        if (isR2Enabled) { for (const key of storedKeys) await deleteFromR2(key); }
+        else removeTempUploadedFiles(req.files || []);
+      } catch (cleanupError) { return next(new AggregateError([error, cleanupError], `${error.message}; ล้างไฟล์ที่อัปโหลดไม่สำเร็จ: ${cleanupError.message}`)); }
+      return next(error);
+    }
+  }
   try {
     const { category, quotationId, workOrderId, handOverJobId, purchaseRequestId, purchaseOrderId, poAmount } = req.body;
     const normalizedCategory = normalizeAttachmentCategory(category);
@@ -404,6 +438,26 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (att.receiptVoucherId) {
+      if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ar', 'create')) invalid('ไม่มีสิทธิ์จัดการเอกสารแนบ RV', 403);
+      await prisma.$transaction(async tx => {
+        const doc = await lockReceipt(tx, att.receiptVoucherId, req.body?.updatedAt);
+        if (doc.status !== 'draft') invalid('จัดการหลักฐานได้เฉพาะ RV Draft', 409);
+        await tx.attachment.delete({ where: { id: att.id } });
+        await tx.receiptVoucher.update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
+        await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo,
+          action: 'detach', oldValue: att, req }, tx);
+      });
+      const remaining = await prisma.attachment.count({ where: { filename: att.filename } });
+      if (!remaining) {
+        if (isR2Enabled) await deleteFromR2(att.filename);
+        else {
+          const target = path.join(UPLOAD_DIR, att.filename);
+          if (fs.existsSync(target)) fs.unlinkSync(target);
+        }
+      }
+      return res.json({ message: 'ลบเอกสารแนบแล้ว' });
+    }
     const normalizedCategory = normalizeAttachmentCategory(att.category);
     await assertQuotationAttachmentEditable(req, att.quotationId);
     await assertWorkOrderAttachmentEditable(req, att.workOrderId, normalizedCategory);

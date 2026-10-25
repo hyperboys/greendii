@@ -16,8 +16,8 @@ const ACCOUNTING_RESOURCES = [
 function requireAccountingResource(module) {
   return async (req, res, next) => {
     try {
-      // SO/Invoice Draft management uses the agreed ar.create permission.
-      const soDraftEdit = module === 'ar' && req.method === 'PUT' && /^\/(?:delivery-orders|invoices)\/[^/]+\/?$/.test(req.path);
+      // AR Draft management uses the agreed ar.create permission.
+      const soDraftEdit = module === 'ar' && req.method === 'PUT' && /^\/(?:delivery-orders|invoices|billing-notes|receipt-vouchers|credit-notes)\/[^/]+\/?$/.test(req.path);
       const action = soDraftEdit ? 'create' : { GET: 'view', HEAD: 'view', POST: 'create', PUT: 'update', PATCH: 'update', DELETE: 'delete' }[req.method];
       const access = await getAccountingAccess(req.user);
       if (!action || !hasAccountingPermission(access, module, action)) {

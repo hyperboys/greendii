@@ -64,6 +64,13 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/ar/delivery-orders/so-1/edit";
   html = render();
   assert.match(html, /href="\/ar\/invoices\?tab=so" aria-current="page"/);
+  pathname = "/ar/billing-notes/bi-1/edit";
+  html = render();
+  assert.match(html, /href="\/ar\/invoices\?tab=billingNotes" aria-current="page"/);
+  pathname = "/ar/credit-notes/cn-1/edit";
+  html = render();
+  assert.match(html, /href="\/ar\/credit-notes" aria-current="page"/);
+  assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
   pathname = "/ap/vouchers/po-1/edit";
   html = render();
   assert.match(html, /href="\/ap\/vouchers\?tab=po" aria-current="page"/);
@@ -246,7 +253,6 @@ test("Responsive styles bound modal height and retain touch-friendly controls an
   assert.equal(table.media, "(max-width: 1023px)");
   assert.equal(table.declarations["min-width"], "640px");
   for (const segments of [
-    ["app", "ar", "invoices", "page.tsx"], ["app", "ar", "receipts", "page.tsx"],
     ["app", "inventory", "page.tsx"],
     ["app", "master", "page.tsx"], ["components", "customer-master.tsx"],
   ]) {
@@ -256,4 +262,10 @@ test("Responsive styles bound modal height and retain touch-friendly controls an
   const poPage = fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-orders.tsx"), "utf8");
   assert.doesNotMatch(poPage, /accounting-modal|aria-modal/);
   assert.match(poPage, /grid-cols-2 gap-2.*md:grid-cols-6 xl:grid-cols-12/);
+  const biPage = fs.readFileSync(path.join(__dirname, "..", "src", "components", "billing-notes.tsx"), "utf8");
+  assert.doesNotMatch(biPage, /accounting-modal|aria-modal/);
+  assert.match(biPage, /md:grid-cols-2/);
+  const rvPage = fs.readFileSync(path.join(__dirname, "..", "src", "components", "receipt-vouchers.tsx"), "utf8");
+  assert.doesNotMatch(rvPage, /accounting-modal|aria-modal/);
+  assert.match(rvPage, /sm:grid-cols-3/);
 });

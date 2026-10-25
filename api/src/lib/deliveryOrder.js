@@ -113,4 +113,4 @@ async function assertNoDeliveryInvoices(tx, id) {
   }
 }
 
-module.exports = { DELIVERY_ORDER_INCLUDE, deliveryOrderData, lockDeliveryOrder, assertNoDeliveryInvoices, invalid, text, moneyCents };
+module.exports = { DELIVERY_ORDER_INCLUDE, deliveryOrderData, lockDeliveryOrder, assertNoDeliveryInvoices, invalid, text, moneyCents, documentDate };

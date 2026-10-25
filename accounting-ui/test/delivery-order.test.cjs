@@ -45,6 +45,7 @@ test("Existing SO menu reads the live URL query rather than stale static page pr
     "@/components/date-input": {},
     "@/components/delivery-orders": { DeliveryOrders: SO },
     "@/components/invoices": { Invoices: () => null },
+    "@/components/billing-notes": { BillingNotes: () => null },
     "@/components/accounting-access-provider": {},
     "@/lib/accounting-access": {},
   }).default;

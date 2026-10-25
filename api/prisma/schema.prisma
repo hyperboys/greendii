@@ -887,9 +887,12 @@ model Attachment {
   purchaseRequest   PurchaseRequest? @relation(fields: [purchaseRequestId], references: [id])
   purchaseOrderId   String?          @map("purchase_order_id")
   purchaseOrder     PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  receiptVoucherId String?          @map("receipt_voucher_id")
+  receiptVoucher   ReceiptVoucher? @relation(fields: [receiptVoucherId], references: [id], onDelete: Restrict)
   uploadedAt        DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([purchaseOrderId])
+  @@index([receiptVoucherId], map: "attachments_receipt_idx")
   @@map("attachments")
 }
 
@@ -1062,6 +1065,14 @@ model InvoiceLine {
 
 model BillingNote {
   id                  String           @id @default(cuid())
+  lifecycleVersion    Int              @default(0) @map("lifecycle_version")
+  confirmedAt         DateTime?        @map("confirmed_at") @db.Timestamptz(3)
+  completedAt         DateTime?        @map("completed_at") @db.Timestamptz(3)
+  customerName        String?          @map("customer_name")
+  customerCode        String?          @map("customer_code")
+  address             String?
+  taxId               String?          @map("tax_id")
+  paymentTerms        String?          @map("payment_terms")
   biNo                String           @unique
   billingDate         DateTime         @default(now()) @db.Timestamptz(3)
   customerId          String?          @map("customer_id")
@@ -1078,6 +1089,7 @@ model BillingNote {
   updatedAt           DateTime         @updatedAt @db.Timestamptz(3)
 
   invoices BillingNoteInvoice[]
+  receiptAllocations ReceiptAllocation[]
 
   @@map("billing_notes")
 }
@@ -1090,6 +1102,11 @@ model BillingNoteInvoice {
   invoice           Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   outstandingAmount Decimal     @default(0) @map("outstanding_amount") @db.Decimal(12, 2)
   billingAmount     Decimal     @default(0) @map("billing_amount") @db.Decimal(12, 2)
+  seq               Int         @default(0)
+  invoiceNo         String?     @map("invoice_no")
+  invoiceDate       DateTime?   @map("invoice_date") @db.Timestamptz(3)
+  invoiceDueDate    DateTime?   @map("invoice_due_date") @db.Timestamptz(3)
+  invoiceNetAmount  Decimal?    @map("invoice_net_amount") @db.Decimal(12, 2)
 
   @@unique([billingNoteId, invoiceId])
   @@map("billing_note_invoices")
@@ -1097,6 +1114,19 @@ model BillingNoteInvoice {
 
 model CreditNote {
   id              String           @id @default(cuid())
+  lifecycleVersion Int             @default(0) @map("lifecycle_version")
+  confirmedAt     DateTime?        @map("confirmed_at") @db.Timestamptz(3)
+  customerName    String?          @map("customer_name")
+  customerCode    String?          @map("customer_code")
+  address         String?
+  taxId           String?          @map("tax_id")
+  contactPerson   String?          @map("contact_person")
+  remark          String?
+  invoiceNo       String?          @map("invoice_no")
+  invoiceDate     DateTime?        @map("invoice_date") @db.Timestamptz(3)
+  vatConfig       String?          @map("vat_config")
+  originalBeforeVat Decimal?       @map("original_before_vat") @db.Decimal(12, 2)
+  correctedBeforeVat Decimal?      @map("corrected_before_vat") @db.Decimal(12, 2)
   cnNo            String           @unique
   cnDate          DateTime         @default(now()) @db.Timestamptz(3)
   invoiceId       String           @map("invoice_id")
@@ -1116,6 +1146,7 @@ model CreditNote {
 
   items CreditNoteLine[]
 
+  @@index([invoiceId], map: "credit_notes_invoice_idx")
   @@map("credit_notes")
 }
 
@@ -1125,6 +1156,8 @@ model CreditNoteLine {
   creditNote      CreditNote @relation(fields: [creditNoteId], references: [id], onDelete: Cascade)
   seq             Int        @default(0)
   desc            String
+  partNo          String?    @map("part_no")
+  unit            String?
   qty             Decimal    @default(0) @db.Decimal(12, 3)
   unitPrice       Decimal    @default(0) @map("unit_price") @db.Decimal(12, 2)
   amountBeforeVat Decimal    @default(0) @map("amount_before_vat") @db.Decimal(12, 2)
@@ -1136,6 +1169,14 @@ model CreditNoteLine {
 
 model ReceiptVoucher {
   id            String           @id @default(cuid())
+  lifecycleVersion Int           @default(0) @map("lifecycle_version")
+  confirmedAt   DateTime?        @map("confirmed_at") @db.Timestamptz(3)
+  customerName  String?          @map("customer_name")
+  customerCode  String?          @map("customer_code")
+  customerBranch String?         @map("customer_branch")
+  address       String?
+  taxId         String?          @map("tax_id")
+  whtCertificateNo String?       @map("wht_certificate_no")
   rvNo          String           @unique
   receiptDate   DateTime         @default(now()) @db.Timestamptz(3)
   customerId    String?          @map("customer_id")
@@ -1156,6 +1197,7 @@ model ReceiptVoucher {
   updatedAt     DateTime         @updatedAt @db.Timestamptz(3)
 
   allocations ReceiptAllocation[]
+  attachments Attachment[]
 
   @@map("receipt_vouchers")
 }
@@ -1168,6 +1210,16 @@ model ReceiptAllocation {
   invoice          Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   receivedAmount   Decimal        @default(0) @map("received_amount") @db.Decimal(12, 2)
   whtAmount        Decimal        @default(0) @map("wht_amount") @db.Decimal(12, 2)
+  bankFee          Decimal        @default(0) @map("bank_fee") @db.Decimal(12, 2)
+  seq              Int            @default(0)
+  billingNoteId    String?        @map("billing_note_id")
+  billingNote      BillingNote?   @relation(fields: [billingNoteId], references: [id], onDelete: Restrict)
+  invoiceNo        String?        @map("invoice_no")
+  invoiceDate      DateTime?      @map("invoice_date") @db.Timestamptz(3)
+  invoiceNetAmount Decimal?       @map("invoice_net_amount") @db.Decimal(12, 2)
+  outstandingBefore Decimal?      @map("outstanding_before") @db.Decimal(12, 2)
+  @@index([invoiceId], map: "receipt_allocations_invoice_idx")
+  @@index([billingNoteId], map: "receipt_allocations_billing_idx")
 
   @@map("receipt_allocations")
 }

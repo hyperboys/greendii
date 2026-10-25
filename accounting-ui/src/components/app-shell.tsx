@@ -35,6 +35,7 @@ const navigation = [
   { href: "/dashboard", label: "ภาพรวมบัญชี", icon: LayoutDashboard },
   { href: "/ar", label: "ลูกหนี้ / รับชำระเงิน", icon: FileText, children: [
     ...invoiceTabs.map(tab => ({ ...tab, href: `/ar/invoices?tab=${tab.id}` })),
+    { id: "creditNotes", label: "ใบลดหนี้", href: "/ar/credit-notes" },
     { id: "receipts", label: "รับชำระเงิน", href: "/ar/receipts" },
   ] },
   { href: "/ap/vouchers", label: "เจ้าหนี้ / ค่าใช้จ่าย", icon: ReceiptText, tabs: payableTabs },
@@ -145,10 +146,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                       const recordTab = pathname.startsWith("/master/customers/") ? "customers"
                         : pathname.startsWith("/master/suppliers/") ? "suppliers"
                         : pathname === "/ar/delivery-orders" || pathname.startsWith("/ar/delivery-orders/") ? "so"
+                        : pathname === "/ar/billing-notes" || pathname.startsWith("/ar/billing-notes/") ? "billingNotes"
+                        : pathname === "/ar/credit-notes" || pathname.startsWith("/ar/credit-notes/") ? "creditNotes"
                         : pathname.startsWith("/ar/invoices/") ? "invoices"
                         : pathname.startsWith("/ap/vouchers/") ? "po" : null;
                       const childActive = active && (recordTab ? child.id === recordTab
-                        : child.id === "receipts" ? pathname === childPath
+                        : child.id === "receipts" ? pathname === childPath || pathname.startsWith(`${childPath}/`)
                         : pathname === childPath && child.id === currentTab);
                       return (
                         <Link key={child.id} href={child.href} aria-current={childActive ? "page" : undefined}
