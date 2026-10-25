@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { ApApi, AccountingLookupApi } from "@/lib/api";
 import { Plus, ReceiptText } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { AccountingSearchParams, payableTabs, selectedTab } from "@/lib/accounting-navigation";
 
-export default function AccountsPayablePage() {
+export default function AccountsPayablePage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "ap", "create");
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"po" | "gr" | "pv" | "cq">("po");
+  const activeTab = selectedTab(payableTabs, searchParams.tab);
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<any[]>([]);
   const [suppliers, setSuppliers] = useState<any[]>([]);
@@ -62,7 +62,7 @@ export default function AccountsPayablePage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -80,27 +80,7 @@ export default function AccountsPayablePage() {
           </button>
         </div>
 
-        {/* Sub Tabs */}
-        <div className="mb-5 flex gap-2 border-b border-[#dfe5de] pb-3">
-          {[
-            { id: "po", label: "ใบสั่งซื้อ (Purchase Order - PO)" },
-            { id: "gr", label: "ใบตรวจรับสินค้า / บริการ (GR)" },
-            { id: "pv", label: "ใบสำคัญจ่าย (Payment Voucher - PV)" },
-            { id: "cq", label: "การจ่ายเงิน / เช็คจ่าย (CQ)" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
-                activeTab === tab.id
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-white text-[#566159] hover:bg-[#e8ece7]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="mb-5 text-lg font-bold">{payableTabs.find(tab => tab.id === activeTab)?.label}</h2>
 
         {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* List Table */}
@@ -143,7 +123,7 @@ export default function AccountsPayablePage() {
 
         {/* Modal Create PO */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-lg rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">สร้างใบสั่งซื้อ (Purchase Order - PO)</h2>
               <form onSubmit={handleCreatePo} className="mt-4 space-y-3">
@@ -214,6 +194,6 @@ export default function AccountsPayablePage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { AuthUser, getStoredUser, updateProfile } from "@/lib/auth";
 
 type ProfileForm = {
@@ -73,7 +72,7 @@ export default function ProfilePage() {
   );
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-3xl">
         <p className="text-xs font-bold uppercase text-[#0866ff]">My Account</p>
         <h1 className="mt-1 text-2xl font-bold">โปรไฟล์ของฉัน</h1>
@@ -113,6 +112,6 @@ export default function ProfilePage() {
           </div>
         </form>
       </div>
-    </AppShell>
+    </>
   );
 }

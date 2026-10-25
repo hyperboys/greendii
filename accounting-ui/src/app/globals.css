@@ -39,6 +39,48 @@ input[type="radio"] {
   accent-color: #0866ff;
 }
 
+.accounting-shell :where(.grid > *, fieldset, label) {
+  min-width: 0;
+}
+
+.accounting-modal > div {
+  max-height: calc(100vh - 2rem);
+  max-height: calc(100dvh - 2rem);
+  min-width: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-width: 1023px) {
+  body input[class]:where(:not([type="checkbox"]):not([type="radio"])),
+  body select[class],
+  body textarea[class] {
+    min-width: 0;
+    max-width: 100%;
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .accounting-shell :where(button, a) {
+    min-height: 44px;
+  }
+
+  .accounting-shell table {
+    min-width: 640px;
+  }
+}
+
+@media (max-width: 639px) {
+  .accounting-modal {
+    padding: 0.75rem;
+  }
+
+  .accounting-modal > div {
+    max-height: calc(100dvh - 1.5rem);
+    padding: 1rem;
+  }
+}
+
 .login-backdrop {
   background-color: #eef2eb;
   background-image:

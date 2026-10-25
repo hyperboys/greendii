@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { ReportsApi } from "@/lib/api";
 import { FileChartColumn, FileSpreadsheet, RefreshCw } from "lucide-react";
+import { AccountingSearchParams, reportTabs, selectedTab } from "@/lib/accounting-navigation";
 
-export default function ReportsPage() {
+export default function ReportsPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"arAging" | "apAging" | "reconDelivery" | "reconPo">("arAging");
+  const activeTab = selectedTab(reportTabs, searchParams.tab);
   const [loading, setLoading] = useState(false);
   const [reportData, setReportData] = useState<any>({ rows: [] });
 
@@ -40,7 +40,7 @@ export default function ReportsPage() {
   }, [activeTab]);
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -56,27 +56,7 @@ export default function ReportsPage() {
           </button>
         </div>
 
-        {/* Sub Tabs */}
-        <div className="mb-5 flex flex-wrap gap-2 border-b border-[#dfe5de] pb-3">
-          {[
-            { id: "arAging", label: "วิเคราะห์อายุลูกหนี้ (AR Aging)" },
-            { id: "apAging", label: "วิเคราะห์อายุเจ้าหนี้ (AP Aging)" },
-            { id: "reconDelivery", label: "กระทบยอด: ส่งของ -> ออกใบแจ้งหนี้" },
-            { id: "reconPo", label: "กระทบยอด: ใบสั่งซื้อ -> รับสินค้า" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
-                activeTab === tab.id
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-white text-[#566159] hover:bg-[#e8ece7]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="mb-5 text-lg font-bold">{reportTabs.find(tab => tab.id === activeTab)?.label}</h2>
 
         {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Report Content Table */}
@@ -183,6 +163,6 @@ export default function ReportsPage() {
           )}
         </div>
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -24,6 +24,41 @@ separate from the production `.next` output, matching the Sales UI's approach.
 Tailwind 3 uses `tailwind.config.ts` and the Tailwind/PostCSS/autoprefixer plugins.
 The theme retains Accounting's existing dimensions and control typography.
 
+## Navigation
+
+The root layout owns the shared sidebar and header so they remain mounted while
+switching between Accounting pages. The blue sidebar groups AR, AP, inventory,
+master data and reports into collapsible parent/child menus. Mobile navigation
+uses the same hierarchy in a drawer.
+On desktop, the header's sidebar button collapses the menu to a 72px icon rail
+and expands the content area. Icon tooltips identify each menu; selecting a parent
+icon expands the sidebar and opens that group. The collapsed state survives page
+navigation, and opening the mobile drawer restores the full menu.
+
+### Mobile and tablet layouts
+
+Below 1024px the sidebar is an off-canvas drawer; at 1024px and above the desktop
+sidebar and collapse button are available. The drawer locks background scrolling,
+keeps keyboard focus inside, closes with Escape and restores focus to its opener.
+Rotating/resizing to desktop closes the drawer and releases the scroll lock.
+Hidden mobile navigation is not keyboard-focusable.
+
+Tables scroll horizontally inside their containers rather than widening the page.
+Touch-layout buttons and form controls have a minimum 44px height; text controls
+use 16px text to avoid iOS focus zoom. Creation dialogs scroll within the dynamic
+viewport, including short landscape screens, so their final actions stay reachable.
+
+Responsive validation uses browser viewport emulation with mocked API responses:
+320x568, 390x844, 768x1024, 1024x768 and 1180x820 across 11 protected pages, plus
+all six creation dialogs at 320x568, 844x390 and 768x1024. Physical-device Safari
+and Android keyboard behavior should still be checked during device acceptance.
+
+Former in-page tabs are now sidebar links with a `tab` query parameter, such as
+`/master?tab=suppliers` and `/reports?tab=apAging`. Refresh, direct links and browser
+Back/Forward preserve the selected section. URLs without a tab (or with an unknown
+tab) select the first section, as before. Customer and supplier detail/edit routes
+highlight their corresponding master-data menu.
+
 ## Local development
 
 Start the shared backend first:
@@ -75,9 +110,14 @@ Each user can have one Accounting role.
   endpoints supply dropdown options to transaction creators without granting
   master-data management access.
 - Role updates and revocations take effect on the next API request, including
-  existing sessions. The UI rechecks access on navigation and window focus, hides
+  existing sessions. The UI rechecks access in the background on route changes and window focus, hides
   unavailable menus, and disables create actions for viewers. Dashboard access is
   included with any assigned role; its current content is a static placeholder.
+  The initial session check still blocks rendering; subsequent checks retain
+  same-session access while pending to avoid replacing the entire screen.
+  Each destination is checked against the current permissions immediately.
+  A failed refresh or revoked permission displays the access/error screen rather
+  than silently keeping stale authorization. Public/auth pages clear cached access.
 - These checks protect the Accounting API routes themselves, regardless of which
   client calls them. Legacy Sales routes and their existing policies are unchanged.
 

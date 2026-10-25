@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ArrowDownRight, ArrowUpRight, CircleAlert, FileClock, Plus, ReceiptText, WalletCards } from "lucide-react";
-import { AppShell } from "@/components/app-shell";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { AccountingModule, canUseAccounting } from "@/lib/accounting-access";
 
@@ -20,7 +19,7 @@ export default function DashboardPage() {
   ];
   const createPath = createPaths.find(([resource]) => canUseAccounting(access, resource, "create"))?.[1];
   return (
-    <AppShell>
+    <>
       <div className="dashboard-enter mx-auto max-w-370">
         <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -64,6 +63,6 @@ export default function DashboardPage() {
           </article>
         </section>
       </div>
-    </AppShell>
+    </>
   );
 }

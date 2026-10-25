@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { ArApi, AccountingLookupApi } from "@/lib/api";
 import { Plus } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { AccountCustomer, branchDefaults, invoiceAmounts, invoiceDefaults, invoiceDueDate } from "@/lib/account-customers";
+import { AccountingSearchParams, invoiceTabs, selectedTab } from "@/lib/accounting-navigation";
 
 type InvoiceRow = {
   id: string; ivNo?: string; soNo?: string; biNo?: string; customer?: { name: string };
@@ -25,10 +25,10 @@ const emptyForm = (): InvoiceForm => ({
   items: [{ desc: "", qty: 1, unitPrice: 0, amount: 0 }],
 });
 
-export default function InvoicesPage() {
+export default function InvoicesPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "ar", "create");
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeSubTab, setActiveSubTab] = useState<"invoices" | "so" | "billingNotes">("invoices");
+  const activeSubTab = selectedTab(invoiceTabs, searchParams.tab);
   const [loading, setLoading] = useState(false);
   const [list, setList] = useState<InvoiceRow[]>([]);
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
@@ -93,7 +93,7 @@ export default function InvoicesPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -111,26 +111,7 @@ export default function InvoicesPage() {
           </button>
         </div>
 
-        {/* Sub Tabs */}
-        <div className="mb-5 flex gap-2 border-b border-[#dfe5de] pb-3">
-          {([
-            { id: "invoices", label: "ใบแจ้งหนี้ / ใบกำกับภาษี (Invoice)" },
-            { id: "so", label: "ใบส่งของชั่วคราว (Delivery Order)" },
-            { id: "billingNotes", label: "ใบวางบิล (Billing Note)" },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveSubTab(tab.id)}
-              className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
-                activeSubTab === tab.id
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-white text-[#566159] hover:bg-[#e8ece7]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="mb-5 text-lg font-bold">{invoiceTabs.find(tab => tab.id === activeSubTab)?.label}</h2>
 
         {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Document List Table */}
@@ -187,7 +168,7 @@ export default function InvoicesPage() {
 
         {/* Modal Create Document */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div role="dialog" aria-modal="true" aria-label="สร้างเอกสารลูกหนี้" className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">
                 สร้างเอกสาร {activeSubTab === "invoices" ? "ใบแจ้งหนี้ (IV)" : activeSubTab === "so" ? "ใบส่งของชั่วคราว (SO)" : "ใบวางบิล (BI)"}
@@ -316,6 +297,6 @@ export default function InvoicesPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

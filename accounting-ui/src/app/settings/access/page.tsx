@@ -1,7 +1,6 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import {
   AccountingAccessApi, AccountingAction, AccountingPermission, AccountingRole, AccountingUser, PermissionModule,
 } from "@/lib/accounting-access";
@@ -101,7 +100,7 @@ export default function AccountingAccessPage() {
     `${user.username} ${user.fullName}`.toLowerCase().includes(query.trim().toLowerCase()));
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370 space-y-6">
         <div>
           <p className="text-xs font-bold text-[#0866ff]">Accounting Administration</p>
@@ -240,6 +239,6 @@ export default function AccountingAccessPage() {
           </>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

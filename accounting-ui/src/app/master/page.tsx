@@ -1,13 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { MasterApi } from "@/lib/api";
-import { Building2, Layers, Package, Plus, Store, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { CustomerMaster, SaleMaster } from "@/components/customer-master";
 import { SupplierMaster } from "@/components/supplier-master";
+import { AccountingSearchParams, masterTabs, selectedTab } from "@/lib/accounting-navigation";
 
 type MasterRecord = {
   id: string; name?: string; code?: string; taxId?: string; category?: string;
@@ -16,19 +16,14 @@ type MasterRecord = {
   productType?: string; supplierType?: string; createdAt?: string;
 };
 
-export default function MasterDataPage() {
+export default function MasterDataPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "master", "create");
-  const [activeTab, setActiveTab] = useState<"customers" | "sales" | "suppliers" | "products" | "warehouses" | "coa">("customers");
+  const activeTab = selectedTab(masterTabs, searchParams.tab);
   const [loading, setLoading] = useState(false);
   const [dataList, setDataList] = useState<MasterRecord[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [formData, setFormData] = useState<Record<string, string>>({});
   const [errorMsg, setErrorMsg] = useState("");
-
-  useEffect(() => {
-    const tab = new URLSearchParams(window.location.search).get("tab");
-    if (tab === "customers" || tab === "suppliers") setActiveTab(tab);
-  }, []);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -71,7 +66,7 @@ export default function MasterDataPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -89,30 +84,7 @@ export default function MasterDataPage() {
           </button>}
         </div>
 
-        {/* Tab Selection */}
-        <div className="mb-5 flex flex-wrap gap-2 border-b border-[#dfe5de] pb-3">
-          {([
-            { id: "customers", label: "ลูกค้า (Customer)", icon: Users },
-            { id: "sales", label: "Sale บัญชี", icon: Users },
-            { id: "suppliers", label: "ผู้จำหน่าย / ผู้รับเหมา (Supplier)", icon: Building2 },
-            { id: "products", label: "สินค้า & บริการ (Product)", icon: Package },
-            { id: "warehouses", label: "คลังสินค้า (Warehouse)", icon: Store },
-            { id: "coa", label: "ผังบัญชี (Chart of Accounts)", icon: Layers },
-          ] as const).map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 rounded-md px-4 py-2 text-xs font-bold transition-colors ${
-                activeTab === tab.id
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-white text-[#566159] hover:bg-[#e8ece7]"
-              }`}
-            >
-              <tab.icon size={16} />
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="mb-5 text-lg font-bold">{masterTabs.find(tab => tab.id === activeTab)?.label}</h2>
 
         {activeTab === "customers" ? <CustomerMaster /> : activeTab === "sales" ? <SaleMaster /> : activeTab === "suppliers" ? <SupplierMaster /> : <>
         {/* Error Alert */}
@@ -171,7 +143,7 @@ export default function MasterDataPage() {
         </>}
         {/* Modal for Adding New Record */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">
                 เพิ่มข้อมูล {activeTab === "suppliers" ? "ผู้จำหน่าย" : activeTab === "products" ? "สินค้า" : activeTab === "warehouses" ? "คลังสินค้า" : "ผังบัญชี"}
@@ -268,6 +240,6 @@ export default function MasterDataPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { ArApi } from "@/lib/api";
 import { Plus, WalletCards } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
@@ -66,7 +65,7 @@ export default function ReceiptsPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -133,7 +132,7 @@ export default function ReceiptsPage() {
 
         {/* Modal Receipt */}
         {showModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">บันทึกรับชำระเงิน (Receipt Voucher)</h2>
               <form onSubmit={handleCreateReceipt} className="mt-4 space-y-3">
@@ -198,6 +197,6 @@ export default function ReceiptsPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

@@ -219,7 +219,7 @@ export function SaleMaster() {
         <td className="p-3"><button disabled={!canUpdate} className={buttonClass} onClick={() => { setEditing(sale); setForm({ ...sale, tel: sale.tel ?? "", email: sale.email ?? "" }); setError(""); setShowForm(true); }}>แก้ไข</button></td>
       </tr>)}</tbody>
     </table></div>}
-    {showForm && <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="sale-title" className="w-full max-w-lg rounded-lg bg-white p-6">
+    {showForm && <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"><div role="dialog" aria-modal="true" aria-labelledby="sale-title" className="w-full max-w-lg rounded-lg bg-white p-6">
       <h2 id="sale-title" className="text-lg font-bold">{editing ? "แก้ไข" : "เพิ่ม"} Sale บัญชี</h2>
       <form onSubmit={save} className="mt-4 space-y-3">
         {error && <p role="alert" className="text-sm text-red-700">{error}</p>}

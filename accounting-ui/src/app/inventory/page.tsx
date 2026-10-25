@@ -1,16 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { AppShell } from "@/components/app-shell";
 import { InventoryApi, AccountingLookupApi } from "@/lib/api";
 import { ArrowDownLeft, ArrowUpRight, Package, Plus, Store } from "lucide-react";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
+import { AccountingSearchParams, inventoryTabs, selectedTab } from "@/lib/accounting-navigation";
 
-export default function InventoryPage() {
+export default function InventoryPage({ searchParams = {} }: { searchParams?: AccountingSearchParams }) {
   const canCreate = canUseAccounting(useAccountingAccess(), "inventory", "create");
   const [errorMsg, setErrorMsg] = useState("");
-  const [activeTab, setActiveTab] = useState<"balances" | "movements">("balances");
+  const activeTab = selectedTab(inventoryTabs, searchParams.tab);
   const [loading, setLoading] = useState(false);
   const [balances, setBalances] = useState<any[]>([]);
   const [movements, setMovements] = useState<any[]>([]);
@@ -74,7 +74,7 @@ export default function InventoryPage() {
   };
 
   return (
-    <AppShell>
+    <>
       <div className="mx-auto max-w-370">
         <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
           <div>
@@ -92,25 +92,7 @@ export default function InventoryPage() {
           </button>
         </div>
 
-        {/* Sub Tabs */}
-        <div className="mb-5 flex gap-2 border-b border-[#dfe5de] pb-3">
-          {[
-            { id: "balances", label: "ยอดสินค้าคงเหลือ (Stock Balance)" },
-            { id: "movements", label: "ประวัติการเคลื่อนย้ายสินค้า (Stock Card / Movements)" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id as any)}
-              className={`rounded-md px-4 py-2 text-xs font-bold transition-colors ${
-                activeTab === tab.id
-                  ? "bg-[#0866ff] text-white"
-                  : "bg-white text-[#566159] hover:bg-[#e8ece7]"
-              }`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        <h2 className="mb-5 text-lg font-bold">{inventoryTabs.find(tab => tab.id === activeTab)?.label}</h2>
 
         {errorMsg && <p role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">{errorMsg}</p>}
         {/* Content Table */}
@@ -199,7 +181,7 @@ export default function InventoryPage() {
 
         {/* Modal Issue Stock */}
         {showIssueModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="accounting-modal fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
             <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-lg">
               <h2 className="text-lg font-bold text-[#17211b]">ทำรายการเบิกสินค้า (Stock Issue)</h2>
               <form onSubmit={handleIssueStock} className="mt-4 space-y-3">
@@ -262,6 +244,6 @@ export default function InventoryPage() {
           </div>
         )}
       </div>
-    </AppShell>
+    </>
   );
 }

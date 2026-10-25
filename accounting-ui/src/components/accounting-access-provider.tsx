@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createContext, useContext, useEffect, useState } from "react";
 import { AccountingAccess, AccountingAccessApi, canOpenAccountingPath } from "@/lib/accounting-access";
 import { getStoredUser, getSessionToken, logout } from "@/lib/auth";
+import { isPublicAccountingPath } from "@/lib/accounting-navigation";
 
 const AccessContext = createContext<AccountingAccess | null>(null);
 
@@ -15,12 +16,15 @@ export function useAccountingAccess() {
 export function AccountingAccessProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const isPublic = pathname === "/login" || pathname === "/forgot-password" || pathname === "/change-password";
-  const [result, setResult] = useState<{ pathname: string; sessionToken: string; access?: AccountingAccess; error?: string } | null>(null);
+  const isPublic = isPublicAccountingPath(pathname);
+  const [result, setResult] = useState<{ sessionToken: string; access?: AccountingAccess; error?: string } | null>(null);
   const [revision, setRevision] = useState(0);
 
   useEffect(() => {
-    if (isPublic) return;
+    if (isPublic) {
+      setResult(null);
+      return;
+    }
     const sessionToken = getSessionToken();
     if (!sessionToken) {
       router.replace("/login");
@@ -31,12 +35,14 @@ export function AccountingAccessProvider({ children }: { children: React.ReactNo
       return;
     }
     let cancelled = false;
+    let request = 0;
     const refresh = async () => {
+      const currentRequest = ++request;
       try {
         const access = await AccountingAccessApi.me();
-        if (!cancelled) setResult({ pathname, sessionToken, access });
+        if (!cancelled && currentRequest === request) setResult({ sessionToken, access });
       } catch (error) {
-        if (!cancelled) setResult({ pathname, sessionToken, error: error instanceof Error ? error.message : "ตรวจสอบสิทธิ์ไม่สำเร็จ" });
+        if (!cancelled && currentRequest === request) setResult({ sessionToken, error: error instanceof Error ? error.message : "ตรวจสอบสิทธิ์ไม่สำเร็จ" });
       }
     };
     void refresh();
@@ -48,7 +54,7 @@ export function AccountingAccessProvider({ children }: { children: React.ReactNo
   }, [isPublic, pathname, router, revision]);
 
   if (isPublic) return children;
-  if (!result || result.pathname !== pathname || result.sessionToken !== getSessionToken()) {
+  if (!result || result.sessionToken !== getSessionToken()) {
     return <div className="grid min-h-screen place-items-center text-sm text-[#657069]">กำลังตรวจสอบสิทธิ์ Accounting...</div>;
   }
   const access = result.access;
