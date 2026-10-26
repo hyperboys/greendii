@@ -130,8 +130,8 @@ approved cancellation requires enough available stock without consuming reserved
 stock; no negative balance, erasure of original movements or duplicate reversal.
 Cancellation date cannot precede receipt or the affected product's latest stock
 movement. No supplier partial returns, damage/quarantine, costing, GL, multi-step
-approval, inbox or notification is added; issue/return business workflows remain
-unfinished and require their own policy confirmation.
+approval, inbox or notification is added. The subsequent Stock Issue batch is
+documented below; Stock Return still requires separate policy confirmation.
 
 **Rollout:** review/backup/apply
 [`accounting-goods-receipts.sql`](../api/scripts/sql/accounting-goods-receipts.sql)
@@ -152,6 +152,84 @@ Full UI 72/73: the pre-existing BI fixed-date fixture still fails. HTTP/browser
 tests use real Express/auth/routes with transactional in-memory Prisma and storage
 substitutes, not real PostgreSQL concurrency or actual storage. Target DB,
 concurrent-user, storage and physical-printer UAT remain mandatory.
+
+### Stock issues (IS)
+
+Open Inventory > Stock issues (`/inventory?tab=issues`). Separate new/view/edit
+pages live under `/inventory/issues/`; balance/movement tabs remain available.
+Search IS/WO/requester/receiver, filter status, paginate 20 rows and export **all
+filtered records** as formula-protected UTF-8 BOM CSV. The entry form uses
+searchable warehouse/product/optional-WO selectors and line cards, not a modal or
+a horizontally scrolling entry table.
+
+One active warehouse per document; only active stored/manufactured products with
+master units, no duplicate products/services/unit conversion. Quantities allow up
+to three decimals. Requester and receiver names are mandatory. Requested and
+planned issued are separate: request 10 / issue 5 cancels the remaining 5 on
+approval, with no backorder. Individual zero-issued lines are allowed if another
+line is positive. Draft/pending do not post **or reserve** stock.
+
+| Action | Permission (plus inventory.view) | Effect |
+| --- | --- | --- |
+| Create Draft | inventory.create | Number and snapshots only |
+| Edit Draft / returned | inventory.update | Revalidates active master/unit/type |
+| Submit | inventory.create | Pending; no stock reservation |
+| Approve pending | inventory.approve | Actual recorded issue; deducts planned issued quantities |
+| Return / reject pending | inventory.approve | Reason required; return allows correction |
+| Cancel Draft / returned / pending / approved | inventory.cancel | Reason + date; approved adds exactly issued stock back only after confirmation all goods physically returned |
+
+Creators cannot approve their own issue, **including admin**. Insufficient current
+available stock returns an explicit error: return for correction/reapproval; the
+server never silently reduces the planned issue. Posting preserves reserved and
+requires available = onHand - reserved, no negative stock. Approval, balances,
+movements and audit are transactional under issue -> warehouse locks.
+
+Whole-document approved cancellation requires a physical-return checkbox; its
+confirmation is saved in audit. Active Draft/pending/approved returns block
+cancellation. Date cannot precede issue or the latest affected stock event.
+Linked reversals preserve original movements and cannot run twice. This is not
+the partial Stock Return workflow.
+
+`ISYYMMXXXX` is Gregorian/monthly, issued at Draft creation without number reuse.
+Warehouse/date are immutable after issuance. Request keys deduplicate creates;
+every edit/action/upload/delete needs the latest `updatedAt`. Legacy version 0
+is read-only: no automatic conversion or changes to old stock.
+
+Optional PDF/JPG/PNG evidence uses category `stock-issue`, a single issue binding,
+Draft/returned only, create or update permission, transactional revision/audit
+and rollback cleanup. Submit does not require evidence. Multipart clients must
+omit JSON Content-Type. Detail shows saved quantities/identities/history and
+original/reversal movements; stock movement tables link to IS/GR sources.
+
+A4 printing uses the agreed generic full-frame form, eight items/page, repeated
+headers and blank signature lines; no supplied IS reference template. It never
+changes status and blocks print/Ctrl+P when text cannot fit. No costing/GL,
+opening balances, transfers, inbox or notifications.
+
+**Rollout:** backup/review/apply
+[`accounting-stock-issues.sql`](../api/scripts/sql/accounting-stock-issues.sql)
+after Accounting/master/GR/evidence prerequisites, generate Prisma, restart and
+deploy matching API/UI; grant inventory approve/cancel explicitly. No shared SQL
+or db push was run and no user API was stopped. Prisma validate **and generate
+passed locally in this batch** (superseding earlier batches' DLL-lock failure);
+this does not prove the shared database schema matches.
+
+Validation: API 123/123; focused UI/navigation/access 15/15; production build,
+types and focused lint pass. Full UI 77/78 retains the pre-existing BI fixed-date
+fixture failure. Browser: 73 HTTP requests, no page errors, request10/issue5/
+cancel5 plus zero-issued line, optional files, return/edit/resubmit, independent
+roles, insufficient-stock error without auto-reduction, stock7->2->7/reserved2,
+physical-return confirmation, 320-1440px, 20+7 pagination and filtered CSV.
+Actual PDF: two items/one page and 17 items/three pages; long text blocks printing.
+HTTP/browser use actual Express/auth/routes with isolated transactional in-memory
+Prisma/storage substitutes, **not PostgreSQL concurrency or real storage UAT**.
+Target DB, concurrent-user, storage and physical-printer UAT remain mandatory.
+
+**Next: Stock Return (SR).** Its cumulative quantities, source/condition/warehouse,
+approval/reversal and number policies still need confirmation. The old return
+endpoint now locks referenced issues and **rejects new-version IS** until that
+workflow is implemented. This interlock does not repair legacy/unlinked return
+validation; do not use old returns for production before the SR workflow is ready.
 
 ### Cheque payments (CQ)
 
@@ -233,8 +311,8 @@ transactional in-memory Prisma and isolated storage substitute. Target PostgreSQ
 concurrent-user, actual storage and physical-printer UAT are required. This does
 not deliver physical cheque templates, banking integration/reconciliation feeds,
 GL/Stock, retention release, multi-step routing, inbox/notifications or redesigned
-financial reports. GR has subsequently been implemented above; stock issue/return
-policies and full stock reporting remain open.
+financial reports. GR and Stock Issue have subsequently been implemented above;
+Stock Return policies and full stock reporting remain open.
 
 ### Payment vouchers (PV)
 

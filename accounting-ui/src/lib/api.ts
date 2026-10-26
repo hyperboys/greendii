@@ -206,7 +206,8 @@ export const InventoryApi = {
     const q = new URLSearchParams(params).toString();
     return apiFetch(`/api/inventory/issues${q ? `?${q}` : ""}`);
   },
-  createIssue: (data: any) => apiFetch("/api/inventory/issues", { method: "POST", body: JSON.stringify(data) }),
+  createIssue: (data: import("./stock-issue").IssueInput) =>
+    apiFetch<import("./stock-issue").StockIssue>("/api/inventory/issues", { method: "POST", body: JSON.stringify(data) }),
 
   createReturn: (data: any) => apiFetch("/api/inventory/returns", { method: "POST", body: JSON.stringify(data) }),
 

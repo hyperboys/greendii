@@ -932,6 +932,8 @@ model Attachment {
   chequePayment ChequePayment? @relation(fields: [chequePaymentId], references: [id], onDelete: Restrict)
   goodsReceiptId String? @map("goods_receipt_id")
   goodsReceipt GoodsReceipt? @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
+  stockIssueId String? @map("stock_issue_id")
+  stockIssue StockIssue? @relation(fields: [stockIssueId], references: [id], onDelete: Restrict)
   uploadedAt        DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([purchaseOrderId])
@@ -939,6 +941,7 @@ model Attachment {
   @@index([paymentVoucherId], map: "attachments_payment_idx")
   @@index([chequePaymentId], map: "attachments_cheque_idx")
   @@index([goodsReceiptId], map: "attachments_goods_receipt_idx")
+  @@index([stockIssueId], map: "attachments_stock_issue_idx")
   @@map("attachments")
 }
 
@@ -1568,6 +1571,17 @@ model ChequePayment {
 model StockIssue {
   id           String     @id @default(cuid())
   issueNo      String     @unique
+  lifecycleVersion Int @default(0) @map("lifecycle_version")
+  requestKey String? @unique @map("request_key")
+  requestHash String? @map("request_hash")
+  warehouseSnapshot Json? @map("warehouse_snapshot")
+  workOrderSnapshot Json? @map("work_order_snapshot")
+  requester String?
+  receiver String?
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(3)
+  approvedById String? @map("approved_by_id")
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String? @map("cancellation_reason")
   issueDate    DateTime   @default(now()) @db.Timestamptz(3)
   workOrderId  String?    @map("work_order_id")
   workOrder    WorkOrder? @relation(fields: [workOrderId], references: [id])
@@ -1582,6 +1596,7 @@ model StockIssue {
 
   items        StockIssueLine[]
   stockReturns StockReturn[]
+  attachments Attachment[]
 
   @@map("stock_issues")
 }
@@ -1591,6 +1606,7 @@ model StockIssueLine {
   stockIssueId String         @map("stock_issue_id")
   stockIssue   StockIssue     @relation(fields: [stockIssueId], references: [id], onDelete: Cascade)
   seq          Int            @default(0)
+  productSnapshot Json? @map("product_snapshot")
   productId    String         @map("product_id")
   product      AccountProduct @relation(fields: [productId], references: [id])
   requestedQty Decimal        @default(0) @map("requested_qty") @db.Decimal(12, 3)

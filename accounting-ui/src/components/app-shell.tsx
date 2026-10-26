@@ -145,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                     {items.filter(child => access && canOpenAccountingPath(access, child.href.split("?")[0])).map(child => {
                       const childPath = child.href.split("?")[0];
                       const recordTab = pathname.startsWith("/master/") ? pathname.split("/")[2]
+                        : pathname.startsWith("/inventory/issues/") ? "issues"
                         : pathname === "/ar/delivery-orders" || pathname.startsWith("/ar/delivery-orders/") ? "so"
                         : pathname === "/ar/billing-notes" || pathname.startsWith("/ar/billing-notes/") ? "billingNotes"
                         : pathname === "/ar/credit-notes" || pathname.startsWith("/ar/credit-notes/") ? "creditNotes"

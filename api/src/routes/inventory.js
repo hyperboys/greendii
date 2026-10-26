@@ -6,156 +6,7 @@ const { getPagination, paginated } = require('../lib/pagination');
 const { assertActive } = require('../lib/accountingMaster');
 const { lockWarehouse } = require('../lib/goodsReceipt');
 
-// ─── 1. STOCK ISSUES ─────────────────────────────────────────────────────────
-
-// GET /api/inventory/issues
-router.get('/issues', authenticate, async (req, res, next) => {
-  try {
-    const { status, warehouseId, q } = req.query;
-    const where = {};
-    if (status) where.status = status;
-    if (warehouseId) where.warehouseId = warehouseId;
-    if (q) where.issueNo = { contains: q, mode: 'insensitive' };
-
-    const pg = getPagination(req.query);
-    if (pg) {
-      const [data, total] = await prisma.$transaction([
-        prisma.stockIssue.findMany({
-          where,
-          orderBy: { issueDate: 'desc' },
-          skip: pg.skip,
-          take: pg.take,
-          include: { warehouse: true, items: { include: { product: true } } },
-        }),
-        prisma.stockIssue.count({ where }),
-      ]);
-      return res.json(paginated(data, total, pg));
-    }
-    const list = await prisma.stockIssue.findMany({
-      where,
-      orderBy: { issueDate: 'desc' },
-      include: { warehouse: true, items: { include: { product: true } } },
-    });
-    res.json(list);
-  } catch (e) { next(e); }
-});
-
-// POST /api/inventory/issues
-router.post('/issues', authenticate, async (req, res, next) => {
-  try {
-    const { issueDate, workOrderId, warehouseId, remark, items = [] } = req.body;
-    if (!warehouseId) return res.status(400).json({ message: 'กรุณาระบุคลังสินค้า (warehouseId)' });
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'ต้องระบุรายการเบิกสินค้าอย่างน้อย 1 รายการ' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      await lockWarehouse(tx, warehouseId);
-      await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
-      // 1. Generate Issue Number
-      const count = await tx.stockIssue.count();
-      const issueNo = `IS-${String(count + 1).padStart(5, '0')}`;
-
-      // 2. Validate Stock Balances
-      for (const item of items) {
-        const product = await tx.accountProduct.findUniqueOrThrow({ where: { id: item.productId } });
-        if (!product.active) throw Object.assign(new Error('สินค้าถูกปิดใช้งาน'), { status: 400 });
-        if (product.productType === 'service') {
-          throw new Error(`ไม่สามารถเบิกสินค้าประเภทบริการ (${product.name}) ออกจากคลังได้`);
-        }
-
-        const balance = await tx.stockBalance.findUnique({
-          where: { warehouseId_productId: { warehouseId, productId: item.productId } },
-        });
-
-        const requestedQty = parseFloat(item.requestedQty) || 0;
-        const issuedQty = parseFloat(item.issuedQty) || requestedQty;
-
-        const available = balance ? Number(balance.available) : 0;
-        if (issuedQty > available) {
-          throw new Error(`สินค้า ${product.name} มีจำนวนคงเหลือไม่พอเบิก (มี ${available}, ต้องการเบิก ${issuedQty})`);
-        }
-      }
-
-      // 3. Create StockIssue document
-      const doc = await tx.stockIssue.create({
-        data: {
-          issueNo,
-          issueDate: issueDate ? new Date(issueDate) : new Date(),
-          workOrderId,
-          warehouseId,
-          remark,
-          createdById: req.user.id,
-          status: 'approved', // Stock movement takes immediate effect on creation
-          items: {
-            create: items.map((it, idx) => {
-              const reqQty = parseFloat(it.requestedQty) || 0;
-              const issQty = parseFloat(it.issuedQty) || reqQty;
-              return {
-                seq: idx,
-                productId: it.productId,
-                requestedQty: reqQty,
-                issuedQty: issQty,
-                cancelledQty: Math.max(0, reqQty - issQty),
-              };
-            }),
-          },
-        },
-        include: { items: true },
-      });
-
-      // 4. Update Stock Movement & Stock Balance
-      for (const item of items) {
-        const reqQty = parseFloat(item.requestedQty) || 0;
-        const issQty = parseFloat(item.issuedQty) || reqQty;
-
-        await tx.stockMovement.create({
-          data: {
-            movementType: 'out',
-            productId: item.productId,
-            warehouseId,
-            qtyIn: 0,
-            qtyOut: issQty,
-            sourceDocType: 'stock_issue',
-            sourceDocId: doc.id,
-            sourceDocNo: doc.issueNo,
-            transactionDate: doc.issueDate,
-            createdById: req.user.id,
-            remark: `เบิกสินค้า ${doc.issueNo}`,
-          },
-        });
-
-        const existingBalance = await tx.stockBalance.findUniqueOrThrow({
-          where: { warehouseId_productId: { warehouseId, productId: item.productId } },
-        });
-
-        const newOnHand = Math.max(0, Number(existingBalance.onHand) - issQty);
-        const newAvailable = Math.max(0, newOnHand - Number(existingBalance.reserved));
-
-        await tx.stockBalance.update({
-          where: { warehouseId_productId: { warehouseId, productId: item.productId } },
-          data: {
-            onHand: newOnHand,
-            available: newAvailable,
-          },
-        });
-      }
-
-      await recordAuditLog({
-        entityType: 'stock_issue',
-        entityId: doc.id,
-        docNo: doc.issueNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
-
-      return doc;
-    });
-
-    res.status(201).json(result);
-  } catch (e) { next(e); }
-});
+router.use('/issues', require('./stock-issues'));
 
 // ─── 2. STOCK RETURNS ────────────────────────────────────────────────────────
 
@@ -166,6 +17,11 @@ router.post('/returns', authenticate, async (req, res, next) => {
     if (!warehouseId) return res.status(400).json({ message: 'กรุณาระบุคลังสินค้า (warehouseId)' });
 
     const result = await prisma.$transaction(async (tx) => {
+      if (stockIssueId) {
+        await tx.$queryRaw`SELECT id FROM stock_issues WHERE id = ${stockIssueId} FOR UPDATE`;
+        const issue = await tx.stockIssue.findUnique({ where: { id: stockIssueId } });
+        if (issue?.lifecycleVersion === 1) throw Object.assign(new Error('ใบเบิกรุ่นใหม่ต้องใช้ workflow ใบคืนใหม่ ซึ่งยังไม่เปิดใช้ ห้ามคืนผ่าน endpoint เดิม'), { status: 409 });
+      }
       await lockWarehouse(tx, warehouseId);
       await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
       for (const item of items) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');

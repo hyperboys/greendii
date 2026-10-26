@@ -77,6 +77,9 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/ap/vouchers/ps/ps-1/edit";
   html = render();
   assert.match(html, /href="\/ap\/vouchers\?tab=ps" aria-current="page"/);
+  pathname = "/inventory/issues/is-1/edit";
+  html = render();
+  assert.match(html, /href="\/inventory\?tab=issues" aria-current="page"/);
   assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
   access = { ...fullAccess, isAdmin: false, permissions: ["ar.view"] };
   html = render();
@@ -257,10 +260,11 @@ test("Responsive styles bound modal height and retain touch-friendly controls an
   assert.equal(table.media, "(max-width: 1023px)");
   assert.equal(table.declarations["min-width"], "640px");
   for (const segments of [
-    ["app", "inventory", "page.tsx"],
+    ["components", "inventory-data.tsx"],
   ]) {
     const source = fs.readFileSync(path.join(__dirname, "..", "src", ...segments), "utf8");
-    assert.match(source, /accounting-modal fixed inset-0/);
+    assert.doesNotMatch(source, /accounting-modal|aria-modal/);
+    assert.match(source, /href="\/inventory\/issues\/new"/);
   }
   for (const file of ["simple-master.tsx", "supplier-master.tsx"]) {
     const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", file), "utf8");

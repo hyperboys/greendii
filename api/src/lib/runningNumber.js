@@ -30,6 +30,8 @@ const DOC_PATTERNS = {
   pv:                          { prefix: 'PV', padLen: 4, separator: '',  periodType: 'YYMM' },
   cheque_payment:              { prefix: 'CQ', padLen: 4, separator: '',  periodType: 'YYMM' },
   cq:                          { prefix: 'CQ', padLen: 4, separator: '',  periodType: 'YYMM' },
+  stock_issue:                 { prefix: 'IS', padLen: 4, separator: '',  periodType: 'YYMM' },
+  is:                          { prefix: 'IS', padLen: 4, separator: '',  periodType: 'YYMM' },
 };
 
 /**

@@ -7,13 +7,14 @@ function createContractorPaymentApp() {
     vat: 700, netAmount: 10700, vatConfig: 'VAT7%', status: 'draft', supplierId: supplier.id, supplier,
     supplierBranch: 'Head office', address: 'Saved address', contactPerson: 'Contact', supplierSnapshot: { name: supplier.name, code: supplier.code } };
   let state = { purchaseOrder: [po], goodsReceipt: [], accountProduct: [], warehouse: [], stockBalance: [], stockMovement: [],
+    stockIssue: [], stockReturn: [], workOrder: [],
     contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], sequence: 0 };
   let failAudit = false, queue = Promise.resolve();
   const locks = [], storageOperations = [];
   const permissions = {
-    maker: ['ap.view', 'ap.create', 'ap.update', 'ap.cancel', 'ap.approve', 'ap.pay'],
-    approver: ['ap.view', 'ap.approve'], viewer: ['ap.view'], editor: ['ap.view', 'ap.update'],
-    payer: ['ap.view', 'ap.pay'], canceller: ['ap.view', 'ap.cancel'],
+    maker: ['ap.view', 'ap.create', 'ap.update', 'ap.cancel', 'ap.approve', 'ap.pay', 'inventory.view', 'inventory.create', 'inventory.update', 'inventory.approve', 'inventory.cancel'],
+    approver: ['ap.view', 'ap.approve', 'inventory.view', 'inventory.approve'], viewer: ['ap.view', 'inventory.view'], editor: ['ap.view', 'ap.update', 'inventory.view', 'inventory.update'],
+    payer: ['ap.view', 'ap.pay'], canceller: ['ap.view', 'ap.cancel', 'inventory.view', 'inventory.cancel'],
   };
   const matches = (row, where = {}) => Object.entries(where).every(([key, value]) => {
     if (key === 'OR') return value.some(condition => matches(row, condition));
@@ -40,6 +41,7 @@ function createContractorPaymentApp() {
     }
     if (row.cqNo) row.attachments = structuredClone(state.attachment.filter(file => file.chequePaymentId === row.id));
     if (row.grNo) row.attachments = structuredClone(state.attachment.filter(file => file.goodsReceiptId === row.id));
+    if (row.issueNo) row.attachments = structuredClone(state.attachment.filter(file => file.stockIssueId === row.id));
     if (row.poNo && !row.psNo && !row.pvNo && !row.cqNo && !row.grNo) {
       row.attachments = structuredClone(state.attachment.filter(file => file.purchaseOrderId === row.id));
       row.supplier = row.supplier || structuredClone(supplier);
@@ -66,7 +68,7 @@ function createContractorPaymentApp() {
       return run;
     },
   };
-  for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement',
+  for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement', 'stockIssue', 'stockReturn', 'workOrder',
     'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog']) prisma[model] = {
     findMany: async ({ where, skip = 0, take, orderBy } = {}) => {
       const rows = state[model].filter(row => matches(row, where));
@@ -126,6 +128,7 @@ function createContractorPaymentApp() {
   for (const file of ['../../src/lib/accountingAccess', '../../src/middleware/auth', '../../src/middleware/accountingAccess',
     '../../src/lib/runningNumber', '../../src/lib/auditTrail', '../../src/lib/accountingMaster', '../../src/lib/paymentVoucher',
     '../../src/lib/chequePayment', '../../src/routes/cheque-payments', '../../src/lib/purchaseOrderApproval', '../../src/lib/goodsReceipt', '../../src/routes/goods-receipts',
+    '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/routes/inventory',
     '../../src/routes/ap', '../../src/routes/contractor-payments', '../../src/routes/payment-vouchers', '../../src/routes/upload']) {
     delete require.cache[require.resolve(file)];
   }
@@ -139,6 +142,7 @@ function createContractorPaymentApp() {
   });
   app.get('/api/settings', (_req, res) => res.json({ companyName: 'GreenDii Test Company', address: 'Company test address', taxId: '1234567890123' }));
   app.use('/api/ap', authenticate, requireAccountingResource('ap'), require('../../src/routes/ap'));
+  app.use('/api/inventory', authenticate, requireAccountingResource('inventory'), require('../../src/routes/inventory'));
   require.cache[require.resolve('../../src/lib/r2')] = { loaded: true, exports: {
     isR2Enabled: true,
     uploadToR2: async key => { storageOperations.push({ action: 'upload', key }); return `https://evidence.invalid/${key}`; },

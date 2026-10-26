@@ -15,6 +15,7 @@ export const payableTabs = [
 export const inventoryTabs = [
   { id: "balances", label: "ยอดสินค้าคงเหลือ" },
   { id: "movements", label: "ประวัติการเคลื่อนย้ายสินค้า" },
+  { id: "issues", label: "เบิกสินค้า (IS)" },
 ] as const;
 
 export const masterTabs = [

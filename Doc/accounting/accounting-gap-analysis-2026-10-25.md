@@ -1,6 +1,6 @@
 # Accounting: งานที่ยังขาดและข้อมูลที่ต้องยืนยัน
 
-วันที่ตรวจ: 25/10/2026; อัปเดตล่าสุด 26/10/2026 (GR รับสินค้า/ตรวจรับบริการ)<br>
+วันที่ตรวจ: 25/10/2026; อัปเดตล่าสุด 26/10/2026 (IS เบิกสินค้า)<br>
 สถานะ: รายงานจากการอ่าน source code และข้อกำหนดปัจจุบัน ไม่ใช่ผลรับรองการใช้งานจริง  
 ขอบเขต: เมนู Accounting ทั้งหมด โดยเน้นเมนูอื่นนอกเหนือจาก PO และความเชื่อมโยงกับ PO
 
@@ -13,9 +13,10 @@
 - ใบวางบิล BI ปรับเป็นหน้าแยกหลาย Invoice/ยอดบางส่วน พร้อม Draft → ยืนยัน/ยกเลิก/พิมพ์กรอบลงกระดาษเปล่าตามตัวอย่างแล้ว ดูหัวข้อ 1.5; ยังรอ SQL และ UAT ฐานข้อมูล/เครื่องพิมพ์จริง
 - ใบลดหนี้ CN ทำแล้วตาม 1.7; ใบเบิกจ่ายผู้รับเหมา PS มีทะเบียน/หน้าแยก/อนุมัติหนึ่งขั้น/คุมวงเงิน/พิมพ์แล้วตาม 1.9; ใบคืนสินค้ายังไม่มีเมนูจัดการเฉพาะ
 - PV มีทะเบียน/หน้าแยก/อนุมัติ/จ่ายสด-โอน/กลับรายการพร้อมหลักฐาน/พิมพ์ตาม 1.10; เช็คจ่ายครบสถานะ/ส่งมอบ-ตัดบัญชี-กลับรายการ/หลักฐาน/ใบรายละเอียด A4/CSV ตาม 1.11
-- PO approval หนึ่งขั้นทั้งในประเทศ/ต่างประเทศตาม 1.12 และ GR รับตาม PO line/กันจำนวน/อนุมัติเพิ่ม Stock/บริการไม่เพิ่ม/หลักฐาน/กลับรายการ/หน้าแยก/A4/CSV ตาม 1.13 ทำแล้ว; **ยังรอ SQL/generate/DB/concurrency/storage/printer UAT** ไม่ใช่รับรอง Stock พร้อมใช้
+- PO approval หนึ่งขั้นทั้งในประเทศ/ต่างประเทศตาม 1.12 และ GR รับตาม PO line/กันจำนวน/อนุมัติเพิ่ม Stock/บริการไม่เพิ่ม/หลักฐาน/กลับรายการ/หน้าแยก/A4/CSV ตาม 1.13 ทำแล้ว; **ยังรอ SQL/DB/concurrency/storage/printer UAT** ไม่ใช่รับรอง Stock พร้อมใช้; local generate ผ่านแล้วรอบ 1.14
 - รับชำระ RV เป็นทะเบียน/หน้าแยกหลาย Invoice หรือ BI พร้อม WHT/ค่าธรรมเนียม, Draft → ยืนยันลดหนี้ → ยกเลิกคืนยอด, หลักฐานแนบและแบบพิมพ์แล้ว ดู 1.6; ยังรอ rollout/UAT จริง
-- การเบิก/คืนสินค้าเดิมใน API ยังบันทึก approved และกระทบ Stock ทันที; GR ใหม่แยก Draft/pending/approve แล้ว 1.13; เบิก/คืนต้องยืนยัน Q-13 ก่อนทำ workflow
+- IS เบิกสินค้าแยก Draft/pending/approve แล้วตาม 1.14: ขอ/จ่าย/ยกเลิกส่วนที่เหลือแยกกัน ไม่จองขณะรอ อนุมัติจึงตัด Stock; มีหน้าแยก/หลักฐาน/ประวัติ/CSV/A4/กลับรายการทั้งใบ
+- ใบคืนยังไม่มี workflow/UI ใหม่; API คืนเดิมเพิ่ม Stock ทันทีและยังไม่คุมยอดคืนสะสมครบ จึงบล็อกการอ้าง IS รุ่นใหม่ไว้จนทำใบคืนตาม Q-13; ห้ามถือว่าใบคืนพร้อมใช้
 - รายงานมีเพียง 4 หน้าหลัก และบางสูตรยังไม่ใช่ยอดทางบัญชีที่ยืนยันแล้ว โดยเฉพาะ AP Aging
 - Approval, การยกเลิกและกลับยอด, ประวัติ, การพิมพ์/Export และ Notification ยังไม่ได้เชื่อมครบสำหรับเอกสาร Accounting
 - ผล test/build ที่ผ่านก่อนหน้านี้ไม่ได้พิสูจน์ว่า workflow ธุรกิจครบ หรือฐานข้อมูลที่เปิดใช้อยู่มี schema ตรงกับโค้ด
@@ -477,8 +478,73 @@ Rollout: สำรอง/review/apply SQL additive หลัง prerequisite Acc
 จากนั้น generate Prisma/restart/deploy UI+API ให้ตรงกัน. ยังไม่ได้ apply SQL;
 generate ติด Windows engine-DLL EPERM จึงไม่ได้หยุด API ผู้ใช้ ลบเฉพาะ temp DLL ที่สร้างไม่สำเร็จ.
 ต้อง UAT PostgreSQL/คำขอพร้อมกัน/storage/เครื่องพิมพ์จริง และตรวจ Legacy แยกก่อนใช้งาน.
-**Process ถัดไปเสนอเบิก/คืนตาม Q-13 และคลัง Q-14/เลข IS-SR Q-15 ต้องยืนยันก่อนลงมือ**
-ไม่ต้องถามกติกา GR ที่ตอบแล้วซ้ำ.
+ณ จบรอบ 1.13 เสนอเบิก/คืนเป็นงานถัดไป; ต่อมาได้ยืนยันและทำ IS แล้วใน 1.14
+เหลือใบคืน Q-13/เลข SR Q-15 และคลัง Q-14; ไม่ต้องถามกติกา GR/IS ที่ตอบแล้วซ้ำ.
+
+### 1.14 IS เบิกสินค้า (26/10/2026)
+
+**ทำตามกติกา 7 ข้อที่ผู้ใช้ยืนยันแล้ว; ยังไม่รัน SQL ร่วม ไม่ปรับ Stock เก่า ไม่รับรอง production**
+
+1. Draft → pending → approved/returned/rejected; อนุมัติหนึ่งขั้นถือว่าบันทึกจ่ายของจริง
+   และตัด Stock ไม่แยกปุ่มจ่ายซ้ำ; ผู้สร้างห้ามอนุมัติเองรวม admin
+2. requested/issued กรอกแยก; ขอ 10 จ่าย 5 → ยกเลิกส่วนที่เหลือ 5 เมื่ออนุมัติ
+   ไม่มี backorder; จ่าย 0 บางรายการได้แต่ทั้งใบต้องมีอย่างน้อยหนึ่งรายการจ่ายบวก
+3. pending **ไม่จอง Stock**; อนุมัติตรวจ available ปัจจุบันภายใต้ lock
+   ถ้าไม่พอคืน error ให้ส่งกลับแก้/อนุมัติใหม่ ไม่ลดจำนวนให้อัตโนมัติ
+   ห้ามติดลบ/กิน reserved และต้อง available = onHand − reserved
+4. หนึ่งคลัง active ต่อใบ หลายสินค้า stored/manufactured active หน่วย master
+   ทศนิยมไม่เกิน 3 หลัก ไม่รับ service/แปลงหน่วย/สินค้าซ้ำ; WO อ้างอิงไม่บังคับ
+   ไม่เปลี่ยนสถานะ WO; ผู้ขอและผู้รับของบังคับ
+5. ยกเลิกทั้งใบด้วยสิทธิ์ cancel+เหตุผล+วันที่; ถ้า approved ต้องติ๊กยืนยันรับของจริง
+   กลับครบก่อนเพิ่ม Stock คืนเท่าจ่ายจริง มี linked reversal/audit ใน transaction เดียว
+   เก็บคำยืนยันใน audit; Draft/pending/approved return ที่อ้างใบนี้บล็อกยกเลิก
+   วันที่ไม่ก่อนวันเบิกหรือ Movement ล่าสุดของสินค้าที่เกี่ยวข้อง; ไม่ใช่ใบคืนบางส่วน
+6. ISYYMMXXXX ปี ค.ศ. รายเดือน ออกตอน Draft ไม่ reuse; คลัง/วันที่เปลี่ยนไม่ได้
+   หลังออกเลข; request key/revision กันซ้ำและแก้ทับ; Legacy version 0 อ่านอย่างเดียว
+   ไม่มีแปลงอัตโนมัติ/แก้ Stock เก่า
+7. หลักฐาน PDF/JPG/PNG ไม่บังคับ แก้เฉพาะ Draft/returned; หน้าแยก
+   list/new/view/edit, searchable คลัง/สินค้า/WO, รายการเป็น card ไม่เลื่อนฟอร์มแนวนอน,
+   ค้นหา/กรองสถานะ/20 รายการต่อหน้า/CSV ทุกแถวตามตัวกรอง/history/Movement
+   และ A4 ทั้งกรอบ 8 รายการ/หน้า ช่องลงชื่อว่าง เปิด/พิมพ์ไม่เปลี่ยนสถานะ
+   บล็อก print/Ctrl+P เมื่อข้อความล้น; ไม่มีต้นแบบ IS จึงใช้แบบทั่วไปที่ตกลง
+
+สิทธิ์แยก inventory.view/create/update/approve/cancel: create สร้าง/submit,
+update แก้, approve อนุมัติ/ส่งกลับ/ปฏิเสธ, cancel ยกเลิก; ทุก mutation/file ใช้ updatedAt.
+Lock ใบเบิก → warehouse; create ใช้ request-key advisory lock.
+API คืนเดิม lock ใบเบิกก่อน warehouse และปฏิเสธ IS version 1 เพื่อไม่ข้าม workflow/
+แข่งกับ cancellation ระหว่างรอทำใบคืนใหม่. หน้ายอดคงเหลือ/Movement ยังใช้ได้และ
+เปิดต้นทาง IS/GR ได้; query tab ใช้ server page dispatch ที่ทดสอบกับ production build จริง.
+
+หลักฐาน:
+
+- [IS domain](../../api/src/lib/stockIssue.js), [routes](../../api/src/routes/stock-issues.js),
+  [SQL additive](../../api/scripts/sql/accounting-stock-issues.sql),
+  [HTTP tests](../../api/test/stockIssues.test.js)
+- [หน้า IS](../../accounting-ui/src/components/stock-issues.tsx),
+  [typed model/API](../../accounting-ui/src/lib/stock-issue.ts),
+  [A4](../../accounting-ui/src/components/stock-issue-document.tsx),
+  [ยอดคงเหลือ/Movement](../../accounting-ui/src/components/inventory-data.tsx),
+  [UI tests](../../accounting-ui/test/stock-issue.test.cjs)
+- API รวม **123/123**, focused UI/navigation/access **15/15**, production build/types,
+  focused lint, Prisma validate และ **Prisma generate ผ่านแล้วในรอบนี้**
+- Full UI **77/78** เหลือ BI fixed-date fixture เดิม ไม่แก้ส่วนที่ไม่เกี่ยวข้อง
+- Browser **73 HTTP requests / 0 page errors**: ขอ 10/จ่าย 5/ยกเลิก 5,
+  รายการจ่าย 0 ไม่สร้าง Movement, pending ไม่จอง, แนบ/ลบไฟล์แล้วส่งโดยไม่มีหลักฐาน,
+  ส่งกลับ/editor แก้/maker ส่งใหม่/approver อนุมัติ, Stock ไม่พอ error โดยไม่ลดจ่าย,
+  onHand 7 → 2 → 7 โดย reserved 2 คงเดิม, physical-return checkbox,
+  viewer, จอ 320/390/768/1440 ไม่ล้นระดับหน้า, pagination 20+7, filtered CSV,
+  เปิด balance/Movement และลิงก์กลับเอกสาร
+- PDF จริง 2 รายการ = 1 หน้า, 17 รายการ = 3 หน้า A4; ข้อความยาวปิดพิมพ์
+  HTTP/browser ใช้ Express/auth/routes จริงกับ transactional in-memory Prisma/storage
+  substitute **ไม่พิสูจน์ PostgreSQL concurrency/storage จริง**
+
+Rollout: สำรอง/ตรวจ prerequisite Accounting/master/GR/evidence และ review/apply SQL additive
+จากนั้น generate/restart/deploy API+UI ให้ตรงกันพร้อมตรวจสิทธิ์ approve/cancel.
+**ยังไม่ apply SQL/ไม่ db push/ไม่หยุด API ของผู้ใช้**; local generate ผ่านไม่ได้แปลว่า
+ฐานข้อมูลร่วมมี schema ใหม่แล้ว. ต้อง UAT PostgreSQL/ทำพร้อมกัน/storage/เครื่องพิมพ์จริง.
+ไม่รวมใบคืนใหม่/ยอดยกมา/โอนคลัง/ต้นทุน/GL/inbox/notification.
+**ขั้นถัดไป: ใบคืนสินค้า SR ต้องยืนยันเงื่อนไขคืนสะสม/สภาพสินค้า/ต้นทาง/อนุมัติ/เลขเอกสาร
+ตาม Q-13/Q-15 ก่อนทำ; Q-14 เรื่องคลัง/ต้นทุนยังแยกต่างหาก ไม่ต้องถามกติกา IS ซ้ำ**
 
 ## 2. Scope Baseline และวิธีตรวจ
 
@@ -537,9 +603,9 @@ generate ติด Windows engine-DLL EPERM จึงไม่ได้หยุ
 | ใบสำคัญจ่าย PV | ทะเบียน/หน้าแยก/PS approved เต็มยอด/อนุมัติ/เงินสด-โอน/หลักฐาน/กลับรายการ/พิมพ์/history/action permissions | รอ SQL/generate/DB/storage/printer UAT; ไม่ partial/รวม PS/PR-PO direct/GL; เช็คยังไม่ตัดจ่าย | Implemented agreed scope ตาม 1.10 |
 | เช็คจ่าย CQ | หน้าแยก/ทะเบียน/search/status/CSV/หลักฐาน/history/A4; Prepared-Printed-Signed-Released-Cleared-Cancelled; PV settlement/reversal/normalized unique/legacy guards | รอ SQL/generate/DB/storage/printer UAT; ไม่พิมพ์ลงเช็คจริง/เชื่อมธนาคาร/GL | Implemented agreed scope ตาม 1.11 |
 | ยอดคงเหลือคลัง | ตาราง onHand/reserved/available | ไม่มีตัวกรองคลัง/สินค้าและสต็อกต่ำที่ครบ, pagination UI, initial balance/adjustment flow | ดูข้อมูลได้บางส่วน |
-| Stock Movement / Stock Card | ตาราง movement และ source document number | ยังไม่ใช่ Stock Card แบบยอดยกมา/เข้า/ออก/คงเหลือ ณ วัน, ไม่เชื่อมเปิดต้นทาง/กลับรายการครบ | ทำบางส่วน |
-| เบิกสินค้า | Popup เลือกสินค้า/คลัง/จำนวนหนึ่งรายการ; API เก็บ requested/issued/cancelled | UI ส่ง requested=issued จึงยังทำขอ 10 เบิก 5 ยกเลิก 5 ไม่ได้; ไม่มี approval/ทะเบียน/print/cancel | ทำบางส่วนและต่างจาก spec |
-| คืนสินค้า | API create เพิ่ม Stock และ movement | ไม่มีเมนู/ฟอร์ม/ทะเบียน; ตรวจคืนเทียบยอดเบิกต่อครั้ง ไม่ใช่หักยอดคืนสะสมทั้งหมด | API บางส่วน ไม่มี UI |
+| Stock Movement / Stock Card | ตาราง movement/source number/เปิด IS-GR ต้นทาง/แสดง reversal | ยังไม่ใช่ Stock Card แบบยอดยกมา/เข้า/ออก/คงเหลือ ณ วัน และยังไม่เชื่อมทุกชนิดเอกสาร | ทำบางส่วนตาม 1.14; remaining Q-14 |
+| เบิกสินค้า IS | หน้าแยกหลายรายการ/requested-issued-cancelled/หนึ่งขั้นอนุมัติ/หลักฐาน/history/CSV/A4/กลับ Stock ทั้งใบ | รอ SQL/DB/concurrency/storage/printer UAT; ไม่คืนบางส่วน/ต้นทุน/GL และ Legacy อ่านอย่างเดียว | Implemented agreed scope ตาม 1.14 |
+| คืนสินค้า | API เดิมเพิ่ม Stock/movement ทันที; บล็อกอ้าง IS รุ่นใหม่แล้ว | ไม่มีเมนู/ฟอร์ม/ทะเบียน/approval ใหม่; ยอดคืนสะสมและสภาพสินค้ายังไม่ครบ ต้องยืนยัน Q-13/Q-15 | Legacy API บางส่วน ไม่พร้อมใช้กับ IS ใหม่ |
 | AR Aging | ตารางและ API bucket 0/1–30/31–60/61–90/>90 | ไม่มีเลือก as-of/filter/export/pagination UI; ใช้ยอดคงค้างปัจจุบัน ไม่ได้สร้างยอดย้อนหลัง ณ as-of | รายงานเบื้องต้น |
 | AP Aging | ตารางและ API bucket | ใช้ยอด PO ทั้งใบและอายุจากวันที่ PO ไม่หักชำระ/ไม่ใช้กำหนดชำระตามเจ้าหนี้; ไม่ควรตีความเป็นหนี้ค้างจ่ายจริง | สูตรยังไม่ยืนยัน |
 | กระทบยอด SO → IV | แสดงเลข Invoice ที่เชื่อมและมี/ไม่มีการออก Invoice | ไม่เทียบจำนวน/ยอดระดับรายการ ไม่แยกออกบางส่วน/ส่วนที่เหลือครบ | ตรวจความสัมพันธ์เบื้องต้น |
@@ -561,23 +627,23 @@ generate ติด Windows engine-DLL EPERM จึงไม่ได้หยุ
 | F-06 แก้แล้วสำหรับ RV ใหม่ | ยืนยันลดหนี้ด้วยเงินสุทธิ+WHT+fee ต่อ allocation; server รวม header/ตรวจลูกค้า/สถานะ/วงเงิน/BI; ยกเลิกคืนครบแบบ transaction+audit | ทดสอบ HTTP/browser จำลองผ่านตาม 1.6; Legacy คงเดิม รอ DB จริง/เครื่องพิมพ์ |
 | F-07 แก้แล้วตาม GR scope | [GR domain](../../api/src/lib/goodsReceipt.js) คำนวณ approved+pending ตาม FK PO line ภายใต้ PO lock ไม่รับยอดคงเหลือปลอม | ทดสอบรับ 6+4/กันเกิน/พร้อมกันแบบจำลองและ reversal ผ่าน; รอ PostgreSQL จริง |
 | F-08 แก้ mapping ตามขอบเขตที่ยืนยัน | PO form รักษา productId เมื่อแก้; GR บังคับเลือก active master หน่วยตรงสำหรับ PO manual และตรึง mapping เมื่อ pending/approved | ไม่เดาจาก partNo/ชื่อ; mapping อิสระได้เฉพาะไม่มี PO productId หรือ GR ที่กัน/รับแล้ว ตาม 1.13 |
-| F-09 Stock เบิก/คืนยังไม่ผ่าน approval | [Inventory API](../../api/src/routes/inventory.js) create ตั้ง approved และสร้าง movement ทันที; GR แยก Draft/pending/approval posting แล้ว 1.13 | เบิก/คืนยังต้องแยกร่าง/อนุมัติ/posting/reversal ตาม Q-13 ไม่ใช่ GR ค้าง |
+| F-09 แก้แล้วเฉพาะ IS; ใบคืนยังค้าง | [IS API](../../api/src/routes/stock-issues.js) Draft/pending ไม่ตัดหรือจอง; approve ตัดตามจ่ายจริงและ cancel กลับ linked movement ตาม 1.14 | API คืนเดิมยังทันที/ไม่ครบ cumulative แต่ปฏิเสธ IS รุ่นใหม่; ต้องทำใบคืน Q-13 แยก |
 | F-10 คืนสินค้ายังไม่ตรวจยอดสะสมครบ | API เทียบ returnedQty กับ issuedQty ของ issue line ที่หาเจอ แต่ไม่รวมยอดคืนก่อนหน้า; สินค้าที่ไม่พบใน issue ยังไม่ถูกปฏิเสธในส่วนนี้ | คืนหลายครั้งอาจเกินที่เคยเบิก; ต้อง validate ทุก line และ cumulative remaining |
 | F-11 แก้แล้วตาม CQ scope | รอบ 1.11 มี transition/evidence/actor/date/reason/unique/lock และ PV settlement/reversal ครบตามคำตอบ | ยังรอ DB/storage/printer UAT ไม่ใช่ bank overprint/integration/GL |
 | F-12 AP Aging ยังไม่ใช่ยอดเจ้าหนี้สุทธิ | [Report API](../../api/src/routes/accounting-reports.js) ใช้ netAmount ของ PO และ poDate โดยไม่หักจ่าย | ห้ามใช้รายงานนี้สรุปยอดค้างจ่ายจริงก่อนยืนยันฐานหนี้และสูตร |
-| F-13 transaction ไม่ได้แปลว่าปลอด concurrent update | GR ใช้ GR→PO→warehouse lock แล้ว 1.13 และ writer เบิก/คืน lock warehouse ร่วมกัน; AR/PS/PV/CQ มี domain locks ตามรอบก่อน | ต้องทดสอบ PostgreSQL พร้อมกันจริง; เบิก/คืนยังไม่ครบ cumulative/lifecycle ไม่อ้าง serialized mock ว่าพิสูจน์ concurrency |
-| F-14 Running Stock Issue/Return ใช้ count+1 | Inventory API สร้าง IS-/SR- จากจำนวน record; PS/PV/CQ/GR ใช้เลขรายเดือน/DocumentSequence/request-key ตาม 1.9–1.13 แล้ว | IS/SR ยังต้องยืนยันรูปแบบและเปลี่ยนเป็น sequence atomic ตาม Q-15 |
+| F-13 transaction ไม่ได้แปลว่าปลอด concurrent update | GR→PO→warehouse; IS→warehouse และ legacy return lock IS ก่อน warehouse/บล็อก IS ใหม่แล้วตาม 1.14; AR/PS/PV/CQ มี domain locks | ต้องทดสอบ PostgreSQL พร้อมกันจริง; ใบคืนยังไม่ครบ cumulative/lifecycle ไม่อ้าง serialized mock ว่าพิสูจน์ concurrency |
+| F-14 แก้แล้ว IS; Running Return ยังใช้ count+1 | ISYYMMXXXX ใช้ DocumentSequence/request-key/advisory lock ตาม 1.14; PS/PV/CQ/GR ทำแล้ว; SR เดิมยัง count+1 | SR ต้องยืนยันรูปแบบ/เปลี่ยน sequence atomic ตาม Q-15; ไม่แก้เลขเก่า |
 
 นอกจากนี้ Stock Return loop ปัจจุบันไม่ได้แยกการเพิ่ม Stock ตาม condition แม้ comment ระบุ good condition และไม่เห็น guard Service แบบเดียวกับ Issue; ต้องยืนยันวิธีจัดการของเสีย/คืนบริการก่อนเปิดใช้ (Q-13)
 
 ### 4.2 ความสามารถกลางที่ยังไม่เชื่อมครบ
 
-- **Approval:** PO/GR/PS/PV มีหนึ่งขั้น/ห้ามอนุมัติเองในหน้ารายเอกสารตาม 1.9–1.13; [approvalEngine.js](../../api/src/lib/approvalEngine.js) และ [pending approvals](../../api/src/routes/approvals.js) ยังรองรับ Sales เป็นหลัก ไม่ใช่ Accounting inbox/สายอนุมัติหลายขั้น
-- **สิทธิ์:** [accountingAccess.js](../../api/src/lib/accountingAccess.js) เปิด ar=view/create, ap=view/create/update/approve/cancel/pay; PO/GR/PS/PV approval และ CQ stage/evidence ตาม 1.9–1.13 (ลงนาม=approve, ส่งมอบ/ตัดบัญชี=pay, กลับรายการ=cancel+pay), inventory=view/create, master=CRUD, reports=view; สิทธิ์เฉพาะส่วนอื่นยังแยกทำต่อ
+- **Approval:** PO/GR/PS/PV/IS มีหนึ่งขั้น/ห้ามอนุมัติเองในหน้ารายเอกสารตาม 1.9–1.14; [approvalEngine.js](../../api/src/lib/approvalEngine.js) และ [pending approvals](../../api/src/routes/approvals.js) ยังรองรับ Sales เป็นหลัก ไม่ใช่ Accounting inbox/สายอนุมัติหลายขั้น
+- **สิทธิ์:** [accountingAccess.js](../../api/src/lib/accountingAccess.js) เปิด ar=view/create, ap=view/create/update/approve/cancel/pay; PO/GR/PS/PV approval และ CQ stage/evidence ตาม 1.9–1.13 (ลงนาม=approve, ส่งมอบ/ตัดบัญชี=pay, กลับรายการ=cancel+pay), inventory=view/create/update/approve/cancel สำหรับ IS 1.14, master=CRUD, reports=view; สิทธิ์เฉพาะส่วนอื่นยังแยกทำต่อ
 - **สิทธิ์รายงาน:** Aging เรียก assertActionAuthorized(..., export) ของ [legacy policy](../../api/src/lib/authorizationPolicy.js) เพิ่มด้วย ผู้มี reports.view ใน Accounting อย่างเดียวจึงอาจยังถูกปฏิเสธ ต้องทำ policy ให้สอดคล้องกันโดยไม่ไปเปลี่ยน role ระบบ Sales
-- **Audit:** AR/master/PO/GR/PS/PV/CQ ตาม 1.4–1.13 มีประวัติราย record/transactional audit แล้ว; PO/GR ใหม่ snapshot ชื่อ actor; ยังไม่มี Accounting history กลาง/เหตุการณ์ทุก action ของ AP/คลัง
+- **Audit:** AR/master/PO/GR/PS/PV/CQ/IS ตาม 1.4–1.14 มีประวัติราย record/transactional audit แล้ว; PO/GR/IS ใหม่ snapshot ชื่อ actor; ยังไม่มี Accounting history กลาง/เหตุการณ์ทุก action ของ AP/คลัง
 - **Notification:** มี [API เดิม](../../api/src/routes/notifications.js) แต่ไม่พบ Accounting UI inbox และการสร้าง event ใกล้ครบกำหนด/Stock ต่ำ/PS/PV รออนุมัติใน flow ที่ตรวจ
-- **Cancel/Reversal:** AR ใหม่คืนยอดตาม scope 1.4–1.7, PS คืนวงเงินตาม 1.9, PV กลับรายการตาม 1.10, CQ/PV ตาม 1.11 และ GR กลับ Stock/คืน PO qty แบบ guarded ตาม 1.13 แล้ว; เบิก/คืนยังไม่ครบ
+- **Cancel/Reversal:** AR ใหม่คืนยอดตาม scope 1.4–1.7, PS คืนวงเงินตาม 1.9, PV กลับรายการตาม 1.10, CQ/PV ตาม 1.11, GR กลับ Stock/คืน PO qty 1.13 และ IS กลับ Stock ทั้งใบเมื่อรับของคืนจริงครบ 1.14 ทำแล้ว; ใบคืนบางส่วนยังไม่ครบ
 - **Print/Export:** PO/SO/IV/BI/CN/RV/PS/PV/CQ/GR มีแบบพิมพ์ตาม scope; CQ/GR มี CSV; CQ เป็นใบรายละเอียด ไม่ใช่ bank overprint; เบิก/คืนและ export รายงานยังไม่ครบ
 - **ข้อมูลหลัก/เอกสารย้อนหลัง:** PO ใช้ supplierSnapshot แล้วตาม 1.8; rollout เติมเฉพาะ snapshot ที่ว่างด้วยค่าปัจจุบัน ส่วนการกู้ข้อมูลก่อน master ถูกแก้ในอดีตและเอกสาร AP ชนิดอื่นต้องตรวจใน Process นั้น
 - **Schema rollout:** เคยพบ Attachment.purchaseOrderId ไม่ตรง SQL purchase_order_id และแก้ mapping ใน schema แล้ว แต่ยังต้อง verify generate/restart/DB เป้าหมาย ไม่ถือว่ารัน script แล้วทุก environment ตรงกัน
@@ -618,17 +684,17 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | REQ-014 | GR รับตาม PO line คงเหลือจริง | approved PO/explicit mapping/authoritative cumulative/pending reserve/approve Stock/service/evidence/reversal/full-page ทำแล้ว | goodsReceipt.js; goods-receipts.js; goods-receipts.tsx; GoodsReceiptLine; StockBalance | HTTP/browser 6+4/service/rollback/available-reserved/legacy ผ่าน; รอ DB concurrency UAT | Implemented agreed scope ตาม 1.13 |
 | REQ-015 | PV เลือกยอดอนุมัติที่ยังไม่จ่าย | PS approved เต็มยอด 1:1/หน้าแยก/อนุมัติ/สด-โอน/CQ/หลักฐาน/reversal/print | payment-vouchers.js; paymentVoucher.js; chequePayment.js; payment-vouchers.tsx | source/ยอด/กันซ้ำ/สิทธิ์/หลักฐาน/rollback/HTTP/browser ผ่าน; รอ DB UAT | Implemented agreed scope ตาม 1.10–1.11; partial/GL ไม่รวม |
 | REQ-016 | เช็คจาก PV approved พร้อม state/history | full-page/unique/locks/ทุก transition/evidence/date/reason/PV payment+reversal/A4/CSV | cheque-payments.js; chequePayment.js; cheque-payments.tsx; ChequePayment | HTTP/browser/rollback/concurrent แบบจำลอง/normalized identity/legacy ผ่าน; รอ DB UAT | Implemented agreed scope ตาม 1.11 |
-| REQ-017 | เบิกบางส่วนและอนุมัติก่อนตัด Stock | UI 1 line immediate → multi-line/requested-issued-cancelled | inventory/page.tsx; inventory.js | ขอ 10 เบิก 5 ยกเลิก 5; ก่อนอนุมัติ Stock ไม่เปลี่ยน | Blocked Q-13 |
+| REQ-017 | เบิกบางส่วนและอนุมัติก่อนตัด Stock | หน้าแยกหลายรายการ/requested-issued-cancelled/Draft-pending-approve/ไม่จอง/ไม่มี backorder ทำแล้ว | stock-issues.tsx; stock-issue.ts; stock-issues.js; stockIssue.js | HTTP/browser ขอ 10 จ่าย 5 ยกเลิก 5/จ่าย 0 บางแถว/decimal/ไม่พอไม่ลดเอง/rollback ผ่าน | Implemented agreed scope ตาม 1.14; รอ SQL/DB UAT |
 | REQ-018 | คืนสะสมไม่เกินเบิกและไม่เพิ่ม Stock ผิดประเภท | API per-request → UI/cumulative/service/condition/reversal | inventory.js; StockReturn | เบิก 5 คืน 3+2 ได้ แต่คืนอีกไม่ได้; ทดสอบพร้อมกัน | Blocked Q-13 |
-| REQ-019 | Balance/Movement ตรวจย้อนกลับได้ | ตาราง → filter/card/reversal/initial balance | inventory/page.tsx; inventory.js; StockMovement | ยกมา+เข้า-ออก=คงเหลือ และเปิด source ได้ | Blocked Q-14 |
-| REQ-020 | Approval Accounting แยกสายตามเงื่อนไข | PO/GR/PS/PV หนึ่งขั้น/ห้าม self-approve/return/reject/history; CQ ลงนามไม่อนุมัติ PV ซ้ำ | purchaseOrderApproval.js; goods-receipts.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; approvals.js | HTTP/browser ผ่าน; ไม่แยก domestic/overseas ตามคำตอบ 1.12 | Partial: agreed scope done; remaining multi-step/inbox Q-01 |
-| REQ-021 | สิทธิ์ตรง action และไม่ขึ้นกับ legacy role โดยไม่ตั้งใจ | PO/GR/PS/PV actions และ CQ stage/evidence ตรง API/UI; print/export/VAT/audit แยก action ส่วนอื่นยังค้าง | accountingAccess.js; accountingAccess middleware; goods-receipts.js; purchaseOrderApproval.js; chequePayment.js; UI access | approver ไม่ต้อง create; payer ไม่ต้อง approve; CQ/PV reverse ต้อง pay+cancel; viewer read-only/print/CSV | Partial: PO/GR/PS/PV/CQ ตาม 1.9–1.13; remaining Q-01/Q-17 |
-| REQ-022 | Cancel คืนเงิน/Stock/สัมพันธ์ครบ | AR ตาม 1.4–1.7, PS 1.9; PV 1.10; CQ/PV 1.11; GR Stock reversal+PO capacity 1.13; เบิก/คืนยังค้าง | ar.js; contractor-payments.js; payment-vouchers.js; chequePayment.js; goodsReceipt.js; inventory.js; audit | status/revision/audit rollback/GR available-reserved/reversal link ผ่านแบบจำลอง; รอ DB จริง | Partial: agreed GR cancellation done; issue/return pending |
-| REQ-023 | Audit/Notification ใช้งานผ่าน Accounting ได้ | AR/master/PO/GR/PS/PV/CQ มี record history/transactional audit; events/inbox/notification/retry กลางยังค้าง | audit.js; auditTrail.js; purchaseOrderApproval.js; goodsReceipt.js; chequePayment.js; notifications.js; Accounting UI | trace ผู้ทำ เวลา เหตุผล/actor snapshot และ rollback ผ่านราย record; ส่วนกลาง/แจ้งเตือนยังไม่ทดสอบ | Partial: record audit done; remaining Blocked Q-17 |
+| REQ-019 | Balance/Movement ตรวจย้อนกลับได้ | ตาราง/IS-GR source links/atomic posting/reversal ทำแล้ว; filter/card ยอดยกมา/ต้นทุนยังไม่ครบ | inventory-data.tsx; inventory.js; stockIssue.js; StockMovement | IS 7→2→7/reserved 2 คงเดิม/เปิด source ผ่าน; ต้อง UAT จริง | Partial ตาม 1.14; remaining Q-14 |
+| REQ-020 | Approval Accounting แยกสายตามเงื่อนไข | PO/GR/PS/PV/IS หนึ่งขั้น/ห้าม self-approve/return/reject/history; CQ ลงนามไม่อนุมัติ PV ซ้ำ | purchaseOrderApproval.js; goods-receipts.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; stock-issues.js; approvals.js | HTTP/browser ผ่าน; ไม่แยก domestic/overseas ตามคำตอบ 1.12 | Partial: agreed scope done; remaining return/multi-step/inbox Q-01 |
+| REQ-021 | สิทธิ์ตรง action และไม่ขึ้นกับ legacy role โดยไม่ตั้งใจ | PO/GR/PS/PV/IS actions และ CQ stage/evidence ตรง API/UI; print/export/VAT/audit แยก action ส่วนอื่นยังค้าง | accountingAccess.js; accountingAccess middleware; goods-receipts.js; stock-issues.js; purchaseOrderApproval.js; chequePayment.js; UI access | approver ไม่ต้อง create; editor ไม่ submit; viewer read-only/print/CSV; self-approve รวม admin ถูกปฏิเสธ | Partial: PO/GR/PS/PV/CQ/IS ตาม 1.9–1.14; remaining Q-01/Q-17 |
+| REQ-022 | Cancel คืนเงิน/Stock/สัมพันธ์ครบ | AR/PS/PV/CQ/GR ตาม 1.4–1.13; IS whole-document physical-return confirmation + linked reversal 1.14 ทำแล้ว; ใบคืนยังค้าง | ar.js; contractor-payments.js; payment-vouchers.js; chequePayment.js; goodsReceipt.js; stockIssue.js; inventory.js; audit | status/revision/audit rollback/available-reserved/date/active return/reversal link ผ่านแบบจำลอง; รอ DB จริง | Partial: agreed IS cancellation done; return pending |
+| REQ-023 | Audit/Notification ใช้งานผ่าน Accounting ได้ | AR/master/PO/GR/PS/PV/CQ/IS มี record history/transactional audit; events/inbox/notification/retry กลางยังค้าง | audit.js; auditTrail.js; purchaseOrderApproval.js; goodsReceipt.js; stockIssue.js; chequePayment.js; notifications.js; Accounting UI | trace ผู้ทำ เวลา เหตุผล/actor snapshot/physical confirmation และ rollback ผ่านราย record; ส่วนกลาง/แจ้งเตือนยังไม่ทดสอบ | Partial: record audit done; remaining Blocked Q-17 |
 | REQ-024 | Aging ใช้ฐานหนี้และ as-of ที่ยืนยัน | report 4 endpoints → สูตร/history/filter | accounting-reports.js; reports/page.tsx | รับ/จ่ายหลัง as-of ไม่เปลี่ยนยอดก่อน as-of | Blocked Q-16 |
 | REQ-025 | Reports/Reconciliation/Export ครบตามลำดับที่ตกลง | 4 หน้าเบื้องต้น → registers/variance/export | accounting-reports.js; reports/page.tsx | total/export ตรงหน้าจอและ source; discrepancy ระบุได้ | Blocked Q-16 |
-| REQ-026 | เลขเอกสารเป็นรูปแบบที่รับรองและไม่ชน | PS/PV/CQ/GR Gregorian monthly/Draft/no reuse ทำแล้ว 1.9–1.13; IS/SR ยังรอคำตอบ | runningNumber.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; goods-receipts.js; inventory.js; DocumentSequence | request-key/unique/เลขรายเดือน/rollback ผ่าน; รอ PostgreSQL concurrency | Partial: PS/PV/CQ/GR done; remaining IS/SR Q-15 |
-| REQ-027 | เอกสารพิมพ์ข้อมูลคงที่ตามกติกา | PO/SO/BI/RV/CN/PS/PV/CQ/GR template และ IV data-only ทำแล้ว; snapshot/page overflow; CQ ไม่ใช่ bank overprint | purchase-order-document.tsx; delivery-order-document.tsx; invoice-document.tsx; billing-note-document.tsx; receipt-voucher-document.tsx; credit-note-document.tsx; contractor-payment-document.tsx; payment-voucher-document.tsx; cheque-payment-document.tsx; goods-receipt-document.tsx | GR 1/17 รายการ=1/3 หน้า A4; ทุกแถวครั้งเดียวและล้นปิดพิมพ์; รอ printer UAT | Partial: ดู 1.4–1.13; remaining issue/return Q-09 |
+| REQ-026 | เลขเอกสารเป็นรูปแบบที่รับรองและไม่ชน | PS/PV/CQ/GR/IS Gregorian monthly/Draft/no reuse ทำแล้ว 1.9–1.14; SR ยังรอคำตอบ | runningNumber.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; goods-receipts.js; stock-issues.js; DocumentSequence | request-key/unique/เลขรายเดือน/rollback ผ่าน; รอ PostgreSQL concurrency | Partial: PS/PV/CQ/GR/IS done; remaining SR Q-15 |
+| REQ-027 | เอกสารพิมพ์ข้อมูลคงที่ตามกติกา | PO/SO/BI/RV/CN/PS/PV/CQ/GR/IS template และ IV data-only ทำแล้ว; snapshot/page overflow; CQ ไม่ใช่ bank overprint | purchase-order-document.tsx; delivery-order-document.tsx; invoice-document.tsx; billing-note-document.tsx; receipt-voucher-document.tsx; credit-note-document.tsx; contractor-payment-document.tsx; payment-voucher-document.tsx; cheque-payment-document.tsx; goods-receipt-document.tsx; stock-issue-document.tsx | GR 1/17=1/3 หน้า; IS 2/17=1/3 หน้า A4; ทุกแถวครั้งเดียวและล้นปิดพิมพ์; รอ printer UAT | Partial: ดู 1.4–1.14; remaining return Q-09 |
 | REQ-028 | PO ตาม scope ล่าสุดและวันที่กลาง | หน้าแยก/one-step approval/returned/reject/cancel/history/revision/files/print status 1.12 และ GR line mapping 1.13 ทำแล้ว | purchase-orders.tsx; purchaseOrderApproval.js; goodsReceipt.js; ap.js; accounting-date.ts | HTTP/browser/build ผ่าน; ยังรอ target DB/storage/printer UAT | Implemented agreed PO scope |
 
 ตำแหน่งในตารางย่อชื่อไฟล์เพื่ออ่านง่าย: UI ใต้ [accounting-ui/src](../../accounting-ui/src), API ใต้ [api/src](../../api/src), models ใต้ [schema.prisma](../../api/prisma/schema.prisma)
@@ -639,7 +705,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 
 | Q | เรื่อง | ข้อมูล/คำตอบที่ต้องการ | ใช้กับงาน |
 |---|---|---|---|
-| Q-01 | สายอนุมัติและสิทธิ์ — ตอบแล้ว PO/PS/PV/CQ/GR | PO/GR/PS/PV หนึ่งขั้นห้ามอนุมัติเองทำแล้ว; PO ไม่แยก domestic/overseas/ไม่ส่งอีเมลระยะนี้; CQ ลงนามด้วย approve ผู้สร้างทำได้; PV/CQ pay/reversal แยก; เบิก/คืนและสายหลายขั้นยังรอตอบ | REQ-020/021 และเอกสารที่มี approval |
+| Q-01 | สายอนุมัติและสิทธิ์ — ตอบแล้ว PO/PS/PV/CQ/GR/IS | PO/GR/PS/PV/IS หนึ่งขั้นห้ามอนุมัติเองทำแล้ว; PO ไม่แยก domestic/overseas/ไม่ส่งอีเมลระยะนี้; CQ ลงนามด้วย approve ผู้สร้างทำได้; PV/CQ pay/reversal แยก; ใบคืนและสายหลายขั้นยังรอตอบ | REQ-020/021 และเอกสารที่มี approval |
 | Q-02 | Supplier หลายสาขา — ตอบแล้ว 1.8 | code ระดับบริษัท, หลายสาขา/ที่อยู่ติดต่อ-วางบิล, หลายธนาคาร/default; PO snapshot/คงข้อมูลเก่า ไม่เปลี่ยนยอดย้อนหลัง | REQ-003 |
 | Q-03 | Master quality — ตอบแล้ว scope 1.8 | รหัส/ชื่อบังคับ/รหัส unique; Tax ID optional ถ้าในประเทศต้อง 13 หลัก ซ้ำเตือน; หน่วย/หมวด/ราคา/ต้นทุน/VAT/type/active; quantity เอกสารคลังยังรอ Process นั้น | REQ-002/004/005 |
 | Q-04 | สูตร Invoice — ตอบแล้วรอบ 1.4 | ราคาไม่รวม VAT, ส่วนลดรายการและท้ายเอกสารเป็นบาท, ปัด 2 ตำแหน่ง; ar.create แก้ Draft แบบไม่ผูก SO ได้, แบบดึง SO คงสูตรต้นทาง | REQ-008/009 |
@@ -647,18 +713,18 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q-06 | SO → IV และ BI ตอบแล้ว | SO full-copy ตาม 1.4; BI partial/ไม่ซ้ำ active รวม Draft/Legacy; RV รับครบส่วนแล้วปิด-ปล่อยยอดเหลือและเปิดกลับเมื่อกลับ RV โดยไม่มี BI ใหม่ ตาม 1.6 | REQ-007/008/010 |
 | Q-07 | ลดหนี้ CN — ตอบแล้วรอบ 1.7 | หลายรายการ/จำนวนเต็ม/ราคาลดก่อน VAT ไม่คืน Stock; VAT ตาม Invoice คุมสะสม; Draft/ar.create confirm/cancel; ไม่เกินหนี้ค้าง ไม่คืนเงิน; BI active กันยืนยัน และ BI ใหม่/RV มีผลหลังยืนยันกันยกเลิก | REQ-011 |
 | Q-08 | รับเงิน RV — ตอบแล้ว scope รอบ 1.6 | ลดหนี้=เงินสุทธิ+WHT+fee; หลาย IV/BI; ไม่รับเกิน/advance; cash/transfer บังคับธนาคาร+ref โอน/WHT certificate; หลักฐานไม่บังคับ; Draft-confirm-cancel และ BI complete/reopen guard; เช็ค/GL แยกภายหลัง | REQ-012 |
-| Q-09 | แม่แบบและ snapshot — ตอบบางส่วน | SO/IV/BI/RV/CN/PS/PV/CQ ตาม 1.4–1.11; PO เพิ่ม approval identity 1.12; GR A4 กรอบ+ข้อมูล/ช่องลงชื่อว่างและ CSV ทำแล้ว 1.13; เบิก/คืน ยังรอ | REQ-027 |
+| Q-09 | แม่แบบและ snapshot — ตอบบางส่วน | SO/IV/BI/RV/CN/PS/PV/CQ ตาม 1.4–1.11; PO approval identity 1.12; GR/IS A4 กรอบ+ข้อมูล/ช่องลงชื่อว่างและ CSV ทำแล้ว 1.13–1.14; ใบคืนยังรอ | REQ-027 |
 | Q-10 | เบิกจ่ายผู้รับเหมา — ตอบแล้ว scope 1.9 | ก่อน VAT/VAT/gross แยก; กันตอน pending/approved; WHT/retention รายใบเริ่ม 0%; ไม่คืนประกันระยะนี้; Draft PO ใช้ได้; รอบ/เลขใหม่ต่อใบ/ห้ามซ้ำ | REQ-013 |
 | Q-11 | รับสินค้า GR — ตอบแล้วครบ 8 ข้อตาม 1.12 / ทำแล้ว 1.13 | approved PO/explicit PO-line+unit mapping/1 คลังต่อ GR/pending กัน qty/approved post Stock/service ตามจำนวน/guarded reversal/mandatory evidence/legacy reconcile; ไม่ auto-close/คืนผู้ขายบางส่วน/ของเสีย | REQ-014 implemented agreed scope; รอ rollout/UAT |
 | Q-12 | PV และการจ่าย — ตอบแล้ว scope 1.10–1.11 | PS approved เต็มยอด 1:1; Draft กัน PS; approved รอจ่าย; สด/โอนพร้อมหลักฐาน; CQ release ตั้ง paid/clear เก็บวันแยก; กลับรายการต้อง pay+cancel/เหตุผล/วันที่/ref/หลักฐาน; ไม่ partial/PR-PO direct/GL | REQ-015/016 |
-| Q-13 | เบิก/คืน | ขั้นตอนผู้ขอ-อนุมัติ-จ่ายของ, partial แล้วค้างหรือยกเลิกทันที, คืนไม่อ้าง Issue ได้ไหม, คืนของเสียเข้า Stock ใช้งานหรือแยก quarantine, อนุญาต stock ติดลบหรือไม่ | REQ-017/018 |
+| Q-13 | IS ตอบครบ/ทำแล้ว 1.14; ใบคืนยังรอ | IS หนึ่งขั้น/approve ตัด Stock/ไม่จอง/ขอ-จ่าย-ยกเลิกส่วนเหลือ/ห้ามกิน reserved/กลับทั้งใบเมื่อคืนจริงครบ; ใบคืนต้องตอบ cumulative+pending reservation/ต้นทาง/สภาพดี-เสีย/คลัง/ขั้นอนุมัติ/กลับรายการ | REQ-017 implemented agreed scope; REQ-018 ยัง blocked |
 | Q-14 | คลังและต้นทุน | ยอดยกมาและวันเริ่มใช้, adjustment/โอนคลังอยู่ในขอบเขตไหม, ยอดจองเกิดจากเอกสารใด, Stock ต่ำตั้งระดับไหน, Valuation ใช้ FIFO/เฉลี่ย/อื่น ๆ | REQ-019/025 |
-| Q-15 | เลขเอกสาร/เช็ค — PS/PV/CQ/GR ตอบแล้ว | PS 1.9/PV 1.10/CQ 1.11/GR 1.13 ทำแล้ว; ปี ค.ศ./รายเดือน/ออก Draft/ไม่ reuse; IS/SR ยังรอยืนยัน | REQ-016/026 |
+| Q-15 | เลขเอกสาร/เช็ค — PS/PV/CQ/GR/IS ตอบแล้ว | PS 1.9/PV 1.10/CQ 1.11/GR 1.13/IS 1.14 ทำแล้ว; ปี ค.ศ./รายเดือน/ออก Draft/ไม่ reuse; SR ยังรอยืนยัน | REQ-016/026 |
 | Q-16 | รายงานบัญชี | Aging bucket/วันฐาน/หนี้เริ่มจากเอกสารใด, as-of แบบย้อนหลัง, เลือกชุดรายงานเร่งด่วน, tax format, Excel/CSV/PDF, วิธี reconcile และเกณฑ์ปิดหนี้ | REQ-024/025 |
 | Q-17 | ประวัติ/แจ้งเตือน | ใครดูข้อมูลเดิม/ธนาคาร/Export ได้, แจ้งในระบบหรืออีเมล, ผู้รับและกำหนดเวลา/stock threshold, วิธี retry และไม่แจ้งซ้ำ | REQ-021/023 |
 | Q-18 | Dashboard | ยอดค้าง/ใกล้ครบกำหนด/งานรอทำคิดจากสถานะใด, cash flow ใช้รับจ่ายจริงหรือคาดการณ์, รอบบัญชีเริ่มวันใด | REQ-001 |
 | Q-19 | ผังบัญชี/GL — ตอบแล้วทะเบียน 1.8 | code/name/category/header-detail/mapping ตามชนิดเดิม/active; ไม่ลง GL/ปิดงวด; posting rule ต้องยืนยันแยกก่อนทำ | REQ-006 |
-| Q-20 | UX เมนูอื่น | PO/SO/IV/BI/RV/CN/PS/PV/CQ/GR และข้อมูลหลักทั้ง 6 กลุ่มทำหน้าแยกแล้ว; GR full-page/search/CSV/A4 ตาม 1.13; เบิก/คืนรอยืนยัน | ทุก UI ถัดไป |
+| Q-20 | UX เมนูอื่น | PO/SO/IV/BI/RV/CN/PS/PV/CQ/GR/IS และข้อมูลหลักทั้ง 6 กลุ่มทำหน้าแยกแล้ว; IS full-page/search/CSV/A4 ตาม 1.14; ใบคืนรอยืนยัน | ทุก UI ถัดไป |
 | Q-21 | ต่างประเทศ | สกุลเงิน/อัตราแลกเปลี่ยน/วันที่ใช้ rate/ภาษีและยอดฐาน THB; ไม่อนุมานจากการเลือก overseas อย่างเดียว | PO/PS/PV/รายงานอนาคต |
 
 ## 8. User Scenarios & Testing
@@ -699,7 +765,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 
 ## 10. Recommended Implementation Order
 
-สถานะหลังรอบ 1.13: เพิ่ม **GR รับสินค้า/ตรวจรับบริการตาม 8 กติกาเสร็จในโค้ดและ automated validation** หลัง PO approval และงาน AR/PS/PV/CQ/master; ยังรอ rollout/generate/DB/concurrency/storage/printer UAT ไม่ใช่ sign-off ทั้งระบบ **ขั้นถัดไปเสนอเบิก/คืน Q-13 พร้อมคลัง Q-14/เลข IS-SR Q-15 ต้องยืนยันกติกาก่อน** ไม่ต้องถาม GR ซ้ำ ลำดับด้านล่างเป็นภาพรวมเดิม ไม่ใช่สถานะล่าสุดของรายการที่แก้แล้ว
+สถานะหลังรอบ 1.14: เพิ่ม **IS เบิกสินค้าตาม 7 กติกาเสร็จในโค้ดและ automated validation** หลัง GR/PO approval และงาน AR/PS/PV/CQ/master; local Prisma generate ผ่านแล้ว แต่ยังรอ SQL/DB/concurrency/storage/printer UAT ไม่ใช่ sign-off ทั้งระบบ **ขั้นถัดไปเสนอใบคืน SR ตาม Q-13/เลข SR Q-15 ต้องยืนยันกติกาก่อน**; คลัง/ต้นทุน Q-14 แยกต่างหาก ไม่ต้องถาม GR/IS ซ้ำ ลำดับด้านล่างเป็นภาพรวมเดิม ไม่ใช่สถานะล่าสุดของรายการที่แก้แล้ว
 
 1. **แก้สิ่งที่ชวนเข้าใจผิดก่อน:** BI save ไม่ทำงาน, SO date field, ป้ายสถานะ prototype ของ Dashboard/AP Aging และ user-facing error
 2. **ยืนยัน flow ที่มีผลต่อยอด:** Q-01, Q-04/05, Q-08, Q-11/12/13, Q-15/16 ก่อนลง posting จริง
