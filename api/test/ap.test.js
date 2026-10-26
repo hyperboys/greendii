@@ -3,6 +3,8 @@ const assert = require('node:assert/strict');
 require('./contractorPayments.test');
 require('./paymentVouchers.test');
 require('./chequePayments.test');
+require('./purchaseOrderApproval.test');
+require('./goodsReceipts.test');
 const {
   normalizePurchaseOrderItems,
   calculatePurchaseOrderTotals,

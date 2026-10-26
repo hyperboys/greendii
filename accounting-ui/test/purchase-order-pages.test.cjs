@@ -45,6 +45,8 @@ test("PO creation is a full page with date fields and quantity step; viewers can
     "next/navigation": { useRouter: () => ({ push: () => {} }) },
     "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
     "@/lib/api": {},
+    "@/lib/auth": { getStoredUser: () => ({ id: "maker" }) },
+    "@/lib/accounting-purchase-orders": load(["lib", "accounting-purchase-orders.ts"]),
     "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
     "@/lib/accounting-access": { canUseAccounting: () => writeAllowed },
     "@/lib/accounting-navigation": load(["lib", "accounting-navigation.ts"]),
@@ -53,6 +55,7 @@ test("PO creation is a full page with date fields and quantity step; viewers can
     "@/components/date-input": { DateInput },
     "@/components/purchase-order-document": { PurchaseOrderPrintStyles: () => null },
   });
+
   const render = mode => renderToStaticMarkup(React.createElement(PurchaseOrders, { mode }));
   const html = render("new");
   assert.doesNotMatch(html, /role="dialog"|aria-modal|fixed inset-0/);
@@ -64,4 +67,53 @@ test("PO creation is a full page with date fields and quantity step; viewers can
     assert.match(render(mode), /ไม่มีสิทธิ์สร้างหรือแก้ไขใบสั่งซื้อ/);
     assert.doesNotMatch(render(mode), /<form/);
   }
+});
+
+test("PO actions honor independent permissions, creator restriction and terminal states", () => {
+  const { purchaseOrderActions: actions, poStatusLabels } = load(["lib", "accounting-purchase-orders.ts"]);
+  const doc = { status: "draft", createdById: "maker" };
+  const maker = { create: true, approve: true, cancel: true };
+  const approver = { create: false, approve: true, cancel: false };
+  const viewer = { create: false, approve: false, cancel: false };
+  const plain = value => JSON.parse(JSON.stringify(value));
+  assert.deepEqual(plain(actions(doc, maker, "maker")), ["submit", "cancel"]);
+  assert.deepEqual(plain(actions({ ...doc, status: "returned" }, maker, "maker")), ["submit", "cancel"]);
+  assert.deepEqual(plain(actions({ ...doc, status: "pending" }, approver, "reviewer")), ["approve", "return", "reject"]);
+  assert.deepEqual(plain(actions({ ...doc, status: "pending" }, approver, "maker")), ["return", "reject"]);
+  assert.deepEqual(plain(actions({ ...doc, createdById: null }, maker, "maker")), ["cancel"]);
+  for (const status of Object.keys(poStatusLabels)) assert.deepEqual(plain(actions({ ...doc, status }, viewer, "viewer")), []);
+  for (const status of ["rejected", "cancelled"]) assert.deepEqual(plain(actions({ ...doc, status }, maker, "maker")), []);
+  assert.deepEqual(plain(actions({ ...doc, status: "approved" }, maker, "maker")), ["cancel"]);
+});
+
+test("PO actions revisions files history and print status are wired through typed API", () => {
+  const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-orders.tsx"), "utf8");
+  const api = fs.readFileSync(path.join(__dirname, "..", "src", "lib", "api.ts"), "utf8");
+  const print = fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-order-document.tsx"), "utf8");
+  assert.match(source, /updatedAt: editing.updatedAt/);
+  assert.match(source, /uploadPurchaseOrderFiles\(saved.id, pendingFiles, saved.updatedAt\)/);
+  assert.match(source, /purchaseOrderAction\(doc.id, action, doc.updatedAt, reason\)/);
+  assert.match(source, /deletePurchaseOrderFile\(file.id, doc.updatedAt\)/);
+  assert.match(source, /selectedDocument.history\?\.map/);
+  assert.match(source, /productId: item.productId/);
+  assert.match(source, /aria-label="กรองสถานะ PO"/);
+  assert.match(api, /form.set\("updatedAt", updatedAt\)/);
+  assert.match(print, /poStatusLabels\[document.status\]/);
+});
+
+test("PO print shows saved approval actor without inventing a signature or legacy approver", () => {
+  const { PurchaseOrderDocumentView } = load(["components", "purchase-order-document.tsx"], {
+    "next/image": { default: () => null },
+    "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
+    "@/lib/accounting-purchase-orders": load(["lib", "accounting-purchase-orders.ts"]),
+  });
+  const doc = { id: "po", poNo: "PO2610001", poDate: "2026-10-26", purchaseType: "domestic", status: "approved",
+    items: [], subTotal: 100, discount: 0, vat: 7, netAmount: 107, vatConfig: "VAT7%",
+    history: [{ id: "audit", action: "approve", createdAt: "2026-10-26", performedBy: { fullName: "Saved approver" } }] };
+  const render = document => renderToStaticMarkup(React.createElement(PurchaseOrderDocumentView, { document, company: {} }));
+  const html = render(doc);
+  assert.match(html, /อนุมัติโดย Saved approver/);
+  assert.doesNotMatch(html, /ยังไม่มีข้อมูลการอนุมัติ/);
+  assert.match(render({ ...doc, status: "cancelled" }), /เคยอนุมัติโดย Saved approver/);
+  assert.match(render({ ...doc, history: [] }), /อนุมัติเดิม \(ไม่มีประวัติผู้อนุมัติ\)/);
 });

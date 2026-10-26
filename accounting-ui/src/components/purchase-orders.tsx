@@ -15,7 +15,9 @@ import type {
 import { emptyPurchaseOrderLine, purchaseOrderTotals, type PurchaseOrderLineDraft } from "@/lib/purchase-order";
 import { PurchaseOrderDocumentView, PurchaseOrderPrintStyles } from "@/components/purchase-order-document";
 import { DateInput } from "@/components/date-input";
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
+import { getStoredUser } from "@/lib/auth";
+import { poStatusLabels, poActionLabels, poHistoryLabels, purchaseOrderActions, type PurchaseOrderAction } from "@/lib/accounting-purchase-orders";
 
 const todayBangkok = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
 
@@ -54,6 +56,7 @@ function formFromDocument(document: PurchaseOrderDocument): PurchaseOrderInput {
     deliveryLocation: document.deliveryLocation || "",
     items: document.items.length
       ? document.items.map(item => ({
+        productId: item.productId,
         partNo: item.partNo || "",
         desc: item.desc || "",
         qty: Number(item.qty),
@@ -82,6 +85,7 @@ export function PurchaseOrders({
   const canCreate = canUseAccounting(access, "ap", "create");
   const canUpdate = canUseAccounting(access, "ap", "update");
   const canManage = canCreate || canUpdate;
+  const canApprove = canUseAccounting(access, "ap", "approve"), canCancel = canUseAccounting(access, "ap", "cancel");
   const activeTab = selectedTab(payableTabs, searchParams.tab);
   const [errorMsg, setErrorMsg] = useState("");
   const [loading, setLoading] = useState(false);
@@ -92,6 +96,10 @@ export function PurchaseOrders({
   const [supplierSearchOpen, setSupplierSearchOpen] = useState(false);
   const [purchaseRequests, setPurchaseRequests] = useState<PurchaseRequestReference[]>([]);
   const [filterText, setFilterText] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+  const [userId, setUserId] = useState<string>();
+  const [action, setAction] = useState<PurchaseOrderAction | null>(null);
+  const [reason, setReason] = useState("");
   const [prFilter, setPrFilter] = useState("");
   const [formData, setFormData] = useState<PurchaseOrderInput>(emptyForm);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
@@ -126,7 +134,7 @@ export function PurchaseOrders({
       if (recordId && (mode === "edit" || mode === "view")) {
         const detail = await ApApi.getPurchaseOrder(recordId);
         if (mode === "edit") {
-          if (detail.status !== "draft") throw new Error("แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft");
+          if (!["draft", "returned"].includes(detail.status)) throw new Error("แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft / ส่งกลับ");
           setEditing(detail);
           setFormData(formFromDocument(detail));
           setSupplierFilter(detail.supplier ? `${detail.supplier.code} - ${detail.supplier.name}` : "");
@@ -145,6 +153,7 @@ export function PurchaseOrders({
   useEffect(() => {
     void loadData();
   }, [loadData]);
+  useEffect(() => { setUserId(getStoredUser()?.id); }, []);
 
   useEffect(() => {
     if ((mode !== "new" && mode !== "edit") || !canManage) return;
@@ -168,11 +177,10 @@ export function PurchaseOrders({
 
   const filteredOrders = useMemo(() => {
     const query = filterText.trim().toLowerCase();
-    if (!query) return list;
-    return list.filter(order =>
-      `${order.poNo} ${order.supplier?.name || ""} ${order.purchaseRequestReferences?.map(ref => ref.purchaseRequest.prNo).join(" ") || order.pr?.prNo || ""}`
+    return list.filter(order => (!statusFilter || order.status === statusFilter) &&
+      `${order.poNo} ${order.supplierSnapshot?.name || order.supplier?.name || ""} ${order.purchaseRequestReferences?.map(ref => ref.purchaseRequest.prNo).join(" ") || order.pr?.prNo || ""}`
         .toLowerCase().includes(query));
-  }, [filterText, list]);
+  }, [filterText, list, statusFilter]);
 
   const chooseSupplier = (supplierId: string) => {
     const supplier = suppliers.find(item => item.id === supplierId);
@@ -229,12 +237,12 @@ export function PurchaseOrders({
         })),
       };
       const saved = editing
-        ? await ApApi.updatePurchaseOrder(editing.id, payload)
+        ? await ApApi.updatePurchaseOrder(editing.id, { ...payload, updatedAt: editing.updatedAt })
         : await ApApi.createPurchaseOrder(payload);
       const followUpErrors: string[] = [];
       if (pendingFiles.length > 0) {
         try {
-          await ApApi.uploadPurchaseOrderFiles(saved.id, pendingFiles);
+          await ApApi.uploadPurchaseOrderFiles(saved.id, pendingFiles, saved.updatedAt);
         } catch (err) {
           followUpErrors.push(err instanceof Error ? err.message : "อัปโหลดเอกสารแนบไม่สำเร็จ");
         }
@@ -251,6 +259,21 @@ export function PurchaseOrders({
     }
   };
 
+  const runDetail = async (operation: (doc: PurchaseOrderDocument) => Promise<unknown>) => {
+    if (!selectedDocument || savingRef.current) return;
+    savingRef.current = true; setSaving(true); setErrorMsg("");
+    try {
+      await operation(selectedDocument);
+      const detail = await ApApi.getPurchaseOrder(selectedDocument.id);
+      setSelectedDocument(detail); setAction(null); setReason(""); setPendingFiles([]);
+    } catch (error) {
+      setErrorMsg(error instanceof Error ? error.message : "ดำเนินการ PO ไม่สำเร็จ");
+    } finally { savingRef.current = false; setSaving(false); }
+  };
+  const availableActions = selectedDocument ? purchaseOrderActions(selectedDocument,
+    { create: canCreate, approve: canApprove, cancel: canCancel }, userId) : [];
+  const editableDetail = selectedDocument && ["draft", "returned"].includes(selectedDocument.status);
+
   if ((mode === "new" && !canCreate) || (mode === "edit" && !canUpdate)) {
     return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไขใบสั่งซื้อ <Link href="/ap/vouchers?tab=po">กลับรายการ PO</Link></p>;
   }
@@ -262,7 +285,7 @@ export function PurchaseOrders({
           <div>
             <p className="text-xs font-bold uppercase text-[#9a6514]">Accounts Payable</p>
             <h1 className="mt-1 text-2xl font-bold sm:text-3xl">เจ้าหนี้การค้า & ค่าใช้จ่าย</h1>
-            <p className="mt-1 text-sm text-[#657069]">จัดทำและพิมพ์ใบสั่งซื้อ (PO)</p>
+            <p className="mt-1 text-sm text-[#657069]">จัดทำ อนุมัติ และพิมพ์ใบสั่งซื้อ (PO)</p>
           </div>
           {mode === "list" && activeTab === "po" && canCreate && (
             <Link href="/ap/vouchers/new" className="flex h-10 items-center justify-center gap-2 rounded-md bg-[#0866ff] px-4 text-sm font-bold text-white hover:bg-[#054cbd]">
@@ -288,6 +311,9 @@ export function PurchaseOrders({
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a847d]" />
                 <input aria-label="ค้นหา PO" className="w-full rounded border border-[#ccd5cd] bg-white py-2 pl-9 pr-3 text-sm" placeholder="ค้นหาเลข PO, ผู้ขาย หรือ PR" value={filterText} onChange={event => setFilterText(event.target.value)} />
               </label>
+              <select aria-label="กรองสถานะ PO" className="rounded border p-2 text-sm" value={statusFilter} onChange={event => setStatusFilter(event.target.value)}>
+                <option value="">ทุกสถานะ</option>{Object.entries(poStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
               <button onClick={() => void loadData()} className="rounded border border-[#ccd5cd] bg-white px-4 py-2 text-sm font-semibold">โหลดใหม่</button>
             </div>
             {loading ? <div className="p-8 text-center text-sm text-[#657069]">กำลังโหลดรายการใบสั่งซื้อ...</div>
@@ -301,14 +327,14 @@ export function PurchaseOrders({
                       {filteredOrders.map(order => (
                         <tr key={order.id} className="hover:bg-[#f9faf8]">
                           <td className="p-3.5"><strong className="text-[#173f2d]">{order.poNo}</strong><div className="mt-1 text-[#657069]">{formatAccountingDate(order.poDate)}</div></td>
-                          <td className="p-3.5">{order.supplier?.name || "-"}</td>
+                          <td className="p-3.5">{order.supplierSnapshot?.name || order.supplier?.name || "-"}</td>
                           <td className="p-3.5">{order.purchaseRequestReferences?.map(ref => ref.purchaseRequest.prNo).join(", ") || order.pr?.prNo || "-"}</td>
                           <td className="p-3.5 text-right font-bold">฿{Number(order.netAmount).toLocaleString("th-TH", { minimumFractionDigits: 2 })}</td>
-                          <td className="p-3.5"><span className="rounded bg-[#fff0cf] px-2 py-1 font-bold text-[#9a6514]">{order.status || "draft"}</span></td>
+                          <td className="p-3.5"><span className="rounded bg-[#fff0cf] px-2 py-1 font-bold text-[#9a6514]">{poStatusLabels[order.status] || order.status}</span><div className="mt-1">{order.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</div></td>
                           <td className="p-3.5">
                             <div className="flex justify-end gap-2">
                               <Link href={`/ap/vouchers/${encodeURIComponent(order.id)}`} className="rounded border border-[#ccd5cd] px-3 py-1.5 font-semibold">ดู / พิมพ์</Link>
-                              {canUpdate && order.status === "draft" && <Link href={`/ap/vouchers/${encodeURIComponent(order.id)}/edit`} className="rounded border border-[#ccd5cd] px-3 py-1.5 font-semibold">แก้ไข</Link>}
+                              {canUpdate && ["draft", "returned"].includes(order.status) && <Link href={`/ap/vouchers/${encodeURIComponent(order.id)}/edit`} className="rounded border border-[#ccd5cd] px-3 py-1.5 font-semibold">แก้ไข</Link>}
                             </div>
                           </td>
                         </tr>
@@ -506,9 +532,43 @@ export function PurchaseOrders({
       {mode === "view" && selectedDocument && (
         <div className="mx-auto w-full min-w-0">
           <div className="po-no-print mx-auto mb-3 flex max-w-[210mm] flex-wrap justify-end gap-2">
-            {canUpdate && selectedDocument.status === "draft" && <Link href={`/ap/vouchers/${encodeURIComponent(selectedDocument.id)}/edit`} className="rounded bg-white px-4 py-2 text-sm font-bold">แก้ไข Draft</Link>}
-            <button onClick={() => window.print()} className="flex items-center gap-2 rounded bg-[#0866ff] px-4 py-2 text-sm font-bold text-white"><Printer size={16} />พิมพ์ / บันทึก PDF</button>
+            {canUpdate && editableDetail && <Link href={`/ap/vouchers/${encodeURIComponent(selectedDocument.id)}/edit`} className="rounded bg-white px-4 py-2 text-sm font-bold">แก้ไข PO</Link>}
+            {availableActions.map(value => <button key={value} disabled={saving || loading} onClick={() => { setAction(value); setReason(""); }} className="rounded border bg-white px-4 py-2 text-sm font-bold disabled:opacity-50">{poActionLabels[value]}</button>)}
+            <button disabled={saving || loading} onClick={() => window.print()} className="flex items-center gap-2 rounded bg-[#0866ff] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Printer size={16} />พิมพ์ / บันทึก PDF</button>
           </div>
+          <section className="po-no-print mx-auto mb-4 max-w-[210mm] space-y-3 rounded border bg-white p-4">
+            <p><strong>สถานะ: {poStatusLabels[selectedDocument.status] || selectedDocument.status}</strong> · {selectedDocument.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
+            <p className="text-sm text-gray-600">อนุมัติหนึ่งขั้นทั้งสองประเภท ผู้สร้างห้ามอนุมัติตัวเอง · ยังไม่ส่งอีเมลผู้ขาย/ไม่เพิ่ม Stock · เปิดหรือพิมพ์ไม่เปลี่ยนสถานะ</p>
+            {!selectedDocument.createdById && <p role="alert" className="text-amber-800">PO เดิมไม่มีผู้สร้าง ต้องตรวจสอบข้อมูลก่อนส่งอนุมัติ</p>}
+            {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void runDetail(doc => ApApi.purchaseOrderAction(doc.id, action, doc.updatedAt, reason)); }}>
+              <h3 className="font-bold">ยืนยัน{poActionLabels[action]}</h3>
+              {["return", "reject", "cancel"].includes(action) && <label className={fieldClass}>เหตุผล *
+                <textarea required maxLength={1000} disabled={saving} className={inputClass} value={reason} onChange={event => setReason(event.target.value)} />
+              </label>}
+              {action === "cancel" && <p className="text-sm text-amber-800">ต้องปิด PS/GR ที่เกี่ยวข้องก่อน การยกเลิก PO ไม่กลับยอดคลังหรือการจ่ายเงินให้เอง</p>}
+              <div className="flex gap-2">
+                <button disabled={saving || !availableActions.includes(action)} className="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">ยืนยัน</button>
+                <button type="button" disabled={saving} onClick={() => setAction(null)} className="rounded border px-4 py-2 text-sm">ปิด</button>
+              </div>
+            </form>}
+            <div className="space-y-2 text-sm">
+              <h3 className="font-bold">เอกสารแนบ PO</h3>
+              {(selectedDocument.attachments || []).map(file => <div key={file.id} className="flex flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-all">{file.originalName}</span>
+                {editableDetail && canManage && <button disabled={saving} className="rounded border px-3 py-1" onClick={() => void runDetail(doc => ApApi.deletePurchaseOrderFile(file.id, doc.updatedAt))}>ลบไฟล์</button>}
+              </div>)}
+              {editableDetail && canManage && <div className="space-y-2">
+                <label className={fieldClass}>แนบ PDF/JPG/PNG
+                  <input key={selectedDocument.updatedAt} type="file" multiple accept=".pdf,.jpg,.jpeg,.png" disabled={saving} className="block max-w-full" onChange={event => setPendingFiles(Array.from(event.target.files || []))} />
+                </label>
+                <button disabled={saving || !pendingFiles.length} className="rounded border px-3 py-2 disabled:opacity-50" onClick={() => void runDetail(doc => ApApi.uploadPurchaseOrderFiles(doc.id, pendingFiles, doc.updatedAt))}>อัปโหลดไฟล์</button>
+              </div>}
+            </div>
+            <h3 className="font-bold">ประวัติรายการ</h3>
+            <ul className="space-y-2 text-sm">{selectedDocument.history?.map(row => <li key={row.id} className="break-words border-t pt-2">
+              {formatAccountingDateTime(row.createdAt)} · {poHistoryLabels[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}
+            </li>)}</ul>
+          </section>
           <div className="po-document-preview w-full overflow-x-auto">
             <PurchaseOrderDocumentView document={selectedDocument} company={company} />
           </div>

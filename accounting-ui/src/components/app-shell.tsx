@@ -152,6 +152,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : pathname.startsWith("/ap/vouchers/ps/") ? "ps"
                         : pathname.startsWith("/ap/vouchers/pv/") ? "pv"
                         : pathname.startsWith("/ap/vouchers/cq/") ? "cq"
+                        : pathname.startsWith("/ap/vouchers/gr/") ? "gr"
                         : pathname.startsWith("/ap/vouchers/") ? "po" : null;
                       const childActive = active && (recordTab ? child.id === recordTab
                         : child.id === "receipts" ? pathname === childPath || pathname.startsWith(`${childPath}/`)

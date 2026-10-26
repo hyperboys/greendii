@@ -26,6 +26,133 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Navigation
 
+### Purchase order approval (PO prerequisite for GR)
+
+PO now has one-step approval for **both domestic and overseas** purchases, as
+explicitly agreed for this phase. Open `/ap/vouchers?tab=po` and the separate PO
+detail page to submit/review/print. The register includes status filtering and
+purchase type; document view shows history with actor, time and reason.
+
+| Action | Permission (plus ap.view) | Allowed state |
+| --- | --- | --- |
+| Create | ap.create | New Draft |
+| Edit | ap.update | Draft / returned |
+| Submit | ap.create | Draft / returned |
+| Approve / return / reject | ap.approve | Pending |
+| Cancel with reason | ap.cancel | Draft / returned / pending / approved |
+
+The creator cannot approve their own PO, **including admin**. Return/reject/cancel
+require a reason. Rejection/cancellation are terminal; no silently reopening an
+approved order. Return/reject/cancel block when any noncancelled/nonrejected PS
+or GR exists, including drafts and legacy records. Close/reverse downstream
+documents through their own workflows first; cancelling PO does not reverse
+stock or payments. Existing PS policy permitting Draft PO remains unchanged;
+this round does not silently restrict previously agreed PS sources.
+
+PO row locks serialize status, edits and files against PS/GR creation. Every
+update/action/file upload/delete requires the latest `updatedAt`; stale/missing
+revisions return 409. Updates retain linked product IDs instead of losing them
+when a form is rehydrated. Submit/approve validate active supplier/product,
+purchase type, supported VAT and server-calculated line totals. Historical POs
+without a creator cannot be submitted without reconciliation.
+
+PO evidence uses the shared transactional PV/CQ upload path: only PDF/JPG/PNG,
+category `accounting-po`, one document binding, create or update permission,
+Draft/returned only, with revision bump/audit/storage cleanup on rollback.
+Files freeze in pending/approved/rejected/cancelled states. After uploading from
+the detail page, load the fresh document revision before the next action.
+Manual API callers must now send `updatedAt` for PUT/status/multipart upload/
+DELETE; legacy PO file categories can be removed while editable but new uploads
+must use `accounting-po`.
+
+Printing displays the actual status and approval actor/date from saved history,
+leaving the signature line blank (not a digital signature). New audit records
+snapshot the actor name so later user renames do not rewrite approval identity.
+Legacy approved documents without approval history are labelled honestly.
+Printing/PDF does not submit/approve. No separate domestic/overseas approval
+routing, supplier email, notification/inbox, FX or GL posting is included.
+
+No new database schema/migration is required by **this PO approval batch**.
+Deploy matching API/UI, verify role grants and run target PostgreSQL/concurrent-
+user/storage/printer UAT; existing Accounting/master/PV/CQ rollout prerequisites
+still apply. No shared SQL was executed or user API stopped.
+
+The subsequent GR batch is implemented below; PO approval alone does not post stock.
+
+### Goods receipts (GR)
+
+Open AP > GR (`/ap/vouchers?tab=gr`); new/view/edit are separate pages under
+`/ap/vouchers/gr/`. Search GR/PO/supplier, filter status, paginate 20 rows and
+export **all filtered records** as UTF-8 BOM CSV using shared formula protection.
+Use searchable approved-PO, matching-unit product/service and warehouse selectors.
+Line cards show ordered, already received, pending elsewhere, remaining and current
+receipt quantities without horizontally scrolling the entry form.
+
+Only approved PO from active suppliers can be received. Every receipt line links
+to an actual PO line; unmapped manual lines require explicit active master mapping
+with the same unit. Mapping is fixed by PO or other pending/approved receipts.
+No extra lines, unit conversion, PO price editing or automatic PO closing. Receive
+up to three decimals; one PO and one warehouse per GR when goods exist. Separate
+receipts support partial quantities and multiple warehouses. Services require no
+warehouse and never change stock.
+
+| Action | Permission (plus ap.view) | Effect |
+| --- | --- | --- |
+| Create Draft | ap.create | No quantity reservation / stock |
+| Edit Draft / returned | ap.update | Revalidates current PO capacity |
+| Submit | ap.create | Requires sender/receiver + gr-receipt evidence; reserves PO quantity |
+| Approve pending | ap.approve | Posts goods stock + movement, not service stock |
+| Return / reject pending | ap.approve | Reason required; releases reservation |
+| Cancel Draft / returned / pending / approved | ap.cancel | Date + reason; approved receipts reverse stock and restore PO capacity atomically |
+
+Creators cannot approve their own GR, **including admin**. Return permits
+correction and resubmission; rejection/cancellation are terminal. `GRYYMMXXXX`
+is issued at Draft creation using Gregorian year/month; PO and receipt date then
+remain immutable and issued numbers are not reused. On every submit/approve,
+server calculations ignore forged ordered/received/remaining values and check
+current PO capacity, active master/unit/warehouse and product-type snapshot.
+Revisions guard every edit/action/file mutation; request keys deduplicate creates.
+
+Evidence is PDF/JPG/PNG, category `gr-receipt`, bound only to this GR, editable
+with create or update permission while Draft/returned. Submit/approve require
+at least one receipt evidence file; files freeze after submission unless returned.
+Shared storage limits, transactional audit and rollback cleanup apply.
+Detail shows saved identities, quantities, actor/time/reason history and original/
+reversal movement references. A4 full-frame printing includes blank signatures,
+repeats headers and up to seven rows per page, prints every item once and blocks
+print/Ctrl+P when text cannot fit at the minimum font size. Printing never approves.
+This is the agreed generic GR sheet; no GR reference PDF was supplied.
+
+GR locks GR -> PO -> warehouse; source/create lock PO. Warehouse row locks also
+serialize the existing issue/return writers against GR balance creation/reversal.
+Approval, balances, movements and audit are one transaction. Whole-document
+approved cancellation requires enough available stock without consuming reserved
+stock; no negative balance, erasure of original movements or duplicate reversal.
+Cancellation date cannot precede receipt or the affected product's latest stock
+movement. No supplier partial returns, damage/quarantine, costing, GL, multi-step
+approval, inbox or notification is added; issue/return business workflows remain
+unfinished and require their own policy confirmation.
+
+**Rollout:** review/backup/apply
+[`accounting-goods-receipts.sql`](../api/scripts/sql/accounting-goods-receipts.sql)
+after existing Accounting/master/PO/evidence prerequisites, then generate Prisma
+and deploy matching API/UI. The additive script leaves old GR version 0/read-only;
+PO with active legacy/unlinked GR is blocked until audited reconciliation. No
+automatic backfill or old stock adjustment. No shared SQL was executed. Schema
+validation passes; client generation encountered Windows engine-DLL `EPERM`.
+An operator must arrange an API maintenance window, generate and restart; the
+assistant did not stop the user's API.
+
+Validation: API 115/115, focused voucher UI 21/21, production build/types/focused
+lint/schema validation; browser 109 HTTP requests with no page errors, including
+6+4 across warehouses, return/edit/resubmit, service 0.125 without stock, reversal,
+role gates, evidence, responsive 320-1440px, 20+7 pagination and filtered CSV.
+Actual A4 PDFs: 1 item = 1 page, 17 items = 3 pages; overlong text blocks printing.
+Full UI 72/73: the pre-existing BI fixed-date fixture still fails. HTTP/browser
+tests use real Express/auth/routes with transactional in-memory Prisma and storage
+substitutes, not real PostgreSQL concurrency or actual storage. Target DB,
+concurrent-user, storage and physical-printer UAT remain mandatory.
+
 ### Cheque payments (CQ)
 
 Open AP > cheque payments (`/ap/vouchers?tab=cq`); new/view/edit are separate pages
@@ -106,7 +233,8 @@ transactional in-memory Prisma and isolated storage substitute. Target PostgreSQ
 concurrent-user, actual storage and physical-printer UAT are required. This does
 not deliver physical cheque templates, banking integration/reconciliation feeds,
 GL/Stock, retention release, multi-step routing, inbox/notifications or redesigned
-financial reports. GR/Stock is the next business process; its policies remain open.
+financial reports. GR has subsequently been implemented above; stock issue/return
+policies and full stock reporting remain open.
 
 ### Payment vouchers (PV)
 

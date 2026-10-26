@@ -8,6 +8,8 @@ const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { getPagination, paginated } = require('../lib/pagination');
 const { assertActive } = require('../lib/accountingMaster');
 const { invalid } = require('../lib/deliveryOrder');
+const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
+const { PO_STATUSES, lockPurchaseOrder, assertNoPoDependents, assertPoSubmittable, purchaseOrderAudit, poActionReason } = require('../lib/purchaseOrderApproval');
 const {
   normalizePurchaseOrderItems,
   calculatePurchaseOrderTotals,
@@ -87,6 +89,7 @@ router.get('/purchase-orders', authenticate, async (req, res, next) => {
   try {
     const { status, supplierId, q } = req.query;
     const where = {};
+    if (status && !PO_STATUSES.includes(status)) invalid('สถานะ PO ไม่ถูกต้อง');
     if (status) where.status = status;
     if (supplierId) where.supplierId = supplierId;
     if (q) where.poNo = { contains: q, mode: 'insensitive' };
@@ -120,7 +123,13 @@ router.get('/purchase-orders/:id', authenticate, async (req, res, next) => {
       where: { id: req.params.id },
       include: PURCHASE_ORDER_INCLUDE,
     });
-    res.json(doc);
+    const history = await prisma.auditLog.findMany({ where: { entityType: 'purchase_order', entityId: doc.id },
+      select: { id: true, action: true, reason: true, newValue: true, performedBy: { select: { fullName: true } }, createdAt: true },
+      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }] });
+    res.json({ ...doc, history: history.map(({ newValue, ...row }) => ({
+      ...row, performedBy: typeof newValue?.actorSnapshot?.fullName === 'string'
+        ? { fullName: newValue.actorSnapshot.fullName } : row.performedBy,
+    })) });
   } catch (e) { next(e); }
 });
 
@@ -142,6 +151,7 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
     } = req.body;
 
     if (!supplierId) return res.status(400).json({ message: 'กรุณาระบุผู้จำหน่าย (supplierId)' });
+    if (!['domestic', 'overseas'].includes(purchaseType)) invalid('ประเภทจัดซื้อไม่ถูกต้อง');
     if (!['VAT7%', 'NO_VAT'].includes(vatConfig)) {
       return res.status(400).json({ message: 'รูปแบบ VAT ไม่ถูกต้อง' });
     }
@@ -195,14 +205,7 @@ router.post('/purchase-orders', authenticate, async (req, res, next) => {
         include: PURCHASE_ORDER_INCLUDE,
       });
 
-      await recordAuditLog({
-        entityType: 'purchase_order',
-        entityId: doc.id,
-        docNo: doc.poNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
+      await purchaseOrderAudit(tx, req, 'create', null, doc);
 
       return doc;
     });
@@ -228,6 +231,7 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
       deliveryLocation,
     } = req.body;
     if (!supplierId) return res.status(400).json({ message: 'กรุณาระบุผู้จำหน่าย (supplierId)' });
+    if (!['domestic', 'overseas'].includes(purchaseType)) invalid('ประเภทจัดซื้อไม่ถูกต้อง');
     if (!['VAT7%', 'NO_VAT'].includes(vatConfig)) {
       return res.status(400).json({ message: 'รูปแบบ VAT ไม่ถูกต้อง' });
     }
@@ -239,15 +243,13 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
     const totals = calculatePurchaseOrderTotals(items, vatConfig);
 
     const result = await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM purchase_orders WHERE id = ${req.params.id} FOR UPDATE`;
-      const previous = await tx.purchaseOrder.findUniqueOrThrow({
-        where: { id: req.params.id },
-        include: PURCHASE_ORDER_INCLUDE,
-      });
+      const previous = await lockPurchaseOrder(tx, req.params.id, req.body.updatedAt, PURCHASE_ORDER_INCLUDE);
       const reservedPs = await tx.contractorPaymentRequest.count({ where: { poId: previous.id, status: { in: ['pending', 'approved'] } } });
       if (reservedPs) invalid('PO มี PS รออนุมัติ/อนุมัติแล้ว ไม่สามารถแก้ไขได้ ต้องคืนวงเงิน PS ก่อน', 409);
-      if (previous.status !== 'draft') {
-        throw Object.assign(new Error('แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft'), { status: 409 });
+      const activeGr = await tx.goodsReceipt.count({ where: { poId: previous.id, status: { notIn: ['cancelled', 'rejected'] } } });
+      if (activeGr) invalid('PO มี GR ที่ยังไม่ปิด ไม่สามารถแก้ไขรายการอ้างอิงได้', 409);
+      if (!['draft', 'returned'].includes(previous.status)) {
+        throw Object.assign(new Error('แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft / ส่งกลับ'), { status: 409 });
       }
       const supplier = previous.supplierId === supplierId ? previous.supplier
         : await assertActive(tx, 'supplier', supplierId, 'ผู้จำหน่าย');
@@ -294,20 +296,39 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
         },
         include: PURCHASE_ORDER_INCLUDE,
       });
-      await recordAuditLog({
-        entityType: 'purchase_order',
-        entityId: updated.id,
-        docNo: updated.poNo,
-        action: 'update',
-        oldValue: previous,
-        newValue: updated,
-        req,
-      }, tx);
+      await purchaseOrderAudit(tx, req, 'update', previous, updated);
       return updated;
     });
     res.json(result);
   } catch (e) { next(e); }
 });
+
+for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
+  router.post(`/purchase-orders/:id/${action}`, authenticate, async (req, res, next) => {
+    try {
+      const permission = action === 'submit' ? 'create' : action === 'cancel' ? 'cancel' : 'approve';
+      if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ap', permission)) invalid(`ไม่มีสิทธิ์ ap.${permission}`, 403);
+      const reason = poActionReason(action, req.body.reason);
+      res.json(await prisma.$transaction(async tx => {
+        const previous = await lockPurchaseOrder(tx, req.params.id, req.body.updatedAt, PURCHASE_ORDER_INCLUDE);
+        const allowed = action === 'submit' ? ['draft', 'returned']
+          : action === 'cancel' ? ['draft', 'returned', 'pending', 'approved'] : ['pending'];
+        if (!allowed.includes(previous.status)) invalid('สถานะ PO ไม่รองรับคำสั่งนี้', 409);
+        if (action === 'approve' && previous.createdById === req.user.id) invalid('ผู้สร้างไม่สามารถอนุมัติ PO ของตัวเองได้', 403);
+        if (['return', 'reject', 'cancel'].includes(action)) await assertNoPoDependents(tx, previous.id);
+        if (['submit', 'approve'].includes(action)) {
+          assertPoSubmittable(previous);
+          for (const item of previous.items) if (item.productId) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า/บริการ');
+        }
+        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
+        const doc = await tx.purchaseOrder.update({ where: { id: previous.id },
+          data: { status, approvalStep: action === 'approve' ? 1 : 0 }, include: PURCHASE_ORDER_INCLUDE });
+        await purchaseOrderAudit(tx, req, action, previous, doc, reason);
+        return doc;
+      }));
+    } catch (error) { next(error); }
+  });
+}
 
 // ─── 2. CONTRACTOR PAYMENT REQUESTS (PS) ──────────────────────────────────────
 
@@ -315,122 +336,7 @@ router.use('/contractor-payments', require('./contractor-payments'));
 
 // ─── 3. GOODS RECEIPTS (GR) ───────────────────────────────────────────────────
 
-// POST /api/ap/goods-receipts
-router.post('/goods-receipts', authenticate, async (req, res, next) => {
-  try {
-    const { receiptDate, poId, supplierId, warehouseId, sender, receiver, remark, items = [] } = req.body;
-    if (!poId) return res.status(400).json({ message: 'กรุณาระบุใบสั่งซื้ออ้างอิง (poId)' });
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ message: 'ต้องมีรายการรับสินค้าอย่างน้อย 1 รายการ' });
-    }
-
-    const result = await prisma.$transaction(async (tx) => {
-      const po = await tx.purchaseOrder.findUniqueOrThrow({
-        where: { id: poId },
-        include: { items: { include: { product: true } } },
-      });
-      await assertActive(tx, 'supplier', supplierId || po.supplierId, 'ผู้จำหน่าย');
-      if (warehouseId) await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
-      for (const item of items) if (item.productId) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
-
-      const grNo = await generateNextRunningNumber('gr', { date: receiptDate ? new Date(receiptDate) : new Date() }, tx);
-
-      const doc = await tx.goodsReceipt.create({
-        data: {
-          grNo,
-          receiptDate: receiptDate ? new Date(receiptDate) : new Date(),
-          poId,
-          supplierId: supplierId || po.supplierId,
-          warehouseId,
-          sender,
-          receiver,
-          remark,
-          createdById: req.user.id,
-          status: 'approved',
-          items: {
-            create: items.map((it, idx) => ({
-              seq: idx,
-              productId: it.productId || null,
-              orderedQty: parseFloat(it.orderedQty) || 0,
-              previouslyReceivedQty: parseFloat(it.previouslyReceivedQty) || 0,
-              remainingQty: parseFloat(it.remainingQty) || 0,
-              currentReceiptQty: parseFloat(it.currentReceiptQty) || 0,
-            })),
-          },
-        },
-        include: { items: true },
-      });
-
-      // Stock Movement creation for Stored / Manufactured products
-      if (warehouseId) {
-        for (const item of items) {
-          if (!item.productId) continue;
-          const product = await tx.accountProduct.findUnique({ where: { id: item.productId } });
-
-          // Service items do not affect stock
-          if (product && product.productType !== 'service') {
-            const receiptQty = parseFloat(item.currentReceiptQty) || 0;
-
-            // 1. Create StockMovement
-            await tx.stockMovement.create({
-              data: {
-                movementType: 'in',
-                productId: item.productId,
-                warehouseId,
-                qtyIn: receiptQty,
-                qtyOut: 0,
-                sourceDocType: 'goods_receipt',
-                sourceDocId: doc.id,
-                sourceDocNo: doc.grNo,
-                transactionDate: doc.receiptDate,
-                createdById: req.user.id,
-                remark: `รับสินค้าจาก PO: ${po.poNo}`,
-              },
-            });
-
-            // 2. Upsert StockBalance
-            const existingBalance = await tx.stockBalance.findUnique({
-              where: { warehouseId_productId: { warehouseId, productId: item.productId } },
-            });
-
-            const currentOnHand = existingBalance ? Number(existingBalance.onHand) : 0;
-            const newOnHand = currentOnHand + receiptQty;
-            const currentReserved = existingBalance ? Number(existingBalance.reserved) : 0;
-            const newAvailable = Math.max(0, newOnHand - currentReserved);
-
-            await tx.stockBalance.upsert({
-              where: { warehouseId_productId: { warehouseId, productId: item.productId } },
-              create: {
-                warehouseId,
-                productId: item.productId,
-                onHand: newOnHand,
-                reserved: 0,
-                available: newOnHand,
-              },
-              update: {
-                onHand: newOnHand,
-                available: newAvailable,
-              },
-            });
-          }
-        }
-      }
-
-      await recordAuditLog({
-        entityType: 'goods_receipt',
-        entityId: doc.id,
-        docNo: doc.grNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
-
-      return doc;
-    });
-
-    res.status(201).json(result);
-  } catch (e) { next(e); }
-});
+router.use('/goods-receipts', require('./goods-receipts'));
 
 // ─── 4. PAYMENT VOUCHERS (PV) ─────────────────────────────────────────────────
 

@@ -4,6 +4,7 @@ const { authenticate } = require('../middleware/auth');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { getPagination, paginated } = require('../lib/pagination');
 const { assertActive } = require('../lib/accountingMaster');
+const { lockWarehouse } = require('../lib/goodsReceipt');
 
 // ─── 1. STOCK ISSUES ─────────────────────────────────────────────────────────
 
@@ -49,6 +50,7 @@ router.post('/issues', authenticate, async (req, res, next) => {
     }
 
     const result = await prisma.$transaction(async (tx) => {
+      await lockWarehouse(tx, warehouseId);
       await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
       // 1. Generate Issue Number
       const count = await tx.stockIssue.count();
@@ -164,6 +166,7 @@ router.post('/returns', authenticate, async (req, res, next) => {
     if (!warehouseId) return res.status(400).json({ message: 'กรุณาระบุคลังสินค้า (warehouseId)' });
 
     const result = await prisma.$transaction(async (tx) => {
+      await lockWarehouse(tx, warehouseId);
       await assertActive(tx, 'warehouse', warehouseId, 'คลังสินค้า');
       for (const item of items) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า');
       // Validate returned qty against original issue if referencing stockIssueId

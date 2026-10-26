@@ -12,7 +12,7 @@ import type { ReceiptVoucher, ReceiptInput, ReceiptSources, ReceiptAttachment } 
 import type { CreditNote, CreditInput, CreditSource } from "./credit-note";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderInput,
-  PurchaseOrderSupplier, PurchaseRequestReference,
+  PurchaseOrderSupplier, PurchaseRequestReference, PurchaseOrderAction, PurchaseOrderAttachment,
 } from "./accounting-purchase-orders";
 
 const TOKEN_KEY = "gd_token";
@@ -167,11 +167,15 @@ export const ApApi = {
   },
   getPurchaseOrder: (id: string) => apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}`),
   createPurchaseOrder: (data: PurchaseOrderInput) => apiFetch<PurchaseOrderDocument>("/api/ap/purchase-orders", { method: "POST", body: JSON.stringify(data) }),
-  updatePurchaseOrder: (id: string, data: PurchaseOrderInput) => apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
-  uploadPurchaseOrderFiles: async (id: string, files: File[]) => {
+  updatePurchaseOrder: (id: string, data: PurchaseOrderInput & { updatedAt: string }) => apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
+  purchaseOrderAction: (id: string, action: PurchaseOrderAction, updatedAt: string, reason?: string) =>
+    apiFetch<PurchaseOrderDocument>(`/api/ap/purchase-orders/${encodeURIComponent(id)}/${action}`, { method: "POST", body: JSON.stringify({ updatedAt, reason }) }),
+  deletePurchaseOrderFile: (id: string, updatedAt: string) => apiFetch(`/api/upload/${encodeURIComponent(id)}`, { method: "DELETE", body: JSON.stringify({ updatedAt }) }),
+  uploadPurchaseOrderFiles: async (id: string, files: File[], updatedAt: string): Promise<PurchaseOrderAttachment[]> => {
     const form = new FormData();
     form.set("category", "accounting-po");
     form.set("purchaseOrderId", id);
+    form.set("updatedAt", updatedAt);
     files.forEach(file => form.append("files", file));
     const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
     const response = await fetch("/api/upload", {
@@ -186,7 +190,8 @@ export const ApApi = {
 
   createContractorPayment: (data: import("./contractor-payment").PaymentInput) => apiFetch<import("./contractor-payment").ContractorPayment>("/api/ap/contractor-payments", { method: "POST", body: JSON.stringify(data) }),
 
-  createGoodsReceipt: (data: any) => apiFetch("/api/ap/goods-receipts", { method: "POST", body: JSON.stringify(data) }),
+  createGoodsReceipt: (data: import("./goods-receipt").ReceiptInput) =>
+    apiFetch<import("./goods-receipt").GoodsReceipt>("/api/ap/goods-receipts", { method: "POST", body: JSON.stringify(data) }),
 
   createPaymentVoucher: (data: import("./payment-voucher").VoucherInput) => apiFetch<import("./payment-voucher").PaymentVoucher>("/api/ap/payment-vouchers", { method: "POST", body: JSON.stringify(data) }),
 

@@ -1,4 +1,5 @@
 export type PurchaseOrderLineDraft = {
+  productId?: string | null;
   partNo: string;
   desc: string;
   qty: number | string;

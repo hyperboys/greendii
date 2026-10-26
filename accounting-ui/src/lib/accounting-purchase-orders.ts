@@ -59,6 +59,9 @@ export type PurchaseOrderDocument = {
   deliveryDate?: string | null;
   deliveryLocation?: string | null;
   status: string;
+  updatedAt: string;
+  createdById?: string | null;
+  history?: { id: string; action: string; reason?: string | null; performedBy?: { fullName: string } | null; createdAt: string }[];
   createdBy?: {
     fullName?: string | null;
     position?: string | null;
@@ -69,6 +72,27 @@ export type PurchaseOrderDocument = {
   items: (PurchaseOrderLineDraft & { id?: string; amount?: number | string })[];
   attachments?: PurchaseOrderAttachment[];
 };
+
+export const poStatusLabels: Record<string, string> = {
+  draft: "ร่าง", pending: "รออนุมัติ", approved: "อนุมัติแล้ว",
+  returned: "ส่งกลับแก้ไข", rejected: "ปฏิเสธ", cancelled: "ยกเลิก",
+};
+export const poActionLabels = {
+  submit: "ส่งอนุมัติ", approve: "อนุมัติ", return: "ส่งกลับแก้ไข", reject: "ปฏิเสธ", cancel: "ยกเลิกเอกสาร",
+};
+export const poHistoryLabels: Record<string, string> = { ...poActionLabels, create: "สร้าง", update: "แก้ไข", attach: "แนบไฟล์", detach: "ลบไฟล์" };
+export type PurchaseOrderAction = keyof typeof poActionLabels;
+export function purchaseOrderActions(doc: Pick<PurchaseOrderDocument, "status" | "createdById">,
+  permissions: { create: boolean; approve: boolean; cancel: boolean }, userId?: string): PurchaseOrderAction[] {
+  const result: PurchaseOrderAction[] = [];
+  if (permissions.create && doc.createdById && ["draft", "returned"].includes(doc.status)) result.push("submit");
+  if (permissions.approve && doc.status === "pending") {
+    if (userId && doc.createdById && userId !== doc.createdById) result.push("approve");
+    result.push("return", "reject");
+  }
+  if (permissions.cancel && ["draft", "returned", "pending", "approved"].includes(doc.status)) result.push("cancel");
+  return result;
+}
 
 export type PurchaseOrderInput = {
   poDate: string;

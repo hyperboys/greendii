@@ -23,6 +23,7 @@ test('CQ strict full-page routes list dispatch and typed hydration', () => {
   for (const record of [['new', 'edit'], ['cq', 'pay'], ['cq', 'edit', 'extra']]) assert.throws(() => Page({ params: { record } }), /Not found/);
   const List = load(['app', 'ap', 'vouchers', 'page.tsx'], {
     '@/components/cheque-payments': { ChequePayments: Component }, '@/components/payment-vouchers': {}, '@/components/contractor-payments': {}, '@/components/purchase-orders': {},
+    '@/components/goods-receipts': {},
   }).default;
   assert.equal(List({ searchParams: { tab: 'cq' } }).type, Component);
   const form = model.chequeForm({ ...model.newCheque(), docDate: '2026-10-26T00:00:00Z', chequeDate: '2026-11-01T00:00:00Z', updatedAt: 'revision', remark: null });

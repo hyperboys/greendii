@@ -22,6 +22,7 @@ test('PV separate routes reject extra actions; list dispatch and data-only API p
   const List = load(['app', 'ap', 'vouchers', 'page.tsx'], {
     '@/components/payment-vouchers': { PaymentVouchers: Component }, '@/components/contractor-payments': {}, '@/components/purchase-orders': {},
     '@/components/cheque-payments': {},
+    '@/components/goods-receipts': {},
   }).default;
   assert.equal(List({ searchParams: { tab: 'pv' } }).type, Component);
   const form = model.voucherForm({ ...model.newVoucher(), sourceDocId: 'ps', pvDate: '2026-10-26T00:00:00Z', updatedAt: 'revision', taxpayerType: null });

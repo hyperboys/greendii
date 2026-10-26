@@ -930,12 +930,15 @@ model Attachment {
   paymentVoucher   PaymentVoucher? @relation(fields: [paymentVoucherId], references: [id], onDelete: Restrict)
   chequePaymentId String? @map("cheque_payment_id")
   chequePayment ChequePayment? @relation(fields: [chequePaymentId], references: [id], onDelete: Restrict)
+  goodsReceiptId String? @map("goods_receipt_id")
+  goodsReceipt GoodsReceipt? @relation(fields: [goodsReceiptId], references: [id], onDelete: Restrict)
   uploadedAt        DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([purchaseOrderId])
   @@index([receiptVoucherId], map: "attachments_receipt_idx")
   @@index([paymentVoucherId], map: "attachments_payment_idx")
   @@index([chequePaymentId], map: "attachments_cheque_idx")
+  @@index([goodsReceiptId], map: "attachments_goods_receipt_idx")
   @@map("attachments")
 }
 
@@ -1324,6 +1327,7 @@ model PurchaseOrderLine {
   discount        Decimal         @default(0) @db.Decimal(12, 2)
   amount          Decimal         @default(0) @db.Decimal(12, 2)
   remark          String?
+  goodsReceiptLines GoodsReceiptLine[]
 
   @@map("purchase_order_lines")
 }
@@ -1397,6 +1401,16 @@ model ContractorPaymentRequestLine {
 model GoodsReceipt {
   id           String        @id @default(cuid())
   grNo         String        @unique
+  lifecycleVersion Int @default(0) @map("lifecycle_version")
+  requestKey String? @unique @map("request_key")
+  requestHash String? @map("request_hash")
+  poNo String? @map("po_no")
+  supplierSnapshot Json? @map("supplier_snapshot")
+  warehouseSnapshot Json? @map("warehouse_snapshot")
+  approvedAt DateTime? @map("approved_at") @db.Timestamptz(3)
+  approvedById String? @map("approved_by_id")
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String? @map("cancellation_reason")
   receiptDate  DateTime      @default(now()) @db.Timestamptz(3)
   poId         String        @map("po_id")
   po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
@@ -1414,6 +1428,7 @@ model GoodsReceipt {
   updatedAt    DateTime      @updatedAt @db.Timestamptz(3)
 
   items GoodsReceiptLine[]
+  attachments Attachment[]
 
   @@map("goods_receipts")
 }
@@ -1423,6 +1438,12 @@ model GoodsReceiptLine {
   goodsReceiptId        String          @map("goods_receipt_id")
   goodsReceipt          GoodsReceipt    @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
   seq                   Int             @default(0)
+  poLineId String? @map("po_line_id")
+  poLine PurchaseOrderLine? @relation(fields: [poLineId], references: [id], onDelete: Restrict)
+  productSnapshot Json? @map("product_snapshot")
+  desc String?
+  unit String?
+  pendingQty Decimal @default(0) @map("pending_qty") @db.Decimal(12, 3)
   productId             String?         @map("product_id")
   product               AccountProduct? @relation(fields: [productId], references: [id])
   orderedQty            Decimal         @default(0) @map("ordered_qty") @db.Decimal(12, 3)
@@ -1430,6 +1451,7 @@ model GoodsReceiptLine {
   remainingQty          Decimal         @default(0) @map("remaining_qty") @db.Decimal(12, 3)
   currentReceiptQty     Decimal         @default(0) @map("current_receipt_qty") @db.Decimal(12, 3)
 
+  @@index([poLineId])
   @@map("goods_receipt_lines")
 }
 

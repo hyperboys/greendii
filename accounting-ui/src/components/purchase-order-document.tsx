@@ -1,5 +1,6 @@
 import Image from "next/image";
 import { formatAccountingDate as formatDate } from "@/lib/accounting-date";
+import { poStatusLabels } from "@/lib/accounting-purchase-orders";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderAttachment,
 } from "@/lib/accounting-purchase-orders";
@@ -46,6 +47,7 @@ export function PurchaseOrderDocumentView({
   const taxableAmount = subtotal - discount;
   const signature = document.createdBy?.signatureUrl;
   const supplier = document.supplierSnapshot ?? document.supplier;
+  const approval = document.history?.find(row => row.action === "approve");
 
   return (
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-6 text-[12px] leading-5 text-black sm:p-8">
@@ -74,6 +76,7 @@ export function PurchaseOrderDocumentView({
         </div>
         <div className="min-h-24 rounded border border-blue-700 p-2">
           <p><strong>เลขที่เอกสาร</strong>　{document.poNo}</p>
+          <p><strong>สถานะ</strong>　{poStatusLabels[document.status] || document.status}</p>
           <p><strong>วันที่เอกสาร</strong>　{formatDate(document.poDate)}</p>
           <p><strong>ประเภทจัดซื้อ</strong>　{document.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
           <p><strong>ที่อยู่จัดส่ง</strong>　{document.deliveryLocation || "-"}</p>
@@ -144,14 +147,16 @@ export function PurchaseOrderDocumentView({
         <div className="p-2">
           <p className="font-semibold">ผู้ตรวจสอบ / ผู้มีอำนาจลงนาม</p>
           <div className="mt-5 border-b border-gray-700" />
-          <p className="mt-1">ยังไม่มีข้อมูลการอนุมัติ</p>
+          <p className="mt-1">{approval
+            ? `${document.status === "cancelled" ? "เคยอนุมัติ" : "อนุมัติ"}โดย ${approval.performedBy?.fullName || "-"} · ${formatDate(approval.createdAt)}`
+            : document.status === "approved" ? "อนุมัติเดิม (ไม่มีประวัติผู้อนุมัติ)" : "ยังไม่มีข้อมูลการอนุมัติ"}</p>
         </div>
       </section>
       <section className="mt-3 rounded border border-gray-400 p-2">
         <strong>เอกสารแนบประกอบ PO</strong>
         <div className="mt-1"><AttachmentList attachments={document.attachments || []} /></div>
       </section>
-      <p className="mt-2 text-center text-[10px]">เอกสารสถานะ {document.status === "draft" ? "Draft" : document.status}</p>
+      <p className="mt-2 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ช่องลงนามเว้นว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
     </article>
   );
 }

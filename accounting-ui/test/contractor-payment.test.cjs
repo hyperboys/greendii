@@ -24,6 +24,7 @@ test('PS routes select full pages and reject invalid action URLs', () => {
     '@/components/contractor-payments': { ContractorPayments: Component }, '@/components/purchase-orders': { PurchaseOrders: () => null },
     '@/components/payment-vouchers': { PaymentVouchers: () => null },
     '@/components/cheque-payments': { ChequePayments: () => null },
+    '@/components/goods-receipts': { GoodsReceipts: () => null },
   }).default;
   assert.equal(List({ searchParams: { tab: 'ps' } }).type, Component);
 });

@@ -6,7 +6,8 @@ function createContractorPaymentApp() {
   const po = { id: 'po', poNo: 'PO2610001', poDate: new Date('2026-10-01'), subTotal: 10000, discount: 0,
     vat: 700, netAmount: 10700, vatConfig: 'VAT7%', status: 'draft', supplierId: supplier.id, supplier,
     supplierBranch: 'Head office', address: 'Saved address', contactPerson: 'Contact', supplierSnapshot: { name: supplier.name, code: supplier.code } };
-  let state = { purchaseOrder: [po], contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], sequence: 0 };
+  let state = { purchaseOrder: [po], goodsReceipt: [], accountProduct: [], warehouse: [], stockBalance: [], stockMovement: [],
+    contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], sequence: 0 };
   let failAudit = false, queue = Promise.resolve();
   const locks = [], storageOperations = [];
   const permissions = {
@@ -16,6 +17,8 @@ function createContractorPaymentApp() {
   };
   const matches = (row, where = {}) => Object.entries(where).every(([key, value]) => {
     if (key === 'OR') return value.some(condition => matches(row, condition));
+    if (key === 'warehouseId_productId') return matches(row, value);
+    if (key === 'goodsReceipts') return !state.goodsReceipt.some(doc => doc.poId === row.id && matches(doc, value.none));
     if (value && typeof value === 'object') {
       if ('not' in value) return (row[key] ?? null) !== value.not;
       if ('in' in value) return value.in.includes(row[key]);
@@ -36,6 +39,12 @@ function createContractorPaymentApp() {
       row.chequePayments = structuredClone(state.chequePayment.filter(file => file.paymentVoucherId === row.id));
     }
     if (row.cqNo) row.attachments = structuredClone(state.attachment.filter(file => file.chequePaymentId === row.id));
+    if (row.grNo) row.attachments = structuredClone(state.attachment.filter(file => file.goodsReceiptId === row.id));
+    if (row.poNo && !row.psNo && !row.pvNo && !row.cqNo && !row.grNo) {
+      row.attachments = structuredClone(state.attachment.filter(file => file.purchaseOrderId === row.id));
+      row.supplier = row.supplier || structuredClone(supplier);
+      if (row.purchaseRequestReferences?.create) row.purchaseRequestReferences = row.purchaseRequestReferences.create;
+    }
     return row;
   };
   const prisma = {
@@ -57,7 +66,8 @@ function createContractorPaymentApp() {
       return run;
     },
   };
-  for (const model of ['purchaseOrder', 'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog']) prisma[model] = {
+  for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement',
+    'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog']) prisma[model] = {
     findMany: async ({ where, skip = 0, take, orderBy } = {}) => {
       const rows = state[model].filter(row => matches(row, where));
       if (orderBy) rows.sort((a, b) => Number(b.createdAt || b.docDate || 0) - Number(a.createdAt || a.docDate || 0) || b.id.localeCompare(a.id));
@@ -91,6 +101,10 @@ function createContractorPaymentApp() {
       state[model].push(row);
       return hydrate(row);
     },
+    upsert: async ({ where, create, update }) => {
+      const row = state[model].find(row => matches(row, where));
+      return row ? prisma[model].update({ where, data: update }) : prisma[model].create({ data: create });
+    },
     delete: async ({ where }) => {
       const row = state[model].find(row => matches(row, where));
       if (!row) throw Object.assign(new Error('Not found'), { code: 'P2025' });
@@ -111,7 +125,7 @@ function createContractorPaymentApp() {
   require.cache[require.resolve('../../src/lib/prisma')] = { exports: prisma, loaded: true };
   for (const file of ['../../src/lib/accountingAccess', '../../src/middleware/auth', '../../src/middleware/accountingAccess',
     '../../src/lib/runningNumber', '../../src/lib/auditTrail', '../../src/lib/accountingMaster', '../../src/lib/paymentVoucher',
-    '../../src/lib/chequePayment', '../../src/routes/cheque-payments',
+    '../../src/lib/chequePayment', '../../src/routes/cheque-payments', '../../src/lib/purchaseOrderApproval', '../../src/lib/goodsReceipt', '../../src/routes/goods-receipts',
     '../../src/routes/ap', '../../src/routes/contractor-payments', '../../src/routes/payment-vouchers', '../../src/routes/upload']) {
     delete require.cache[require.resolve(file)];
   }
