@@ -11,6 +11,8 @@ const DOC_DELETE_ROLES = ['admin', 'director', 'admin_mgr'];
 
 // Roles that can view cross-user data in reporting screens.
 const REPORT_MANAGER_ROLES = ['admin', 'sale_mgr', 'admin_mgr', 'project_mgr', 'director'];
+const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles';
+const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator'];
 
 // Quotation is intentionally stricter than other document types because it is
 // owned and handled by the originating sales user rather than cross-team flows.
@@ -28,6 +30,26 @@ function hasRole(roles, role) {
   if (!Array.isArray(roles)) return false;
   const currentRole = normalizeRole(role);
   return roles.map(normalizeRole).includes(currentRole);
+}
+
+async function canManageApprovedWorkOrderAttachments(role, status) {
+  if (status !== 'approved') return false;
+
+  let allowedRoles = DEFAULT_WO_APPROVED_PO_ATTACH_ROLES;
+  try {
+    const settings = await prisma.settings.findUnique({
+      where: { id: 'main' },
+      select: { approvalFlowConfig: true },
+    });
+    const configuredRoles = settings?.approvalFlowConfig?.[WO_APPROVED_PO_ATTACH_ROLES_KEY];
+    if (Array.isArray(configuredRoles)) {
+      const roles = configuredRoles.map(String).map(value => value.trim()).filter(Boolean);
+      if (roles.length > 0) allowedRoles = roles;
+    }
+  } catch {
+    // Keep the built-in roles when settings cannot be read.
+  }
+  return hasRole(allowedRoles, role);
 }
 
 async function canViewAllReports(role) {
@@ -82,6 +104,7 @@ module.exports = {
   QUOTATION_MANAGER_ROLES,
   canManageAllDocs,
   canDeleteOthersDocs,
+  canManageApprovedWorkOrderAttachments,
   canViewAllReports,
   canManageAllQuotations,
   assertDocAccessible,

@@ -6,7 +6,11 @@ const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { APPROVAL_ATTACHMENT_LOCK_MESSAGE, isEditableApprovalDocStatus } = require('../lib/approvalFlowRules');
 const { isR2Enabled, uploadToR2, deleteFromR2 } = require('../lib/r2');
-const { assertDocAccessible, assertQuotationAccessible } = require('../lib/roles');
+const {
+  assertDocAccessible,
+  assertQuotationAccessible,
+  canManageApprovedWorkOrderAttachments,
+} = require('../lib/roles');
 const { normalizeRole } = require('../lib/roleAliases');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { lockReceipt } = require('../lib/receiptVoucher');
@@ -18,6 +22,7 @@ const { lockPurchaseOrder, assertPoEvidence, purchaseOrderAudit } = require('../
 const { lockReceipt: lockGoodsReceipt, assertReceiptEvidence, receiptAudit } = require('../lib/goodsReceipt');
 const { lockIssue, assertIssueEvidence, issueAudit } = require('../lib/stockIssue');
 const { lockReturn, assertReturnEvidence, returnAudit } = require('../lib/stockReturn');
+const { notifyByRole } = require('../lib/notify');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -48,8 +53,7 @@ const upload = multer({
 const PO_ALLOWED_EXT = new Set(['.pdf', '.jpg', '.jpeg', '.png']);
 const PO_ALLOWED_MIME = new Set(['application/pdf', 'image/jpeg', 'image/png']);
 const ATTACHMENT_AMOUNT_CATEGORIES = new Set(['po', 'mom']);
-const WO_APPROVED_PO_ATTACH_ROLES_KEY = 'workOrderApprovedPoAttachRoles';
-const DEFAULT_WO_APPROVED_PO_ATTACH_ROLES = ['sales', 'coordinator'];
+const WORK_ORDER_PO_NOTIFICATION_AGE_MS = 24 * 60 * 60 * 1000;
 
 function isPoFileAllowed(file) {
   const ext = path.extname(file?.originalname || '').toLowerCase();
@@ -111,32 +115,6 @@ function parsePoAmount(value) {
   return parsed;
 }
 
-async function getApprovedWorkOrderPoAttachRoles() {
-  try {
-    const settings = await prisma.settings.findUnique({
-      where: { id: 'main' },
-      select: { approvalFlowConfig: true },
-    });
-    const configuredRoles = settings?.approvalFlowConfig?.[WO_APPROVED_PO_ATTACH_ROLES_KEY];
-    if (Array.isArray(configuredRoles)) {
-      const roles = configuredRoles.map(String).map(r => r.trim()).filter(Boolean);
-      if (roles.length > 0) return roles;
-    }
-  } catch {
-    // fallback to defaults below when settings are unreadable
-  }
-  return DEFAULT_WO_APPROVED_PO_ATTACH_ROLES;
-}
-
-async function canManageApprovedWorkOrderAttachments(req, workOrder) {
-  if (!workOrder) return false;
-  if (workOrder.status !== 'approved') return false;
-
-  const allowedRoles = await getApprovedWorkOrderPoAttachRoles();
-  const actorRole = normalizeRole(req.user.role);
-  return allowedRoles.map(normalizeRole).includes(actorRole);
-}
-
 async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
   if (!workOrderId) return;
   const workOrder = await prisma.workOrder.findUnique({
@@ -151,7 +129,7 @@ async function assertWorkOrderAttachmentEditable(req, workOrderId, category) {
 
   // Exception: after WO is approved, configured roles may manage attachments
   // across document categories, even when they are not the owner.
-  if (await canManageApprovedWorkOrderAttachments(req, workOrder)) return;
+  if (await canManageApprovedWorkOrderAttachments(req.user.role, workOrder.status)) return;
 
   assertDocAccessible(req, workOrder);
   if (isEditableApprovalDocStatus(workOrder.status)) return;
@@ -404,6 +382,25 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
 
     if (normalizedCategory === 'po' && workOrderId && saved.length > 0) {
       await touchWorkOrderPoState(workOrderId);
+      if (normalizeRole(req.user.role) === 'sales') {
+        try {
+          const workOrder = await prisma.workOrder.findUnique({
+            where: { id: workOrderId },
+            select: { id: true, woNo: true, status: true, createdAt: true },
+          });
+          const isOldApprovedWorkOrder = workOrder?.status === 'approved'
+            && Date.now() - new Date(workOrder.createdAt).getTime() >= WORK_ORDER_PO_NOTIFICATION_AGE_MS;
+          if (isOldApprovedWorkOrder) {
+            await notifyByRole(
+              'coordinator',
+              `ใบสั่งงาน ${workOrder.woNo} มีการแนบ PO แล้ว`,
+              { excludeUserId: req.user.id, link: `/workorders/${workOrder.id}` },
+            );
+          }
+        } catch (error) {
+          console.error(`Failed to notify coordinators about PO attachment for work order ${workOrderId}:`, error);
+        }
+      }
     }
 
     res.status(201).json(saved);

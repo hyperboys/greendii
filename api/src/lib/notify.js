@@ -95,7 +95,7 @@ async function notifyUser(userId, text, _options = {}) {
 // Notify all active users of a given role (in-app only)
 // options.excludeUserId: skip a specific actor (e.g. submitter) from recipients
 async function notifyByRole(role, text, options = {}) {
-  const { excludeUserId } = options;
+  const { excludeUserId, link } = options;
   const candidateRoles = expandRoleAliases(role);
   const users = await prisma.user.findMany({
     where: {
@@ -108,7 +108,7 @@ async function notifyByRole(role, text, options = {}) {
   if (!users.length) return;
 
   await prisma.notification.createMany({
-    data: users.map(u => ({ userId: u.id, text })),
+    data: users.map(u => ({ userId: u.id, text, ...(link ? { link } : {}) })),
   });
 }
 

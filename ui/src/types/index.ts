@@ -757,6 +757,7 @@ export interface AppNotification {
   id: string
   userId: string
   text: string
+  link?: string | null
   read: boolean
   createdAt: string
 }

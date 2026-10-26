@@ -9,7 +9,12 @@ const { EDITABLE_APPROVAL_DOC_MESSAGE, isEditableApprovalDocStatus } = require('
 const { notifyStep, notifyUser } = require('../lib/notify');
 const { getFirstStep, getNextStep, getStepRoleMapping } = require('../lib/approvalFlow');
 const { normalizeRole, expandRoleAliases } = require('../lib/roleAliases');
-const { canManageAllDocs, canDeleteOthersDocs, assertQuotationAccessible } = require('../lib/roles');
+const {
+  canManageAllDocs,
+  canDeleteOthersDocs,
+  canManageApprovedWorkOrderAttachments,
+  assertQuotationAccessible,
+} = require('../lib/roles');
 const { canBypassDocApproval } = require('../lib/approvalBypass');
 
 const WO_APPROVED_NOTIFY_KEY = 'workOrderApprovedNotify';
@@ -495,6 +500,7 @@ async function assertWorkOrderAccessible(req, workOrder) {
   if (!workOrder) return;
   if (await canBypassDocApproval('workOrder', req.user.role)) return;
   if (canManageAllDocs(req.user.role) || workOrder.salesId === req.user.id) return;
+  if (await canManageApprovedWorkOrderAttachments(req.user.role, workOrder.status)) return;
 
   if (workOrder.status === 'pending') {
     const { stepRole } = await getStepRoleMapping();

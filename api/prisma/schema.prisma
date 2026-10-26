@@ -843,6 +843,7 @@ model Notification {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   text      String
+  link      String?
   read      Boolean  @default(false)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
 

@@ -62,6 +62,14 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
     setUnreadCount(c => Math.max(0, c - 1))
   }
 
+  const handleNotificationClick = async (notification: AppNotification) => {
+    if (!notification.read) await handleMarkRead(notification.id)
+    if (notification.link) {
+      setOpen(false)
+      router.push(notification.link)
+    }
+  }
+
   const fmtTime = (iso: string) => {
     const d = new Date(iso)
     const now = new Date()
@@ -119,7 +127,7 @@ export default function Header({ title, onMenuClick }: { title?: string; onMenuC
                   notifications.map(n => (
                     <button
                       key={n.id}
-                      onClick={() => !n.read && handleMarkRead(n.id)}
+                      onClick={() => handleNotificationClick(n)}
                       className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors ${!n.read ? 'bg-green-50' : ''}`}
                     >
                       <div className="flex items-start gap-2">
