@@ -12,6 +12,8 @@ const { getAccountingAccess, hasAccountingPermission } = require('../lib/account
 const { lockReceipt } = require('../lib/receiptVoucher');
 const { invalid } = require('../lib/deliveryOrder');
 const { recordAuditLog } = require('../lib/auditTrail');
+const { lockVoucher, assertVoucherEvidence, voucherAudit } = require('../lib/paymentVoucher');
+const { lockCheque, assertChequeEvidence, chequeAudit } = require('../lib/chequePayment');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -285,6 +287,42 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
+  if (req.body.paymentVoucherId || req.body.chequePaymentId) {
+    const cheque = Boolean(req.body.chequePaymentId), label = cheque ? 'CQ' : 'PV';
+    const binding = cheque ? 'chequePaymentId' : 'paymentVoucherId';
+    const audit = cheque ? chequeAudit : voucherAudit, evidence = cheque ? assertChequeEvidence : assertVoucherEvidence;
+    const model = cheque ? 'chequePayment' : 'paymentVoucher';
+    const storedKeys = [];
+    try {
+      if (['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId', 'purchaseOrderId', 'receiptVoucherId',
+        cheque ? 'paymentVoucherId' : 'chequePaymentId'].some(key => req.body[key])) invalid(`ไฟล์ ${label} ต้องไม่ผูกเอกสารอื่นพร้อมกัน`);
+      if (!req.files?.length) invalid('กรุณาเลือกไฟล์แนบ');
+      if (req.files.some(file => !isPoFileAllowed(file))) invalid(`หลักฐาน ${label} อนุญาตเฉพาะ PDF/JPG/PNG`);
+      const saved = await prisma.$transaction(async tx => {
+        const doc = await (cheque ? lockCheque : lockVoucher)(tx, req.body[binding], req.body.updatedAt);
+        if (cheque) await lockVoucher(tx, doc.paymentVoucherId, null, false);
+        await evidence(req, doc, req.body.category);
+        const results = [];
+        for (const file of req.files) {
+          const filename = isR2Enabled ? `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}` : file.filename;
+          const fileUrl = isR2Enabled ? await uploadToR2(filename, file.buffer, file.mimetype) : `/uploads/${filename}`;
+          storedKeys.push(filename);
+          results.push(await tx.attachment.create({ data: { filename, fileUrl, originalName: normalizeOriginalFileName(file.originalname),
+            mimeType: file.mimetype, size: file.size, category: req.body.category, [binding]: doc.id } }));
+        }
+        const updated = await tx[model].update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
+        await audit(tx, req, 'attach', null, updated, `category=${req.body.category}; ${results.map(row => row.originalName).join(', ')}`);
+        return results;
+      });
+      return res.status(201).json(saved);
+    } catch (error) {
+      try {
+        if (isR2Enabled) { for (const key of storedKeys) await deleteFromR2(key); }
+        else removeTempUploadedFiles(req.files || []);
+      } catch (cleanupError) { return next(new AggregateError([error, cleanupError], `${error.message}; ล้างไฟล์ไม่สำเร็จ: ${cleanupError.message}`)); }
+      return next(error);
+    }
+  }
   if (req.body.receiptVoucherId) {
     const storedKeys = [];
     try {
@@ -438,6 +476,25 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (att.paymentVoucherId || att.chequePaymentId) {
+      const cheque = Boolean(att.chequePaymentId), id = cheque ? att.chequePaymentId : att.paymentVoucherId;
+      await prisma.$transaction(async tx => {
+        const doc = await (cheque ? lockCheque : lockVoucher)(tx, id, req.body?.updatedAt);
+        if (cheque) await lockVoucher(tx, doc.paymentVoucherId, null, false);
+        await (cheque ? assertChequeEvidence : assertVoucherEvidence)(req, doc, att.category);
+        await tx.attachment.delete({ where: { id: att.id } });
+        const updated = await tx[cheque ? 'chequePayment' : 'paymentVoucher'].update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
+        await (cheque ? chequeAudit : voucherAudit)(tx, req, 'detach', null, updated, `${att.category}; ${att.originalName}`);
+      });
+      if (!await prisma.attachment.count({ where: { filename: att.filename } })) {
+        if (isR2Enabled) await deleteFromR2(att.filename);
+        else {
+          const target = path.join(UPLOAD_DIR, att.filename);
+          if (fs.existsSync(target)) fs.unlinkSync(target);
+        }
+      }
+      return res.json({ message: 'ลบหลักฐานแล้ว' });
+    }
     if (att.receiptVoucherId) {
       if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ar', 'create')) invalid('ไม่มีสิทธิ์จัดการเอกสารแนบ RV', 403);
       await prisma.$transaction(async tx => {

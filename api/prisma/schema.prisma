@@ -926,10 +926,16 @@ model Attachment {
   purchaseOrder     PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
   receiptVoucherId String?          @map("receipt_voucher_id")
   receiptVoucher   ReceiptVoucher? @relation(fields: [receiptVoucherId], references: [id], onDelete: Restrict)
+  paymentVoucherId String?          @map("payment_voucher_id")
+  paymentVoucher   PaymentVoucher? @relation(fields: [paymentVoucherId], references: [id], onDelete: Restrict)
+  chequePaymentId String? @map("cheque_payment_id")
+  chequePayment ChequePayment? @relation(fields: [chequePaymentId], references: [id], onDelete: Restrict)
   uploadedAt        DateTime         @default(now()) @db.Timestamptz(3)
 
   @@index([purchaseOrderId])
   @@index([receiptVoucherId], map: "attachments_receipt_idx")
+  @@index([paymentVoucherId], map: "attachments_payment_idx")
+  @@index([chequePaymentId], map: "attachments_cheque_idx")
   @@map("attachments")
 }
 
@@ -1369,6 +1375,7 @@ model ContractorPaymentRequest {
   updatedAt                 DateTime      @updatedAt @db.Timestamptz(3)
 
   items ContractorPaymentRequestLine[]
+  paymentVouchers PaymentVoucher[]
 
   @@unique([poId, paymentRound])
   @@index([poId, status])
@@ -1428,12 +1435,37 @@ model GoodsReceiptLine {
 
 model PaymentVoucher {
   id              String    @id @default(cuid())
+  lifecycleVersion Int      @default(0) @map("lifecycle_version")
+  requestKey      String?   @unique @map("request_key")
+  requestHash     String?   @map("request_hash")
   pvNo            String    @unique
   pvDate          DateTime  @default(now()) @db.Timestamptz(3)
   supplierId      String?   @map("supplier_id")
   supplier        Supplier? @relation(fields: [supplierId], references: [id])
   sourceDocType   String?   @map("source_doc_type") // po | ps | pr
   sourceDocId     String?   @map("source_doc_id")
+  contractorPaymentRequestId String? @map("contractor_payment_request_id")
+  contractorPaymentRequest ContractorPaymentRequest? @relation(fields: [contractorPaymentRequestId], references: [id], onDelete: Restrict)
+  sourceNo        String?   @map("source_no")
+  sourceDate      DateTime? @map("source_date") @db.Timestamptz(3)
+  poNo            String?   @map("po_no")
+  supplierSnapshot Json?    @map("supplier_snapshot")
+  taxpayerType    String?   @map("taxpayer_type")
+  taxDescription  String?   @map("tax_description")
+  remark          String?
+  approvedById    String?   @map("approved_by_id")
+  approvedAt      DateTime? @map("approved_at") @db.Timestamptz(3)
+  paidAt          DateTime? @map("paid_at") @db.Timestamptz(3)
+  paidById        String?   @map("paid_by_id")
+  paymentRecordedAt DateTime? @map("payment_recorded_at") @db.Timestamptz(3)
+  payerBank       String?   @map("payer_bank")
+  payeeBank       String?   @map("payee_bank")
+  paymentReference String?  @map("payment_reference")
+  recipient       String?
+  reversedAt      DateTime? @map("reversed_at") @db.Timestamptz(3)
+  reversedById    String?   @map("reversed_by_id")
+  reversalRecordedAt DateTime? @map("reversal_recorded_at") @db.Timestamptz(3)
+  reversalReference String? @map("reversal_reference")
   amountBeforeTax Decimal   @default(0) @map("amount_before_tax") @db.Decimal(12, 2)
   vat             Decimal   @default(0) @db.Decimal(12, 2)
   wht             Decimal   @default(0) @db.Decimal(12, 2)
@@ -1449,7 +1481,9 @@ model PaymentVoucher {
 
   items          PaymentVoucherLine[]
   chequePayments ChequePayment[]
+  attachments    Attachment[]
 
+  @@index([sourceDocType, sourceDocId])
   @@map("payment_vouchers")
 }
 
@@ -1466,6 +1500,26 @@ model PaymentVoucherLine {
 
 model ChequePayment {
   id               String         @id @default(cuid())
+  lifecycleVersion Int @default(0) @map("lifecycle_version")
+  requestKey String? @unique @map("request_key")
+  requestHash String? @map("request_hash")
+  docDate DateTime? @map("doc_date") @db.Timestamptz(3)
+  bankName String? @map("bank_name")
+  bankBranch String? @map("bank_branch")
+  bankAccountNo String? @map("bank_account_no")
+  pvNo String? @map("pv_no")
+  voucherSnapshot Json? @map("voucher_snapshot")
+  printedAt DateTime? @map("printed_at") @db.Timestamptz(3)
+  signedAt DateTime? @map("signed_at") @db.Timestamptz(3)
+  signer String?
+  recipient String?
+  clearedAt DateTime? @map("cleared_at") @db.Timestamptz(3)
+  clearingReference String? @map("clearing_reference")
+  cancelledAt DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelledById String? @map("cancelled_by_id")
+  cancellationReason String? @map("cancellation_reason")
+  reversalReference String? @map("reversal_reference")
+  attachments Attachment[]
   cqNo             String         @unique
   paymentVoucherId String         @map("payment_voucher_id")
   paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id], onDelete: Cascade)

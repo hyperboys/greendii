@@ -26,6 +26,151 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Navigation
 
+### Cheque payments (CQ)
+
+Open AP > cheque payments (`/ap/vouchers?tab=cq`); new/view/edit are separate pages
+under `/ap/vouchers/cq/`. The register searches CQ/PV/cheque number/payee/company
+bank/account, filters status, paginates 20 rows and exports **all filtered rows**
+as UTF-8 BOM CSV, not just the current page. Account/cheque numbers remain text;
+existing CSV escaping/formula protection is reused. `ap.view` permits read/print/
+CSV; no separate export permission is introduced.
+
+Select one new approved/unpaid **cheque-method PV at its full net amount** using
+a searchable dropdown. Saved PV/PS/PO/supplier/amount snapshots do not follow later
+master edits. Company payer bank/name/branch/account are entered on CQ; this is not
+the supplier's receiving account and no company bank master is introduced.
+Account numbers accept 6-30 digits, optional spaces/hyphens, retain leading zeros,
+and normalize for uniqueness; cheque numbers accept letters/digits and normalize
+to uppercase. Bank account + cheque number cannot be reused even after cancellation.
+Legacy normalized identities are checked too, without rewriting old rows.
+
+`CQYYMMXXXX` is a Gregorian monthly sequence issued at creation, separate from the
+bank's cheque number; cancelled document numbers are never reused. PV/account/
+cheque number/document date become immutable on creation to preserve numbering
+and identity history. `ap.update` can edit other fields only while Prepared.
+
+| Transition | Permission (plus ap.view) | Required data |
+| --- | --- | --- |
+| Create Prepared | ap.create | PV, document/cheque dates, bank/branch/account, cheque number, payee |
+| Prepared -> Printed | ap.create | Actual cheque-printing date |
+| Printed -> Signed | ap.approve | Signing date and signer's name |
+| Signed -> Released | ap.pay | Release date, recipient and cq-release evidence |
+| Released -> Cleared | ap.pay | Bank clearing date, reference and cq-clear evidence |
+| Cancel before release | ap.cancel | Date and reason |
+| Reverse after release/clear | ap.cancel + ap.pay | Date, reason, reference and cq-reversal evidence |
+
+No step skipping. Recording signing is not another approval of PV; a creator
+with `ap.approve` may record an externally signed cheque, as agreed. Dates are
+chronological, CQ document date is not before PV, clearing cannot precede the
+cheque date, and **postdated cheques may be released before their cheque date**.
+Released atomically sets PV paidAt/by/recipient/payer bank/reference; Cleared
+stores a separate bank date and never pays PV twice. These actions record events
+performed outside the application; no bank transfer, stop-payment or bank API
+operation occurs.
+
+Cancellation before release leaves PV approved/unpaid for a replacement cheque
+with a new number. Cancellation after release/clear atomically cancels CQ and
+reverses/cancels PV, preserving original payment/clearing/evidence/history. It
+releases PS for a **new PV**, not re-payment of the old PV, and never cancels PS or
+releases its PO capacity. Verify return/stop-payment/refund externally first.
+Active cheques block direct PV cancellation; PV links to CQ for the correct
+reversal process. Legacy CQ/linked legacy PV remain read-only until reconciled.
+
+Evidence uses existing upload storage/size limits with PDF/JPG/PNG restrictions.
+Prepared/Printed document evidence needs create or update; Signed release evidence
+needs pay; Released clearing evidence needs pay, and Released/Cleared reversal
+evidence needs pay+cancel. Each completed stage's evidence freezes; cancelled
+records cannot change attachments. Revisions guard uploads/deletes/status/edit;
+request keys deduplicate creation/retries. CQ locks CQ -> PV -> PS -> PO, creation
+locks PV -> PS -> PO; payment/reversal/audit changes share one transaction.
+
+**Printing:** A4 cheque-details sheet with company/PV/PS/PO references, bank and
+payee, amount, dates/references/status/reversal and blank signatures. It is **not
+bank cheque overprinting**. Viewing/printing/PDF never advances status: Printed
+must be explicitly recorded after actual external printing. Long text is fitted
+within a minimum font size; overflow blocks printing with an explicit error.
+
+**Rollout:** Back up/review and apply
+[`accounting-cheque-payments.sql`](../api/scripts/sql/accounting-cheque-payments.sql)
+after Accounting/master/PS/PV/attachment prerequisites. New lifecycle/evidence/
+snapshots/stage fields and unique indexes are additive; legacy numbers, money and
+statuses are unchanged. Existing raw bank/cheque unique constraint is retained,
+with normalized identity and active-PV indexes as new-record backstops. Reconcile
+legacy data separately; do not relabel it version 1 without audited migration.
+No shared SQL was applied. Schema validation passes; Prisma client generation hit
+Windows engine-DLL `EPERM` again. Operator must stop API, run `npx prisma generate`
+in `api`, restart and deploy matching UI/API. No user API process was stopped.
+
+Automated HTTP/browser tests use real Express/auth/middleware/routes with a
+transactional in-memory Prisma and isolated storage substitute. Target PostgreSQL/
+concurrent-user, actual storage and physical-printer UAT are required. This does
+not deliver physical cheque templates, banking integration/reconciliation feeds,
+GL/Stock, retention release, multi-step routing, inbox/notifications or redesigned
+financial reports. GR/Stock is the next business process; its policies remain open.
+
+### Payment vouchers (PV)
+
+Open AP > PV (`/ap/vouchers?tab=pv`); new/view/edit use separate pages under
+`/ap/vouchers/pv/`. Search PV/PS/PO/contractor, filter lifecycle/payment state and
+paginate 20 rows. A searchable source dropdown selects **one new approved PS at
+its full net amount**. Items, supplier snapshot, VAT, WHT and retention come from
+PS; forged client totals are ignored. PR/PO direct, partial/multiple sources,
+multiple methods, advance payment, GL/Stock and retention release are excluded.
+
+Draft/returned can be edited. Submit -> pending -> approved is one-step approval;
+pending can be returned or rejected. Draft and returned reserve the PS; rejected
+and cancelled release it. Approved means **waiting for payment**, not paid.
+Permissions: `ap.view` reads/prints, `ap.create` creates/submits, `ap.update` edits,
+`ap.approve` approves/returns/rejects, `ap.cancel` cancels and **`ap.pay` records
+actual cash/transfer payment**. Assign the new action to the appropriate Accounting
+roles. Creators cannot approve their own voucher, even admin; a separately
+authorized creator/approver may record payment. Return/reject/cancel need reasons.
+Numbers are issued at Draft creation as `PVYYMMXXXX`, Gregorian year/month,
+monthly atomic sequence; cancelled/rejected numbers are never reused.
+
+Cash needs the actual date and recipient. Transfer additionally needs payer/payee
+bank accounts, payment reference and a `pv-payment` attachment. Payment dates must
+not precede PV/PS dates. Before submitting a PS with WHT, enter individual/company
+taxpayer type and a tax description/reference. No 50 Tawi or PND3/53 is generated.
+These actions **record a transaction performed outside the system**; they do not
+send bank transfers. Approval/payment freezes document/payment evidence.
+
+Cancellation after payment is an explicit manual reversal, requiring both
+`ap.cancel` and `ap.pay`, a reason, reversal date/reference and `pv-reversal`
+evidence. It preserves payment/reversal history, releases PS for a new PV, and
+does not cancel PS or release its PO capacity. Reversal dates cannot precede the
+payment. Unpaid cancellation needs `ap.cancel` and a reason, not reversal proof.
+Evidence uses the existing upload storage, file limits and PDF/JPG/PNG restrictions:
+document/payment files may be managed on Draft/returned with create or update;
+payment evidence on approved/unpaid requires pay; reversal evidence on
+approved/paid requires pay+cancel. Closed states are immutable.
+
+Cheque PV cannot be manually paid using the cash/transfer action. The CQ process
+above now handles preparation/signing/release/clearance/reversal: release records
+PV paid; clearance records a separate bank date. Active cheques block direct PV
+cancellation; follow the CQ link for evidence and reversal. Legacy PV/linked
+cheque mutations remain blocked for reconciliation.
+
+Printing adapts the supplied PV reference to blank A4: journal/detail/debit-credit
+grid, bank/payment table and five blank signature boxes, with eight source lines
+per page and final totals on the last page. Account/department/project codes stay
+blank; debit/credit is a PS allocation summary, **not GL posting**. Draft/cancelled/
+reversed/payment state markings are retained. Long text is fitted within a minimum
+font size; unfit content explicitly blocks printing instead of truncating.
+
+**Rollout:** Review/backup and apply
+[`accounting-payment-vouchers.sql`](../api/scripts/sql/accounting-payment-vouchers.sql)
+after Accounting/master/PS/attachment prerequisites. It adds lifecycle/payment/
+reversal/snapshot/evidence fields and indexes, including an active-PS uniqueness
+backstop; it does not change legacy amounts/status. Legacy remains version 0,
+read-only, and active legacy PV still reserves PS. Reconcile/migrate separately.
+No shared SQL was applied here. Prisma schema validation and production build/
+types passed; client generation encountered Windows loaded-engine DLL `EPERM`.
+Operator must stop the API, run `npx prisma generate` in `api`, restart and deploy
+matching UI/API. Automated HTTP/browser tests use real Express/auth/routes and a
+transactional in-memory Prisma substitute; PostgreSQL/concurrent-user, real
+evidence-storage and physical-printer UAT remain required.
+
 ### Contractor payment requests (PS)
 
 Open AP > PS (`/ap/vouchers?tab=ps`). New/view/edit are separate pages under
@@ -52,11 +197,10 @@ per document at Draft creation; PO+round is unique even after rejection/cancella
 
 PO edits are blocked while pending/approved PS exists. All PS mutations, round
 checks, reservations and audit writes share transactions and PO row locks, with
-revision checks and create request-key deduplication. Existing PV creation from
-`sourceDocType=ps` now requires a new approved PS, matching supplier and all PS
-amounts, with no other noncancelled PV for that PS. PS cancellation is blocked by
-any noncancelled referencing PV under the same lock order. This is a source guard,
-not the completed PV allocation/approval/payment/cancellation process.
+revision checks and create request-key deduplication. PV creation now follows the
+approved full-PS lifecycle above; PS cancellation is blocked by any referencing
+PV except cancelled/rejected under the shared lock order. Payment/reversal does
+not independently release PS's PO reservation.
 
 PS prints on blank A4 paper, eight lines per page with totals on the final page,
 status markings and blank signature boxes. Overflow blocks printing and asks for

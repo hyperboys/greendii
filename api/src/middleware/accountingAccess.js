@@ -18,9 +18,11 @@ function requireAccountingResource(module) {
     try {
       // AR Draft management uses the agreed ar.create permission.
       const soDraftEdit = module === 'ar' && req.method === 'PUT' && /^\/(?:delivery-orders|invoices|billing-notes|receipt-vouchers|credit-notes)\/[^/]+\/?$/.test(req.path);
-      const psAction = module === 'ap' && req.method === 'POST' && req.path.match(/^\/contractor-payments\/[^/]+\/(submit|approve|return|reject|cancel)\/?$/)?.[1];
-      const action = psAction ? (psAction === 'submit' ? 'create' : psAction === 'cancel' ? 'cancel' : 'approve')
-        : soDraftEdit ? 'create' : { GET: 'view', HEAD: 'view', POST: 'create', PUT: 'update', PATCH: 'update', DELETE: 'delete' }[req.method];
+      const apAction = module === 'ap' && req.method === 'POST' && req.path.match(/^\/(?:contractor-payments|payment-vouchers)\/[^/]+\/(submit|approve|return|reject|cancel|pay)\/?$/)?.[1];
+      const cqAction = module === 'ap' && req.method === 'PATCH' && /^\/cheque-payments\/[^/]+\/status\/?$/.test(req.path)
+        ? { Printed: 'create', Signed: 'approve', Released: 'pay', Cleared: 'pay', Cancelled: 'cancel' }[req.body?.status] : null;
+      const action = cqAction || (apAction ? (apAction === 'submit' ? 'create' : apAction === 'cancel' ? 'cancel' : apAction === 'pay' ? 'pay' : 'approve')
+        : soDraftEdit ? 'create' : { GET: 'view', HEAD: 'view', POST: 'create', PUT: 'update', PATCH: 'update', DELETE: 'delete' }[req.method]);
       const access = await getAccountingAccess(req.user);
       if (!action || !hasAccountingPermission(access, module, action)) {
         return res.status(403).json({ message: 'ไม่มีสิทธิ์ดำเนินการใน Accounting กรุณาติดต่อผู้ดูแลระบบ' });

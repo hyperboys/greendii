@@ -22,6 +22,8 @@ test('PS routes select full pages and reject invalid action URLs', () => {
   for (const record of [['new', 'edit'], ['ps', 'approve'], ['ps', 'edit', 'extra']]) assert.throws(() => Page({ params: { record } }), /Not found/);
   const List = load(['app', 'ap', 'vouchers', 'page.tsx'], {
     '@/components/contractor-payments': { ContractorPayments: Component }, '@/components/purchase-orders': { PurchaseOrders: () => null },
+    '@/components/payment-vouchers': { PaymentVouchers: () => null },
+    '@/components/cheque-payments': { ChequePayments: () => null },
   }).default;
   assert.equal(List({ searchParams: { tab: 'ps' } }).type, Component);
 });

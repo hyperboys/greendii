@@ -188,10 +188,11 @@ export const ApApi = {
 
   createGoodsReceipt: (data: any) => apiFetch("/api/ap/goods-receipts", { method: "POST", body: JSON.stringify(data) }),
 
-  createPaymentVoucher: (data: any) => apiFetch("/api/ap/payment-vouchers", { method: "POST", body: JSON.stringify(data) }),
+  createPaymentVoucher: (data: import("./payment-voucher").VoucherInput) => apiFetch<import("./payment-voucher").PaymentVoucher>("/api/ap/payment-vouchers", { method: "POST", body: JSON.stringify(data) }),
 
-  createChequePayment: (data: any) => apiFetch("/api/ap/cheque-payments", { method: "POST", body: JSON.stringify(data) }),
-  updateChequeStatus: (id: string, data: any) => apiFetch(`/api/ap/cheque-payments/${id}/status`, { method: "PATCH", body: JSON.stringify(data) }),
+  createChequePayment: (data: import("./cheque-payment").ChequeInput) => apiFetch<import("./cheque-payment").ChequePayment>("/api/ap/cheque-payments", { method: "POST", body: JSON.stringify(data) }),
+  updateChequeStatus: (id: string, data: import("./cheque-payment").ChequeActionInput & { status: import("./cheque-payment").ChequeStatus; updatedAt: string }) =>
+    apiFetch<import("./cheque-payment").ChequePayment>(`/api/ap/cheque-payments/${encodeURIComponent(id)}/status`, { method: "PATCH", body: JSON.stringify(data) }),
 };
 
 // ─── INVENTORY ───────────────────────────────────────────────────────────────

@@ -132,7 +132,7 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
           changes = { ...data, items: { deleteMany: {}, create: items } };
         }
         if (action === 'cancel') {
-          const used = await tx.paymentVoucher.count({ where: { sourceDocType: 'ps', sourceDocId: previous.id, status: { not: 'cancelled' } } });
+          const used = await tx.paymentVoucher.count({ where: { sourceDocType: 'ps', sourceDocId: previous.id, status: { notIn: ['cancelled', 'rejected'] } } });
           if (used) invalid('PS ถูกอ้างอิงโดย PV ที่ยังไม่ยกเลิก ต้องยกเลิก PV ก่อน', 409);
         }
         const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];

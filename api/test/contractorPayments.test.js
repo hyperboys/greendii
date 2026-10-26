@@ -113,11 +113,11 @@ test('PS actual HTTP lifecycle, permissions, cumulative locking, rollback, PV gu
     assert.ok((await call(`${base}/${first.id}`)).history.some(row => row.action === 'approve' && row.performedBy.fullName === 'approver'));
   });
   await t.test('PV cannot consume unapproved or mismatched PS, approved cancellation waits for PV', async () => {
-    const pv = { sourceDocType: 'ps', sourceDocId: first.id, supplierId: 'supplier', amountBeforeTax: 3000, vat: 210, wht: 90, otherDeduction: 150, netPayment: 2970 };
+    const pv = { pvDate: '2026-10-26', requestKey: randomUUID(), paymentMethod: 'transfer', sourceDocType: 'ps', sourceDocId: first.id, supplierId: 'supplier', amountBeforeTax: 3000, vat: 210, wht: 90, otherDeduction: 150, netPayment: 2970 };
     await call('/payment-vouchers', { method: 'POST', body: { ...pv, sourceDocId: second.id }, status: 409 });
-    await call('/payment-vouchers', { method: 'POST', body: { ...pv, netPayment: 1 }, status: 400 });
-    await call('/payment-vouchers', { method: 'POST', body: pv, status: 201 });
-    await call('/payment-vouchers', { method: 'POST', body: pv, status: 409 });
+    const created = await call('/payment-vouchers', { method: 'POST', body: { ...pv, netPayment: 1 }, status: 201 });
+    assert.equal(created.netPayment, 2970);
+    await call('/payment-vouchers', { method: 'POST', body: { ...pv, requestKey: randomUUID() }, status: 409 });
     await action(first, 'cancel', { status: 409 });
     fixture.state().paymentVoucher[0].status = 'cancelled';
     first = await action(first, 'cancel');

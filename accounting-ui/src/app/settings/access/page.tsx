@@ -6,7 +6,7 @@ import {
 } from "@/lib/accounting-access";
 
 const ACTION_LABELS: Record<AccountingAction, string> = {
-  view: "ดู", create: "สร้าง", update: "แก้ไข", delete: "ลบ", approve: "อนุมัติ PS", cancel: "ยกเลิก PS",
+  view: "ดู", create: "สร้าง", update: "แก้ไข", delete: "ลบ", approve: "อนุมัติ PS / PV · บันทึกลงนามเช็ค", cancel: "ยกเลิก PS / PV / เช็ค", pay: "บันทึกจ่าย / ส่งมอบ-ตัดบัญชีเช็ค / กลับรายการ",
 };
 
 const EMPTY_USER = {

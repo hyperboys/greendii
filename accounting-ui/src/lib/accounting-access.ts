@@ -1,7 +1,7 @@
 import { apiFetch } from "./api";
 
 export type AccountingModule = "ar" | "ap" | "inventory" | "master" | "reports";
-export type AccountingAction = "view" | "create" | "update" | "delete" | "approve" | "cancel";
+export type AccountingAction = "view" | "create" | "update" | "delete" | "approve" | "cancel" | "pay";
 export type AccountingPermission = `${AccountingModule}.${AccountingAction}`;
 
 export type AccountingAccess = {
