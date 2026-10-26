@@ -112,7 +112,7 @@ test('Stock Issue actual HTTP lifecycle quantities permissions evidence atomic s
     await act(await call(`${root}/legacy`), 'cancel', { status: 409 });
     let own = await create(); state().stockIssue.find(row => row.id === own.id).createdById = 'admin';
     own = await act(await get(own), 'submit', { user: 'admin' }); await act(own, 'approve', { user: 'admin', status: 403 });
-    await call('/api/inventory/returns', { method: 'POST', body: { stockIssueId: own.id, warehouseId: 'main', items: [{ productId: 'mat', returnedQty: 1 }] }, status: 409 });
+    await call('/api/inventory/returns', { method: 'POST', body: { stockIssueId: own.id, warehouseId: 'main', items: [{ productId: 'mat', returnedQty: 1 }] }, status: 400 });
     own = await act(own, 'reject', { user: 'approver' }); await act(own, 'submit', { status: 409 });
     assert.ok((await get(doc)).history.some(row => row.action === 'cancel' && row.performedBy.fullName === 'canceller'));
     const page = await call(`${root}?page=1&pageSize=2`); assert.equal(page.data.length, 2); assert.ok(page.total > 2);

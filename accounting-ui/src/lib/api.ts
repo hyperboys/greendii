@@ -209,7 +209,8 @@ export const InventoryApi = {
   createIssue: (data: import("./stock-issue").IssueInput) =>
     apiFetch<import("./stock-issue").StockIssue>("/api/inventory/issues", { method: "POST", body: JSON.stringify(data) }),
 
-  createReturn: (data: any) => apiFetch("/api/inventory/returns", { method: "POST", body: JSON.stringify(data) }),
+  createReturn: (data: import("./stock-return").ReturnInput) =>
+    apiFetch<import("./stock-return").StockReturn>("/api/inventory/returns", { method: "POST", body: JSON.stringify(data) }),
 
   getMovements: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();

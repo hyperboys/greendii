@@ -16,6 +16,7 @@ export const inventoryTabs = [
   { id: "balances", label: "ยอดสินค้าคงเหลือ" },
   { id: "movements", label: "ประวัติการเคลื่อนย้ายสินค้า" },
   { id: "issues", label: "เบิกสินค้า (IS)" },
+  { id: "returns", label: "คืนสินค้า (SR)" },
 ] as const;
 
 export const masterTabs = [

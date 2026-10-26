@@ -38,7 +38,7 @@ export function cancelledIssueQty(line: IssueLineInput) {
   if (line.requestedQty === "" || line.issuedQty === "" || !Number.isFinite(requested) || !Number.isFinite(issued) || requested <= 0 || issued < 0 || issued > requested) return null;
   return (Math.round(requested * 1000) - Math.round(issued * 1000)) / 1000;
 }
-export function availableIssueActions(doc: StockIssue, can: { create: boolean; approve: boolean; cancel: boolean }, userId?: string): IssueAction[] {
+export function availableIssueActions(doc: Pick<StockIssue, "lifecycleVersion" | "status" | "createdById">, can: { create: boolean; approve: boolean; cancel: boolean }, userId?: string): IssueAction[] {
   if (doc.lifecycleVersion !== 1) return [];
   const actions: IssueAction[] = [];
   if (can.create && ["draft", "returned"].includes(doc.status)) actions.push("submit");

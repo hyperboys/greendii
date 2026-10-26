@@ -21,7 +21,7 @@ function requireAccountingResource(module) {
       const apAction = module === 'ap' && req.method === 'POST' && req.path.match(/^\/(?:goods-receipts|purchase-orders|contractor-payments|payment-vouchers)\/[^/]+\/(submit|approve|return|reject|cancel|pay)\/?$/)?.[1];
       const cqAction = module === 'ap' && req.method === 'PATCH' && /^\/cheque-payments\/[^/]+\/status\/?$/.test(req.path)
         ? { Printed: 'create', Signed: 'approve', Released: 'pay', Cleared: 'pay', Cancelled: 'cancel' }[req.body?.status] : null;
-      const stockAction = module === 'inventory' && req.method === 'POST' && req.path.match(/^\/issues\/[^/]+\/(submit|approve|return|reject|cancel)\/?$/)?.[1];
+      const stockAction = module === 'inventory' && req.method === 'POST' && req.path.match(/^\/(?:issues|returns)\/[^/]+\/(submit|approve|return|reject|cancel)\/?$/)?.[1];
       const action = (stockAction ? (stockAction === 'submit' ? 'create' : stockAction === 'cancel' ? 'cancel' : 'approve') : null) || cqAction || (apAction ? (apAction === 'submit' ? 'create' : apAction === 'cancel' ? 'cancel' : apAction === 'pay' ? 'pay' : 'approve')
         : soDraftEdit ? 'create' : { GET: 'view', HEAD: 'view', POST: 'create', PUT: 'update', PATCH: 'update', DELETE: 'delete' }[req.method]);
       const access = await getAccountingAccess(req.user);

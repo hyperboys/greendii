@@ -3,6 +3,20 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate as date } from "@/lib/accounting-date";
 import { issueStatuses, type StockIssue } from "@/lib/stock-issue";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+export function fitStockDocument(root: HTMLElement) {
+  let overflow = false;
+  for (const field of Array.from(root.querySelectorAll<HTMLElement>("[data-is-fit]"))) {
+    for (let size = 10; size >= 8; size -= 0.5) {
+      field.style.fontSize = `${size}pt`;
+      if (field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1) break;
+    }
+    if (field.scrollHeight > field.clientHeight + 1 || field.scrollWidth > field.clientWidth + 1) overflow = true;
+  }
+  for (const page of Array.from(root.querySelectorAll<HTMLElement>(".is-paper"))) {
+    if (page.scrollHeight > page.clientHeight + 1 || page.scrollWidth > page.clientWidth + 1) overflow = true;
+  }
+  return !overflow;
+}
 export function StockIssueDocument({ document: doc, company, onReady }: {
   document: StockIssue; company: PurchaseOrderCompanySettings; onReady?: (ready: boolean) => void;
 }) {
@@ -13,17 +27,7 @@ export function StockIssueDocument({ document: doc, company, onReady }: {
     let current = true; onReady?.(false);
     void document.fonts.ready.then(() => {
       if (!current || !root.current) return;
-      let overflow = false;
-      for (const field of Array.from(root.current.querySelectorAll<HTMLElement>("[data-is-fit]"))) {
-        for (let size = 10; size >= 8; size -= 0.5) {
-          field.style.fontSize = `${size}pt`;
-          if (field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1) break;
-        }
-        if (field.scrollHeight > field.clientHeight + 1 || field.scrollWidth > field.clientWidth + 1) overflow = true;
-      }
-      for (const page of Array.from(root.current.querySelectorAll<HTMLElement>(".is-paper"))) {
-        if (page.scrollHeight > page.clientHeight + 1 || page.scrollWidth > page.clientWidth + 1) overflow = true;
-      }
+      const overflow = !fitStockDocument(root.current);
       setError(overflow ? "ข้อมูลยาวเกินแบบใบเบิก กรุณาย่อข้อความก่อนพิมพ์" : ""); onReady?.(!overflow);
     });
     return () => { current = false; };

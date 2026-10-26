@@ -17,6 +17,7 @@ const { lockCheque, assertChequeEvidence, chequeAudit } = require('../lib/cheque
 const { lockPurchaseOrder, assertPoEvidence, purchaseOrderAudit } = require('../lib/purchaseOrderApproval');
 const { lockReceipt: lockGoodsReceipt, assertReceiptEvidence, receiptAudit } = require('../lib/goodsReceipt');
 const { lockIssue, assertIssueEvidence, issueAudit } = require('../lib/stockIssue');
+const { lockReturn, assertReturnEvidence, returnAudit } = require('../lib/stockReturn');
 
 const UPLOAD_DIR = path.join(__dirname, '../../uploads');
 if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -266,18 +267,19 @@ async function assertQuotationAttachmentEditable(req, quotationId) {
 
 // POST /api/upload
 router.post('/', authenticate, upload.array('files', 10), async (req, res, next) => {
-  if (req.body.stockIssueId || req.body.paymentVoucherId || req.body.chequePaymentId || req.body.purchaseOrderId || req.body.goodsReceiptId) {
+  if (req.body.stockReturnId || req.body.stockIssueId || req.body.paymentVoucherId || req.body.chequePaymentId || req.body.purchaseOrderId || req.body.goodsReceiptId) {
+    const sr = Boolean(req.body.stockReturnId);
     const issue = Boolean(req.body.stockIssueId), gr = Boolean(req.body.goodsReceiptId), cheque = Boolean(req.body.chequePaymentId), po = Boolean(req.body.purchaseOrderId);
-    const label = issue ? 'ใบเบิก' : gr ? 'GR' : po ? 'PO' : cheque ? 'CQ' : 'PV';
-    const binding = issue ? 'stockIssueId' : gr ? 'goodsReceiptId' : po ? 'purchaseOrderId' : cheque ? 'chequePaymentId' : 'paymentVoucherId';
-    const audit = issue ? issueAudit : gr ? receiptAudit : po ? purchaseOrderAudit : cheque ? chequeAudit : voucherAudit;
-    const evidence = issue ? assertIssueEvidence : gr ? assertReceiptEvidence : po ? assertPoEvidence : cheque ? assertChequeEvidence : assertVoucherEvidence;
-    const model = issue ? 'stockIssue' : gr ? 'goodsReceipt' : po ? 'purchaseOrder' : cheque ? 'chequePayment' : 'paymentVoucher';
-    const lock = issue ? lockIssue : gr ? lockGoodsReceipt : po ? lockPurchaseOrder : cheque ? lockCheque : lockVoucher;
+    const label = sr ? 'ใบคืน' : issue ? 'ใบเบิก' : gr ? 'GR' : po ? 'PO' : cheque ? 'CQ' : 'PV';
+    const binding = sr ? 'stockReturnId' : issue ? 'stockIssueId' : gr ? 'goodsReceiptId' : po ? 'purchaseOrderId' : cheque ? 'chequePaymentId' : 'paymentVoucherId';
+    const audit = sr ? returnAudit : issue ? issueAudit : gr ? receiptAudit : po ? purchaseOrderAudit : cheque ? chequeAudit : voucherAudit;
+    const evidence = sr ? assertReturnEvidence : issue ? assertIssueEvidence : gr ? assertReceiptEvidence : po ? assertPoEvidence : cheque ? assertChequeEvidence : assertVoucherEvidence;
+    const model = sr ? 'stockReturn' : issue ? 'stockIssue' : gr ? 'goodsReceipt' : po ? 'purchaseOrder' : cheque ? 'chequePayment' : 'paymentVoucher';
+    const lock = sr ? lockReturn : issue ? lockIssue : gr ? lockGoodsReceipt : po ? lockPurchaseOrder : cheque ? lockCheque : lockVoucher;
     const storedKeys = [];
     try {
       if (['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId', 'purchaseOrderId', 'receiptVoucherId',
-        'paymentVoucherId', 'chequePaymentId', 'goodsReceiptId', 'stockIssueId'].some(key => key !== binding && req.body[key])) invalid(`ไฟล์ ${label} ต้องไม่ผูกเอกสารอื่นพร้อมกัน`);
+        'paymentVoucherId', 'chequePaymentId', 'goodsReceiptId', 'stockIssueId', 'stockReturnId'].some(key => key !== binding && req.body[key])) invalid(`ไฟล์ ${label} ต้องไม่ผูกเอกสารอื่นพร้อมกัน`);
       if (!req.files?.length) invalid('กรุณาเลือกไฟล์แนบ');
       if (req.files.some(file => !isPoFileAllowed(file))) invalid(`หลักฐาน ${label} อนุญาตเฉพาะ PDF/JPG/PNG`);
       const saved = await prisma.$transaction(async tx => {
@@ -457,6 +459,8 @@ router.patch('/:id/po-amount', authenticate, async (req, res, next) => {
 router.delete('/:id', authenticate, async (req, res, next) => {
   try {
     const att = await prisma.attachment.findUniqueOrThrow({ where: { id: req.params.id } });
+    if (att.stockReturnId && ['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId', 'purchaseOrderId',
+      'receiptVoucherId', 'paymentVoucherId', 'chequePaymentId', 'goodsReceiptId', 'stockIssueId'].some(key => att[key])) invalid('ไฟล์ใบคืนผูกหลายเอกสาร ต้องตรวจสอบก่อนลบ', 409);
     if (att.stockIssueId && ['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId', 'purchaseOrderId',
       'receiptVoucherId', 'paymentVoucherId', 'chequePaymentId', 'goodsReceiptId'].some(key => att[key])) invalid('ไฟล์ใบเบิกผูกหลายเอกสาร ต้องตรวจสอบก่อนลบ', 409);
     if ((att.purchaseOrderId || att.goodsReceiptId) && ['quotationId', 'workOrderId', 'handOverJobId', 'purchaseRequestId',
@@ -464,16 +468,17 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       invalid('ไฟล์ PO เดิมผูกหลายเอกสาร ต้องตรวจสอบการอ้างอิงก่อนลบ', 409);
     }
     if (att.goodsReceiptId && att.purchaseOrderId) invalid('ไฟล์ผูก GR และ PO พร้อมกัน ต้องตรวจสอบก่อนลบ', 409);
-    if (att.stockIssueId || att.paymentVoucherId || att.chequePaymentId || att.purchaseOrderId || att.goodsReceiptId) {
+    if (att.stockReturnId || att.stockIssueId || att.paymentVoucherId || att.chequePaymentId || att.purchaseOrderId || att.goodsReceiptId) {
+      const sr = Boolean(att.stockReturnId);
       const issue = Boolean(att.stockIssueId), gr = Boolean(att.goodsReceiptId), cheque = Boolean(att.chequePaymentId), po = Boolean(att.purchaseOrderId);
-      const id = issue ? att.stockIssueId : gr ? att.goodsReceiptId : po ? att.purchaseOrderId : cheque ? att.chequePaymentId : att.paymentVoucherId;
+      const id = sr ? att.stockReturnId : issue ? att.stockIssueId : gr ? att.goodsReceiptId : po ? att.purchaseOrderId : cheque ? att.chequePaymentId : att.paymentVoucherId;
       await prisma.$transaction(async tx => {
-        const doc = await (issue ? lockIssue : gr ? lockGoodsReceipt : po ? lockPurchaseOrder : cheque ? lockCheque : lockVoucher)(tx, id, req.body?.updatedAt);
+        const doc = await (sr ? lockReturn : issue ? lockIssue : gr ? lockGoodsReceipt : po ? lockPurchaseOrder : cheque ? lockCheque : lockVoucher)(tx, id, req.body?.updatedAt);
         if (cheque) await lockVoucher(tx, doc.paymentVoucherId, null, false);
-        await (issue ? assertIssueEvidence : gr ? assertReceiptEvidence : po ? assertPoEvidence : cheque ? assertChequeEvidence : assertVoucherEvidence)(req, doc, po ? 'accounting-po' : att.category);
+        await (sr ? assertReturnEvidence : issue ? assertIssueEvidence : gr ? assertReceiptEvidence : po ? assertPoEvidence : cheque ? assertChequeEvidence : assertVoucherEvidence)(req, doc, po ? 'accounting-po' : att.category);
         await tx.attachment.delete({ where: { id: att.id } });
-        const updated = await tx[issue ? 'stockIssue' : gr ? 'goodsReceipt' : po ? 'purchaseOrder' : cheque ? 'chequePayment' : 'paymentVoucher'].update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
-        await (issue ? issueAudit : gr ? receiptAudit : po ? purchaseOrderAudit : cheque ? chequeAudit : voucherAudit)(tx, req, 'detach', null, updated, `${att.category}; ${att.originalName}`);
+        const updated = await tx[sr ? 'stockReturn' : issue ? 'stockIssue' : gr ? 'goodsReceipt' : po ? 'purchaseOrder' : cheque ? 'chequePayment' : 'paymentVoucher'].update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
+        await (sr ? returnAudit : issue ? issueAudit : gr ? receiptAudit : po ? purchaseOrderAudit : cheque ? chequeAudit : voucherAudit)(tx, req, 'detach', null, updated, `${att.category}; ${att.originalName}`);
       });
       if (!await prisma.attachment.count({ where: { filename: att.filename } })) {
         if (isR2Enabled) await deleteFromR2(att.filename);

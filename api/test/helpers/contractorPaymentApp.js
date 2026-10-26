@@ -42,6 +42,7 @@ function createContractorPaymentApp() {
     if (row.cqNo) row.attachments = structuredClone(state.attachment.filter(file => file.chequePaymentId === row.id));
     if (row.grNo) row.attachments = structuredClone(state.attachment.filter(file => file.goodsReceiptId === row.id));
     if (row.issueNo) row.attachments = structuredClone(state.attachment.filter(file => file.stockIssueId === row.id));
+    if (row.returnNo) row.attachments = structuredClone(state.attachment.filter(file => file.stockReturnId === row.id));
     if (row.poNo && !row.psNo && !row.pvNo && !row.cqNo && !row.grNo) {
       row.attachments = structuredClone(state.attachment.filter(file => file.purchaseOrderId === row.id));
       row.supplier = row.supplier || structuredClone(supplier);
@@ -128,7 +129,7 @@ function createContractorPaymentApp() {
   for (const file of ['../../src/lib/accountingAccess', '../../src/middleware/auth', '../../src/middleware/accountingAccess',
     '../../src/lib/runningNumber', '../../src/lib/auditTrail', '../../src/lib/accountingMaster', '../../src/lib/paymentVoucher',
     '../../src/lib/chequePayment', '../../src/routes/cheque-payments', '../../src/lib/purchaseOrderApproval', '../../src/lib/goodsReceipt', '../../src/routes/goods-receipts',
-    '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/routes/inventory',
+    '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/lib/stockReturn', '../../src/routes/stock-returns', '../../src/routes/inventory',
     '../../src/routes/ap', '../../src/routes/contractor-payments', '../../src/routes/payment-vouchers', '../../src/routes/upload']) {
     delete require.cache[require.resolve(file)];
   }

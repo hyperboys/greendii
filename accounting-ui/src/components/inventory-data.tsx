@@ -27,6 +27,7 @@ export function InventoryData({ activeTab }: { activeTab: "balances" | "movement
   }, [activeTab, reload]);
   const n = (value: number | string) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 });
   function source(row: Movement) {
+    if (["stock_return", "stock_return_reversal"].includes(row.sourceDocType)) return `/inventory/returns/${encodeURIComponent(row.sourceDocId)}`;
     if (["stock_issue", "stock_issue_reversal"].includes(row.sourceDocType)) return `/inventory/issues/${encodeURIComponent(row.sourceDocId)}`;
     if (["goods_receipt", "goods_receipt_reversal"].includes(row.sourceDocType)) return `/ap/vouchers/gr/${encodeURIComponent(row.sourceDocId)}`;
     return null;
@@ -35,6 +36,7 @@ export function InventoryData({ activeTab }: { activeTab: "balances" | "movement
     <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold text-blue-600">Inventory &amp; Store</p>
       <h1 className="text-2xl font-bold">คลังสินค้า &amp; การ์ดสินค้า (Stock Card)</h1><p className="text-sm text-gray-600">On Hand, Reserved, Available และประวัติการเคลื่อนย้ายสินค้า</p></div>
       <div className="flex flex-wrap gap-2"><Link href="/inventory?tab=issues" className="rounded border bg-white px-4 py-2">ทะเบียนใบเบิก</Link>
+        <Link href="/inventory?tab=returns" className="rounded border bg-white px-4 py-2">ทะเบียนใบคืน</Link>
         {canCreate && <Link href="/inventory/issues/new" className="rounded bg-blue-600 px-4 py-2 text-white">ทำรายการเบิกสินค้า</Link>}</div></header>
     <h2 className="font-bold">{inventoryTabs.find(tab => tab.id === activeTab)?.label}</h2>
     {loading && <p role="status">กำลังโหลดข้อมูลสต็อก...</p>}

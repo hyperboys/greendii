@@ -80,6 +80,9 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/inventory/issues/is-1/edit";
   html = render();
   assert.match(html, /href="\/inventory\?tab=issues" aria-current="page"/);
+  pathname = "/inventory/returns/sr-1/edit";
+  html = render();
+  assert.match(html, /href="\/inventory\?tab=returns" aria-current="page"/);
   assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
   access = { ...fullAccess, isAdmin: false, permissions: ["ar.view"] };
   html = render();

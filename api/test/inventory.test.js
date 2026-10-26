@@ -1,6 +1,7 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 require('./stockIssues.test');
+require('./stockReturns.test');
 
 function processPartialStockIssue(requestedQty, issuedQty) {
   const req = Number(requestedQty) || 0;

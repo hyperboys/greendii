@@ -32,6 +32,8 @@ const DOC_PATTERNS = {
   cq:                          { prefix: 'CQ', padLen: 4, separator: '',  periodType: 'YYMM' },
   stock_issue:                 { prefix: 'IS', padLen: 4, separator: '',  periodType: 'YYMM' },
   is:                          { prefix: 'IS', padLen: 4, separator: '',  periodType: 'YYMM' },
+  stock_return:                { prefix: 'SR', padLen: 4, separator: '',  periodType: 'YYMM' },
+  sr:                          { prefix: 'SR', padLen: 4, separator: '',  periodType: 'YYMM' },
 };
 
 /**
