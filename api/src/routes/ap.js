@@ -7,6 +7,8 @@ const { recordAuditLog } = require('../lib/auditTrail');
 const { assertActionAuthorized } = require('../lib/authorizationPolicy');
 const { getPagination, paginated } = require('../lib/pagination');
 const { assertActive } = require('../lib/accountingMaster');
+const { lockPo } = require('../lib/contractorPayment');
+const { invalid, moneyCents } = require('../lib/deliveryOrder');
 const {
   normalizePurchaseOrderItems,
   calculatePurchaseOrderTotals,
@@ -238,10 +240,13 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
     const totals = calculatePurchaseOrderTotals(items, vatConfig);
 
     const result = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM purchase_orders WHERE id = ${req.params.id} FOR UPDATE`;
       const previous = await tx.purchaseOrder.findUniqueOrThrow({
         where: { id: req.params.id },
         include: PURCHASE_ORDER_INCLUDE,
       });
+      const reservedPs = await tx.contractorPaymentRequest.count({ where: { poId: previous.id, status: { in: ['pending', 'approved'] } } });
+      if (reservedPs) invalid('PO มี PS รออนุมัติ/อนุมัติแล้ว ไม่สามารถแก้ไขได้ ต้องคืนวงเงิน PS ก่อน', 409);
       if (previous.status !== 'draft') {
         throw Object.assign(new Error('แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft'), { status: 409 });
       }
@@ -307,90 +312,7 @@ router.put('/purchase-orders/:id', authenticate, async (req, res, next) => {
 
 // ─── 2. CONTRACTOR PAYMENT REQUESTS (PS) ──────────────────────────────────────
 
-// POST /api/ap/contractor-payments
-router.post('/contractor-payments', authenticate, async (req, res, next) => {
-  try {
-    const {
-      docDate,
-      poId,
-      supplierId,
-      paymentRound = 1,
-      poAmount = 0,
-      currentRequestAmount = 0,
-      vat = 0,
-      wht = 0,
-      retention = 0,
-      netAmount = 0,
-      items = [],
-    } = req.body;
-
-    if (!poId) return res.status(400).json({ message: 'กรุณาระบุใบสั่งซื้ออ้างอิง (poId)' });
-
-    const result = await prisma.$transaction(async (tx) => {
-      const po = await tx.purchaseOrder.findUniqueOrThrow({ where: { id: poId } });
-      await assertActive(tx, 'supplier', supplierId || po.supplierId, 'ผู้จำหน่าย');
-
-      // Calculate previously requested amounts for this PO
-      const previousRequests = await tx.contractorPaymentRequest.findMany({
-        where: { poId, status: { in: ['approved', 'pending', 'draft'] } },
-      });
-      const previouslyRequested = previousRequests.reduce((sum, req) => sum + Number(req.currentRequestAmount), 0);
-      const remaining = Number(po.netAmount) - previouslyRequested;
-      const currentReq = parseFloat(currentRequestAmount) || 0;
-
-      if (currentReq > remaining) {
-        throw new Error(`ยอดเบิกครั้งนี้ (฿${currentReq}) เกินกว่ายอด PO คงเหลือ (฿${remaining})`);
-      }
-
-      const psNo = await generateNextRunningNumber('ps', {
-        date: docDate ? new Date(docDate) : new Date(),
-        round: parseInt(paymentRound, 10) || 1,
-      }, tx);
-
-      const doc = await tx.contractorPaymentRequest.create({
-        data: {
-          psNo,
-          docDate: docDate ? new Date(docDate) : new Date(),
-          poId,
-          supplierId: supplierId || po.supplierId,
-          paymentRound: parseInt(paymentRound, 10) || 1,
-          poAmount: Number(po.netAmount),
-          previouslyRequestedAmount: previouslyRequested,
-          remainingAmount: Math.max(0, remaining - currentReq),
-          currentRequestAmount: currentReq,
-          vat: parseFloat(vat) || 0,
-          wht: parseFloat(wht) || 0,
-          retention: parseFloat(retention) || 0,
-          netAmount: parseFloat(netAmount) || 0,
-          createdById: req.user.id,
-          status: 'draft',
-          items: {
-            create: items.map((it, idx) => ({
-              seq: idx,
-              desc: String(it.desc || ''),
-              amount: parseFloat(it.amount) || 0,
-              remark: it.remark || null,
-            })),
-          },
-        },
-        include: { items: true },
-      });
-
-      await recordAuditLog({
-        entityType: 'contractor_payment_request',
-        entityId: doc.id,
-        docNo: doc.psNo,
-        action: 'create',
-        newValue: doc,
-        req,
-      }, tx);
-
-      return doc;
-    });
-
-    res.status(201).json(result);
-  } catch (e) { next(e); }
-});
+router.use('/contractor-payments', require('./contractor-payments'));
 
 // ─── 3. GOODS RECEIPTS (GR) ───────────────────────────────────────────────────
 
@@ -531,7 +453,26 @@ router.post('/payment-vouchers', authenticate, async (req, res, next) => {
       items = [],
     } = req.body;
 
+    if (sourceDocType != null && !['pr', 'po', 'ps'].includes(sourceDocType)) invalid('ประเภทเอกสารต้นทาง PV ไม่ถูกต้อง');
+    if (sourceDocId && !sourceDocType) invalid('กรุณาระบุประเภทเอกสารต้นทาง PV');
     const result = await prisma.$transaction(async (tx) => {
+      if (sourceDocType === 'ps') {
+        if (!sourceDocId || typeof sourceDocId !== 'string') invalid('กรุณาระบุ PS อ้างอิง');
+        await tx.$queryRaw`SELECT id FROM contractor_payment_requests WHERE id = ${sourceDocId} FOR UPDATE`;
+        const source = await tx.contractorPaymentRequest.findUnique({ where: { id: sourceDocId } });
+        if (!source || source.lifecycleVersion !== 1 || source.status !== 'approved') invalid('ใช้ได้เฉพาะ PS ใหม่ที่อนุมัติแล้ว', 409);
+        await lockPo(tx, source.poId);
+        if (supplierId !== source.supplierId) invalid('ผู้รับเหมาของ PV ไม่ตรงกับ PS');
+        for (const [value, expected, label] of [
+          [amountBeforeTax, source.currentRequestAmount, 'ยอดก่อนภาษี'], [vat, source.vat, 'VAT'],
+          [wht, source.wht, 'ภาษีหัก ณ ที่จ่าย'], [otherDeduction, source.retention, 'เงินประกัน'], [netPayment, source.netAmount, 'ยอดจ่ายสุทธิ'],
+        ]) {
+          if (moneyCents(value, label) !== moneyCents(String(expected), label)) invalid(`PV ต้องใช้${label}ตรงกับ PS ที่อนุมัติ`);
+        }
+        if (await tx.paymentVoucher.count({ where: { sourceDocType: 'ps', sourceDocId, status: { not: 'cancelled' } } })) {
+          invalid('PS นี้มี PV ที่ยังไม่ยกเลิกแล้ว', 409);
+        }
+      }
       const pvNo = await generateNextRunningNumber('pv', { date: pvDate ? new Date(pvDate) : new Date() }, tx);
       if (supplierId) await assertActive(tx, 'supplier', supplierId, 'ผู้จำหน่าย');
       const doc = await tx.paymentVoucher.create({

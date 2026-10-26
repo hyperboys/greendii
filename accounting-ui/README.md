@@ -26,6 +26,57 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Navigation
 
+### Contractor payment requests (PS)
+
+Open AP > PS (`/ap/vouchers?tab=ps`). New/view/edit are separate pages under
+`/ap/vouchers/ps/`. The register supports PS/PO/contractor search, status filtering
+and 20-row server pagination. PO selection is searchable, dates use dd/mm/yyyy,
+and each request has multiple before-VAT amount lines, remarks and record history.
+
+The agreed interim scope permits noncancelled/nonrejected Draft POs. The supplier
+comes from PO, with a saved identity/address snapshot. VAT follows PO; user-entered
+WHT and retention rates start at zero and apply to the before-VAT sum. Amounts are
+recalculated by the API in satang, with independent before-VAT/VAT/gross PO caps.
+Draft does not reserve capacity. Submit reserves it; pending/approved requests
+consume capacity, and return/reject/cancel release it. Printed cumulative amounts
+are snapshots at save/submit/approval, not live balances or cash paid.
+
+Lifecycle: Draft/returned may be edited and submitted; pending may be approved,
+returned or rejected. Approval is one step, with no amount/type routing in this
+phase. `ap.view` reads, `ap.create` creates/submits, `ap.update` edits,
+`ap.approve` approves/returns/rejects and `ap.cancel` cancels. Admins must assign the
+new permissions to Accounting roles. The creator cannot approve their own request,
+including admin; use a different approver account. Return/reject/cancel require a
+reason. Approved records are immutable. PS uses a new `PSYYMMXXX-Rround` number
+per document at Draft creation; PO+round is unique even after rejection/cancellation.
+
+PO edits are blocked while pending/approved PS exists. All PS mutations, round
+checks, reservations and audit writes share transactions and PO row locks, with
+revision checks and create request-key deduplication. Existing PV creation from
+`sourceDocType=ps` now requires a new approved PS, matching supplier and all PS
+amounts, with no other noncancelled PV for that PS. PS cancellation is blocked by
+any noncancelled referencing PV under the same lock order. This is a source guard,
+not the completed PV allocation/approval/payment/cancellation process.
+
+PS prints on blank A4 paper, eight lines per page with totals on the final page,
+status markings and blank signature boxes. Overflow blocks printing and asks for
+shorter text. No PS-specific reference PDF was supplied; this is the agreed plain
+paper layout, not a claim of matching an existing PS form. No cash, GL or Stock
+posting, retention release, email/inbox, multi-step approval or FX is included.
+
+**Rollout:** Review/backup and run
+[`accounting-contractor-payments.sql`](../api/scripts/sql/accounting-contractor-payments.sql)
+after the prior Accounting/master scripts. It adds fields/indexes without changing
+legacy amounts/status. Duplicate existing PO/round pairs abort the script for
+manual reconciliation. Existing PS remains lifecycleVersion=0/read-only; unresolved
+noncancelled/nonrejected Legacy PS blocks new requests on that PO. Do not relabel
+legacy rows as version 1 without a separate audited data migration.
+Stop API, run `npx prisma generate` in `api`, restart and deploy UI together.
+Generation here encountered the Windows DLL lock (`EPERM`); no user process was
+stopped and no shared SQL was applied. Real PostgreSQL/concurrent-user and physical
+printer UAT are still required. Automated browser tests used the real Express
+routes/auth with a transactional in-memory Prisma substitute.
+
 ### Accounting master data (six groups)
 
 Customer, Accounting Sale, Supplier/Contractor, Product/Service, Warehouse and

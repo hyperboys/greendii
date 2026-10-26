@@ -2,7 +2,7 @@ const prisma = require('./prisma');
 
 const ACCOUNTING_MODULES = [
   { key: 'ar', label: 'ลูกหนี้ / รับชำระเงิน', actions: ['view', 'create'] },
-  { key: 'ap', label: 'เจ้าหนี้ / ค่าใช้จ่าย', actions: ['view', 'create', 'update'] },
+  { key: 'ap', label: 'เจ้าหนี้ / ค่าใช้จ่าย', actions: ['view', 'create', 'update', 'approve', 'cancel'] },
   { key: 'inventory', label: 'คลังสินค้า / สต็อก', actions: ['view', 'create'] },
   { key: 'master', label: 'ข้อมูลหลัก / ผังบัญชี', actions: ['view', 'create', 'update', 'delete'] },
   { key: 'reports', label: 'รายงานการเงิน', actions: ['view'] },

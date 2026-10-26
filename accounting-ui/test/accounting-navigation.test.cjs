@@ -74,6 +74,10 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   pathname = "/ap/vouchers/po-1/edit";
   html = render();
   assert.match(html, /href="\/ap\/vouchers\?tab=po" aria-current="page"/);
+  pathname = "/ap/vouchers/ps/ps-1/edit";
+  html = render();
+  assert.match(html, /href="\/ap\/vouchers\?tab=ps" aria-current="page"/);
+  assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
   access = { ...fullAccess, isAdmin: false, permissions: ["ar.view"] };
   html = render();
   assert.equal(html.includes('href="/master?tab=suppliers"'), false);

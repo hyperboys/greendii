@@ -1335,6 +1335,9 @@ model PurchaseOrderPurchaseRequest {
 
 model ContractorPaymentRequest {
   id                        String        @id @default(cuid())
+  lifecycleVersion          Int           @default(0) @map("lifecycle_version")
+  requestKey                String?       @unique @map("request_key")
+  requestHash               String?       @map("request_hash")
   psNo                      String        @unique
   docDate                   DateTime      @default(now()) @db.Timestamptz(3)
   poId                      String        @map("po_id")
@@ -1350,6 +1353,15 @@ model ContractorPaymentRequest {
   wht                       Decimal       @default(0) @db.Decimal(12, 2)
   retention                 Decimal       @default(0) @db.Decimal(12, 2)
   netAmount                 Decimal       @default(0) @map("net_amount") @db.Decimal(12, 2)
+  whtRate                   Decimal       @default(0) @map("wht_rate") @db.Decimal(5, 2)
+  retentionRate             Decimal       @default(0) @map("retention_rate") @db.Decimal(5, 2)
+  previouslyRetainedAmount  Decimal       @default(0) @map("previously_retained_amount") @db.Decimal(12, 2)
+  vatConfig                 String        @default("NO_VAT") @map("vat_config")
+  poNo                      String?       @map("po_no")
+  supplierSnapshot          Json?         @map("supplier_snapshot")
+  remark                    String?
+  approvedById              String?       @map("approved_by_id")
+  approvedAt                DateTime?     @map("approved_at") @db.Timestamptz(3)
   status                    DocStatus     @default(draft)
   approvalStep              Int           @default(0)
   createdById               String?       @map("created_by_id")
@@ -1358,6 +1370,8 @@ model ContractorPaymentRequest {
 
   items ContractorPaymentRequestLine[]
 
+  @@unique([poId, paymentRound])
+  @@index([poId, status])
   @@map("contractor_payment_requests")
 }
 

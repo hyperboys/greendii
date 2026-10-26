@@ -6,6 +6,7 @@ export const invoiceTabs = [
 
 export const payableTabs = [
   { id: "po", label: "ใบสั่งซื้อ (PO)" },
+  { id: "ps", label: "ใบเบิกจ่ายผู้รับเหมา (PS)" },
   { id: "gr", label: "ใบตรวจรับ (GR)" },
   { id: "pv", label: "ใบสำคัญจ่าย (PV)" },
   { id: "cq", label: "การจ่ายเงิน / เช็คจ่าย" },

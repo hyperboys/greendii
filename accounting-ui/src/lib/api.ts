@@ -184,7 +184,7 @@ export const ApApi = {
     return data;
   },
 
-  createContractorPayment: (data: any) => apiFetch("/api/ap/contractor-payments", { method: "POST", body: JSON.stringify(data) }),
+  createContractorPayment: (data: import("./contractor-payment").PaymentInput) => apiFetch<import("./contractor-payment").ContractorPayment>("/api/ap/contractor-payments", { method: "POST", body: JSON.stringify(data) }),
 
   createGoodsReceipt: (data: any) => apiFetch("/api/ap/goods-receipts", { method: "POST", body: JSON.stringify(data) }),
 
