@@ -2,9 +2,27 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { getPagination, paginated } = require('../lib/pagination');
+const { stockCard } = require('../lib/stockCard');
 
 router.use('/issues', require('./stock-issues'));
 router.use('/returns', require('./stock-returns'));
+router.use('/opening-balances', require('./stock-opening-balances'));
+
+router.get('/stock-card/lookups', authenticate, async (_req, res, next) => {
+  try {
+    const [products, warehouses] = await Promise.all([
+      prisma.accountProduct.findMany({ select: { id: true, code: true, name: true, unit: true, active: true }, orderBy: { name: 'asc' } }),
+      prisma.warehouse.findMany({ select: { id: true, code: true, name: true, active: true }, orderBy: { name: 'asc' } }),
+    ]);
+    res.json({ products, warehouses });
+  } catch (error) { next(error); }
+});
+
+router.get('/stock-card', authenticate, async (req, res, next) => {
+  try {
+    res.json(await stockCard(prisma, req.query));
+  } catch (error) { next(error); }
+});
 
 router.get('/movements', authenticate, async (req, res, next) => {
   try {

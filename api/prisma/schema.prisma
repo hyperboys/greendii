@@ -20,6 +20,7 @@ datasource db {
 enum DocStatus {
   draft // แบบร่าง
   pending // รออนุมัติ
+  returned // ส่งกลับแก้ไข
   approved // อนุมัติแล้ว
   rejected // ปฏิเสธ
   cancelled // ยกเลิก
@@ -281,6 +282,7 @@ model AccountProduct {
   updatedAt   DateTime @updatedAt @db.Timestamptz(3)
 
   stockBalances                 StockBalance[]
+  stockOpeningBalanceLines      StockOpeningBalanceLine[]
   provisionalDeliveryOrderLines ProvisionalDeliveryOrderLine[]
   invoiceLines                  InvoiceLine[]
   purchaseOrderLines            PurchaseOrderLine[]
@@ -404,6 +406,7 @@ model Warehouse {
   stockIssues    StockIssue[]
   stockReturns   StockReturn[]
   stockMovements StockMovement[]
+  stockOpeningBalances StockOpeningBalance[]
 
   @@map("warehouses")
 }
@@ -1675,6 +1678,58 @@ model StockReturnLine {
 
   @@map("stock_return_lines")
   @@index([stockIssueLineId], map: "stock_return_lines_issue_line_idx")
+}
+
+model StockOpeningControl {
+  id         String   @id @default("default")
+  cutoverDate DateTime @map("cutover_date") @db.Date
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("stock_opening_controls")
+}
+
+model StockOpeningBalance {
+  id                String      @id @default(cuid())
+  openingNo         String      @unique @map("opening_no")
+  lifecycleVersion  Int         @default(1) @map("lifecycle_version")
+  requestKey        String?     @unique @map("request_key")
+  requestHash       String?     @map("request_hash")
+  warehouseId       String      @map("warehouse_id")
+  warehouse         Warehouse   @relation(fields: [warehouseId], references: [id], onDelete: Restrict)
+  warehouseSnapshot Json        @map("warehouse_snapshot")
+  cutoverDate       DateTime    @map("cutover_date") @db.Date
+  status            DocStatus   @default(draft)
+  approvalStep      Int         @default(0) @map("approval_step")
+  remark            String?
+  createdById       String?     @map("created_by_id")
+  approvedAt        DateTime?   @map("approved_at") @db.Timestamptz(3)
+  approvedById      String?     @map("approved_by_id")
+  cancelledAt       DateTime?   @map("cancelled_at") @db.Timestamptz(3)
+  cancellationReason String?    @map("cancellation_reason")
+  createdAt         DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime    @updatedAt @map("updated_at") @db.Timestamptz(3)
+  items             StockOpeningBalanceLine[]
+
+  @@index([warehouseId, cutoverDate])
+  @@index([status, cutoverDate])
+  @@map("stock_opening_balances")
+}
+
+model StockOpeningBalanceLine {
+  id                    String             @id @default(cuid())
+  stockOpeningBalanceId String             @map("stock_opening_balance_id")
+  stockOpeningBalance   StockOpeningBalance @relation(fields: [stockOpeningBalanceId], references: [id], onDelete: Cascade)
+  seq                   Int                @default(0)
+  productId             String             @map("product_id")
+  product               AccountProduct     @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productSnapshot       Json               @map("product_snapshot")
+  countedQty            Decimal            @map("counted_qty") @db.Decimal(12, 3)
+  bookQtyAtCutover      Decimal            @default(0) @map("book_qty_at_cutover") @db.Decimal(12, 3)
+  deltaQty              Decimal            @default(0) @map("delta_qty") @db.Decimal(12, 3)
+
+  @@unique([stockOpeningBalanceId, productId])
+  @@map("stock_opening_balance_lines")
 }
 
 model StockMovement {

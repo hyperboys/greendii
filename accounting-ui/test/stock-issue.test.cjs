@@ -19,8 +19,10 @@ test('IS full-page strict new/view/edit URLs and inventory issue tab replace imm
   for (const record of [['new', 'edit'], ['is', 'delete'], ['is', 'edit', 'extra']]) assert.throws(() => Page({ params: { record } }), /Not found/);
   const nav = load(['lib', 'accounting-navigation.ts']);
   const List = load(['app', 'inventory', 'page.tsx'], { '@/components/inventory-data': { InventoryData: Component },
-    '@/lib/accounting-navigation': nav, '@/components/stock-issues': { StockIssues: Component }, '@/components/stock-returns': { StockReturns: Component } }).default;
+    '@/lib/accounting-navigation': nav, '@/components/stock-issues': { StockIssues: Component }, '@/components/stock-returns': { StockReturns: Component },
+    '@/components/stock-opening-balances': { StockOpeningBalances: Component } }).default;
   assert.equal(List({ searchParams: { tab: 'issues' } }).type, Component);
+  assert.equal(List({ searchParams: { tab: 'opening-balances' } }).type, Component);
   const source = fs.readFileSync(path.join(__dirname, '..', 'src', 'app', 'inventory', 'page.tsx'), 'utf8');
   assert.doesNotMatch(source, /showIssueModal|createIssue|accounting-modal/);
 });

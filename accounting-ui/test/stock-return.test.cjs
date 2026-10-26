@@ -21,7 +21,8 @@ test('SR strict separate routes and server query dispatch; returns retain defaul
   for (const record of [['new', 'edit'], ['sr', 'delete'], ['sr', 'edit', 'extra']]) assert.throws(() => Page({ params: { record } }), /Not found/);
   const nav = load(['lib', 'accounting-navigation.ts']);
   const List = load(['app', 'inventory', 'page.tsx'], { '@/components/inventory-data': { InventoryData: Other },
-    '@/components/stock-issues': { StockIssues: Other }, '@/components/stock-returns': { StockReturns: Component }, '@/lib/accounting-navigation': nav }).default;
+    '@/components/stock-issues': { StockIssues: Other }, '@/components/stock-returns': { StockReturns: Component },
+    '@/components/stock-opening-balances': { StockOpeningBalances: Other }, '@/lib/accounting-navigation': nav }).default;
   assert.equal(List({ searchParams: { tab: 'returns' } }).type, Component);
   assert.equal(List({ searchParams: {} }).props.activeTab, 'balances');
 });

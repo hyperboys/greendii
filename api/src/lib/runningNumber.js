@@ -34,6 +34,8 @@ const DOC_PATTERNS = {
   is:                          { prefix: 'IS', padLen: 4, separator: '',  periodType: 'YYMM' },
   stock_return:                { prefix: 'SR', padLen: 4, separator: '',  periodType: 'YYMM' },
   sr:                          { prefix: 'SR', padLen: 4, separator: '',  periodType: 'YYMM' },
+  stock_opening_balance:       { prefix: 'OB', padLen: 4, separator: '',  periodType: 'YYMM' },
+  ob:                          { prefix: 'OB', padLen: 4, separator: '',  periodType: 'YYMM' },
 };
 
 /**

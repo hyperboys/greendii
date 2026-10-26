@@ -7,7 +7,7 @@ function createContractorPaymentApp() {
     vat: 700, netAmount: 10700, vatConfig: 'VAT7%', status: 'draft', supplierId: supplier.id, supplier,
     supplierBranch: 'Head office', address: 'Saved address', contactPerson: 'Contact', supplierSnapshot: { name: supplier.name, code: supplier.code } };
   let state = { purchaseOrder: [po], goodsReceipt: [], accountProduct: [], warehouse: [], stockBalance: [], stockMovement: [],
-    stockIssue: [], stockReturn: [], workOrder: [],
+    stockIssue: [], stockReturn: [], stockOpeningBalance: [], stockOpeningControl: [], workOrder: [],
     contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], sequence: 0 };
   let failAudit = false, queue = Promise.resolve();
   const locks = [], storageOperations = [];
@@ -24,6 +24,13 @@ function createContractorPaymentApp() {
       if ('not' in value) return (row[key] ?? null) !== value.not;
       if ('in' in value) return value.in.includes(row[key]);
       if ('notIn' in value) return !value.notIn.includes(row[key]);
+      if (['gt', 'gte', 'lt', 'lte'].some(operator => operator in value)) {
+        const actual = row[key] instanceof Date ? row[key].getTime() : Number(row[key]);
+        return (!('gt' in value) || actual > new Date(value.gt).getTime()) &&
+          (!('gte' in value) || actual >= new Date(value.gte).getTime()) &&
+          (!('lt' in value) || actual < new Date(value.lt).getTime()) &&
+          (!('lte' in value) || actual <= new Date(value.lte).getTime());
+      }
       if ('contains' in value) return String(row[key] || '').toLowerCase().includes(value.contains.toLowerCase());
       if ('equals' in value) return String(row[key] || '').toLowerCase() === value.equals.toLowerCase();
       if ('path' in value) return String(row[key]?.[value.path[0]] || '').includes(value.string_contains);
@@ -35,6 +42,8 @@ function createContractorPaymentApp() {
     if (!value) return null;
     const row = structuredClone(value);
     if (row.items?.create) row.items = row.items.create.map((item, i) => ({ ...item, id: `${row.id}-item-${i}` }));
+    if (row.productId && !row.product) row.product = structuredClone(state.accountProduct.find(item => item.id === row.productId) || null);
+    if (row.warehouseId && !row.warehouse) row.warehouse = structuredClone(state.warehouse.find(item => item.id === row.warehouseId) || null);
     if (row.pvNo && !row.cqNo) {
       row.attachments = structuredClone(state.attachment.filter(file => file.paymentVoucherId === row.id));
       row.chequePayments = structuredClone(state.chequePayment.filter(file => file.paymentVoucherId === row.id));
@@ -69,12 +78,39 @@ function createContractorPaymentApp() {
       return run;
     },
   };
-  for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement', 'stockIssue', 'stockReturn', 'workOrder',
+  for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement', 'stockIssue', 'stockReturn',
+    'stockOpeningBalance', 'stockOpeningControl', 'workOrder',
     'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog']) prisma[model] = {
     findMany: async ({ where, skip = 0, take, orderBy } = {}) => {
       const rows = state[model].filter(row => matches(row, where));
-      if (orderBy) rows.sort((a, b) => Number(b.createdAt || b.docDate || 0) - Number(a.createdAt || a.docDate || 0) || b.id.localeCompare(a.id));
+      if (orderBy) {
+        const fields = Array.isArray(orderBy) ? orderBy : [orderBy];
+        rows.sort((a, b) => {
+          for (const clause of fields) {
+            const [field, direction] = Object.entries(clause)[0];
+            const left = a[field] instanceof Date ? a[field].getTime() : a[field];
+            const right = b[field] instanceof Date ? b[field].getTime() : b[field];
+            if (left !== right) return (left < right ? -1 : 1) * (direction === 'desc' ? -1 : 1);
+          }
+          return 0;
+        });
+      }
       return rows.slice(skip, take == null ? undefined : skip + take).map(hydrate);
+    },
+    groupBy: async ({ by, where, _sum }) => {
+      const groups = new Map();
+      for (const row of state[model].filter(item => matches(item, where))) {
+        const key = by.map(field => row[field]).join('\u0000');
+        let group = groups.get(key);
+        if (!group) {
+          group = Object.fromEntries(by.map(field => [field, row[field]]));
+          group._sum = Object.fromEntries(Object.keys(_sum).map(field => [field, 0]));
+          groups.set(key, group);
+        }
+        for (const field of Object.keys(_sum)) group._sum[field] += Number(row[field] || 0);
+      }
+      return [...groups.values()].map(group => ({ ...group,
+        _sum: Object.fromEntries(Object.entries(group._sum).map(([field, value]) => [field, Number(value.toFixed(3))])) }));
     },
     count: async ({ where } = {}) => state[model].filter(row => matches(row, where)).length,
     findUnique: async ({ where }) => hydrate(state[model].find(row => matches(row, where))),
@@ -99,7 +135,8 @@ function createContractorPaymentApp() {
       }
       const now = new Date(Date.now() + ++state.sequence);
       const row = hydrate({ ...(model === 'paymentVoucher' ? { paidAt: null, reversedAt: null, taxpayerType: null, taxDescription: null } : {}),
-        ...data, id: `${model}-${state.sequence}`, updatedAt: now, createdAt: now, uploadedAt: now });
+        ...data, id: model === 'stockOpeningControl' ? data.id : `${model}-${state.sequence}`,
+        updatedAt: now, createdAt: now, uploadedAt: now });
       if (model === 'auditLog') row.performedBy = { fullName: data.performedById };
       state[model].push(row);
       return hydrate(row);
@@ -129,7 +166,8 @@ function createContractorPaymentApp() {
   for (const file of ['../../src/lib/accountingAccess', '../../src/middleware/auth', '../../src/middleware/accountingAccess',
     '../../src/lib/runningNumber', '../../src/lib/auditTrail', '../../src/lib/accountingMaster', '../../src/lib/paymentVoucher',
     '../../src/lib/chequePayment', '../../src/routes/cheque-payments', '../../src/lib/purchaseOrderApproval', '../../src/lib/goodsReceipt', '../../src/routes/goods-receipts',
-    '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/lib/stockReturn', '../../src/routes/stock-returns', '../../src/routes/inventory',
+    '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/lib/stockReturn', '../../src/routes/stock-returns',
+    '../../src/lib/stockOpeningBalance', '../../src/routes/stock-opening-balances', '../../src/routes/inventory',
     '../../src/routes/ap', '../../src/routes/contractor-payments', '../../src/routes/payment-vouchers', '../../src/routes/upload']) {
     delete require.cache[require.resolve(file)];
   }

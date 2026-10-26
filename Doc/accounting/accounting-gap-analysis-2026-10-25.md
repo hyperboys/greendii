@@ -607,8 +607,73 @@ Rollout: backup/review/apply SQL หลัง Accounting/master/GR/IS/evidence p
 generate/restart/deploy UI+API ให้ตรงกันและตรวจสิทธิ์. Local generate ผ่านแล้ว
 แต่ **ยังไม่ apply SQL/ไม่ db push/ไม่หยุด API ของผู้ใช้** ไม่ยืนยัน schema ฐานข้อมูลร่วม.
 ต้อง UAT PostgreSQL/พร้อมกัน/storage/เครื่องพิมพ์จริงและตรวจ Legacy แยก.
-**ขั้นถัดไปเสนอคลัง/Stock Card/ยอดยกมา Q-14 หรือรายงาน Q-16 ต้องยืนยันนิยามก่อนทำ**
-ไม่ต้องถามกติกา GR/IS/SR ที่ตอบแล้วซ้ำ.
+Stock Card แบบรายงาน Movement ทำเพิ่มใน 1.16 ตามขอบเขตที่ยืนยันแล้ว; เป็น read-only
+และ **ไม่ใช่ระบบบันทึกยอดยกมา**. Q-14 ยืนยันนโยบายแล้วและเริ่มพัฒนาใน 1.17;
+ยังไม่ใช่ production sign-off จน apply additive SQL บน target, ทดสอบ PostgreSQL
+concurrency และทำ UAT ยอดจริง. ไม่ต้องถามกติกา GR/IS/SR ที่ตอบแล้วซ้ำ.
+
+### 1.16 Stock Card รายงาน Movement ตามช่วงวันที่ (26/10/2026)
+
+ทำรายงานในเมนู Inventory > ประวัติการเคลื่อนย้ายสินค้า โดยไม่เปลี่ยน schema,
+ไม่แก้ยอด StockBalance และไม่รัน SQL/db push. API `GET /api/inventory/stock-card`
+ต้องระบุวันที่เริ่ม/สิ้นสุด ISO และรับตัวกรองสินค้า/คลัง; lookup แสดง master
+ที่ active และ inactive เพื่อให้เปิดดูประวัติเก่าได้.
+
+- วันปฏิทินขอบเขต Bangkok (UTC+7): เริ่มวันรวมเวลา 00:00 และวันสิ้นสุดรวมทั้งวัน
+  โดย query ปิดช่วงด้วยต้นวันถัดไปแบบ exclusive.
+- ยอดยกมาต้นช่วง = ผลรวม qtyIn - qtyOut ของ Movement ทั้งหมดก่อนต้นวัน;
+  ไม่อ่านยอดปัจจุบันเป็นยอดย้อนหลัง.
+- รายการช่วงวันที่เรียง transactionDate แล้ว ID เพื่อให้ timestamp ซ้ำมีลำดับคงที่;
+  แต่ละรายการแสดงยอดก่อน/หลัง, รับ, จ่าย. Reversal ใช้ทิศทาง qtyIn/qtyOut
+  ที่ Movement บันทึก จึงสะท้อนรายการกลับโดยไม่ลบประวัติต้นฉบับ.
+- สรุปแยกคู่สินค้า/คลัง: ยอดยกมา, รับเข้า, จ่ายออก, ยอดปลายช่วง.
+  UI แบ่งหน้ารายการ 20 แถว, CSV ครบทุก Movement ตามช่วง/ตัวกรอง, พิมพ์/PDF
+  มีหัวตารางซ้ำและสรุป.
+- ถ้าประวัติ Movement ก่อนวันเริ่มต้นไม่ครบ (เช่น มี StockBalance เก่าที่ไม่มี
+  Movement รองรับ) ยอดยกมาจะไม่ตรง Stock จริง; UI/พิมพ์เตือนชัดและไม่สร้าง
+  baseline เดาจาก On Hand ปัจจุบัน. ชื่อสินค้า/คลังมาจาก master ปัจจุบันเพราะ
+  StockMovement ไม่มี historical label snapshot. ไม่มี cost valuation/GL/ยอดยกมา/ปรับยอด.
+
+หลักฐาน: [Stock Card service](../../api/src/lib/stockCard.js),
+[Inventory routes](../../api/src/routes/inventory.js),
+[API tests](../../api/test/stockCard.test.js),
+[UI](../../accounting-ui/src/components/inventory-data.tsx),
+[UI tests](../../accounting-ui/test/stock-card.test.cjs).
+Validation ใช้ HTTP/Prisma substitute แยก ไม่ใช่ UAT PostgreSQL หรือกระทบยอดกับ
+ข้อมูลจริง; ต้องตรวจ target DB และความครบถ้วนของ Movement ก่อนใช้ปิดยอดบัญชี.
+ผลรอบนี้: API รวม **132/132**, focused Stock Card/IS/SR/navigation UI **18/18**,
+production build/TypeScript/changed-source lint ผ่าน; full UI **84/85** เหลือ BI
+fixed-date fixture ที่ไม่เกี่ยวกับงานนี้. ไม่มี schema/SQL change. การทดสอบ API
+ใช้ Express/auth/routes จริงกับ Prisma substitute ไม่ได้ยืนยัน PostgreSQL.
+
+### 1.17 Q-14 ยอดยกมา / กระทบยอดคลัง (กำลังพัฒนา)
+
+นโยบายที่ยืนยันแล้ว: ใช้วันเริ่มต้นเดียวทั้งบริษัท; กรอกยอดตรวจนับจริง ณ สิ้นวัน
+ก่อนวันเริ่มใช้; รองรับ Draft/manual หรือ CSV; ส่งอนุมัติและห้ามผู้สร้างอนุมัติเอง;
+ลง Stock เฉพาะตอนอนุมัติ; เอกสารที่มีผลหนึ่งใบต่อคลัง/วันตัดยอด; เอกสารอนุมัติแก้ไม่ได้;
+ยกเลิกได้ตามเงื่อนไขและลง reversal; เฟสนี้ไม่รวม costing/GL. เนื่องจาก GR/IS/SR
+มี Movement และ StockBalance อยู่แล้ว การลงยอดตรวจนับทั้งก้อนจะซ้ำ จึง post
+เฉพาะ `counted quantity - movement-derived book quantity`.
+
+API ใต้ `/api/inventory/opening-balances` ครอบคลุม lookup/preview/list/detail,
+create/update Draft, submit/approve/return/reject/cancel. Preview ตรวจ Movement
+ทั้งคลังกับ `onHand`, `reserved`, `available`; บล็อกเมื่อไม่ตรง, ยอดติดลบ หรือมี
+สินค้าที่มียอด book แต่ไม่ได้ตรวจนับ และห้ามยอดลดต่ำกว่า Reserved. อนุมัติจะบันทึก
+Movement ของผลต่าง ณ ก่อนวันแรกของ cutover; อนุญาตส่งอนุมัติตั้งแต่วันเริ่มใช้เพื่อ
+ไม่ปรับยอด Stock ก่อนมีผล; ยกเลิก approved ลงวันที่อนาคตไม่ได้ สร้าง reversal และบล็อก
+เมื่อมี Movement ภายหลังหรือมียอดจองบนสินค้าที่กระทบ. UI มีทะเบียน/สร้าง/แก้/ดู,
+manual count, CSV import (`productCode,countedQty`), preview ส่วนต่างและ approval/cancel.
+
+หลักฐาน: [domain service](../../api/src/lib/stockOpeningBalance.js),
+[route](../../api/src/routes/stock-opening-balances.js),
+[API test](../../api/test/stockOpeningBalances.test.js),
+[UI](../../accounting-ui/src/components/stock-opening-balances.tsx),
+[CSV/API tests](../../accounting-ui/test/stock-opening-balance.test.cjs),
+[additive SQL](../../api/scripts/sql/accounting-stock-opening-balances.sql).
+Prisma schema validate/client generate ผ่าน; API **133/133**, targeted UI **13/13**,
+UI production build ผ่าน. การทดสอบ HTTP ใช้ Express/auth/routes จริงกับ Prisma substitute;
+ยังไม่พิสูจน์ PostgreSQL locking/concurrency หรือ target-data reconciliation. SQL ยังไม่ apply,
+ไม่มี db push/reset และไม่ถือว่า schema ที่ deploy แล้วเปลี่ยนตาม.
 
 ## 2. Scope Baseline และวิธีตรวจ
 
@@ -667,7 +732,7 @@ generate/restart/deploy UI+API ให้ตรงกันและตรวจ�
 | ใบสำคัญจ่าย PV | ทะเบียน/หน้าแยก/PS approved เต็มยอด/อนุมัติ/เงินสด-โอน/หลักฐาน/กลับรายการ/พิมพ์/history/action permissions | รอ SQL/generate/DB/storage/printer UAT; ไม่ partial/รวม PS/PR-PO direct/GL; เช็คยังไม่ตัดจ่าย | Implemented agreed scope ตาม 1.10 |
 | เช็คจ่าย CQ | หน้าแยก/ทะเบียน/search/status/CSV/หลักฐาน/history/A4; Prepared-Printed-Signed-Released-Cleared-Cancelled; PV settlement/reversal/normalized unique/legacy guards | รอ SQL/generate/DB/storage/printer UAT; ไม่พิมพ์ลงเช็คจริง/เชื่อมธนาคาร/GL | Implemented agreed scope ตาม 1.11 |
 | ยอดคงเหลือคลัง | ตาราง onHand/reserved/available | ไม่มีตัวกรองคลัง/สินค้าและสต็อกต่ำที่ครบ, pagination UI, initial balance/adjustment flow | ดูข้อมูลได้บางส่วน |
-| Stock Movement / Stock Card | ตาราง movement/source number/เปิด IS-GR ต้นทาง/แสดง reversal | ยังไม่ใช่ Stock Card แบบยอดยกมา/เข้า/ออก/คงเหลือ ณ วัน และยังไม่เชื่อมทุกชนิดเอกสาร | ทำบางส่วนตาม 1.14; remaining Q-14 |
+| Stock Movement / Stock Card | ตารางยอดยกมา/รับ/จ่าย/ยอดสะสมตามช่วงวันที่, สรุปสินค้า-คลัง, filter/CSV/A4, บันทึก GR/IS/SR+reversal ที่มีใน Movement | ยอดยกมาจาก Movement เท่านั้น; ยังไม่มี opening-balance setup/reconciliation, adjustment/transfer, Stock by WO, valuation | Report implemented 1.16; Q-14/UAT pending |
 | เบิกสินค้า IS | หน้าแยกหลายรายการ/requested-issued-cancelled/หนึ่งขั้นอนุมัติ/หลักฐาน/history/CSV/A4/กลับ Stock ทั้งใบ | รอ SQL/DB/concurrency/storage/printer UAT; ไม่คืนบางส่วน/ต้นทุน/GL และ Legacy อ่านอย่างเดียว | Implemented agreed scope ตาม 1.14 |
 | คืนสินค้า SR | หน้าแยก/IS approved/คืนบางส่วนสะสม/pending กันยอด/approve เพิ่ม Stock ของดีคลังเดิม/หลักฐาน/history/CSV/A4/guarded reversal ทำแล้ว | รอ SQL/DB/concurrency/storage/printer UAT; Legacy อ่านอย่างเดียว; ไม่รับชำรุด/ต่างคลัง/ไม่มีต้นทาง/ต้นทุน | Implemented agreed scope ตาม 1.15 |
 | AR Aging | ตารางและ API bucket 0/1–30/31–60/61–90/>90 | ไม่มีเลือก as-of/filter/export/pagination UI; ใช้ยอดคงค้างปัจจุบัน ไม่ได้สร้างยอดย้อนหลัง ณ as-of | รายงานเบื้องต้น |
@@ -709,7 +774,7 @@ Stock Return writer เดิมที่เพิ่ม Stock ของชำ�
 - **Audit:** AR/master/PO/GR/PS/PV/CQ/IS/SR ตาม 1.4–1.15 มีประวัติราย record/transactional audit แล้ว; PO/GR/IS/SR ใหม่ snapshot ชื่อ actor; ยังไม่มี Accounting history กลาง/เหตุการณ์ทุก action ของ AP/คลัง
 - **Notification:** มี [API เดิม](../../api/src/routes/notifications.js) แต่ไม่พบ Accounting UI inbox และการสร้าง event ใกล้ครบกำหนด/Stock ต่ำ/PS/PV รออนุมัติใน flow ที่ตรวจ
 - **Cancel/Reversal:** AR ใหม่คืนยอดตาม scope 1.4–1.7, PS คืนวงเงินตาม 1.9, PV/CQ ตาม 1.10–1.11, GR กลับ Stock/คืน PO qty 1.13, IS คืนครบกลับ Stock 1.14 และ SR ส่งของกลับออกครบลด Stock/คืนสิทธิ์ต้นทาง 1.15 ทำแล้ว; ยังรอ DB/UAT
-- **Print/Export:** PO/SO/IV/BI/CN/RV/PS/PV/CQ/GR มีแบบพิมพ์ตาม scope; CQ/GR มี CSV; CQ เป็นใบรายละเอียด ไม่ใช่ bank overprint; เบิก/คืนและ export รายงานยังไม่ครบ
+- **Print/Export:** PO/SO/IV/BI/CN/RV/PS/PV/CQ/GR/IS/SR มีแบบพิมพ์ตาม scope; CQ/GR/IS/SR และ Stock Card มี CSV ตามขอบเขต; CQ เป็นใบรายละเอียด ไม่ใช่ bank overprint; รายงานการเงิน/กระทบยอดและ export อื่นยังไม่ครบ
 - **ข้อมูลหลัก/เอกสารย้อนหลัง:** PO ใช้ supplierSnapshot แล้วตาม 1.8; rollout เติมเฉพาะ snapshot ที่ว่างด้วยค่าปัจจุบัน ส่วนการกู้ข้อมูลก่อน master ถูกแก้ในอดีตและเอกสาร AP ชนิดอื่นต้องตรวจใน Process นั้น
 - **Schema rollout:** เคยพบ Attachment.purchaseOrderId ไม่ตรง SQL purchase_order_id และแก้ mapping ใน schema แล้ว แต่ยังต้อง verify generate/restart/DB เป้าหมาย ไม่ถือว่ารัน script แล้วทุก environment ตรงกัน
 - **ข้อความ error:** ภาพ error ล่าสุดแสดง Prisma invocation และ path ของ server ให้ผู้ใช้เห็น; ต้องจัด user-facing error และเก็บรายละเอียดสำหรับผู้ดูแลอย่างเหมาะสม
@@ -721,7 +786,7 @@ Stock Return writer เดิมที่เพิ่ม Stock ของชำ�
 | Master | หน้าแยก CRUD/active/ค้นหา/แบ่งหน้า/CSV/history ครบ 6 กลุ่มตาม 1.8 | รายงานคุณภาพข้อมูล/ความครบถ้วนและรายงานธุรกิจเพิ่มเติมยังแยก scope; รอ target DB UAT |
 | AR | AR Aging เบื้องต้น | Invoice/Billing/CN/RV registers, outstanding/overdue ที่ตรง effective state, Customer Statement |
 | AP | AP Aging เบื้องต้น | PO register, PR-PO reference/outstanding ตาม scope ใหม่, GR status, PV report, ภาษี, cheque register |
-| Inventory | Balance/Movement tables | Stock Card แบบยอดต่อเนื่อง, Low/Out of Stock, Issue/Return, Stock by WO, Valuation |
+| Inventory | Balance table, Stock Card Movement report with period opening/running/closing, Issue/Return workflows | Opening-balance entry/reconciliation, Low/Out of Stock, Stock by WO, Valuation |
 | Approval/Audit | Backend เดิมบางส่วน | Pending/History/Rejected/Returned/Changes after approval สำหรับ Accounting พร้อมสิทธิ์ |
 | Reconciliation | SO-IV / PO-GR แบบเชื่อมเอกสาร | Invoice-RV, PS/PV-Cheque, Document-Stock Movement; quantity/amount discrepancy ของรายงานเดิม; PR-PO ต้องไม่เดา remaining จาก reference-only |
 | ความสามารถรายงานกลาง | Refresh, API asOfDate บางรายงาน | ตัวกรองจริง, as-of historical balance, sorting, pagination, export และ total ที่ reconcile ได้ |
@@ -751,16 +816,17 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | REQ-016 | เช็คจาก PV approved พร้อม state/history | full-page/unique/locks/ทุก transition/evidence/date/reason/PV payment+reversal/A4/CSV | cheque-payments.js; chequePayment.js; cheque-payments.tsx; ChequePayment | HTTP/browser/rollback/concurrent แบบจำลอง/normalized identity/legacy ผ่าน; รอ DB UAT | Implemented agreed scope ตาม 1.11 |
 | REQ-017 | เบิกบางส่วนและอนุมัติก่อนตัด Stock | หน้าแยกหลายรายการ/requested-issued-cancelled/Draft-pending-approve/ไม่จอง/ไม่มี backorder ทำแล้ว | stock-issues.tsx; stock-issue.ts; stock-issues.js; stockIssue.js | HTTP/browser ขอ 10 จ่าย 5 ยกเลิก 5/จ่าย 0 บางแถว/decimal/ไม่พอไม่ลดเอง/rollback ผ่าน | Implemented agreed scope ตาม 1.14; รอ SQL/DB UAT |
 | REQ-018 | คืนสะสมไม่เกินเบิกและไม่เพิ่ม Stock ผิดประเภท | SR full-page/IS-line FK/cumulative approved+pending/good-only/เดิมคลัง/approve-stock/guarded reversal ทำแล้ว | stockReturn.js; stock-returns.js; stock-returns.tsx; StockReturn | HTTP/browser เบิก5คืน3+2/เกินไม่ได้/pendingไม่เพิ่มStock/physical removal/rollback/multiline ผ่าน | Implemented agreed scope ตาม 1.15; รอ SQL/DB/UAT |
-| REQ-019 | Balance/Movement ตรวจย้อนกลับได้ | ตาราง/IS-SR-GR source links/atomic posting/reversal ทำแล้ว; filter/card ยอดยกมา/ต้นทุนยังไม่ครบ | inventory-data.tsx; inventory.js; stockIssue.js; stockReturn.js; StockMovement | IS7→2→7, SR2→5→7→4→2/reserved2/เปิดsource ผ่าน; ต้อง UAT จริง | Partial ตาม 1.14–1.15; remaining Q-14 |
+| REQ-019 | Balance/Movement ตรวจย้อนกลับได้ | Balance/IS-SR-GR links/atomic posting/reversal และ Stock Card ช่วงวันที่+opening/running report ทำแล้ว; baseline ที่ไม่มี Movement/ยอดยกมา/ต้นทุนยังไม่ครบ | inventory-data.tsx; inventory.js; stockCard.js; stockIssue.js; stockReturn.js; StockMovement | IS/SR posting ผ่าน; API Stock Card 132/132 ครอบคลุม boundary/opening/reversal/same-time/no-movement/filter; ต้อง UAT จริง | Partial: report 1.16 done; opening-balance reconciliation/costing Q-14 pending |
 | REQ-020 | Approval Accounting แยกสายตามเงื่อนไข | PO/GR/PS/PV/IS/SR หนึ่งขั้น/ห้าม self-approve/return/reject/history; CQ ลงนามไม่อนุมัติ PV ซ้ำ | purchaseOrderApproval.js; goods-receipts.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; stock-issues.js; stock-returns.js; approvals.js | HTTP/browser ผ่าน; ไม่แยก domestic/overseas ตามคำตอบ 1.12 | Partial: agreed scope done; remaining multi-step/inbox Q-01 |
 | REQ-021 | สิทธิ์ตรง action และไม่ขึ้นกับ legacy role โดยไม่ตั้งใจ | PO/GR/PS/PV/IS/SR actions และ CQ stage/evidence ตรง API/UI; print/export/VAT/audit แยก action ส่วนอื่นยังค้าง | accountingAccess.js; accountingAccess middleware; goods-receipts.js; stock-issues.js; stock-returns.js; purchaseOrderApproval.js; chequePayment.js; UI access | approver ไม่ต้อง create; editor ไม่ submit; viewer read-only/print/CSV; self-approve รวม admin ถูกปฏิเสธ | Partial: agreed actions ตาม 1.9–1.15; remaining Q-01/Q-17 |
 | REQ-022 | Cancel คืนเงิน/Stock/สัมพันธ์ครบ | AR/PS/PV/CQ/GR ตาม 1.4–1.13; IS/SR whole-document physical-confirmation + linked reversal 1.14–1.15 ทำแล้ว | ar.js; contractor-payments.js; payment-vouchers.js; chequePayment.js; goodsReceipt.js; stockIssue.js; stockReturn.js; audit | status/revision/audit rollback/available-reserved/date/active return/reversal link ผ่านแบบจำลอง; รอ DB จริง | Partial: agreed cancellation done; remaining extensions require policy |
 | REQ-023 | Audit/Notification ใช้งานผ่าน Accounting ได้ | AR/master/PO/GR/PS/PV/CQ/IS/SR มี record history/transactional audit; events/inbox/notification/retry กลางยังค้าง | audit.js; auditTrail.js; purchaseOrderApproval.js; goodsReceipt.js; stockIssue.js; stockReturn.js; chequePayment.js; notifications.js; Accounting UI | trace ผู้ทำ เวลา เหตุผล/actor snapshot/physical confirmation และ rollback ผ่านราย record; ส่วนกลาง/แจ้งเตือนยังไม่ทดสอบ | Partial: record audit done; remaining Blocked Q-17 |
 | REQ-024 | Aging ใช้ฐานหนี้และ as-of ที่ยืนยัน | report 4 endpoints → สูตร/history/filter | accounting-reports.js; reports/page.tsx | รับ/จ่ายหลัง as-of ไม่เปลี่ยนยอดก่อน as-of | Blocked Q-16 |
-| REQ-025 | Reports/Reconciliation/Export ครบตามลำดับที่ตกลง | 4 หน้าเบื้องต้น → registers/variance/export | accounting-reports.js; reports/page.tsx | total/export ตรงหน้าจอและ source; discrepancy ระบุได้ | Blocked Q-16 |
+| REQ-025 | Reports/Reconciliation/Export ครบตามลำดับที่ตกลง | Stock Card Movement period/opening/closing, all-filter CSV and print delivered in 1.16; remaining reports/reconciliation still pending | accounting-reports.js; reports/page.tsx; inventory.js; stockCard.js; inventory-data.tsx | Stock Card API/UI focused tests and build pass; remaining totals/export must reconcile to agreed sources | Partial: Stock Card agreed scope done; financial reports Q-16 pending |
 | REQ-026 | เลขเอกสารเป็นรูปแบบที่รับรองและไม่ชน | PS/PV/CQ/GR/IS/SR Gregorian monthly/Draft/no reuse ทำแล้ว 1.9–1.15; เอกสาร AR คง policy เดิม | runningNumber.js; contractor-payments.js; payment-vouchers.js; cheque-payments.js; goods-receipts.js; stock-issues.js; stock-returns.js; DocumentSequence | request-key/unique/เลขรายเดือน/rollback ผ่าน; รอ PostgreSQL concurrency | Implemented agreed numbering scope; remaining AR normalization only if confirmed |
 | REQ-027 | เอกสารพิมพ์ข้อมูลคงที่ตามกติกา | PO/SO/BI/RV/CN/PS/PV/CQ/GR/IS/SR template และ IV data-only ทำแล้ว; snapshot/page overflow; CQ ไม่ใช่ bank overprint | purchase-order-document.tsx; delivery-order-document.tsx; invoice-document.tsx; billing-note-document.tsx; receipt-voucher-document.tsx; credit-note-document.tsx; contractor-payment-document.tsx; payment-voucher-document.tsx; cheque-payment-document.tsx; goods-receipt-document.tsx; stock-issue-document.tsx; stock-return-document.tsx | GR/IS/SR PDF จริง1/3หน้า; ทุกแถวครั้งเดียวและล้นปิดพิมพ์; รอ printer UAT | Implemented agreed templates ตาม 1.4–1.15; remaining target UAT/extensions |
 | REQ-028 | PO ตาม scope ล่าสุดและวันที่กลาง | หน้าแยก/one-step approval/returned/reject/cancel/history/revision/files/print status 1.12 และ GR line mapping 1.13 ทำแล้ว | purchase-orders.tsx; purchaseOrderApproval.js; goodsReceipt.js; ap.js; accounting-date.ts | HTTP/browser/build ผ่าน; ยังรอ target DB/storage/printer UAT | Implemented agreed PO scope |
+| REQ-029 | Stock Card รายงานยอดต่อเนื่องตามช่วงวันที่ | Bangkok day boundaries, movement-derived opening, deterministic running quantity, product/warehouse filters, summary, full filtered CSV and print ทำแล้ว 1.16; ไม่สร้าง opening balance/valuation | stockCard.js; inventory.js; inventory-data.tsx; stock-card.ts | API boundary/opening/reversal/same-time/quiet-period tests; focused UI/CSV/build/types/lint; verify movement completeness and target DB | Implemented agreed read-only report scope; data reconciliation/UAT pending |
 
 ตำแหน่งในตารางย่อชื่อไฟล์เพื่ออ่านง่าย: UI ใต้ [accounting-ui/src](../../accounting-ui/src), API ใต้ [api/src](../../api/src), models ใต้ [schema.prisma](../../api/prisma/schema.prisma)
 
@@ -783,9 +849,9 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 | Q-11 | รับสินค้า GR — ตอบแล้วครบ 8 ข้อตาม 1.12 / ทำแล้ว 1.13 | approved PO/explicit PO-line+unit mapping/1 คลังต่อ GR/pending กัน qty/approved post Stock/service ตามจำนวน/guarded reversal/mandatory evidence/legacy reconcile; ไม่ auto-close/คืนผู้ขายบางส่วน/ของเสีย | REQ-014 implemented agreed scope; รอ rollout/UAT |
 | Q-12 | PV และการจ่าย — ตอบแล้ว scope 1.10–1.11 | PS approved เต็มยอด 1:1; Draft กัน PS; approved รอจ่าย; สด/โอนพร้อมหลักฐาน; CQ release ตั้ง paid/clear เก็บวันแยก; กลับรายการต้อง pay+cancel/เหตุผล/วันที่/ref/หลักฐาน; ไม่ partial/PR-PO direct/GL | REQ-015/016 |
 | Q-13 | IS/SR ตอบครบ/ทำแล้ว 1.14–1.15 | IS approve ตัด/ไม่จอง/ขอ-จ่าย-ยกเลิกส่วนเหลือ; SR IS-line/approved+pending cumulative/good-only/original warehouse/approveเพิ่ม/physical reversal; Legacy อ่านอย่างเดียว; ไม่รวมของชำรุด/โอนคลัง/ต้นทุน | REQ-017/018 implemented agreed scope; รอ rollout/UAT |
-| Q-14 | คลังและต้นทุน | ยอดยกมาและวันเริ่มใช้, adjustment/โอนคลังอยู่ในขอบเขตไหม, ยอดจองเกิดจากเอกสารใด, Stock ต่ำตั้งระดับไหน, Valuation ใช้ FIFO/เฉลี่ย/อื่น ๆ | REQ-019/025 |
+| Q-14 | คลังและต้นทุน | Stock Card read-only จาก Movement ส่งมอบตาม 1.16 แล้ว; ยอดยกมา/วันเริ่มใช้และการ reconcile baseline, adjustment/โอนคลัง, ยอดจอง, threshold Stock ต่ำ และ FIFO/เฉลี่ย/valuation ยังต้องยืนยัน | REQ-019/025/029 |
 | Q-15 | เลขเอกสาร/เช็ค — PS/PV/CQ/GR/IS/SR ตอบแล้ว | PS 1.9/PV 1.10/CQ 1.11/GR 1.13/IS 1.14/SR 1.15 ทำแล้ว; ปี ค.ศ./รายเดือน/ออก Draft/ไม่ reuse; AR คง policy เดิม | REQ-016/026; normalization อื่นต้องยืนยันแยก |
-| Q-16 | รายงานบัญชี | Aging bucket/วันฐาน/หนี้เริ่มจากเอกสารใด, as-of แบบย้อนหลัง, เลือกชุดรายงานเร่งด่วน, tax format, Excel/CSV/PDF, วิธี reconcile และเกณฑ์ปิดหนี้ | REQ-024/025 |
+| Q-16 | รายงานบัญชี | Stock Card Movement report อยู่ใน 1.16; Aging bucket/วันฐาน/หนี้เริ่มจากเอกสารใด, as-of แบบย้อนหลัง, ชุดรายงานอื่นเร่งด่วน, tax format, วิธี reconcile และเกณฑ์ปิดหนี้ยังรอคำตอบ | REQ-024/025 |
 | Q-17 | ประวัติ/แจ้งเตือน | ใครดูข้อมูลเดิม/ธนาคาร/Export ได้, แจ้งในระบบหรืออีเมล, ผู้รับและกำหนดเวลา/stock threshold, วิธี retry และไม่แจ้งซ้ำ | REQ-021/023 |
 | Q-18 | Dashboard | ยอดค้าง/ใกล้ครบกำหนด/งานรอทำคิดจากสถานะใด, cash flow ใช้รับจ่ายจริงหรือคาดการณ์, รอบบัญชีเริ่มวันใด | REQ-001 |
 | Q-19 | ผังบัญชี/GL — ตอบแล้วทะเบียน 1.8 | code/name/category/header-detail/mapping ตามชนิดเดิม/active; ไม่ลง GL/ปิดงวด; posting rule ต้องยืนยันแยกก่อนทำ | REQ-006 |
@@ -830,7 +896,7 @@ REQ ด้านล่างเป็นรหัสติดตามงาน�
 
 ## 10. Recommended Implementation Order
 
-สถานะหลังรอบ 1.15: เพิ่ม **SR คืนสินค้าตาม 7 กติกาเสร็จในโค้ดและ automated validation** หลัง GR/IS/PO approval และงาน AR/PS/PV/CQ/master; local Prisma generate ผ่านแล้ว แต่ยังรอ SQL/DB/concurrency/storage/printer UAT ไม่ใช่ sign-off ทั้งระบบ **ขั้นถัดไปเสนอคลัง/ยอดยกมา/Stock Card Q-14 หรือรายงาน Q-16 ต้องยืนยันนิยามก่อน** ไม่ต้องถาม GR/IS/SR ซ้ำ ลำดับด้านล่างเป็นภาพรวมเดิม ไม่ใช่สถานะล่าสุดของรายการที่แก้แล้ว
+สถานะหลังรอบ 1.16: SR ตาม 7 กติกาและ Stock Card แบบอ่าน Movement ตามช่วงวันที่เสร็จในโค้ด/tests; Stock Card เป็น read-only ไม่ได้ทำยอดยกมา/ปรับยอดหรือ valuation. งานทั้งสองรอบยังรอ target DB/UAT และไม่ใช่ sign-off ทั้งระบบ. ขั้นต่อไปของคลังคือ Q-14 ยอดยกมา/ปรับยอด ซึ่งต้องยืนยัน baseline/วันเริ่มใช้/วิธีกระทบยอดก่อน posting; Q-16 financial reports ยังเป็น backlog. ไม่ต้องถาม GR/IS/SR ซ้ำ. ลำดับด้านล่างเป็นภาพรวมเดิม ไม่ใช่สถานะล่าสุดของรายการที่แก้แล้ว.
 
 1. **แก้สิ่งที่ชวนเข้าใจผิดก่อน:** BI save ไม่ทำงาน, SO date field, ป้ายสถานะ prototype ของ Dashboard/AP Aging และ user-facing error
 2. **ยืนยัน flow ที่มีผลต่อยอด:** Q-01, Q-04/05, Q-08, Q-11/12/13, Q-15/16 ก่อนลง posting จริง

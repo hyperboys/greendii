@@ -284,7 +284,8 @@ Generic full-frame A4 shares the IS print layout/fit guard: eight rows/page,
 saved identities/quantities, blank signatures, repeated headers, every row once.
 Remaining quantities are labelled **at recording time**, not a live promise.
 Printing never changes state; long text blocks print/Ctrl+P. Movement tables link
-to SR/IS/GR sources. No damaged/quarantine/costing/GL/opening/transfer/inbox.
+to SR/IS/GR sources. No damaged/quarantine/costing/GL/opening-balance entry/
+transfer/inbox.
 
 **Rollout:** backup/review/apply
 [`accounting-stock-returns.sql`](../api/scripts/sql/accounting-stock-returns.sql)
@@ -307,8 +308,65 @@ footers; long text blocks print. IS regression browser73 requests/0errors and it
 HTTP/browser use real Express/auth/routes with isolated serialized in-memory
 Prisma/storage substitutes, **not real PostgreSQL locking/concurrency or storage**.
 Target PostgreSQL/concurrent-user/storage/physical-printer UAT remains required.
-Next proposed scope is stock opening/card/reporting under Q14/Q16, which still
-needs policy confirmation; do not infer costing or adjustment behavior.
+
+### Stock Card (movement report)
+
+Open Inventory > ประวัติการเคลื่อนย้ายสินค้า. The report requires a start/end date
+and can filter by product and warehouse. It uses Bangkok calendar-day boundaries,
+includes recorded GR/IS/SR movements and their linked reversals, and
+orders equal timestamps by movement ID for repeatable running totals. Each
+product/warehouse summary shows opening quantity (all movements before the
+period), period receipts/issues and closing quantity; detail rows show balance
+before and after each movement. Inactive products/warehouses remain selectable
+for historical records.
+
+The screen paginates movement rows by 20; CSV exports **all rows in the selected
+period/filter**, not just the current page. Print/PDF uses a report table with
+repeating column headers. The report reads movement history; it does not create
+an opening balance, edit stock, value inventory, post GL, or reconcile/mutate
+`StockBalance`. Historical data without corresponding movements will therefore
+not be inferred from the current balance. This batch adds no schema change or
+SQL rollout. If older movements are missing, the period opening quantity may
+not match actual stock; verify movement-history completeness before using it to
+close/reconcile a period. Movement rows use current product/warehouse master
+labels; historical names are not snapshotted in `StockMovement`.
+
+Validation: API **132/132**; focused Stock Card/IS/SR/navigation UI **18/18**;
+production build, TypeScript and changed-source lint pass. Full UI **84/85**
+retains the unrelated BI fixed-date fixture failure. API tests verify date
+validation, Bangkok day boundaries, opening/running/closing arithmetic,
+deterministic same-time ordering, no-movement periods, filters and inactive
+lookup options. UI tests cover date defaults, balance CSV and report controls.
+Tests use isolated Prisma substitutes; PostgreSQL and operational UAT are still
+required.
+
+### Stock opening balance (OB)
+
+Open Inventory > ยอดยกมาคลัง (`/inventory?tab=opening-balances`); create, edit,
+and view/approval use `/inventory/opening-balances/`. The form supports manual
+count entry or CSV import with the exact header `productCode,countedQty` (up to
+2,000 unique stored/manufactured products). The preview compares every
+warehouse product with ledger movements and StockBalance; it blocks saving to
+approval when the two disagree and requires a counted quantity for every
+non-zero book balance.
+
+The selected count is the physical quantity at the end of the day before the
+company cutover date. Submission snapshots the movement-derived book quantity
+and calculates `counted - book`; only that delta posts to StockBalance after an
+independent approver approves, and submission is allowed only on/after the
+cutover date so stock is not adjusted before it takes effect. Draft/pending documents do not post stock.
+Negative deltas cannot consume reserved quantities. The first submission
+locks the company-wide cutover date; only one non-rejected/non-cancelled
+document can be active per warehouse/date. Approved documents are immutable;
+cancellation is dated no later than today and creates a reversal only if
+there are no later movements or reservations on affected products.
+
+SQL rollout is additive at
+`api/scripts/sql/accounting-stock-opening-balances.sql`; review and back up the
+target database before applying it. No SQL, `db push`, reset, or database
+mutation was run for this implementation. The API/UI tests use isolated
+in-memory Prisma substitutes; validate the real PostgreSQL schema, locking,
+concurrent posting, and target data before production UAT.
 
 ### Cheque payments (CQ)
 

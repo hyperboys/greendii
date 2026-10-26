@@ -216,6 +216,11 @@ export const InventoryApi = {
     const q = new URLSearchParams(params).toString();
     return apiFetch(`/api/inventory/movements${q ? `?${q}` : ""}`);
   },
+  getStockCard: (params: import("./stock-card").StockCardFilters) => {
+    const q = new URLSearchParams(params).toString();
+    return apiFetch<import("./stock-card").StockCardReport>(`/api/inventory/stock-card?${q}`);
+  },
+  getStockCardLookups: () => apiFetch<import("./stock-card").StockCardLookups>("/api/inventory/stock-card/lookups"),
   getBalances: (params?: Record<string, string>) => {
     const q = new URLSearchParams(params).toString();
     return apiFetch(`/api/inventory/balances${q ? `?${q}` : ""}`);
