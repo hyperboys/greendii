@@ -24,6 +24,14 @@ separate from the production `.next` output, matching the Sales UI's approach.
 Tailwind 3 uses `tailwind.config.ts` and the Tailwind/PostCSS/autoprefixer plugins.
 The theme retains Accounting's existing dimensions and control typography.
 
+## Date entry
+
+Editable dates across AR, AP and Stock use the shared calendar picker. Focus the
+date field or use its calendar button to select a day, navigate months, choose
+today or clear the value. Dates still display as `dd/mm/yyyy` with Gregorian years
+and are sent to the API as `yyyy-mm-dd`. Manual entry remains supported with
+calendar-date validation. Disabled/read-only dates cannot be changed.
+
 ## Navigation
 
 ### Purchase order approval (PO prerequisite for GR)

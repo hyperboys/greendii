@@ -87,7 +87,8 @@ test("SO is a full-page Draft form with integer quantities and PDF monetary fiel
   assert.match(html, /aria-label="จำนวนเงินรายการ 1"/);
   assert.match(html, /aria-label="รวมเงินรายการ"/);
   assert.match(html, /ยังไม่ตัด Stock/);
-  assert.equal((html.match(/role="combobox"/g) || []).length, 2);
+  assert.equal((html.match(/role="combobox" aria-autocomplete="list"/g) || []).length, 2);
+  assert.equal((html.match(/aria-label="เปิดปฏิทิน"/g) || []).length, 2);
   assert.doesNotMatch(html, /ค้นหาลูกค้า|ค้นหา WO \(ไม่บังคับ\)/);
   for (const field of ["ราคา/หน่วย", "ส่วนลดรายการ (บาท)", "ส่วนลดท้ายเอกสาร (บาท)", "VAT 7%", "No VAT", "วันที่กำหนดส่ง", "จำนวนวันเครดิต", "โทรสารลูกค้า"]) assert.ok(html.includes(field), field);
   writable = false;
