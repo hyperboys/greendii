@@ -44,7 +44,7 @@ test("Four master direct routes select full-page modes and reject unknown domain
     "next/navigation": { notFound: () => { throw new Error("Not found"); } },
     "@/components/simple-master": { SimpleMaster: () => null },
   }).default;
-  for (const kind of ["sales", "products", "warehouses", "coa"]) {
+  for (const kind of ["sales", "products", "warehouses", "coa", "units"]) {
     for (const [record, mode] of [[["new"], "new"], [["id"], "view"], [["id", "edit"], "edit"]]) {
       const element = Page({ params: { kind, record } });
       assert.equal(element.props.mode, mode);
@@ -71,10 +71,12 @@ test("All simple master forms render complete editable fields while viewers rema
     "@/components/master-record-tools": { MasterPagination: () => null, MasterRecordTools: () => null },
   });
   for (const [kind, labels] of [["products", ["ประเภทสินค้า", "หน่วย", "หมวดหมู่", "VAT", "ราคาขาย", "ต้นทุนอ้างอิง", "รายละเอียด"]],
-    ["warehouses", ["ที่ตั้ง", "รายละเอียด"]], ["sales", ["โทรศัพท์", "อีเมล"]], ["coa", ["หมวดบัญชี", "ชนิดบัญชี", "Mapping"]]]) {
+    ["warehouses", ["ที่ตั้ง", "รายละเอียด"]], ["sales", ["โทรศัพท์", "อีเมล"]], ["coa", ["หมวดบัญชี", "ชนิดบัญชี", "Mapping"]],
+    ["units", ["หน่วยนับ", "รหัส *", "ชื่อ *"]]]) {
     index = 0; allowed = true;
     const editor = renderToStaticMarkup(React.createElement(SimpleMaster, { kind, mode: "edit", recordId: "p" }));
     for (const label of labels) assert.ok(editor.includes(label), `${kind}: ${label}`);
+    assert.equal(editor.includes('list="accounting-unit-options"'), kind === "products");
     assert.equal(editor.includes("<fieldset disabled="), false);
     assert.equal(editor.includes('role="dialog"'), false);
     index = 0; allowed = false;

@@ -62,7 +62,7 @@ export function MasterRecordTools({ kind, id, updatedAt }: { kind: MasterKind; i
           <div key={String(label)} className="min-w-0"><strong>{String(label)}</strong><pre className="max-h-72 overflow-auto whitespace-pre-wrap break-all">{JSON.stringify(value, null, 2)}</pre></div>)}</div>
       </details>)}
     <MasterPagination total={total} page={page} onPage={setPage} />
-    {canUseAccounting(access, "master", "delete") && <div className="border-t pt-3">
+    {kind !== "units" && canUseAccounting(access, "master", "delete") && <div className="border-t pt-3">
       <p className="mb-2 text-sm">ลบถาวรได้เฉพาะข้อมูลไม่เคยถูกอ้างอิง หากเคยใช้งานให้ปิดสถานะในหน้าแก้ไขแทน</p>
       {!confirmDelete ? <button type="button" className={`${button} text-red-700`} onClick={() => setConfirmDelete(true)}>ลบข้อมูลที่ไม่เคยใช้งาน</button>
         : <div className="flex flex-wrap items-center gap-3"><span>ยืนยันลบข้อมูลถาวร?</span>

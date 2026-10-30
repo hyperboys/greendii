@@ -7,6 +7,6 @@ export default function MasterDataPage({ searchParams = {} }: { searchParams?: A
   const tab = selectedTab(masterTabs, searchParams.tab);
   if (tab === "customers") return <CustomerMaster />;
   if (tab === "suppliers") return <SupplierMaster />;
-  const kind = tab === "sales" || tab === "products" || tab === "warehouses" ? tab : "coa";
+  const kind = tab === "sales" || tab === "products" || tab === "warehouses" || tab === "units" ? tab : "coa";
   return <SimpleMaster key={kind} kind={kind} />;
 }

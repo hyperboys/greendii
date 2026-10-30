@@ -4,6 +4,7 @@ const ACCOUNTING_RESOURCES = [
   ['/api/account-customers', 'master'],
   ['/api/account-sales', 'master'],
   ['/api/account-products', 'master'],
+  ['/api/account-units', 'master'],
   ['/api/suppliers', 'master'],
   ['/api/warehouses', 'master'],
   ['/api/chart-of-accounts', 'master'],

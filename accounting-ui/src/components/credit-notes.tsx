@@ -159,7 +159,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
             <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="min-w-0">รหัสสินค้า {index + 1}<input maxLength={100} className={control} value={row.partNo} onChange={event => patchLine(index, { partNo: event.target.value })} /></label>
               <label className="min-w-0">จำนวน {index + 1}<input required type="number" min="1" max="999999999" step="1" className={control} value={row.qty} onChange={event => patchLine(index, { qty: event.target.value })} /></label>
-              <label className="min-w-0">หน่วย {index + 1}<input required maxLength={40} className={control} value={row.unit} onChange={event => patchLine(index, { unit: event.target.value })} /></label>
+              <label className="min-w-0">หน่วย {index + 1}<input required list="accounting-unit-options" maxLength={40} className={control} value={row.unit} onChange={event => patchLine(index, { unit: event.target.value })} /></label>
               <label className="min-w-0">ราคาลดต่อหน่วย {index + 1}<input required type="number" min="0.01" max="9999999999.99" step="0.01" className={control} value={row.unitPrice} onChange={event => patchLine(index, { unitPrice: event.target.value })} /></label>
             </div>
             <label className="block">รายละเอียด {index + 1}<textarea required rows={2} maxLength={500} className={control} value={row.desc} onChange={event => patchLine(index, { desc: event.target.value })} /></label>

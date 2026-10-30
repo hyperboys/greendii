@@ -9,8 +9,8 @@ import { canUseAccounting } from "@/lib/accounting-access";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { MasterPagination, MasterRecordTools } from "@/components/master-record-tools";
 
-type Kind = "sales" | "products" | "warehouses" | "coa";
-const labels: Record<Kind, string> = { sales: "Sale บัญชี", products: "สินค้าและบริการ", warehouses: "คลังสินค้า", coa: "ผังบัญชี" };
+type Kind = "sales" | "products" | "warehouses" | "coa" | "units";
+const labels: Record<Kind, string> = { sales: "Sale บัญชี", products: "สินค้าและบริการ", warehouses: "คลังสินค้า", coa: "ผังบัญชี", units: "หน่วยนับ" };
 const input = "mt-1 w-full min-w-0 rounded border bg-white p-2 text-sm disabled:bg-gray-50";
 const button = "inline-block rounded border px-3 py-2 text-sm disabled:opacity-40";
 const categories = [["asset", "สินทรัพย์"], ["liability", "หนี้สิน"], ["equity", "ส่วนของเจ้าของ"], ["revenue", "รายได้"], ["expense", "ค่าใช้จ่าย"]];
@@ -63,6 +63,7 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
   const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 20)));
   const field = (key: keyof MasterDraft, label: string, numeric = false, required = false) => <label className="block text-sm" key={key}>{label}
     <input className={input} required={required} type={numeric ? "number" : key === "email" ? "email" : "text"}
+      list={key === "unit" ? "accounting-unit-options" : undefined} maxLength={kind === "units" && key === "name" ? 40 : undefined}
       multiple={key === "email"} min={numeric ? 0 : undefined} max={numeric ? "9999999999.99" : undefined} step={numeric ? "0.01" : undefined}
       value={String(form[key] ?? "")} onChange={e => setForm(current => ({ ...current, [key]: e.target.value }))} /></label>;
   const select = (key: keyof MasterDraft, label: string, options: string[][]) => <label className="block text-sm" key={key}>{label}

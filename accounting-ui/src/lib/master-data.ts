@@ -1,6 +1,7 @@
 export const masterEndpoints = {
   customers: "/api/account-customers", sales: "/api/account-sales", suppliers: "/api/suppliers",
   products: "/api/account-products", warehouses: "/api/warehouses", coa: "/api/chart-of-accounts",
+  units: "/api/account-units",
 } as const;
 export type MasterKind = keyof typeof masterEndpoints;
 export type MasterMode = "list" | "new" | "view" | "edit";

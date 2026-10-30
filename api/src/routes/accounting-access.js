@@ -18,6 +18,7 @@ const LOOKUPS = {
   suppliers: { model: 'supplier', modules: ['ap'] },
   products: { model: 'accountProduct', modules: ['inventory', 'ar'] },
   warehouses: { model: 'warehouse', modules: ['inventory'] },
+  units: { model: 'accountUnit', modules: ['master', 'ar', 'ap', 'inventory'] },
 };
 
 router.get('/lookups/:kind', async (req, res, next) => {
@@ -25,7 +26,7 @@ router.get('/lookups/:kind', async (req, res, next) => {
     const lookup = Object.hasOwn(LOOKUPS, req.params.kind) ? LOOKUPS[req.params.kind] : null;
     if (!lookup) return res.status(404).json({ message: 'ไม่พบประเภทข้อมูลอ้างอิง' });
     const access = await getAccountingAccess(req.user);
-    const canUseLookup = lookup.modules.some(module =>
+    const canUseLookup = (req.params.kind === 'units' && hasAccountingPermission(access, 'master', 'view')) || lookup.modules.some(module =>
       hasAccountingPermission(access, module, 'create') || hasAccountingPermission(access, module, 'update'));
     if (!canUseLookup) {
       return res.status(403).json({ message: 'ไม่มีสิทธิ์ใช้ข้อมูลอ้างอิง Accounting' });

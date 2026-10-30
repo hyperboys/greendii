@@ -50,7 +50,7 @@ test("Invoice Draft form uses shared compact items, searchable customer/SO, no P
   assert.doesNotMatch(render(), /<form/);
 });
 
-test("Shared item editor keeps description below the numeric row and locks all SO-sourced items", () => {
+test("Shared item editor keeps description below the numeric row and supports explicit read-only mode", () => {
   const props = { items: [{ ...delivery.newDeliveryOrderLine(), desc: "Line", unit: "pcs" }], products: [], onChange() {} };
   const render = readOnly => renderToStaticMarkup(React.createElement(documentItems.DocumentItems, { ...props, readOnly }));
   assert.match(render(false), /colSpan="8"/);
@@ -58,6 +58,78 @@ test("Shared item editor keeps description below the numeric row and locks all S
   assert.match(render(false), /step="1"/);
   assert.match(render(true), /<fieldset disabled=""/);
   assert.doesNotMatch(render(true), /เพิ่มรายการ|aria-label="ลบรายการ/);
+});
+
+test("SO-linked Invoice Drafts allow editing copied fields and lines while keeping customer and saved SO fixed", () => {
+  const saved = {
+    ...invoices.newInvoice(), id: "iv", provisionalDeliveryOrderId: "so", customerId: "customer",
+    provisionalDeliveryOrder: { id: "so", soNo: "SO-TEST" }, status: "draft", lifecycleVersion: 1,
+    updatedAt: "revision", customerBranch: "Branch", address: "Edited billing", shippingAddress: "Edited shipping",
+    creditTerm: 15, vatConfig: "NO_VAT", discount: 2,
+    items: [{ desc: "Edited line", qty: 4, unit: "box", unitPrice: 25.5, lineDiscount: 1.5 }],
+  };
+  let cursor = 0;
+  const { Invoices } = load(["components", "invoices.tsx"], {
+    react: {
+      ...React,
+      useState(initial) {
+        const index = cursor++;
+        const value = index === 1 ? saved : index === 2 ? invoices.invoiceForm(saved)
+          : index === 3 ? [{ id: "customer", code: "C1", name: "Customer", branches: [{ id: "branch", name: "Branch" }] }]
+          : initial === true ? false : initial;
+        return React.useState(value);
+      },
+    },
+    "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+    "next/navigation": { useRouter: () => ({ push() {} }) }, "@/lib/api": {},
+    "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
+    "@/lib/accounting-access": { canUseAccounting: () => true },
+    "@/lib/account-customers": load(["lib", "account-customers.ts"]), "@/lib/delivery-order": delivery,
+    "@/lib/invoice": invoices, "@/lib/accounting-date": dates,
+    "@/components/date-input": load(["components", "date-input.tsx"], { "@/lib/accounting-date": dates }),
+    "@/components/searchable-select": load(["components", "searchable-select.tsx"]),
+    "@/components/document-items": documentItems,
+    "@/components/invoice-document": { InvoicePrintStyles: () => null },
+  });
+  for (const mode of ["new", "edit"]) {
+    cursor = 0;
+    const html = renderToStaticMarkup(React.createElement(Invoices, { mode, recordId: mode === "edit" ? "iv" : undefined }));
+    assert.match(html, /บันทึก Draft/);
+    assert.match(html, /เพิ่มรายการ/);
+    assert.match(html, /Edited line/);
+    assert.match(html, /Edited billing/);
+    assert.match(html, /Edited shipping/);
+    assert.match(html, /<dt>ยอดก่อน VAT<\/dt><dd>98\.50<\/dd>/);
+    assert.doesNotMatch(html, /readonly=""/);
+    assert.equal((html.match(/<fieldset disabled=""/g) || []).length, 1, "Only the customer selector stays locked");
+    assert.doesNotMatch(html, /<select disabled=""/);
+    assert.match(html, /ไม่เปลี่ยนข้อมูล SO ต้นฉบับ/);
+    if (mode === "edit") {
+      assert.match(html, /ไม่สามารถเปลี่ยนหลังบันทึก/);
+      assert.doesNotMatch(html, /คัดลอกจาก SO \(ไม่บังคับ\)/);
+    }
+  }
+  saved.items = [{ desc: "Edited line", qty: 1, unit: "box", unitPrice: 85000, lineDiscount: 0 }];
+  for (const [vatConfig, discount, beforeVat, vat, net] of [
+    ["VAT7%", 5000, "80,000.00", "5,600.00", "85,600.00"],
+    ["NO_VAT", 5000, "80,000.00", "0.00", "80,000.00"],
+    ["VAT7%", 0, "85,000.00", "5,950.00", "90,950.00"],
+    ["VAT7%", 85000, "0.00", "0.00", "0.00"],
+  ]) {
+    saved.vatConfig = vatConfig;
+    saved.discount = discount;
+    for (const mode of ["new", "edit"]) {
+      cursor = 0;
+      const html = renderToStaticMarkup(React.createElement(Invoices, { mode, recordId: mode === "edit" ? "iv" : undefined }));
+      const summary = html.match(/<dl class="space-y-2">.*?<\/dl>/)?.[0];
+      assert.ok(summary);
+      for (const [label, amount] of [["ยอดก่อน VAT", beforeVat], ["VAT", vat], ["ยอดสุทธิ", net]]) {
+        assert.ok(summary.includes(`<dt>${label}</dt><dd>${amount}</dd>`), `${mode}: ${label} = ${amount}`);
+      }
+      assert.ok(summary.indexOf("<dt>ส่วนลดท้ายเอกสาร</dt>") < summary.indexOf("<dt>ยอดก่อน VAT</dt>"));
+      assert.ok(summary.indexOf("<dt>ยอดก่อน VAT</dt>") < summary.indexOf("<dt>VAT</dt>"));
+    }
+  }
 });
 
 test("Invoice hydration preserves snapshots, line discounts and Legacy nullable fields", () => {

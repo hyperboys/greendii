@@ -50,18 +50,19 @@ async function invoiceData(tx, body, previous = null) {
     if (await tx.invoice.count({ where: {
       provisionalDeliveryOrderId: sourceId, status: { not: 'cancelled' }, ...(previous ? { id: { not: previous.id } } : {}),
     } })) invalid('SO นี้มี Invoice ที่ยังไม่ยกเลิกแล้ว', 409);
-    // The server copies the whole SO, never trusts client-supplied source lines/totals.
+    // SO values are defaults; Invoice edits are validated and totals recomputed below.
     input = {
-      ...body, customerBranchId: null, customerBranch: source.customerBranch,
+      customerBranchId: null, customerBranch: source.customerBranch,
       shippingAddress: source.shippingAddress, workOrderId: source.workOrderId,
       creditTerm: source.creditTerm, vatConfig: source.vatConfig, discount: source.discount,
       items: source.items.map(item => ({ ...item, unitPrice: String(item.unitPrice), discount: String(item.discount) })),
+      ...body,
     };
   }
   const customer = await tx.accountCustomer.findUnique({ where: { id: input.customerId }, include: CUSTOMER_INCLUDE });
   const defaults = invoiceCustomerDefaults(customer, sourceId ? {
     ...input, customerBranch: undefined,
-    customerBranchId: customer?.branches?.find(branch => branch.name === input.customerBranch)?.id,
+    customerBranchId: input.customerBranchId || customer?.branches?.find(branch => branch.name === input.customerBranch)?.id,
   } : input);
   const data = await deliveryOrderData(tx, { ...defaults, ...input, docDate: body.ivDate,
     items: Array.isArray(input.items) ? input.items.map(item => ({ ...item, discount: item?.discount ?? item?.lineDiscount ?? 0 })) : input.items });

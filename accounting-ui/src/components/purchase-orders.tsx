@@ -471,7 +471,7 @@ export function PurchaseOrders({
                           <input required type="number" min="1" step="1" className={inputClass} value={item.qty} onChange={event => setLine(index, { qty: event.target.value })} />
                         </label>
                         <label className={`${fieldClass} min-w-0`}>หน่วย
-                          <input className={inputClass} value={item.unit} onChange={event => setLine(index, { unit: event.target.value })} />
+                          <input list="accounting-unit-options" className={inputClass} value={item.unit} onChange={event => setLine(index, { unit: event.target.value })} />
                         </label>
                         <label className={`${fieldClass} min-w-0`}>ราคา/หน่วย
                           <input required type="number" min="0" step="0.01" className={inputClass} value={item.unitPrice} onChange={event => setLine(index, { unitPrice: event.target.value })} />

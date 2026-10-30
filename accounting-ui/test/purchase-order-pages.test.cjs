@@ -61,6 +61,7 @@ test("PO creation is a full page with date fields and quantity step; viewers can
   assert.doesNotMatch(html, /role="dialog"|aria-modal|fixed inset-0/);
   assert.match(html, /placeholder="dd\/mm\/yyyy"/);
   assert.match(html, /type="number" min="1" step="1"/);
+  assert.match(html, /list="accounting-unit-options"/);
   assert.match(html, /href="\/ap\/vouchers\?tab=po"/);
   writeAllowed = false;
   for (const mode of ["new", "edit"]) {

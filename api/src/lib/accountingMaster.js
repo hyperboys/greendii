@@ -10,9 +10,10 @@ const REFERENCES = {
   accountProduct: ['stockBalances', 'provisionalDeliveryOrderLines', 'invoiceLines', 'purchaseOrderLines', 'goodsReceiptLines', 'stockIssueLines', 'stockReturnLines', 'stockMovements'],
   warehouse: ['stockBalances', 'goodsReceipts', 'stockIssues', 'stockReturns', 'stockMovements'],
   chartOfAccount: [],
+  accountUnit: [],
 };
 const TABLES = { accountCustomer: 'account_customers', accountSale: 'account_sales', supplier: 'suppliers',
-  accountProduct: 'account_products', warehouse: 'warehouses', chartOfAccount: 'chart_of_accounts' };
+  accountProduct: 'account_products', warehouse: 'warehouses', chartOfAccount: 'chart_of_accounts', accountUnit: 'account_units' };
 async function lockMaster(tx, model, id) {
   if (!Object.hasOwn(TABLES, model)) throw new Error('Unknown Accounting master model');
   await tx.$queryRawUnsafe(`SELECT id FROM "${TABLES[model]}" WHERE id = $1 FOR UPDATE`, id);
@@ -37,6 +38,10 @@ function money(value, label, max = 9999999999.99) {
 }
 function base(body) {
   return { code: text(body.code, 'รหัส', true, 100), name: text(body.name, 'ชื่อ', true, 500), active: active(body.active) };
+}
+function validateUnit(body) {
+  return { code: text(body.code, 'รหัสหน่วยนับ', true, 100),
+    name: text(body.name, 'ชื่อหน่วยนับ', true, 40), active: active(body.active) };
 }
 function validateProduct(body) {
   return { ...base(body), category: text(body.category, 'หมวดหมู่', false, 200), unit: text(body.unit, 'หน่วย', false, 100),
@@ -159,8 +164,8 @@ function addMasterReads(router, { model, entityType, include, fields, filters },
     catch (error) { next(error); }
   });
 }
-function addMasterDeletes(router, { model, entityType, include }, prisma) {
-  for (const permanent of [false, true]) router.delete(permanent ? '/:id/permanent' : '/:id', async (req, res, next) => {
+function addMasterDeletes(router, { model, entityType, include, allowPermanent = true }, prisma) {
+  for (const permanent of allowPermanent ? [false, true] : [false]) router.delete(permanent ? '/:id/permanent' : '/:id', async (req, res, next) => {
     try {
       const saved = await prisma.$transaction(async tx => {
         await lockMaster(tx, model, req.params.id);
@@ -219,5 +224,5 @@ async function assertActive(tx, model, id, label) {
   if (!item || !item.active) invalid(`${label}ไม่มีอยู่หรือถูกปิดใช้งาน`);
   return item;
 }
-module.exports = { SUPPLIER_INCLUDE, validateProduct, validateWarehouse, validateAccount, validateSupplier, masterWhere,
+module.exports = { SUPPLIER_INCLUDE, validateProduct, validateUnit, validateWarehouse, validateAccount, validateSupplier, masterWhere,
   taxId, revision, audit, conflict, addMasterReads, addMasterDeletes, createMasterRouter, assertActive, lockMaster };

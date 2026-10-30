@@ -391,6 +391,17 @@ model Unit {
   @@map("units")
 }
 
+model AccountUnit {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String   @unique
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("account_units")
+}
+
 model Warehouse {
   id            String         @id @default(cuid())
   code          String         @unique

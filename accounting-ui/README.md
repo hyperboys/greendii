@@ -34,6 +34,34 @@ calendar-date validation. Disabled/read-only dates cannot be changed.
 
 ## Navigation
 
+### Product units
+
+Open Master Data > หน่วยนับ (`/master?tab=units`) to add, edit or deactivate
+Accounting-only units. Direct forms use `/master/units/new`, `/master/units/:id`
+and `/master/units/:id/edit`, with the existing `master.view/create/update`
+permissions, CSV/search/pagination and transactional audit history. Unit codes
+and names are unique; names are limited to 40 characters. Deactivate rather than
+permanently deleting units.
+
+Editable unit fields in product Master Data, SO/Invoice lines, PO and CN load
+active suggestions from `/api/accounting-access/lookups/units`. The lookup permits
+Master viewers and AR/AP/Stock creators or editors without granting Master write
+access. Navigation or window focus refreshes the list. Lookup failures are shown
+with a retry button, not replaced with hardcoded defaults.
+
+Choose a suggestion or type another unit; typing does not automatically add a
+Master entry. Renaming/deactivating units does not rewrite existing product or
+document unit strings. Stock workflows keep their fixed product/source units
+without conversion. Sales units remain separate.
+
+Before deploying, back up and review/apply the additive, re-runnable
+[`accounting-units.sql`](../api/scripts/sql/accounting-units.sql) through the normal
+database deployment process, then run `npm run db:generate` from `api` and restart
+the API/rebuild the Accounting UI. The SQL seeds the 19 agreed units (Lot, Set,
+เมตร, ตาราง, Pcs, Gallon, Pair, Mat, EA, AU, Bag, Unit, Job, Sheet, Box, KG,
+ETC, ตัน, Roll) without overwriting existing entries or snapshots. The application
+does not apply schema changes or seeds automatically.
+
 ### Purchase order approval (PO prerequisite for GR)
 
 PO now has one-step approval for **both domestic and overseas** purchases, as
@@ -1056,9 +1084,13 @@ are full pages at `/ar/invoices/new`, `/ar/invoices/:id` and
   description/remark, prices excluding VAT, line/document discounts in baht and
   VAT 7% / No VAT. The server recomputes amounts in satang, ignoring client totals.
   The compact item editor is shared with SO.
-- Optional SO selection copies all lines, shipping, credit, VAT and discounts
-  from one non-cancelled SO, authoritatively on the server. Source rows are
-  read-only. Only one non-cancelled Invoice may reference a given SO, including
+  Create/edit summaries show the amount before VAT after subtracting the document
+  discount, followed by VAT and the net total.
+- Optional SO selection initializes lines, shipping, credit, VAT and discounts
+  from one non-cancelled SO. These fields, customer branch and billing details
+  can be edited before saving and when reopening an Invoice Draft. The API validates
+  the submitted Invoice data and recomputes totals; saving never modifies the SO.
+  The customer must remain the same as the SO. Only one non-cancelled Invoice may reference a given SO, including
   existing legacy links. Cancelled invoices release the SO for a new invoice.
   The source cannot change after saving; cancel and recreate instead.
 - Confirmed invoices cannot be edited. Cancellation requires a reason, rejects
@@ -1137,15 +1169,18 @@ also opens it directly. New, detail/print and edit pages are
 - The A4 print layout follows
   [ใบส่งของชั่วคราว.pdf](../Doc/accounting/ใบส่งของชั่วคราว.pdf):
   **TEMPORARY INVOICE**, company header from Settings (no added logo), number/date
-  box, customer address/phone/fax, delivery date, credit days, seven item columns,
-  monetary summary and three signature boxes. The creator's name appears under
+  box, customer address/phone/fax, delivery date, credit days, four delivery columns
+  (code, description, quantity and unit) and three signature boxes. Preview,
+  print and Save PDF omit unit prices, discounts, line amounts, VAT amounts and
+  document totals entirely; monetary fields remain saved/editable for Invoice use.
+  The creator's name appears under
   the sender; recipient and authorized-person signatures remain blank. Status
   and the no-Stock notice appear in remarks, not as an approval claim.
   Reservation number/date and billing conditions deliberately remain blank per
   the user's decision, not substituted with WO. Existing optional WO/receiver
   information is retained in remarks. Print/Save PDF uses the browser dialog.
-  Standard multi-page documents repeat the header, show page numbers and print
-  document totals only on the last page.
+  Standard multi-page documents repeat the header and show page numbers, without
+  monetary values on any page.
 - Prices exclude VAT. Each line amount is quantity × unit price minus line
   discount; **รวมเงิน** sums those net line amounts. The document discount in baht
   is then deducted before calculating 7% VAT (or No VAT). API calculations use
@@ -1171,7 +1206,7 @@ re-runnable script before running this API. It adds monetary/header fields to
 existing SO/line tables only; **no shared database migration is applied by the
 assistant**. Existing documents retain zero monetary values and credit default
 30; historical prices and contact information are not inferred from today's
-master. Review existing Drafts before printing them as priced documents.
+master. Review existing Drafts before using their saved amounts for Invoices.
 After rollout, stop the API, run `npx prisma generate` from `api/`, restart the
 API, and rebuild/restart the UI. Do not use `prisma db push`, reset the database
 or deploy unrelated migrations to install these fields.

@@ -1,12 +1,13 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
 
-function createMasterApp() {
+function createMasterApp({ units = false } = {}) {
   const kinds = {
     customers: ['accountCustomer', 'account-customers'], sales: ['accountSale', 'account-sales'],
     suppliers: ['supplier', 'suppliers'], products: ['accountProduct', 'account-products'],
     warehouses: ['warehouse', 'warehouses'], coa: ['chartOfAccount', 'chart-of-accounts'],
   };
+  if (units) kinds.units = ['accountUnit', 'account-units'];
   let sequence = 0;
   let state = Object.fromEntries([...Object.values(kinds).map(([model]) => [model, []]), ['auditLog', []], ['purchaseOrder', []]]);
   let failAudit = false;
@@ -32,7 +33,8 @@ function createMasterApp() {
     $queryRawUnsafe: async () => [],
     user: { findUnique: async ({ where }) => ({ id: where.id, role: where.id === 'admin' ? 'admin' : 'sales', active: true }) },
     accountingUserRole: { findUnique: async ({ where }) => ({ role: { id: 'test', name: 'Test',
-      permissions: where.userId === 'viewer' ? ['master.view'] : where.userId === 'ar' ? ['ar.view', 'ar.create'] : [] } }) },
+      permissions: where.userId === 'viewer' ? ['master.view'] : ['ar', 'ap', 'inventory'].includes(where.userId)
+        ? [`${where.userId}.view`, `${where.userId}.create`] : [] } }) },
     supplierBranch: { deleteMany: async () => ({ count: 0 }) },
     accountCustomerBranch: { deleteMany: async () => ({ count: 0 }) },
     accountCustomerSecondarySale: { deleteMany: async () => ({ count: 0 }) },
@@ -58,6 +60,7 @@ function createMasterApp() {
       create: async ({ data }) => {
         if (model === 'auditLog' && failAudit) throw new Error('Audit unavailable');
         if (data.code && state[model].some(row => row.code === data.code)) throw Object.assign(new Error('Duplicate'), { code: 'P2002' });
+        if (model === 'accountUnit' && state[model].some(row => row.name === data.name)) throw Object.assign(new Error('Duplicate'), { code: 'P2002' });
         const value = { ...hydrate(data), id: `id-${String(sequence++).padStart(5, '0')}`,
           createdAt: new Date(), updatedAt: new Date(Date.now() + sequence), active: data.active ?? true };
         state[model].push(value);
@@ -67,6 +70,7 @@ function createMasterApp() {
       update: async ({ where, data }) => {
         const previous = state[model].find(row => row.id === where.id) || missing();
         if (data.code && state[model].some(row => row.id !== previous.id && row.code === data.code)) throw Object.assign(new Error('Duplicate'), { code: 'P2002' });
+        if (model === 'accountUnit' && state[model].some(row => row.id !== previous.id && row.name === data.name)) throw Object.assign(new Error('Duplicate'), { code: 'P2002' });
         const value = { ...previous, ...hydrate(data), updatedAt: new Date(Date.now() + ++sequence) };
         state[model][state[model].indexOf(previous)] = value;
         return hydrate(value);

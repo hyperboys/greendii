@@ -25,6 +25,7 @@ export const masterTabs = [
   { id: "sales", label: "Sale บัญชี" },
   { id: "suppliers", label: "ผู้จำหน่าย / ผู้รับเหมา" },
   { id: "products", label: "สินค้า & บริการ" },
+  { id: "units", label: "หน่วยนับ" },
   { id: "warehouses", label: "คลังสินค้า" },
   { id: "coa", label: "ผังบัญชี" },
 ] as const;

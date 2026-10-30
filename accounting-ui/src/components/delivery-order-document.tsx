@@ -2,8 +2,6 @@ import { formatAccountingDate } from "@/lib/accounting-date";
 import { deliveryOrderStatus, type DeliveryOrder, type DeliveryOrderLine } from "@/lib/delivery-order";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 
-const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
 function wrapText(value: string, width: number) {
   return value.split("\n").flatMap(line => {
     const characters = Array.from(line);
@@ -38,7 +36,6 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
   return (
     <div id="so-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white text-black">
       {pages.map((rows, pageIndex) => {
-        const lastPage = pageIndex === pages.length - 1;
         return (
           <article className="so-paper" key={pageIndex}>
             <p className="so-page-number">หน้า {pageIndex + 1} / {pages.length}</p>
@@ -69,19 +66,16 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
               </div>
             </section>
             <table className="so-lines">
-              <colgroup>{["14%", "29%", "9%", "8%", "14%", "10%", "16%"].map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
-              <thead><tr>{["รหัสสินค้า", "รายการ", "จำนวน", "หน่วย", "ราคา/หน่วย", "ส่วนลด", "จำนวนเงิน"].map(label => <th key={label}>{label}</th>)}</tr></thead>
+              <colgroup>{["18%", "58%", "12%", "12%"].map((width, index) => <col key={index} style={{ width }} />)}</colgroup>
+              <thead><tr>{["รหัสสินค้า", "รายการ", "จำนวน", "หน่วย"].map(label => <th key={label}>{label}</th>)}</tr></thead>
               <tbody>
                 {rows.map(({ item, height, continuation }, index) => <tr key={index} style={{ height }}>
                   <td>{item.partNo || item.product?.code || ""}</td>
                   <td className="so-description">{item.desc}{item.remark && <small>{item.remark}</small>}</td>
                   <td className="so-numeric">{continuation ? "" : Number(item.qty).toLocaleString("en-US", { maximumFractionDigits: 3 })}</td>
                   <td className="so-unit">{item.unit}</td>
-                  <td className="so-numeric">{continuation ? "" : money(item.unitPrice)}</td>
-                  <td className="so-numeric">{continuation ? "" : money(item.discount)}</td>
-                  <td className="so-numeric">{continuation ? "" : money(item.amount ?? (Math.round(Number(item.unitPrice) * 100) * Number(item.qty) - Math.round(Number(item.discount) * 100)) / 100)}</td>
                 </tr>)}
-                <tr className="so-filler" style={{ height: Math.max(0, 430 - rows.reduce((sum, row) => sum + row.height, 0)) }} aria-hidden="true">{Array.from({ length: 7 }, (_, index) => <td key={index} />)}</tr>
+                <tr className="so-filler" style={{ height: Math.max(0, 430 - rows.reduce((sum, row) => sum + row.height, 0)) }} aria-hidden="true">{Array.from({ length: 4 }, (_, index) => <td key={index} />)}</tr>
               </tbody>
             </table>
             <section className="so-summary">
@@ -90,16 +84,8 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
                 <p>{doc.remark}</p>
                 {doc.workOrder?.woNo && <p>อ้างอิง WO: {doc.workOrder.woNo}</p>}
                 {doc.receiver && <p>ผู้รับสินค้า: {doc.receiver}</p>}
-                <p className="so-status">สถานะ: {deliveryOrderStatus(doc.status)} — ยังไม่ตัด Stock{!lastPage && " / ยอดรวมแสดงหน้าสุดท้าย"}</p>
+                <p className="so-status">สถานะ: {deliveryOrderStatus(doc.status)} — ยังไม่ตัด Stock</p>
               </div>
-              <table className="so-totals"><tbody>
-                {[
-                  ["รวมเงิน", doc.subTotal], ["ส่วนลดการค้า", doc.discount],
-                  ["เงินหลังหักส่วนลด", (Math.round(Number(doc.subTotal) * 100) - Math.round(Number(doc.discount) * 100)) / 100],
-                  [doc.vatConfig === "NO_VAT" ? "ภาษีมูลค่าเพิ่ม (No VAT)" : "ภาษีมูลค่าเพิ่ม　7%", doc.vat],
-                  ["จำนวนเงินทั้งสิ้น", doc.netAmount],
-                ].map(([label, amount]) => <tr key={label}><th>{label}</th><td>{lastPage ? money(amount) : ""}</td></tr>)}
-              </tbody></table>
             </section>
             <footer className="so-signatures">
               {[
@@ -145,14 +131,9 @@ export function DeliveryOrderPrintStyles() {
     #so-print-doc .so-numeric { text-align: right; font-variant-numeric: tabular-nums; }
     #so-print-doc .so-unit { text-align: center; }
     #so-print-doc .so-filler td { padding: 0; }
-    #so-print-doc .so-summary { display: grid; grid-template-columns: 68% 32%; border: 1px solid black; border-top: 0; break-inside: avoid; }
+    #so-print-doc .so-summary { border: 1px solid black; border-top: 0; break-inside: avoid; }
     #so-print-doc .so-notes { padding: 5px; white-space: pre-wrap; overflow-wrap: anywhere; }
     #so-print-doc .so-status { font-size: 9px; margin-top: 3mm; }
-    #so-print-doc .so-totals { width: 100%; }
-    #so-print-doc .so-totals th, #so-print-doc .so-totals td { border-left: 1px solid black; border-bottom: 1px solid black; padding: 4px 3px; font-weight: 400; }
-    #so-print-doc .so-totals th { width: 53%; text-align: left; font-size: 10px; }
-    #so-print-doc .so-totals td { text-align: right; overflow-wrap: anywhere; }
-    #so-print-doc .so-totals tr:last-child > * { border-bottom: 0; font-weight: 700; }
     #so-print-doc .so-signatures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1mm; margin-top: 1mm; break-inside: avoid; text-align: center; }
     #so-print-doc .so-signatures > div { border: 1px solid black; border-radius: 3px; min-height: 30mm; padding: 7mm 5mm 2mm; }
     #so-print-doc .so-signature-name { border-bottom: 1px solid black; min-height: 6mm; overflow-wrap: anywhere; }

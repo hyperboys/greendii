@@ -182,6 +182,7 @@ app.use('/api/account-sales', require('./routes/account-sales'));
 app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/products', productsRoutes);
 app.use('/api/account-products', accountProductsRoutes);
+app.use('/api/account-units', require('./routes/account-units'));
 app.use('/api/units', unitsRoutes);
 app.use('/api/warehouses', warehousesRoutes);
 app.use('/api/chart-of-accounts', chartOfAccountsRoutes);

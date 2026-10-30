@@ -4,6 +4,7 @@ import "./globals.css";
 import { AccountingAccessProvider } from "@/components/accounting-access-provider";
 import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
+import { UnitOptions } from "@/components/unit-options";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="th" className={`${publicSans.variable} ${notoSansThai.variable}`}>
       <body>
         <Suspense fallback={<div className="grid min-h-screen place-items-center text-sm text-[#657069]">กำลังโหลด...</div>}>
-          <AccountingAccessProvider><AppShell>{children}</AppShell></AccountingAccessProvider>
+          <AccountingAccessProvider><AppShell><UnitOptions />{children}</AppShell></AccountingAccessProvider>
         </Suspense>
       </body>
     </html>

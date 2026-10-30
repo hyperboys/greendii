@@ -170,20 +170,25 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
           {mode === "new" ? <SearchableSelect label="คัดลอกจาก SO (ไม่บังคับ)" value={form.provisionalDeliveryOrderId || ""} selectedLabel={sourceLabel} placeholder="ไม่อ้างอิง SO" searchPlaceholder="พิมพ์เลข SO" loading={sourceLoading} error={sourceError} options={[{ value: "", label: "ไม่อ้างอิง SO" }, ...sources.map(source => ({ value: source.id, label: `${source.soNo} — ${source.customer?.name || ""}` }))]} onSearch={q => { if (q !== sourceQuery) { setSourceLoading(true); setSourceQuery(q); } }} onChange={id => { void chooseSource(id); }} />
             : <p>SO อ้างอิง: {sourceLabel} (ไม่สามารถเปลี่ยนหลังบันทึก)</p>}
           <fieldset disabled={linked} className="min-w-0"><SearchableSelect label="ลูกค้า" required value={customer ? form.customerId : ""} selectedLabel={customer ? `${customer.code || ""} — ${customer.name}` : ""} placeholder="เลือกลูกค้า" searchPlaceholder="พิมพ์รหัส / ชื่อ" options={customers.map(item => ({ value: item.id, label: `${item.code || ""} — ${item.name}` }))} onChange={chooseCustomer} /></fieldset>
-          <label>สาขาลูกค้า<select disabled={linked} className={control} value={form.customerBranchId || ""} onChange={event => { if (customer && event.target.value) setForm(previous => ({ ...previous, ...branchDefaults(customer, event.target.value) })); }}>
+          {linked && <p className="text-sm text-gray-600 md:col-span-2">ข้อมูลคัดลอกจาก SO สามารถแก้ไขใน Invoice Draft ได้ โดยไม่เปลี่ยนข้อมูล SO ต้นฉบับ ลูกค้าและ SO อ้างอิงยังคงเดิม</p>}
+          <label>สาขาลูกค้า<select className={control} value={form.customerBranchId || ""} onChange={event => {
+            const branchId = event.target.value;
+            if (customer && branchId) setForm(previous => ({ ...previous, ...branchDefaults(customer, branchId) }));
+            else setForm(previous => ({ ...previous, customerBranchId: "" }));
+          }}>
             <option value="">ข้อมูลสาขาบนเอกสาร: {form.customerBranch}</option>{customer?.branches.map(branch => <option key={branch.id} value={branch.id}>{branch.code} — {branch.name}</option>)}
           </select></label>
           <label>เลขผู้เสียภาษี<input className={control} value={form.taxId} onChange={event => setForm(previous => ({ ...previous, taxId: event.target.value }))} /></label>
           <label>เลข PO ลูกค้า<input className={control} value={form.customerPoNo} onChange={event => setForm(previous => ({ ...previous, customerPoNo: event.target.value }))} /></label>
           <label>ที่อยู่ออกบิล<textarea rows={3} className={control} value={form.address} onChange={event => setForm(previous => ({ ...previous, address: event.target.value }))} /></label>
-          <label>ที่อยู่จัดส่ง<textarea rows={3} readOnly={linked} className={control} value={form.shippingAddress} onChange={event => setForm(previous => ({ ...previous, shippingAddress: event.target.value }))} /></label>
-          <label>จำนวนวันเครดิต<input required readOnly={linked} className={control} type="number" min="0" max="36500" step="1" value={form.creditTerm} onChange={event => setForm(previous => ({ ...previous, creditTerm: event.target.value }))} /><span className="text-sm">ครบกำหนด {formatAccountingDate(invoiceDueDate(form.ivDate, Number(form.creditTerm)))}</span></label>
-          <label>VAT<select disabled={linked} className={control} value={form.vatConfig} onChange={event => setForm(previous => ({ ...previous, vatConfig: event.target.value === "NO_VAT" ? "NO_VAT" : "VAT7%" }))}><option value="VAT7%">VAT 7%</option><option value="NO_VAT">No VAT</option></select></label>
+          <label>ที่อยู่จัดส่ง<textarea rows={3} className={control} value={form.shippingAddress} onChange={event => setForm(previous => ({ ...previous, shippingAddress: event.target.value }))} /></label>
+          <label>จำนวนวันเครดิต<input required className={control} type="number" min="0" max="36500" step="1" value={form.creditTerm} onChange={event => setForm(previous => ({ ...previous, creditTerm: event.target.value }))} /><span className="text-sm">ครบกำหนด {formatAccountingDate(invoiceDueDate(form.ivDate, Number(form.creditTerm)))}</span></label>
+          <label>VAT<select className={control} value={form.vatConfig} onChange={event => setForm(previous => ({ ...previous, vatConfig: event.target.value === "NO_VAT" ? "NO_VAT" : "VAT7%" }))}><option value="VAT7%">VAT 7%</option><option value="NO_VAT">No VAT</option></select></label>
         </section>
-        <DocumentItems title="รายการ Invoice" items={form.items} products={products} readOnly={linked} onChange={items => setForm(previous => ({ ...previous, items }))} />
+        <DocumentItems title="รายการ Invoice" items={form.items} products={products} onChange={items => setForm(previous => ({ ...previous, items }))} />
         <section className="grid gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
-          <label>ส่วนลดท้ายเอกสาร (บาท)<input required readOnly={linked} className={control} type="number" min="0" max={Math.max(0, totals.subTotal)} step="0.01" value={form.discount} onChange={event => setForm(previous => ({ ...previous, discount: event.target.value }))} /></label>
-          <dl className="space-y-2">{[["รวมเงิน", totals.subTotal], ["ส่วนลดท้ายเอกสาร", form.discount], ["VAT", totals.vat], ["ยอดสุทธิ", totals.netAmount]].map(([label, amount]) => <div key={label} className="flex justify-between gap-2 border-b"><dt>{label}</dt><dd>{money(amount)}</dd></div>)}</dl>
+          <label>ส่วนลดท้ายเอกสาร (บาท)<input required className={control} type="number" min="0" max={Math.max(0, totals.subTotal)} step="0.01" value={form.discount} onChange={event => setForm(previous => ({ ...previous, discount: event.target.value }))} /></label>
+          <dl className="space-y-2">{[["รวมเงิน", totals.subTotal], ["ส่วนลดท้ายเอกสาร", form.discount], ["ยอดก่อน VAT", totals.taxableAmount], ["VAT", totals.vat], ["ยอดสุทธิ", totals.netAmount]].map(([label, amount]) => <div key={label} className="flex justify-between gap-2 border-b"><dt>{label}</dt><dd>{money(amount)}</dd></div>)}</dl>
         </section>
         <label className="block">หมายเหตุ<textarea className={control} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
         <button className={primary} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>

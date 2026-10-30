@@ -98,7 +98,7 @@ test("SO is a full-page Draft form with integer quantities and PDF monetary fiel
   }
 });
 
-test("SO print matches PDF headings, seven columns, totals, blank reservation and three signature boxes", () => {
+test("SO preview/print shows four delivery columns without prices or totals, preserving headers and signatures", () => {
   const { DeliveryOrderDocument } = load(["components", "delivery-order-document.tsx"], {
     "next/image": { default: props => React.createElement("img", props) },
     "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
@@ -113,8 +113,10 @@ test("SO print matches PDF headings, seven columns, totals, blank reservation an
       items: [{ partNo: "P001", desc: "First", qty: 3, unit: "pcs", unitPrice: "10.25", discount: "0.75", amount: 30 }, { desc: "Second", qty: 2, unit: "set", unitPrice: 20, discount: 0, amount: 40 }],
     }, company: { companyName: "Company" },
   }));
-  for (const text of ["First", "Second", "25/10/2026", "Draft", "WO-001", "Company", "TEMPORARY INVOICE", "30/10/2026", "69.55", "4.55", "Sender Name", "จำนวนวันเครดิต", "ใบสั่งจอง", "เงื่อนไขการวางบิล"]) assert.ok(html.includes(text), text);
-  assert.equal((html.match(/<th>/g) || []).length, 14); // Number/date, seven line columns, five totals.
+  for (const text of ["First", "Second", "25/10/2026", "Draft", "WO-001", "Company", "TEMPORARY INVOICE", "30/10/2026", "Sender Name", "จำนวนวันเครดิต", "ใบสั่งจอง", "เงื่อนไขการวางบิล"]) assert.ok(html.includes(text), text);
+  assert.equal((html.match(/<th>/g) || []).length, 6);
+  assert.match(html, /<th>รหัสสินค้า<\/th><th>รายการ<\/th><th>จำนวน<\/th><th>หน่วย<\/th>/);
+  assert.doesNotMatch(html, /ราคา\/หน่วย|ส่วนลด|จำนวนเงิน|รวมเงิน|ภาษีมูลค่าเพิ่ม|so-totals|10\.25|0\.75|69\.55|4\.55|30\.00|40\.00/);
   for (const role of ["ผู้รับสินค้า", "ผู้ส่งสินค้า", "ผู้มีอำนาจ"]) assert.ok(html.includes(role));
   assert.doesNotMatch(html, /PROVISIONAL DELIVERY ORDER|โลโก้บริษัท/);
   assert.match(html, /หน้า 1 \/ 1/);
@@ -133,7 +135,7 @@ test("SO monetary preview agrees with server cents calculation for discounts, VA
   assert.equal(deliveryOrderAmounts(items, 70, "VAT7%").netAmount, 0);
 });
 
-test("PDF pages preserve every row and print totals only once on the final page", () => {
+test("SO PDF pages preserve every row and omit monetary values on every page", () => {
   const print = load(["components", "delivery-order-document.tsx"], {
     "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
     "@/lib/delivery-order": load(["lib", "delivery-order.ts"]),
@@ -145,7 +147,10 @@ test("PDF pages preserve every row and print totals only once on the final page"
   const html = renderToStaticMarkup(React.createElement(print.DeliveryOrderDocument, { company: {}, document: {
     items, status: "draft", soNo: "SO", docDate: "2026-10-25", subTotal: 80, discount: 0, vat: 5.6, netAmount: 85.6, vatConfig: "VAT7%",
   } }));
-  assert.equal((html.match(/85\.60/g) || []).length, 1);
+  assert.doesNotMatch(html, /85\.60|5\.60|80\.00|1\.00|ราคา\/หน่วย|ส่วนลด|จำนวนเงิน|so-totals|ยอดรวมแสดงหน้าสุดท้าย/);
+  for (let index = 0; index < items.length; index++) {
+    assert.equal((html.match(new RegExp(`>P${index}<`, "g")) || []).length, 1);
+  }
   assert.ok(html.includes(`หน้า ${pages.length} / ${pages.length}`));
   const longItem = { ...items[0], desc: "LongDescription".repeat(200), remark: "Note" };
   const continued = print.deliveryOrderPrintPages([longItem]).flat();

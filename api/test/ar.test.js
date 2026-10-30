@@ -238,10 +238,16 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
     { id: 'hq', name: 'Head office', addresses: [{ kind: 'billing', address: 'HQ billing' }] },
     { id: 'main', name: 'Main', addresses: [{ kind: 'billing', address: 'Source branch billing' }] },
   );
-  const fromSource = { ...payload, provisionalDeliveryOrderId: 'so', items: [{ desc: 'Forged' }], discount: 999 };
+  const fromSource = { ...payload, provisionalDeliveryOrderId: 'so' };
+  for (const patch of [
+    { items: [{ desc: 'Incomplete' }] }, { items: [] }, { discount: 999 },
+    { vatConfig: 'VAT10%' }, { creditTerm: -1 }, { customerBranchId: 'foreign' },
+  ]) {
+    assert.equal((await request('/invoices', 'POST', { ...fromSource, ...patch })).status, 400, JSON.stringify(patch));
+  }
   const attempts = await Promise.all([request('/invoices', 'POST', fromSource), request('/invoices', 'POST', fromSource)]);
   assert.deepEqual(attempts.map(row => row.status).sort(), [201, 409]);
-  const linked = attempts.find(row => row.status === 201).data;
+  let linked = attempts.find(row => row.status === 201).data;
   assert.equal(linked.netAmount, 69.55);
   assert.equal(linked.items.length, 2);
   assert.equal(linked.items[0].desc, 'Source line');
@@ -249,9 +255,51 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(linked.address, 'Source branch billing');
   assert.equal((await request('/invoices', 'POST', { ...fromSource, customerId: 'foreign' })).status, 400);
   assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...payload, updatedAt: linked.updatedAt })).status, 409);
+  const originalSource = structuredClone(source);
+  const editedSource = {
+    ...fromSource, customerBranchId: 'hq', customerBranch: 'Head office',
+    address: 'Edited billing', shippingAddress: 'Edited shipping', taxId: '456',
+    creditTerm: 15, vatConfig: 'NO_VAT', discount: 2, customerPoNo: 'PO-EDIT', remark: 'Invoice only',
+    items: [{ desc: 'Edited line', partNo: 'EDIT', qty: 4, unit: 'box', unitPrice: '25.50', lineDiscount: '1.50', remark: 'Edited note' }],
+    subTotal: 1, vat: 999, netAmount: 1, dueDate: '2000-01-01',
+  };
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: linked.updatedAt }, 'viewer')).status, 403);
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: '2000-01-01' })).status, 409);
+  const editedResponse = await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: linked.updatedAt });
+  assert.equal(editedResponse.status, 200);
+  linked = editedResponse.data;
+  for (const [field, expected] of Object.entries({
+    customerBranch: 'Head office', address: 'Edited billing', shippingAddress: 'Edited shipping', taxId: '456',
+    creditTerm: 15, vatConfig: 'NO_VAT', discount: 2, customerPoNo: 'PO-EDIT', remark: 'Invoice only',
+    subTotal: 100.5, vat: 0, netAmount: 98.5, outstandingAmount: 0, provisionalDeliveryOrderId: 'so',
+  })) assert.equal(linked[field], expected, field);
+  assert.equal(linked.dueDate.slice(0, 10), '2026-11-09');
+  assert.equal(linked.items.length, 1);
+  assert.equal(linked.items[0].desc, 'Edited line');
+  assert.equal(linked.items[0].qty, 4);
+  assert.equal(linked.items[0].unitPrice, 25.5);
+  assert.equal(linked.items[0].lineDiscount, 1.5);
+  assert.equal(linked.items[0].amount, 100.5);
+  assert.deepEqual((await request(`/invoices/${linked.id}`)).data.items, linked.items);
+  assert.deepEqual(source, originalSource, 'Editing Invoice never mutates the SO');
+  const editAudit = state.audits.find(log => log.entityId === linked.id && log.action === 'update');
+  assert.ok(editAudit.changedFields.includes('items'));
+  failAudit = true;
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, remark: 'Rollback', updatedAt: linked.updatedAt })).status, 500);
+  assert.equal(state.invoices.find(row => row.id === linked.id).remark, 'Invoice only');
+  failAudit = false;
+  const linkedConfirmed = await request(`/invoices/${linked.id}/confirm`, 'POST', { updatedAt: linked.updatedAt });
+  assert.equal(linkedConfirmed.status, 200);
+  linked = linkedConfirmed.data;
+  assert.equal(linked.outstandingAmount, 98.5);
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: linked.updatedAt })).status, 409);
   await request(`/invoices/${linked.id}/cancel`, 'POST', { updatedAt: linked.updatedAt, reason: 'Replace' });
-  const replacement = await request('/invoices', 'POST', fromSource);
+  const replacement = await request('/invoices', 'POST', editedSource);
   assert.equal(replacement.status, 201);
+  assert.equal(replacement.data.netAmount, 98.5, 'Create also preserves edited SO-sourced data');
+  assert.equal(replacement.data.items[0].desc, 'Edited line');
+  assert.equal(replacement.data.customerBranch, 'Head office');
+  assert.deepEqual(source, originalSource);
   await request(`/invoices/${replacement.data.id}/cancel`, 'POST', { updatedAt: replacement.data.updatedAt, reason: 'Replace' });
   source.customerBranch = 'Historical branch';
   const historicalBranch = await request('/invoices', 'POST', fromSource);
