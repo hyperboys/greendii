@@ -50,42 +50,48 @@ export function PurchaseOrderDocumentView({
   const approval = document.history?.find(row => row.action === "approve");
 
   return (
-    <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-6 text-[12px] leading-5 text-black sm:p-8">
-      <header className="grid grid-cols-[92px_1fr_92px] items-center gap-3 border-b-2 border-gray-800 pb-3 text-center">
+    <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-5 text-[11px] leading-5 text-black sm:p-6">
+      <header className="grid grid-cols-[82px_1fr_172px] items-center gap-2 text-center">
         <div className="flex h-16 items-center justify-center border border-gray-300 p-1">
           {company.logoUrl ? <Image unoptimized width={160} height={56} src={fileHref(company.logoUrl)} alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" /> : <strong className="text-green-700">GREEN Dii</strong>}
         </div>
         <div>
-          <h1 className="text-lg font-bold">{company.companyName || "บริษัท กรีนดี จำกัด"}</h1>
-          {company.companyNameEn && <p className="text-xs">{company.companyNameEn}</p>}
+          <h1 className="text-base font-bold">{company.companyName || "บริษัท กรีนดี จำกัด"}</h1>
+          {company.companyNameEn && <p className="text-[10px]">{company.companyNameEn}</p>}
           <p>{company.address || "-"}</p>
           <p>โทร. {company.tel || "-"}　เลขประจำตัวผู้เสียภาษี {company.taxId || "-"}</p>
           <h2 className="mt-1 text-lg font-semibold">ใบสั่งซื้อ</h2>
-          <p className="text-xs">PURCHASE ORDER</p>
+          <p className="text-[10px]">PURCHASE ORDER</p>
         </div>
-        <div />
+        <dl className="grid grid-cols-[auto_1fr] border border-blue-700 text-left leading-5">
+          <dt className="border-b border-r border-blue-700 p-1 font-semibold">เลขที่เอกสาร</dt>
+          <dd className="border-b border-blue-700 p-1">{document.poNo}</dd>
+          <dt className="border-r border-blue-700 p-1 font-semibold">วันที่เอกสาร</dt>
+          <dd className="p-1">{formatDate(document.poDate)}</dd>
+        </dl>
       </header>
 
-      <section className="mt-3 grid grid-cols-2 gap-2">
-        <div className="min-h-24 rounded border border-blue-700 p-2">
-          <p><strong>รหัสผู้ขาย</strong>　{supplier?.code || "-"}</p>
-          <p><strong>ชื่อผู้ขาย</strong>　{supplier?.name || "-"}</p>
-          <p><strong>ที่อยู่</strong>　{document.address || "-"}</p>
-          <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}　โทร. {supplier?.tel || "-"}</p>
-          <p><strong>เลขประจำตัวผู้เสียภาษี</strong>　{supplier?.taxId || "-"}</p>
+      <section className="po-print-keep mt-2 grid grid-cols-2 gap-1">
+        <div>
+          <p className="mb-1"><strong>รหัสผู้ขาย</strong>　{supplier?.code || "-"}</p>
+          <div className="min-h-24 border border-blue-700 p-2">
+            <p><strong>ชื่อผู้ขาย</strong>　{supplier?.name || "-"}</p>
+            <p><strong>ที่อยู่</strong>　{document.address || "-"}</p>
+            {document.supplierBranch && <p><strong>สาขา</strong>　{document.supplierBranch}</p>}
+            <p><strong>โทร.</strong>　{supplier?.tel || "-"}　<strong>เลขประจำตัวผู้เสียภาษี</strong>　{supplier?.taxId || "-"}</p>
+          </div>
         </div>
-        <div className="min-h-24 rounded border border-blue-700 p-2">
-          <p><strong>เลขที่เอกสาร</strong>　{document.poNo}</p>
-          <p><strong>สถานะ</strong>　{poStatusLabels[document.status] || document.status}</p>
-          <p><strong>วันที่เอกสาร</strong>　{formatDate(document.poDate)}</p>
+        <div className="min-h-24 border border-blue-700 p-2">
+          <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}</p>
+          <p><strong>จำนวนวันเครดิต</strong>　{document.paymentTerm} วัน</p>
           <p><strong>ประเภทจัดซื้อ</strong>　{document.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
-          <p><strong>ที่อยู่จัดส่ง</strong>　{document.deliveryLocation || "-"}</p>
-          <p><strong>กำหนดส่ง</strong>　{formatDate(document.deliveryDate)}</p>
-          <p><strong>เครดิต/เงื่อนไขชำระ</strong>　{document.paymentTerm} วัน</p>
+          {document.deliveryLocation && <p><strong>ที่อยู่จัดส่ง</strong>　{document.deliveryLocation}</p>}
+          {document.deliveryDate && <p><strong>กำหนดส่ง</strong>　{formatDate(document.deliveryDate)}</p>}
+          <p><strong>สถานะ</strong>　{poStatusLabels[document.status] || document.status}</p>
         </div>
       </section>
 
-      <section className="mt-3 rounded border border-blue-700">
+      <section className="mt-2 border border-blue-700">
         {references.length > 0 && (
           <div className="border-b border-blue-700 px-2 py-1">
             <strong>อ้างอิง PR:</strong> {references.map(reference => reference.prNo).join(", ")}
@@ -115,15 +121,15 @@ export function PurchaseOrderDocumentView({
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.amount)}</td>
               </tr>
             ))}
-            {Array.from({ length: Math.max(0, 5 - document.items.length) }).map((_, index) => (
+            {Array.from({ length: Math.max(0, 12 - document.items.length) }).map((_, index) => (
               <tr key={`blank-${index}`} aria-hidden="true">
-                {Array.from({ length: 7 }).map((__, cell) => <td key={cell} className="h-8 border-x border-blue-700" />)}
+                {Array.from({ length: 7 }).map((__, cell) => <td key={cell} className="h-9 border-x border-blue-700" />)}
               </tr>
             ))}
           </tbody>
         </table>
         <div className="grid grid-cols-[1fr_43%] border-t border-blue-700">
-          <div className="min-h-24 border-r border-blue-700 p-2">
+          <div className="min-h-16 border-r border-blue-700 p-2">
             <strong>หมายเหตุ</strong>
             <p className="mt-1 whitespace-pre-wrap">{document.remarks || "-"}</p>
           </div>
@@ -137,26 +143,48 @@ export function PurchaseOrderDocumentView({
         </div>
       </section>
 
-      <section className="mt-3 grid grid-cols-[1.4fr_0.8fr_1.2fr] rounded border border-blue-700 text-center">
-        <div className="p-2 text-left"><strong>เอกสารแนบจาก PR</strong><div className="mt-1"><AttachmentList attachments={prAttachments} /></div></div>
-        <div className="border-x border-blue-700 p-2">
-          <p className="font-semibold">ผู้จัดทำ</p>
-          {signature && <Image unoptimized width={96} height={32} src={fileHref(signature)} alt="ลายเซ็นผู้จัดทำ" className="mx-auto mt-2 h-8 max-w-24 object-contain" />}
-          <p className="mt-1">{document.createdBy?.signatureText || document.createdBy?.fullName || "-"}</p>
+      <section className="po-print-keep mt-2 grid grid-cols-[1.2fr_1fr] border border-blue-700">
+        <div className="border-r border-blue-700 p-2">
+          <strong>เงื่อนไขอื่น ๆ</strong>
+          <ol className="mt-1 list-decimal space-y-0.5 pl-4 text-[10px] leading-4">
+            <li>โปรดระบุเลขที่ใบสั่งซื้อข้างต้นในใบส่งของทุกฉบับ</li>
+            <li>การวางบิลและการรับเช็คเป็นไปตามกำหนดเวลาที่บริษัทกำหนดไว้</li>
+            <li>ในการวางบิลเพื่อเรียกเก็บ ให้แนบสำเนาใบสั่งซื้อกำกับมาด้วย</li>
+          </ol>
         </div>
-        <div className="p-2">
-          <p className="font-semibold">ผู้ตรวจสอบ / ผู้มีอำนาจลงนาม</p>
-          <div className="mt-5 border-b border-gray-700" />
-          <p className="mt-1">{approval
-            ? `${document.status === "cancelled" ? "เคยอนุมัติ" : "อนุมัติ"}โดย ${approval.performedBy?.fullName || "-"} · ${formatDate(approval.createdAt)}`
-            : document.status === "approved" ? "อนุมัติเดิม (ไม่มีประวัติผู้อนุมัติ)" : "ยังไม่มีข้อมูลการอนุมัติ"}</p>
+        <div className="grid grid-cols-2 text-center">
+          <div data-po-signature-role="creator" className="min-h-16 border-b border-r border-blue-700 p-1">
+            <strong>ผู้จัดทำ</strong>
+            {signature && <Image unoptimized width={96} height={32} src={fileHref(signature)} alt="ลายเซ็นผู้จัดทำ" className="mx-auto h-8 max-w-24 object-contain" />}
+            <p>{document.createdBy?.signatureText || document.createdBy?.fullName || "-"}</p>
+          </div>
+          <div className="min-h-16 border-b border-blue-700 p-1">
+            <strong>ในนาม</strong>
+            <p className="mt-1">{company.companyName || "บริษัท กรีนดี จำกัด"}</p>
+          </div>
+          <div data-po-signature-role="reviewer" className="min-h-16 border-r border-blue-700 p-1">
+            <strong>ผู้ตรวจสอบ</strong>
+            <p className="mt-1">{approval
+              ? `${document.status === "cancelled" ? "เคยอนุมัติ" : "อนุมัติ"}โดย ${approval.performedBy?.fullName || "-"} · ${formatDate(approval.createdAt)}`
+              : document.status === "approved" ? "อนุมัติเดิม (ไม่มีประวัติผู้อนุมัติ)" : "ยังไม่มีข้อมูลการอนุมัติ"}</p>
+            <p className="mt-1">ลงชื่อ __________________</p>
+            <p>วันที่ ____/____/________</p>
+          </div>
+          <div data-po-signature-role="signatory" className="min-h-16 p-1">
+            <strong>ผู้มีอำนาจลงนาม</strong>
+            <p className="mt-1">ลงชื่อ __________________</p>
+            <p>วันที่ ____/____/________</p>
+          </div>
         </div>
       </section>
-      <section className="mt-3 rounded border border-gray-400 p-2">
-        <strong>เอกสารแนบประกอบ PO</strong>
-        <div className="mt-1"><AttachmentList attachments={document.attachments || []} /></div>
-      </section>
-      <p className="mt-2 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ช่องลงนามเว้นว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
+
+      {(prAttachments.length > 0 || (document.attachments || []).length > 0) && (
+        <section className="mt-2 grid grid-cols-2 border border-blue-700 text-[10px]">
+          {prAttachments.length > 0 && <div className="border-r border-blue-700 p-1"><strong>เอกสารแนบจาก PR</strong><div><AttachmentList attachments={prAttachments} /></div></div>}
+          {(document.attachments || []).length > 0 && <div className="p-1"><strong>เอกสารแนบประกอบ PO</strong><div><AttachmentList attachments={document.attachments || []} /></div></div>}
+        </section>
+      )}
+      <p className="mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ช่องลงนามเว้นว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
     </article>
   );
 }
@@ -167,6 +195,11 @@ export function PurchaseOrderPrintStyles() {
       @page { size: A4; margin: 12mm; }
       @media print {
         .po-document-preview { overflow: visible !important; }
+        #po-print-doc { break-inside: auto; }
+        #po-print-doc header, #po-print-doc .po-print-keep, #po-print-doc tbody tr {
+          break-inside: avoid;
+          page-break-inside: avoid;
+        }
         body * { visibility: hidden !important; }
         #po-print-doc, #po-print-doc * { visibility: visible !important; }
         #po-print-doc {

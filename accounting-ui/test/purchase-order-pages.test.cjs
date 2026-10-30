@@ -102,17 +102,42 @@ test("PO actions revisions files history and print status are wired through type
   assert.match(print, /poStatusLabels\[document.status\]/);
 });
 
-test("PO print shows saved approval actor without inventing a signature or legacy approver", () => {
+test("PO print follows the reference structure and retains operational details", () => {
   const { PurchaseOrderDocumentView } = load(["components", "purchase-order-document.tsx"], {
     "next/image": { default: () => null },
     "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
     "@/lib/accounting-purchase-orders": load(["lib", "accounting-purchase-orders.ts"]),
   });
   const doc = { id: "po", poNo: "PO2610001", poDate: "2026-10-26", purchaseType: "domestic", status: "approved",
-    items: [], subTotal: 100, discount: 0, vat: 7, netAmount: 107, vatConfig: "VAT7%",
+    supplier: { id: "supplier", code: "SUP-01", name: "Sample Supplier", tel: "02-000-0000", taxId: "1234567890123" },
+    contactPerson: "Buyer", paymentTerm: 30, deliveryLocation: "Warehouse", deliveryDate: "2026-11-01",
+    items: [{ id: "line", partNo: "P-01", desc: "Sample item", qty: 1, unit: "Pcs", unitPrice: 100, discount: 0, amount: 100 }],
+    subTotal: 100, discount: 0, vat: 7, netAmount: 107, vatConfig: "VAT7%",
+    purchaseRequestReferences: [{ purchaseRequest: { id: "pr", prNo: "PR2610001", attachments: [{ id: "pr-file", originalName: "PR.pdf", mimeType: "application/pdf" }] } }],
+    attachments: [{ id: "po-file", originalName: "Quote.pdf", mimeType: "application/pdf" }],
+    createdBy: { fullName: "Saved creator" },
     history: [{ id: "audit", action: "approve", createdAt: "2026-10-26", performedBy: { fullName: "Saved approver" } }] };
-  const render = document => renderToStaticMarkup(React.createElement(PurchaseOrderDocumentView, { document, company: {} }));
-  const html = render(doc);
+  const render = (document, company = {}) => renderToStaticMarkup(React.createElement(PurchaseOrderDocumentView, { document, company }));
+  const html = render(doc, { companyName: "Sample Company" });
+  const sectionOrder = ["ใบสั่งซื้อ", "รหัสผู้ขาย", "อ้างอิง PR:", "รหัสสินค้า", "หมายเหตุ", "เงื่อนไขอื่น ๆ", "ผู้จัดทำ"]
+    .map(label => html.indexOf(label));
+  assert.ok(sectionOrder.every(index => index >= 0));
+  assert.deepEqual(sectionOrder, [...sectionOrder].sort((a, b) => a - b));
+  assert.match(html, /วันที่เอกสาร/);
+  assert.match(html, /จำนวนวันเครดิต/);
+  assert.match(html, /เงื่อนไขอื่น ๆ/);
+  assert.match(html, /การวางบิลและการรับเช็ค/);
+  assert.match(html, /ในนาม/);
+  assert.match(html, /ผู้มีอำนาจลงนาม/);
+  assert.match(html, /data-po-signature-role="reviewer"/);
+  assert.match(html, /data-po-signature-role="signatory"/);
+  assert.equal((html.match(/data-po-signature-role=/g) || []).length, 3);
+  assert.match(html, /ที่อยู่จัดส่ง/);
+  assert.equal((html.match(/aria-hidden="true"/g) || []).length, 11);
+  assert.match(html, /min-h-16 border-r border-blue-700 p-2/);
+  assert.match(html, /เอกสารแนบจาก PR/);
+  assert.match(html, /เอกสารแนบประกอบ PO/);
+  assert.match(html, /Sample item/);
   assert.match(html, /อนุมัติโดย Saved approver/);
   assert.doesNotMatch(html, /ยังไม่มีข้อมูลการอนุมัติ/);
   assert.match(render({ ...doc, status: "cancelled" }), /เคยอนุมัติโดย Saved approver/);
