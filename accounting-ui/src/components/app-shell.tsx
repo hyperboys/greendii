@@ -57,6 +57,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const access = useAccountingAccess();
 
   useEffect(() => {
+    const activeGroup = navigation.find(item => (item.children || item.tabs) &&
+      (pathname === item.href || pathname.startsWith(`${item.href}/`)))?.href;
+    setExpanded(Object.fromEntries(
+      navigation.filter(item => item.children || item.tabs).map(item => [item.href, item.href === activeGroup]),
+    ));
+  }, [pathname]);
+
+  useEffect(() => {
     if (!open) return;
     const desktop = window.matchMedia("(min-width: 1024px)");
     if (desktop.matches) return;
@@ -135,13 +143,19 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   <button type="button" aria-label={item.label} title={collapsed ? item.label : undefined} aria-expanded={!collapsed && isExpanded} aria-controls={`nav-${item.href.replaceAll("/", "-")}`}
                     onClick={() => {
                       setCollapsed(false);
-                      setExpanded(value => ({ ...value, [item.href]: collapsed || !isExpanded }));
+                      setExpanded(Object.fromEntries(
+                        navigation.filter(group => group.children || group.tabs)
+                          .map(group => [group.href, group.href === item.href && (collapsed || !isExpanded)]),
+                      ));
                     }} className={navClass}>
                     <item.icon size={18} strokeWidth={1.8} className="shrink-0" />
                     <span className={`flex-1 ${collapsed ? "lg:hidden" : ""}`}>{item.label}</span>
                     <ChevronDown size={16} className={`shrink-0 transition-transform motion-reduce:transition-none ${collapsed ? "lg:hidden" : ""} ${isExpanded ? "rotate-180" : ""}`} />
                   </button>
-                  <div id={`nav-${item.href.replaceAll("/", "-")}`} hidden={!isExpanded} className={`ml-5 mt-1 space-y-1 border-l border-white/20 pl-3 ${collapsed ? "lg:hidden" : ""}`}>
+                  <div id={`nav-${item.href.replaceAll("/", "-")}`} aria-hidden={!isExpanded}
+                    style={{ gridTemplateRows: isExpanded ? "1fr" : "0fr", opacity: isExpanded ? 1 : 0, visibility: isExpanded ? "visible" : "hidden" }}
+                    className={`ml-5 mt-1 grid overflow-hidden transition-[grid-template-rows,opacity,visibility] duration-300 motion-reduce:transition-none ${collapsed ? "lg:hidden" : ""}`}>
+                    <div className="min-h-0 overflow-hidden border-l border-white/20 pl-3">
                     {items.filter(child => access && canOpenAccountingPath(access, child.href.split("?")[0])).map(child => {
                       const childPath = child.href.split("?")[0];
                       const recordTab = pathname.startsWith("/master/") ? pathname.split("/")[2]
@@ -161,12 +175,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : pathname === childPath && child.id === currentTab);
                       return (
                         <Link key={child.id} href={child.href} aria-current={childActive ? "page" : undefined}
-                          onClick={() => { setOpen(false); setExpanded(value => ({ ...value, [item.href]: true })); }}
+                          onClick={() => {
+                            setOpen(false);
+                            setExpanded(Object.fromEntries(navigation.filter(group => group.children || group.tabs)
+                              .map(group => [group.href, group.href === item.href])));
+                          }}
                           className={`block rounded-md px-3 py-2 text-sm transition-colors ${childActive ? "bg-white/20 font-bold text-white" : "text-white/80 hover:bg-white/10 hover:text-white"}`}>
                           {child.label}
                         </Link>
                       );
                     })}
+                    </div>
                   </div>
                 </div>
               );

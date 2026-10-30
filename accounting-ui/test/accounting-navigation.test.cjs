@@ -136,6 +136,15 @@ test("Desktop sidebar toggles an icon rail, reopens parent groups, and restores 
   tree = render();
   assert.match(renderToStaticMarkup(tree), /lg:grid-cols-\[252px_minmax\(0,1fr\)\]/);
   assert.equal(find(tree, "ข้อมูลหลัก & ผังบัญชี").props["aria-expanded"], true);
+  find(tree, "คลังสินค้า / สต็อก").props.onClick();
+  tree = render();
+  assert.equal(find(tree, "ข้อมูลหลัก & ผังบัญชี").props["aria-expanded"], false);
+  assert.equal(find(tree, "คลังสินค้า / สต็อก").props["aria-expanded"], true);
+  assert.equal(find(tree, "ลูกหนี้ / รับชำระเงิน").props["aria-expanded"], false);
+  find(tree, "ข้อมูลหลัก & ผังบัญชี").props.onClick();
+  tree = render();
+  assert.equal(find(tree, "ข้อมูลหลัก & ผังบัญชี").props["aria-expanded"], true);
+  assert.equal(find(tree, "คลังสินค้า / สต็อก").props["aria-expanded"], false);
   find(tree, "ย่อเมนูด้านซ้าย").props.onClick();
   tree = render();
   find(tree, "ขยายเมนูด้านซ้าย").props.onClick();
