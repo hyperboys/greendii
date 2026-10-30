@@ -21,11 +21,15 @@ const SENSITIVE_KEYS = [
 ];
 
 /**
- * Recursively mask sensitive fields in objects/arrays.
+ * Recursively mask sensitive fields, preserving JSON representations of dates and decimals.
  */
 function maskSensitiveData(data) {
   if (data === null || data === undefined) return data;
   if (typeof data !== 'object') return data;
+
+  if (typeof data.toJSON === 'function') {
+    return maskSensitiveData(data.toJSON());
+  }
 
   if (Array.isArray(data)) {
     return data.map(item => maskSensitiveData(item));

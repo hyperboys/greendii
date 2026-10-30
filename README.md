@@ -80,6 +80,16 @@ to the same master-data tab after viewing or saving.
 
 These pages use the existing Accounting master-data permissions and APIs.
 
+### Accounting audit snapshots
+
+Audit snapshots serialize Prisma Decimal amounts as strings (without losing
+precision) and dates as ISO strings before storing JSON. Sensitive fields remain
+masked, including nested customer and item data. Audit write failures still abort
+the document transaction; they are not ignored.
+
+Run the audit regression tests from `api` with
+`node --test test/auditTrail.test.js`.
+
 ### Supplier CSV Import
 
 Run from `api` in PowerShell. The default is an **offline dry-run**: no database
