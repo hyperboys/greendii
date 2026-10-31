@@ -59,6 +59,6 @@ export function receiptTotals(rows: ReceiptLine[]) {
   return { received: received / 100, wht: wht / 100, fee: fee / 100, settled: (received + wht + fee) / 100 };
 }
 export function receiptStatus(doc: Pick<ReceiptVoucher, "lifecycleVersion" | "status">) {
-  const label = ({ draft: "Draft", approved: "ยืนยันรับชำระแล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
+  const label = ({ draft: "Draft", pending: "รออนุมัติ", returned: "ส่งกลับแก้ไข", rejected: "ปฏิเสธ", approved: "ยืนยันรับชำระแล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
   return doc.lifecycleVersion === 1 ? label : `${label} (Legacy)`;
 }

@@ -1,4 +1,6 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { isEditableArDocument } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -47,7 +49,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
   const [printReady, setPrintReady] = useState(false);
   const isForm = mode === "new" || mode === "edit";
   const customer = customers.find(row => row.id === form.customerId);
-  const editable = doc?.lifecycleVersion === 1 && doc.status === "draft";
+  const editable = isEditableArDocument(doc);
 
   useEffect(() => {
     if (isForm && !canWrite) return;
@@ -135,8 +137,9 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         {mode !== "list" && <Link className={button} href={base}>กลับรายการใบวางบิล</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบวางบิล</Link>}
         {mode === "view" && doc && !loading && !loadError && <>
+          <AccountingApprovalPanel docType="bi" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
           {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link><button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันวางบิล</button></>}
-          {canWrite && doc.lifecycleVersion === 1 && !doc.completedAt && ["draft", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิกใบวางบิล</button>}
+          {canWrite && doc.lifecycleVersion === 1 && !doc.completedAt && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิกใบวางบิล</button>}
           {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={!printReady} onClick={() => window.print()}>พิมพ์ใบวางบิล</button>}
         </>}
       </div>
@@ -147,7 +150,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
     {mode === "list" && <div className="bi-no-print space-y-4">
       <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ q: search, status }); }}>
         <label>ค้นหาเลขที่ / ลูกค้า<input className={control} value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="approved">ยืนยันวางบิลแล้ว</option><option value="cancelled">ยกเลิก</option></select></label>
+        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="pending">รออนุมัติ</option><option value="returned">ส่งกลับแก้ไข</option><option value="rejected">ปฏิเสธ</option><option value="approved">ยืนยันวางบิลแล้ว</option><option value="cancelled">ยกเลิก</option></select></label>
         <button className={`${button} self-end`}>ค้นหา</button>
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "นัดชำระ", "ยอดวางบิล", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t"><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.biNo}</Link></td><td className="p-3">{formatAccountingDate(row.billingDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{formatAccountingDate(row.expectedPaymentDate)}</td><td className="p-3">{money(row.totalAmount)}</td><td className="p-3">{billingStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}

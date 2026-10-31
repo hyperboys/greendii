@@ -2,7 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('events');
 const { DOCUMENTS, ROLLOUT_READY, normalizeSteps, validateConfiguration, validateTargets,
-  planApproval, currentCycle, eligibleForCycle } = require('../src/lib/accountingApproval');
+  planApproval, currentCycle, eligibleForCycle, submissionSnapshot } = require('../src/lib/accountingApproval');
 const { createContractorPaymentApp } = require('./helpers/contractorPaymentApp');
 
 function actors(tx) {
@@ -152,7 +152,7 @@ for (const docType of Object.keys(DOCUMENTS)) {
     assert.equal(final.finalApproval, true);
     assert.equal(currentCycle({ ...intermediate, ...final.changes }).state, 'approved');
     assert.equal(currentCycle({ ...intermediate, ...final.changes }).approvals.length, 2);
-    await assert.rejects(planApproval(tx, docType, { ...intermediate, ...final.changes, status: 'approved' }, 'approve', 'final'), { status: 403 });
+    await assert.rejects(planApproval(tx, docType, { ...intermediate, ...final.changes, status: 'approved' }, 'approve', 'final'), { status: 409 });
   });
 }
 
@@ -188,6 +188,27 @@ test('Accounting return/reject/cancel preserve approved actor snapshots; resubmi
   assert.equal(currentCycle(submitted).approvals.length, 0);
   assert.equal(submitted.accountingApproval.cycles[0].approvals.length, 1);
   assert.equal((await planApproval(tx, 'po', { ...submitted, status: 'pending' }, 'approve', 'approver')).finalApproval, true);
+});
+
+test('Accounting snapshot builder captures new configured rounds without creator-role skipping or rewriting prior cycles', async () => {
+  const { tx } = txFixture();
+  const config = { revision: 1, steps: [{ kind: 'role', targetId: 'review' }, { kind: 'user', targetId: 'final' }] };
+  const created = await submissionSnapshot(tx, 'po', { createdById: 'maker', status: 'draft' }, config, 'maker');
+  assert.equal(created.cycles[0].steps.length, 2);
+  assert.equal(created.cycles[0].approvals.length, 0);
+  config.revision = 2; config.steps[0].targetId = 'final-role';
+  assert.equal(created.cycles[0].configRevision, 1);
+  assert.equal(created.cycles[0].steps[0].targetId, 'review');
+  const pending = { createdById: 'maker', status: 'pending', accountingApproval: created };
+  const returned = await planApproval(tx, 'po', pending, 'return', 'approver', 'Correction');
+  const previous = { ...pending, ...returned.changes, status: 'returned' };
+  const resubmitted = await submissionSnapshot(tx, 'po', previous, config, 'maker');
+  assert.equal(resubmitted.cycles.length, 2);
+  assert.deepEqual(resubmitted.cycles[0], previous.accountingApproval.cycles[0]);
+  assert.equal(resubmitted.cycles[1].configRevision, 2);
+  assert.equal(resubmitted.cycles[1].steps[0].targetId, 'final-role');
+  assert.equal(resubmitted.cycles[1].approvals.length, 0);
+  assert.equal(previous.accountingApproval.cycles.length, 1);
 });
 
 test('Accounting pending old flow ignores new configuration; enabled unverified configuration cannot submit', async () => {
@@ -233,7 +254,8 @@ test('Accounting retains immutable image references on profile signature clearin
 test('Accounting approval HTTP: admin configuration, invalid chains, revisions, atomic audit, eligible inbox and role/user PO progression', async t => {
   process.env.JWT_SECRET = 'isolated-accounting-approval-test';
   const f = createContractorPaymentApp();
-  actors(f.prisma);
+  const users = actors(f.prisma);
+  users.approver.signatureUrl = 'https://signature.invalid/approved-original.png';
   // The existing fixture owns a serial, rollback-capable substitute transaction.
   delete require.cache[require.resolve('../src/routes/accounting-approvals')];
   const express = require('express');
@@ -278,6 +300,17 @@ test('Accounting approval HTTP: admin configuration, invalid chains, revisions, 
   for (const model of ['invoice', 'billingNote', 'receiptVoucher', 'creditNote']) f.prisma[model] = { findMany: async () => [] };
   const inbox = await call('/api/accounting-approvals/pending', { user: 'approver' });
   assert.equal(inbox.length, 1); assert.equal(inbox[0].docType, 'po'); assert.equal(inbox[0].step, 1);
+  const paged = await call('/api/accounting-approvals/pending?page=1&pageSize=1', { user: 'approver' });
+  assert.equal(paged.total, 1); assert.equal(paged.totalPages, 1); assert.equal(paged.data[0].id, 'po');
+  assert.equal((await call('/api/accounting-approvals/pending?page=2&pageSize=1', { user: 'approver' })).data.length, 0);
+  f.prisma.invoice.findMany = async () => Array.from({ length: 501 }, (_, index) => ({
+    id: `invoice-${index}`, ivNo: `IV-${index}`, status: 'pending', lifecycleVersion: 1,
+    salesId: 'maker', updatedAt: po.updatedAt, accountingApproval: snapshot(),
+  }));
+  const largeInbox = await call('/api/accounting-approvals/pending?page=6&pageSize=100', { user: 'approver' });
+  assert.equal(largeInbox.total, 502, 'The inbox must not silently truncate a document type after 500 rows');
+  assert.equal(largeInbox.data.length, 2);
+  f.prisma.invoice.findMany = async () => [];
   assert.equal((await call('/api/accounting-approvals/pending', { user: 'maker' })).length, 0);
   assert.equal((await call('/api/accounting-approvals/po/po', { user: 'approver' })).canApprove, true);
   assert.equal((await call('/api/accounting-approvals/po/po', { user: 'final' })).canApprove, false);
@@ -288,9 +321,11 @@ test('Accounting approval HTTP: admin configuration, invalid chains, revisions, 
   f.failAudit('purchase_order');
   await act('approver', revision, 500);
   assert.equal(currentCycle(f.state().purchaseOrder[0]).approvals.length, 0);
+  assert.equal(f.state().accountingApprovalSignature.length, 0);
   f.failAudit(false);
   const intermediate = await act('approver', revision);
   assert.equal(intermediate.status, 'pending'); assert.equal(intermediate.approvalStep, 2);
+  assert.equal(f.state().accountingApprovalSignature[0].url, 'https://signature.invalid/approved-original.png');
   await act('final', revision, 409);
   const results = await Promise.all([
     fetch(base + '/api/ap/purchase-orders/po/approve', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${f.token('final')}` }, body: JSON.stringify({ updatedAt: intermediate.updatedAt }) }),
@@ -299,4 +334,7 @@ test('Accounting approval HTTP: admin configuration, invalid chains, revisions, 
   assert.deepEqual(results.map(response => response.status).sort(), [200, 409]);
   assert.equal(currentCycle(f.state().purchaseOrder[0]).approvals.length, 2);
   assert.equal(f.state().stockMovement.length, 0);
+  const roleLock = f.locks.find(lock => lock.sql.includes('FOR SHARE OF aur, r'));
+  assert.ok(roleLock.sql.includes('aur."userId"'));
+  assert.ok(roleLock.sql.includes('aur."roleId"'));
 });

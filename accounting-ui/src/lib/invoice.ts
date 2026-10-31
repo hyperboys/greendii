@@ -45,4 +45,4 @@ export function invoiceForm(doc: Invoice): InvoiceInput {
   };
 }
 export const invoiceStatus = (doc: Pick<Invoice, "status" | "lifecycleVersion">) =>
-  `${({ draft: "Draft", approved: "ยืนยันแล้ว", cancelled: "ยกเลิก", pending: "รออนุมัติ" }[doc.status] || doc.status)}${doc.lifecycleVersion !== 1 ? " (Legacy)" : ""}`;
+  `${({ draft: "Draft", approved: "ยืนยันแล้ว", cancelled: "ยกเลิก", pending: "รออนุมัติ", returned: "ส่งกลับแก้ไข", rejected: "ปฏิเสธ" }[doc.status] || doc.status)}${doc.lifecycleVersion !== 1 ? " (Legacy)" : ""}`;

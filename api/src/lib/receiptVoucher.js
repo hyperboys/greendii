@@ -1,6 +1,7 @@
 const { invalid, text, moneyCents, documentDate } = require('./deliveryOrder');
 const { lockInvoices } = require('./billingNote');
 const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('./accountCustomers');
+const { assertAvailableSettlement } = require('./arReservations');
 
 const RECEIPT_INCLUDE = {
   customer: { select: { id: true, code: true, name: true } },
@@ -31,7 +32,7 @@ async function billingPaid(tx, billingNoteId, invoiceId) {
   return rows.reduce((sum, row) => sum + settlement(row), 0);
 }
 async function currentBilling(tx, invoiceId) {
-  const rows = await tx.billingNoteInvoice.findMany({ where: { invoiceId, billingNote: { status: { not: 'cancelled' }, completedAt: null } },
+  const rows = await tx.billingNoteInvoice.findMany({ where: { invoiceId, billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null } },
     include: { billingNote: true } });
   if (rows.length > 1) invalid('Invoice มี BI active ซ้ำ กรุณาตรวจข้อมูลก่อนรับเงิน', 409);
   const link = rows[0];
@@ -80,6 +81,7 @@ async function receiptData(tx, body, previous, strictLinks = false) {
     const f = moneyCents(row.bankFee ?? 0, 'ค่าธรรมเนียม');
     const total = r + w + f;
     if (!total || total > cents(invoice.outstandingAmount)) invalid('ยอดลดหนี้ต้องมากกว่า 0 และไม่เกินค้างรับปัจจุบัน');
+    await assertAvailableSettlement(tx, invoice, total, { rv: previous?.id });
     const link = links[seq];
     const requestedBi = text(row.billingNoteId, 'BI');
     if ((strictLinks && requestedBi !== (link?.billingNoteId || null)) || (requestedBi && requestedBi !== link?.billingNoteId)) {
@@ -128,7 +130,7 @@ async function reverseReceipt(tx, doc) {
     if (bill.completedAt) {
       const newer = await tx.billingNoteInvoice.count({ where: {
         invoiceId: { in: bill.invoices.map(row => row.invoiceId) }, billingNoteId: { not: id },
-        billingNote: { status: { not: 'cancelled' }, createdAt: { gte: bill.completedAt } },
+        billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, createdAt: { gte: bill.completedAt } },
       } });
       if (newer) invalid('มี BI ใหม่หลังปิด BI ต้นทาง ต้องยกเลิก BI ใหม่นั้นก่อนยกเลิก RV', 409);
     }

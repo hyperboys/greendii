@@ -14,6 +14,7 @@ const {
 const { normalizeRole } = require('../lib/roleAliases');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { lockReceipt } = require('../lib/receiptVoucher');
+const { arEditable } = require('../lib/arApproval');
 const { invalid } = require('../lib/deliveryOrder');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { lockVoucher, assertVoucherEvidence, voucherAudit } = require('../lib/paymentVoucher');
@@ -293,7 +294,7 @@ router.post('/', authenticate, upload.array('files', 10), async (req, res, next)
       if (!req.files?.length) invalid('กรุณาเลือกไฟล์แนบ');
       const saved = await prisma.$transaction(async tx => {
         const doc = await lockReceipt(tx, req.body.receiptVoucherId, req.body.updatedAt);
-        if (doc.status !== 'draft') invalid('จัดการหลักฐานได้เฉพาะ RV Draft', 409);
+        if (!arEditable(doc)) invalid('จัดการหลักฐานได้เฉพาะ RV Draft/ส่งกลับ', 409);
         const results = [];
         for (const file of req.files) {
           const filename = isR2Enabled ? `${Date.now()}-${Math.round(Math.random() * 1e9)}${path.extname(file.originalname)}` : file.filename;
@@ -490,7 +491,7 @@ router.delete('/:id', authenticate, async (req, res, next) => {
       if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ar', 'create')) invalid('ไม่มีสิทธิ์จัดการเอกสารแนบ RV', 403);
       await prisma.$transaction(async tx => {
         const doc = await lockReceipt(tx, att.receiptVoucherId, req.body?.updatedAt);
-        if (doc.status !== 'draft') invalid('จัดการหลักฐานได้เฉพาะ RV Draft', 409);
+        if (!arEditable(doc)) invalid('จัดการหลักฐานได้เฉพาะ RV Draft/ส่งกลับ', 409);
         await tx.attachment.delete({ where: { id: att.id } });
         await tx.receiptVoucher.update({ where: { id: doc.id }, data: { updatedAt: new Date() } });
         await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo,

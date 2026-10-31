@@ -1,4 +1,6 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { isEditableArDocument } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -45,7 +47,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
   const [reason, setReason] = useState("");
   const [printReady, setPrintReady] = useState(false);
   const isForm = mode === "new" || mode === "edit";
-  const editable = doc?.lifecycleVersion === 1 && doc.status === "draft";
+  const editable = isEditableArDocument(doc);
   const totals = creditAmounts(form.items, source?.vatConfig || doc?.vatConfig || "NO_VAT");
   const printable = mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError;
 
@@ -120,7 +122,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบลดหนี้</Link>}
         {mode === "view" && doc && editable && canWrite && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link><button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันลดหนี้</button></>}
-        {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก CN</button>}
+        {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก CN</button>}
         {mode === "view" && <button className={button} disabled={!printable || saving} onClick={() => { if (printable) window.print(); }}>พิมพ์ใบลดหนี้</button>}
       </nav>
     </header>
@@ -130,7 +132,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
     {mode === "list" && <div className="cn-no-print space-y-4">
       <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ q: search, status }); }}>
         <label>ค้นหาเลข CN / Invoice / ลูกค้า<input className={control} value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="approved">ยืนยันลดหนี้แล้ว</option><option value="cancelled">ยกเลิก</option></select></label><button className={`${button} self-end`}>ค้นหา</button>
+        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="pending">รออนุมัติ</option><option value="returned">ส่งกลับแก้ไข</option><option value="rejected">ปฏิเสธ</option><option value="approved">ยืนยันลดหนี้แล้ว</option><option value="cancelled">ยกเลิก</option></select></label><button className={`${button} self-end`}>ค้นหา</button>
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "Invoice", "ลูกค้า", "ยอดลดก่อน VAT", "VAT", "ยอดลดสุทธิ", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.cnNo}</Link></td><td className="p-3">{formatAccountingDate(row.cnDate)}</td><td className="p-3">{row.invoiceNo || row.invoice?.ivNo}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{money(row.amountBeforeVat)}</td><td className="p-3">{money(row.vat)}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{creditStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
@@ -175,6 +177,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
     </form>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
+      <AccountingApprovalPanel docType="cn" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
       <section className="cn-no-print mb-4 space-y-2 rounded border bg-white p-4"><p className="font-bold">{creditStatus(doc)}</p>
         <p>วันที่ {formatAccountingDate(doc.cnDate)} · Invoice <Link className="text-blue-700 underline" href={`/ar/invoices/${doc.invoiceId}`}>{doc.invoiceNo || doc.invoice?.ivNo}</Link> · {doc.customerName || doc.customer?.name}</p>
         <p>ก่อน VAT {money(doc.amountBeforeVat)} · VAT {money(doc.vat)} · ยอดลดสุทธิ {money(doc.netAmount)}</p><p className="break-words">เหตุผล: {doc.reason}</p>

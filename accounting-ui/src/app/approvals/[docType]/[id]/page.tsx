@@ -26,7 +26,6 @@ export default function AccountingApprovalReview({ params }: { params: { docType
     } catch (failure) { setError(failure instanceof Error ? failure.message : "ดำเนินการไม่สำเร็จ"); }
     finally { setBusy(false); }
   };
-  const supported = !["invoice", "bi", "rv", "cn"].includes(type);
   return <main className="space-y-4">
     <h1 className="text-2xl font-bold">ตรวจอนุมัติ Accounting · {detail?.docNo || params.docType.toUpperCase()}</h1>
     <Link className="text-blue-700 underline" href="/approvals">กลับรายการรออนุมัติ</Link>
@@ -36,7 +35,7 @@ export default function AccountingApprovalReview({ params }: { params: { docType
       <Link className="font-bold text-blue-700 underline" href={detail.documentHref}>เปิดรายละเอียดเอกสาร / รายการ / หลักฐาน / พิมพ์</Link>
       <AccountingApprovalHistory document={detail} />
       <AccountingApprovalSignatures document={detail} />
-      {detail.canApprove && supported && <section className="space-y-3 rounded border bg-white p-4">
+      {detail.canApprove && <section className="space-y-3 rounded border bg-white p-4">
         <p>อนุมัติเฉพาะขั้นปัจจุบัน การตั้งหนี้/Stock จะเกิดเมื่อครบขั้นตามกติกาเอกสารเดิมเท่านั้น</p>
         <label className="block">เหตุผลส่งกลับ/ปฏิเสธ
           <textarea maxLength={1000} disabled={busy} value={reason} onChange={event => setReason(event.target.value)} className="block w-full rounded border p-2" />
@@ -47,7 +46,6 @@ export default function AccountingApprovalReview({ params }: { params: { docType
           <button disabled={busy || !reason.trim()} className="rounded border p-2 text-red-700" onClick={() => void perform("reject")}>ปฏิเสธ</button>
         </div>
       </section>}
-      {detail.canApprove && !supported && <p role="alert">ยังไม่เปิด lifecycle อนุมัติ AR กรุณาติดต่อผู้ดูแล</p>}
     </>}
   </main>;
 }

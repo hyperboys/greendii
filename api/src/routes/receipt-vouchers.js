@@ -6,6 +6,8 @@ const { invalid, text } = require('../lib/deliveryOrder');
 const { generateNextRunningNumber } = require('../lib/runningNumber');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { RECEIPT_INCLUDE, receiptData, lockReceipt, billingPaid, currentBilling, refreshBilling, reverseReceipt, settlement } = require('../lib/receiptVoucher');
+const { arActionPermission, arTransition, arEditable } = require('../lib/arApproval');
+const { reservedSettlement } = require('../lib/arReservations');
 
 router.use(authenticate);
 async function canWrite(req, res, next) {
@@ -32,10 +34,12 @@ router.get('/sources', canWrite, async (req, res, next) => {
     const eligible = [];
     for (const inv of invoices) {
       const reservations = await prisma.billingNoteInvoice.findMany({ where: { invoiceId: inv.id,
-        billingNote: { status: { not: 'cancelled' }, completedAt: null } }, include: { billingNote: true } });
+        billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null } }, include: { billingNote: true } });
       if (reservations.length > 1 || reservations.some(row => row.billingNote.lifecycleVersion !== 1 || row.billingNote.status !== 'approved')) continue;
       const link = await currentBilling(prisma, inv.id);
-      const limit = Math.min(Number(inv.outstandingAmount), link ? (Math.round(Number(link.billingAmount) * 100) - await billingPaid(prisma, link.billingNoteId, inv.id)) / 100 : Number(inv.outstandingAmount));
+      const outstanding = Math.round(Number(inv.outstandingAmount) * 100);
+      const reserved = await reservedSettlement(prisma, inv.id);
+      const limit = (Math.min(outstanding, link ? Math.round(Number(link.billingAmount) * 100) - await billingPaid(prisma, link.billingNoteId, inv.id) : outstanding) - reserved) / 100;
       if (limit > 0) eligible.push({ id: inv.id, ivNo: inv.ivNo, ivDate: inv.ivDate, netAmount: inv.netAmount,
         outstandingAmount: inv.outstandingAmount, limit, billingNoteId: link?.billingNoteId || null, biNo: link?.billingNote.biNo || null });
     }
@@ -45,7 +49,9 @@ router.get('/sources', canWrite, async (req, res, next) => {
     for (const bill of bills) {
       const lines = [];
       for (const row of bill.invoices) {
-        const remaining = Math.min(Number(row.invoice.outstandingAmount), (Math.round(Number(row.billingAmount) * 100) - await billingPaid(prisma, bill.id, row.invoiceId)) / 100);
+        const remaining = (Math.min(Math.round(Number(row.invoice.outstandingAmount) * 100),
+          Math.round(Number(row.billingAmount) * 100) - await billingPaid(prisma, bill.id, row.invoiceId))
+          - await reservedSettlement(prisma, row.invoiceId)) / 100;
         if (remaining > 0 && row.invoice.lifecycleVersion === 1 && row.invoice.status === 'approved') lines.push({
           id: row.invoiceId, ivNo: row.invoice.ivNo, ivDate: row.invoice.ivDate, netAmount: row.invoice.netAmount,
           outstandingAmount: row.invoice.outstandingAmount, limit: remaining, billingNoteId: bill.id, biNo: bill.biNo,
@@ -82,7 +88,7 @@ router.put('/:id', canWrite, async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async tx => {
       const previous = await lockReceipt(tx, req.params.id, req.body?.updatedAt);
-      if (previous.status !== 'draft') invalid('แก้ได้เฉพาะ RV Draft', 409);
+      if (!arEditable(previous)) invalid('แก้ได้เฉพาะ RV Draft/ส่งกลับ', 409);
       const { allocations, ...data } = await receiptData(tx, req.body, previous);
       const doc = await tx.receiptVoucher.update({ where: { id: previous.id }, data: { ...data, allocations: { deleteMany: {}, create: allocations } }, include: RECEIPT_INCLUDE });
       await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo, action: 'update', oldValue: previous, newValue: doc, req }, tx);
@@ -91,29 +97,31 @@ router.put('/:id', canWrite, async (req, res, next) => {
     res.json(result);
   } catch (error) { next(error); }
 });
-for (const action of ['confirm', 'cancel']) router.post(`/:id/${action}`, canWrite, async (req, res, next) => {
+for (const action of ['confirm', 'submit', 'approve', 'return', 'reject', 'cancel']) router.post(`/:id/${action}`, arActionPermission(action), async (req, res, next) => {
   try {
-    const reason = action === 'cancel' ? text(req.body?.reason, 'เหตุผลยกเลิก', true) : null;
+    const reason = ['cancel', 'return', 'reject'].includes(action) ? text(req.body?.reason, 'เหตุผล', true) : null;
     const result = await prisma.$transaction(async tx => {
       const previous = await lockReceipt(tx, req.params.id, req.body?.updatedAt);
-      if (action === 'confirm' && previous.status !== 'draft') invalid('ยืนยันได้เฉพาะ RV Draft', 409);
-      if (action === 'cancel' && !['draft', 'approved'].includes(previous.status)) invalid('สถานะนี้ยกเลิกไม่ได้', 409);
+      const transition = await arTransition(tx, 'rv', previous, action, req.user.id, reason);
       let ids = [];
       let confirmation = {};
-      if (action === 'confirm') {
+      if (['confirm', 'submit', 'approve'].includes(action)) {
         const { allocations, ...data } = await receiptData(tx, {
           ...previous, receiptDate: previous.receiptDate.toISOString().slice(0, 10),
           chequeDate: previous.chequeDate?.toISOString().slice(0, 10) || null,
         }, previous, true);
-        for (const row of allocations) {
+        for (const row of transition.posts ? allocations : []) {
           await tx.invoice.update({ where: { id: row.invoiceId }, data: {
             outstandingAmount: (Math.round(Number(row.outstandingBefore) * 100) - settlement(row)) / 100,
           } });
         }
-        ids = allocations.map(row => row.billingNoteId);
-        confirmation = { ...data, confirmedAt: new Date(), allocations: { deleteMany: {}, create: allocations } };
-      } else if (previous.status === 'approved') ids = await reverseReceipt(tx, previous);
-      const doc = await tx.receiptVoucher.update({ where: { id: previous.id }, data: { ...confirmation, status: action === 'confirm' ? 'approved' : 'cancelled' }, include: RECEIPT_INCLUDE });
+        ids = transition.posts ? allocations.map(row => row.billingNoteId) : [];
+        confirmation = { ...data, ...(transition.posts ? { confirmedAt: new Date() } : {}),
+          allocations: { deleteMany: {}, create: allocations } };
+      } else if (action === 'cancel' && previous.status === 'approved') ids = await reverseReceipt(tx, previous);
+      const doc = await tx.receiptVoucher.update({ where: { id: previous.id }, data: {
+        ...confirmation, ...transition.changes, status: transition.status,
+      }, include: RECEIPT_INCLUDE });
       await refreshBilling(tx, ids, req, recordAuditLog);
       await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo, action, oldValue: previous, newValue: doc, reason, req }, tx);
       return doc;

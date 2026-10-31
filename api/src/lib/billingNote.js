@@ -1,6 +1,7 @@
 const { invalid, text, documentDate, moneyCents } = require('./deliveryOrder');
 const { lockInvoice } = require('./invoice');
 const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('./accountCustomers');
+const { reservedSettlement } = require('./arReservations');
 
 const BILLING_INCLUDE = {
   customer: { select: { id: true, code: true, name: true } },
@@ -27,7 +28,7 @@ async function lockInvoices(tx, ids) {
 async function assertNoOtherBilling(tx, invoiceId, exceptId) {
   const other = await tx.billingNoteInvoice.count({ where: {
     invoiceId, ...(exceptId ? { billingNoteId: { not: exceptId } } : {}),
-    billingNote: { status: { not: 'cancelled' }, completedAt: null },
+    billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null },
   } });
   if (other) invalid('Invoice มีใบวางบิลที่ยังไม่ยกเลิกแล้ว กรุณายกเลิกใบเดิมก่อนออกใหม่', 409);
 }
@@ -77,6 +78,7 @@ async function billingData(tx, body, previous) {
   for (const [seq, row] of body.invoices.entries()) {
     const invoice = locked.get(ids[seq]);
     assertBillable(invoice, customerId);
+    if (await reservedSettlement(tx, invoice.id)) invalid('Invoice มี RV/CN ที่รออนุมัติ กรุณาจัดการก่อนวางบิล', 409);
     await assertNoOtherBilling(tx, invoice.id, previous?.id);
     const cents = moneyCents(row.billingAmount, 'ยอดวางบิล');
     if (!cents || cents > moneyCents(String(invoice.outstandingAmount), 'ยอดคงค้าง')) invalid('ยอดวางบิลต้องมากกว่า 0 และไม่เกินยอดค้างรับปัจจุบัน');

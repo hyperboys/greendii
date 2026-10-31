@@ -1,4 +1,6 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { isEditableArDocument } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -49,7 +51,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const [printReady, setPrintReady] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   const isForm = mode === "new" || mode === "edit";
-  const editable = doc?.lifecycleVersion === 1 && doc.status === "draft";
+  const editable = isEditableArDocument(doc);
   const customer = customers.find(row => row.id === form.customerId);
   const totals = receiptTotals(form.allocations);
   const printable = mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError;
@@ -139,7 +141,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบสำคัญรับ</Link>}
         {mode === "view" && doc && canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link><button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันรับชำระ</button></>}
-        {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก RV</button>}
+        {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก RV</button>}
         {mode === "view" && <button className={button} disabled={!printable || saving} onClick={() => { if (printable) window.print(); }}>พิมพ์ใบสำคัญรับ</button>}
       </nav>
     </header>
@@ -149,7 +151,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     {mode === "list" && <div className="rv-no-print space-y-4">
       <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ q: search, status }); }}>
         <label>ค้นหาเลขที่ / ลูกค้า<input className={control} value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="approved">ยืนยันรับชำระแล้ว</option><option value="cancelled">ยกเลิก</option></select></label><button className={`${button} self-end`}>ค้นหา</button>
+        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="pending">รออนุมัติ</option><option value="returned">ส่งกลับแก้ไข</option><option value="rejected">ปฏิเสธ</option><option value="approved">ยืนยันรับชำระแล้ว</option><option value="cancelled">ยกเลิก</option></select></label><button className={`${button} self-end`}>ค้นหา</button>
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "เงินเข้าสุทธิ", "WHT", "ค่าธรรมเนียม", "ยอดลดหนี้", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.rvNo}</Link></td><td className="p-3">{formatAccountingDate(row.receiptDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{money(row.totalReceived)}</td><td className="p-3">{money(row.whtAmount)}</td><td className="p-3">{money(row.bankFee)}</td><td className="p-3">{money(receiptTotals(row.allocations).settled)}</td><td className="p-3">{receiptStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
@@ -206,6 +208,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     </form>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
+      <AccountingApprovalPanel docType="rv" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
       <section className="rv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p className="font-bold">{receiptStatus(doc)}</p>
         <p>วันที่รับชำระ {formatAccountingDate(doc.receiptDate)} · {doc.customerName || doc.customer?.name}</p>

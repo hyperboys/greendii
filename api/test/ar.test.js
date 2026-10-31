@@ -131,7 +131,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
       },
     },
     billingNoteInvoice: { count: async ({ where }) => state.bi.filter(id => id === where.invoiceId).length, findMany: async () => [] },
-    receiptAllocation: { count: async ({ where }) => state.rv.filter(id => id === where.invoiceId).length },
+    receiptAllocation: { findMany: async () => [], count: async ({ where }) => state.rv.filter(id => id === where.invoiceId).length },
     creditNote: {
       count: async ({ where }) => state.cn.filter(id => id === where.invoiceId).length,
       findMany: async () => [],
@@ -473,12 +473,12 @@ test('Billing Note HTTP partial lifecycle: reservations, source balances, cancel
         return structuredClone(doc);
       },
     },
-    receiptAllocation: { count: async ({ where }) => {
+    receiptAllocation: { findMany: async () => [], count: async ({ where }) => {
       assert.ok(where.OR[1].receiptVoucher.OR[0].confirmedAt.gte);
       assert.equal(where.receiptVoucher.status, 'approved');
       return Number(state.receipt);
     } },
-    creditNote: { count: async ({ where }) => { assert.ok(where.OR[0].confirmedAt.gte); return Number(state.credit); } },
+    creditNote: { findMany: async () => [], count: async ({ where }) => { assert.ok(where.OR[0].confirmedAt.gte); return Number(state.credit); } },
     auditLog: {
       create: async ({ data }) => { if (failAudit) throw new Error('Audit offline'); state.logs.push(data); return data; },
       findMany: async ({ where }) => state.logs.filter(row => row.entityId === where.entityId),
@@ -620,11 +620,11 @@ test('RV HTTP lifecycle: exact settlement, BI closure/release/reversal, evidence
       },
     },
     receiptAllocation: {
-      findMany: async ({ where }) => clone(state.docs.filter(doc => doc.status === 'approved' && doc.lifecycleVersion === 1)
-        .flatMap(doc => doc.allocations).filter(row => row.billingNoteId === where.billingNoteId && (!where.invoiceId || row.invoiceId === where.invoiceId))),
+      findMany: async ({ where }) => clone(state.docs.filter(doc => doc.status === where.receiptVoucher.status && doc.lifecycleVersion === 1 && doc.id !== where.receiptVoucherId?.not)
+        .flatMap(doc => doc.allocations).filter(row => (!where.billingNoteId || row.billingNoteId === where.billingNoteId) && (!where.invoiceId || row.invoiceId === where.invoiceId))),
       count: async () => 0,
     },
-    creditNote: { count: async () => 0 },
+    creditNote: { findMany: async () => [], count: async () => 0 },
     receiptVoucher: {
       findMany: async () => state.docs.map(included),
       findUnique: async ({ where }) => included(state.docs.find(row => row.id === where.id)),
@@ -833,7 +833,7 @@ test('CN HTTP lifecycle: authoritative lines/VAT, cumulative limits, BI/RV guard
     },
     creditNote: {
       findMany: async ({ where }) => state.docs.filter(row => (!where.invoiceId || row.invoiceId === where.invoiceId)
-        && (!where.status || row.status === where.status) && row.id !== where.id?.not).map(include),
+        && (!where.status || (typeof where.status === 'string' ? row.status === where.status : where.status.in.includes(row.status))) && row.id !== where.id?.not).map(include),
       findUnique: async ({ where }) => include(state.docs.find(row => row.id === where.id)),
       create: async ({ data }) => { const row = { ...data, id: `cn-${++seq}`, updatedAt: rev(), createdAt: rev(), items: data.items.create }; state.docs.push(row); return include(row); },
       update: async ({ where, data }) => {
@@ -846,7 +846,7 @@ test('CN HTTP lifecycle: authoritative lines/VAT, cumulative limits, BI/RV guard
       assert.ok(where.billingNote.OR.some(filter => filter.updatedAt?.gte), 'Reused pre-existing BI Draft must also block reversal after adding the Invoice');
       return Number(state.laterBI);
     } },
-    receiptAllocation: { count: async ({ where }) => {
+    receiptAllocation: { findMany: async () => [], count: async ({ where }) => {
       assert.equal(where.receiptVoucher.status, 'approved');
       assert.ok(where.receiptVoucher.OR[0].confirmedAt.gte);
       return Number(state.laterRV);
@@ -959,7 +959,9 @@ test('CN VAT capacity enforces separate tax/before caps and allocates document-r
   const invoice = { id: 'i', ivNo: 'IV', lifecycleVersion: 1, status: 'approved', customerId: 'c', ivDate: new Date('2026-10-01'),
     vatConfig: 'VAT7%', netAmount: 1.07, vat: 0.07, outstandingAmount: 1.07 };
   let prior = [];
-  const tx = { $queryRaw: async () => [], invoice: { findUnique: async () => invoice }, creditNote: { findMany: async () => prior } };
+  const tx = { $queryRaw: async () => [], invoice: { findUnique: async () => invoice },
+    receiptAllocation: { findMany: async () => [] },
+    creditNote: { findMany: async ({ where }) => where.status === 'pending' ? [] : prior } };
   const payload = { invoiceId: 'i', cnDate: '2026-10-25', reason: 'Adjustment', items: [
     { desc: 'A', qty: 1, unit: 'item', unitPrice: '0.08' }, { desc: 'B', qty: 1, unit: 'item', unitPrice: '0.08' },
   ] };

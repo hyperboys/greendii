@@ -39,6 +39,6 @@ export function creditAmounts(items: CreditLine[], vatConfig: string) {
   return { before: before / 100, vat: vat / 100, net: (before + vat) / 100, lineAmounts: lineAmounts.map(amount => amount / 100) };
 }
 export function creditStatus(doc: Pick<CreditNote, "status" | "lifecycleVersion">) {
-  const label = ({ draft: "Draft", approved: "ยืนยันลดหนี้แล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
+  const label = ({ draft: "Draft", pending: "รออนุมัติ", returned: "ส่งกลับแก้ไข", rejected: "ปฏิเสธ", approved: "ยืนยันลดหนี้แล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
   return doc.lifecycleVersion === 1 ? label : `${label} (Legacy)`;
 }

@@ -26,6 +26,18 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Date entry
 
+### Printed document fonts
+
+Accounting uses the same local font assets as Sale: Cordia New regular/bold
+for document/report text, Century Gothic for the English font variable,
+Broadway for the display variable and Brush Script MT for approval signatures.
+Assets are served from `public/fonts` and do not depend on fonts installed on
+the user's computer. Document previews and printed output share the same font;
+the normal Accounting screen UI retains Public Sans/Noto Sans Thai.
+Existing font sizes, page dimensions and preprinted Invoice coordinates are
+unchanged. Recalibrate on the actual printer at 100% scale after changing fonts;
+Invoice remains data-only, without added signatures or form labels.
+
 Editable dates across AR, AP and Stock use the shared calendar picker. Focus the
 date field or use its calendar button to select a day, navigate months, choose
 today or clear the value. Dates still display as `dd/mm/yyyy` with Gregorian years
@@ -48,16 +60,26 @@ environment flag bypass exists. This is not a production-ready eleven-type
 approval rollout.
 
 Implemented staging: revisioned/audited configuration, shared cycle/actor
-snapshot engine, seven existing PO/GR/IS/SR/PS/PV/opening approval adapters with
-final-only posting, and eligible inbox/review pages at `/approvals`. Review
+snapshot engine, all eleven document approval adapters with
+final-only posting, and eligible inbox/review pages at `/approvals`. Existing
+document details now link to the current eligible review step and show cycle
+history. The inbox supports standard opt-in pagination without the old
+500-document truncation. Review
 pages show preserved actor history and actual signature snapshots. A referenced
 profile image is retained under its original immutable upload URL when the
 profile signature is cleared; no image is copied.
 
-Still required before removing the guard: Invoice/BI/RV/CN lifecycle adapters,
-AR pending settlement/capacity reservations and confirm gating, history/actions
-on all existing document detail screens, all document-print signature layouts
-and pagination, and enabled submit/return/resubmit end-to-end validation.
+AR supports submit/approve/return/reject and preserves direct confirmation
+when no chain is enabled. Pending RV/CN reserve debt capacity in exact satang;
+returned/rejected/cancelled documents release it without posting. CN also
+reserves pre-tax/VAT capacity; BI submission checks pending settlements, and
+BI cancellation cannot orphan a pending RV/CN. Final approval alone sets
+debt/settles a receipt/posts a credit. AR corrections are editable only in
+Draft or an explicitly returned snapshotted cycle.
+
+Still required before removing the guard: all document-print signature layouts
+and pagination, replacement of legacy action buttons with fully chain-aware
+controls, and enabled submit/return/resubmit end-to-end validation.
 The Invoice preprinted-stationery component is deliberately unchanged.
 
 API staging contracts:
@@ -67,12 +89,21 @@ API staging contracts:
   incremented revision. Invalid targets return 400; stale revision/unavailable
   rollout return 409.
 - `GET /api/accounting-approvals/pending`: eligible snapshotted current steps
-  with review/document links; legacy pending documents stay in module lists.
+  with review/document links; optional `page`/`pageSize` return
+  `{data,total,page,pageSize,totalPages}`; legacy pending documents stay in module lists.
 - `GET /api/accounting-approvals/:docType/:id`: snapshot, `canApprove`,
-  `status`, `updatedAt`, `docNo`, and `documentHref`, guarded by module view.
-- Review actions call the existing seven document `/:id/approve|return|reject`
-  endpoints with `updatedAt` and required reason; AR review actions explicitly
-  remain unavailable.
+  `chainEnabled`, `status`, `updatedAt`, `docNo`, and `documentHref`, guarded by module view.
+- Review actions call all eleven document `/:id/approve|return|reject`
+  endpoints with `updatedAt` and required reason. Submit uses `/:id/submit`;
+  AR endpoints retain `/:id/confirm` for unconfigured legacy behavior.
+
+Confirmed next-phase rules: received cheques settle debt on receipt and
+dishonour restores debt; SO never posts stock (IS owns stock issues);
+inventory costing uses Moving Average; notifications use the in-app channel.
+AP liability source/due dates still require Accounting confirmation. GL
+configuration may be prepared, but automatic posting and period closing must
+remain disabled until Accounting supplies posting/tax/period policies. These
+next-phase workflows are not implemented by the approval adapter batch.
 
 Review the additive Prisma migration
 `20261031160000_accounting_approval_snapshots` in an **isolated database first**.

@@ -6,6 +6,8 @@ const { generateNextRunningNumber } = require('../lib/runningNumber');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { invalid, text } = require('../lib/deliveryOrder');
 const { BILLING_INCLUDE, billingData, lockBillingNote, lockInvoices, assertBillable, assertNoOtherBilling, assertNoLaterSettlement } = require('../lib/billingNote');
+const { arActionPermission, arTransition, arEditable } = require('../lib/arApproval');
+const { reservedSettlement } = require('../lib/arReservations');
 
 router.use(authenticate);
 router.use((req, _res, next) => {
@@ -35,11 +37,11 @@ router.get('/sources', canWrite, async (req, res, next) => {
     const exceptId = text(req.query.exceptId, 'ใบวางบิล');
     if (exceptId) {
       const doc = await prisma.billingNote.findUnique({ where: { id: exceptId } });
-      if (!doc || doc.lifecycleVersion !== 1 || doc.status !== 'draft' || doc.customerId !== customerId) invalid('ใบวางบิลสำหรับแก้ไขไม่ถูกต้อง', 409);
+      if (!doc || doc.lifecycleVersion !== 1 || !arEditable(doc) || doc.customerId !== customerId) invalid('ใบวางบิลสำหรับแก้ไขไม่ถูกต้อง', 409);
     }
     res.json(await prisma.invoice.findMany({
       where: { customerId, lifecycleVersion: 1, status: 'approved', outstandingAmount: { gt: 0 },
-        billingNoteInvoices: { none: { billingNote: { status: { not: 'cancelled' }, completedAt: null }, ...(exceptId ? { billingNoteId: { not: exceptId } } : {}) } },
+        billingNoteInvoices: { none: { billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null }, ...(exceptId ? { billingNoteId: { not: exceptId } } : {}) } },
         ...(q ? { ivNo: { contains: q, mode: 'insensitive' } } : {}) },
       select: { id: true, ivNo: true, ivDate: true, dueDate: true, netAmount: true, outstandingAmount: true },
       orderBy: { ivDate: 'asc' }, take: 50,
@@ -73,7 +75,7 @@ router.put('/:id', canWrite, async (req, res, next) => {
     const doc = await prisma.$transaction(async tx => {
       const extraIds = Array.isArray(req.body.invoices) ? req.body.invoices.map(row => text(row?.invoiceId, 'Invoice', true)) : [];
       const previous = await lockBillingNote(tx, req.params.id, req.body.updatedAt, extraIds);
-      if (previous.status !== 'draft') invalid('แก้ไขได้เฉพาะใบวางบิล Draft', 409);
+      if (!arEditable(previous)) invalid('แก้ไขได้เฉพาะใบวางบิล Draft/ส่งกลับ', 409);
       const { invoices, ...data } = await billingData(tx, req.body, previous);
       const result = await tx.billingNote.update({ where: { id: previous.id }, data: { ...data, invoices: { deleteMany: {}, create: invoices } }, include: BILLING_INCLUDE });
       await recordAuditLog({ entityType: 'billing_note', entityId: result.id, docNo: result.biNo, action: 'update', oldValue: previous, newValue: result, req }, tx);
@@ -82,31 +84,36 @@ router.put('/:id', canWrite, async (req, res, next) => {
     res.json(doc);
   } catch (error) { next(error); }
 });
-for (const action of ['confirm', 'cancel']) router.post(`/:id/${action}`, canWrite, async (req, res, next) => {
+for (const action of ['confirm', 'submit', 'approve', 'return', 'reject', 'cancel']) router.post(`/:id/${action}`, arActionPermission(action), async (req, res, next) => {
   try {
-    const reason = action === 'cancel' ? text(req.body.reason, 'เหตุผลยกเลิก', true) : null;
+    const reason = ['cancel', 'return', 'reject'].includes(action) ? text(req.body.reason, 'เหตุผล', true) : null;
     const doc = await prisma.$transaction(async tx => {
       const previous = await lockBillingNote(tx, req.params.id, req.body.updatedAt);
-      if (action === 'confirm' && previous.status !== 'draft') invalid('ยืนยันได้เฉพาะ Draft', 409);
-      if (action === 'cancel' && !['draft', 'approved'].includes(previous.status)) invalid('สถานะนี้ยกเลิกไม่ได้', 409);
+      const transition = await arTransition(tx, 'bi', previous, action, req.user.id, reason);
       if (action === 'cancel' && previous.completedAt) invalid('ใบวางบิลปิดรับครบแล้ว ต้องตรวจ RV ก่อนยกเลิก', 409);
       const invoices = await lockInvoices(tx, previous.invoices.map(row => row.invoiceId));
-      if (action === 'confirm') {
+      if (['confirm', 'submit', 'approve'].includes(action)) {
         if (!previous.invoices.length) invalid('ต้องมี Invoice อย่างน้อยหนึ่งใบ', 409);
         for (const row of previous.invoices) {
           const invoice = invoices.get(row.invoiceId);
           assertBillable(invoice, previous.customerId);
           await assertNoOtherBilling(tx, row.invoiceId, previous.id);
+          if (await reservedSettlement(tx, row.invoiceId)) invalid('Invoice มี RV/CN ที่รออนุมัติ กรุณาจัดการก่อนวางบิล', 409);
           if (Number(invoice.outstandingAmount) !== Number(row.outstandingAmount)) invalid('ยอดค้างรับเปลี่ยนไป กรุณาเปิดแก้ไขและบันทึก Draft ใหม่ก่อนยืนยัน', 409);
         }
-      } else {
+      } else if (action === 'cancel') {
+        for (const row of previous.invoices) {
+          if (await reservedSettlement(tx, row.invoiceId)) invalid('มี RV/CN รออนุมัติ ต้องจัดการเอกสารนั้นก่อนยกเลิก BI', 409);
+        }
         await assertNoLaterSettlement(tx, previous);
         if (previous.invoices.some(row => Number(invoices.get(row.invoiceId).outstandingAmount) !== Number(row.outstandingAmount))) {
           invalid('ยอดค้างรับเปลี่ยนหลังจัดทำใบวางบิล กรุณาตรวจรับชำระ/ลดหนี้ก่อนยกเลิก', 409);
         }
       }
-      const result = await tx.billingNote.update({ where: { id: previous.id }, data: action === 'confirm'
-        ? { status: 'approved', confirmedAt: new Date() } : { status: 'cancelled' }, include: BILLING_INCLUDE });
+      const result = await tx.billingNote.update({ where: { id: previous.id }, data: {
+        ...transition.changes, status: transition.status,
+        ...(transition.posts ? { confirmedAt: new Date() } : {}),
+      }, include: BILLING_INCLUDE });
       await recordAuditLog({ entityType: 'billing_note', entityId: result.id, docNo: result.biNo, action, oldValue: previous, newValue: result, reason, req }, tx);
       return result;
     });

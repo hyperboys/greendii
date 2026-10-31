@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -181,6 +182,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
     </form>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PV ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
+      <AccountingApprovalPanel docType="pv" document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} />
       <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p>สถานะ: <strong>{voucherStatuses[doc.status] || doc.status}</strong> · <strong>{voucherPaymentLabel(doc)}</strong></p>
         <p>PS: {doc.lifecycleVersion === 1 ? <Link className="text-blue-700 underline" href={`/ap/vouchers/ps/${doc.sourceDocId}`}>{doc.sourceNo || doc.sourceDocId}</Link> : doc.sourceNo || doc.sourceDocId} · PO: {doc.poNo || "-"} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>

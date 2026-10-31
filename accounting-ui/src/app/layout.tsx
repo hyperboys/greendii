@@ -25,6 +25,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="th" className={`${publicSans.variable} ${notoSansThai.variable}`}>
+      <head>
+        <link rel="preload" href="/fonts/CordiaNew.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/CordiaNew-Bold.ttf" as="font" type="font/ttf" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/BRUSHSCI.TTF" as="font" type="font/ttf" crossOrigin="anonymous" />
+      </head>
       <body>
         <Suspense fallback={<div className="grid min-h-screen place-items-center text-sm text-[#657069]">กำลังโหลด...</div>}>
           <AccountingAccessProvider><AppShell><UnitOptions />{children}</AppShell></AccountingAccessProvider>

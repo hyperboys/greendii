@@ -7,6 +7,7 @@ const { recordAuditLog } = require('../lib/auditTrail');
 const { getPagination, paginated } = require('../lib/pagination');
 const { invalid, text } = require('../lib/deliveryOrder');
 const { INVOICE_INCLUDE, lockInvoice, assertInvoiceVersion, assertNoInvoiceDependents, invoiceData } = require('../lib/invoice');
+const { arActionPermission, arTransition, arEditable } = require('../lib/arApproval');
 
 router.use(authenticate);
 async function canWrite(req, res, next) {
@@ -43,7 +44,7 @@ router.get('/sources', canWrite, async (req, res, next) => {
     if (exceptId) {
       const editing = await prisma.invoice.findUnique({ where: { id: exceptId } });
       if (!editing) invalid('ไม่พบ Invoice', 404);
-      if (editing.lifecycleVersion !== 1 || editing.status !== 'draft') invalid('แก้ไขได้เฉพาะ Invoice Draft', 409);
+      if (editing.lifecycleVersion !== 1 || !arEditable(editing)) invalid('แก้ไขได้เฉพาะ Invoice Draft/ส่งกลับ', 409);
     }
     res.json(await prisma.provisionalDeliveryOrder.findMany({
       where: { status: { not: 'cancelled' }, invoices: { none: { status: { not: 'cancelled' },
@@ -149,7 +150,7 @@ router.put('/:id', canWrite, async (req, res, next) => {
     const result = await prisma.$transaction(async tx => {
       const previous = await lockInvoice(tx, req.params.id);
       assertInvoiceVersion(previous, req.body.updatedAt);
-      if (previous.status !== 'draft') invalid('แก้ไขได้เฉพาะ Invoice Draft', 409);
+      if (!arEditable(previous)) invalid('แก้ไขได้เฉพาะ Invoice Draft/ส่งกลับ', 409);
       await assertNoInvoiceDependents(tx, previous.id);
       const { items, ...data } = await invoiceData(tx, req.body, previous);
       const doc = await tx.invoice.update({ where: { id: previous.id },
@@ -161,24 +162,25 @@ router.put('/:id', canWrite, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
-for (const action of ['confirm', 'cancel']) router.post(`/:id/${action}`, canWrite, async (req, res, next) => {
+for (const action of ['confirm', 'submit', 'approve', 'return', 'reject', 'cancel']) router.post(`/:id/${action}`, arActionPermission(action), async (req, res, next) => {
   try {
-    const reason = action === 'cancel' ? text(req.body.reason, 'เหตุผลยกเลิก', true) : null;
+    const reason = ['cancel', 'return', 'reject'].includes(action) ? text(req.body.reason, 'เหตุผล', true) : null;
     const result = await prisma.$transaction(async tx => {
       const previous = await lockInvoice(tx, req.params.id);
       assertInvoiceVersion(previous, req.body.updatedAt);
-      if (action === 'confirm' && previous.status !== 'draft') invalid('ยืนยันได้เฉพาะ Draft', 409);
-      if (action === 'cancel' && !['draft', 'approved'].includes(previous.status)) invalid('สถานะนี้ไม่สามารถยกเลิกได้', 409);
+      const transition = await arTransition(tx, 'invoice', previous, action, req.user.id, reason);
       await assertNoInvoiceDependents(tx, previous.id);
-      if (action === 'confirm') {
+      if (['confirm', 'submit', 'approve'].includes(action)) {
         if (Number(previous.netAmount) <= 0) invalid('ยอดสุทธิต้องมากกว่า 0 ก่อนยืนยัน');
         if (Number(previous.outstandingAmount) !== 0) invalid('Draft มียอดค้างรับผิดปกติ กรุณาตรวจสอบ', 409);
-      } else if (previous.status === 'approved' && Number(previous.outstandingAmount) !== Number(previous.netAmount)) {
+      } else if (action === 'cancel' && previous.status === 'approved' && Number(previous.outstandingAmount) !== Number(previous.netAmount)) {
         invalid('ยอดค้างรับไม่ตรงยอดสุทธิ กรุณาตรวจสอบธุรกรรมก่อนยกเลิก', 409);
       }
-      const doc = await tx.invoice.update({ where: { id: previous.id }, data: action === 'confirm'
-        ? { status: 'approved', confirmedAt: new Date(), outstandingAmount: previous.netAmount }
-        : { status: 'cancelled', outstandingAmount: 0 }, include: INVOICE_INCLUDE });
+      const doc = await tx.invoice.update({ where: { id: previous.id }, data: {
+        ...transition.changes, status: transition.status,
+        ...(transition.posts ? { confirmedAt: new Date(), outstandingAmount: previous.netAmount } : {}),
+        ...(action === 'cancel' ? { outstandingAmount: 0 } : {}),
+      }, include: INVOICE_INCLUDE });
       await recordAuditLog({ entityType: 'invoice', entityId: doc.id, docNo: doc.ivNo, action, oldValue: previous, newValue: doc, reason, req }, tx);
       return doc;
     });

@@ -99,6 +99,18 @@ async function eligibleForCycle(tx, docType, document, actorId) {
     (step.kind === 'user' ? step.targetId === actorId : step.targetId === access.roleId));
 }
 
+async function submissionSnapshot(tx, docType, document, config, actorId) {
+  const creatorId = document.createdById || document.salesId;
+  if (!creatorId) invalid('ไม่พบผู้สร้างเอกสารสำหรับตรวจสิทธิ์อนุมัติ', 409);
+  if (!Number.isInteger(config.revision) || config.revision < 1) invalid('revision ของลำดับอนุมัติผิดปกติ', 409);
+  currentCycle(document);
+  const steps = await validateTargets(tx, docType, normalizeSteps(config.steps, true), creatorId);
+  const snapshot = document.accountingApproval == null ? { version: 1, cycles: [] } : structuredClone(document.accountingApproval);
+  snapshot.cycles.push({ cycle: snapshot.cycles.length + 1, configRevision: config.revision,
+    state: 'pending', submittedAt: new Date().toISOString(), submittedById: actorId, steps, approvals: [] });
+  return snapshot;
+}
+
 // Caller must hold its existing document row lock, verify updatedAt, and persist
 // changes together with the business posting and audit in the same transaction.
 async function planApproval(tx, docType, document, action, actorId, reason = null) {
@@ -106,6 +118,8 @@ async function planApproval(tx, docType, document, action, actorId, reason = nul
   const cycle = currentCycle(document);
   const creatorId = document.createdById || document.salesId;
   const revisionDate = () => new Date(Math.max(Date.now(), (new Date(document.updatedAt).getTime() || 0) + 1));
+  if (action === 'submit' && !['draft', 'returned'].includes(document.status)) invalid('ส่งได้เฉพาะ Draft / ส่งกลับ', 409);
+  if (['approve', 'return', 'reject'].includes(action) && document.status !== 'pending') invalid('ดำเนินการได้เฉพาะรออนุมัติ', 409);
   if (action === 'approve' && (!creatorId || creatorId === actorId)) invalid('ผู้สร้างห้ามอนุมัติเอกสารตัวเอง แม้เป็น admin', 403);
   if (action === 'submit') {
     const config = await tx.accountingApprovalConfig.findUnique({ where: { docType } });
@@ -118,11 +132,7 @@ async function planApproval(tx, docType, document, action, actorId, reason = nul
       return { changes: { accountingApproval: history, updatedAt: revisionDate() }, finalApproval: false, managed: false };
     }
     if (!ROLLOUT_READY) invalid('ยังไม่เปิด rollout: ต้องตรวจครบทั้ง 11 ประเภทและการจองยอด AR ก่อน', 409);
-    if (!creatorId) invalid('ไม่พบผู้สร้างเอกสารสำหรับตรวจสิทธิ์อนุมัติ', 409);
-    const steps = await validateTargets(tx, docType, normalizeSteps(config.steps, true), creatorId);
-    const snapshot = document.accountingApproval == null ? { version: 1, cycles: [] } : structuredClone(document.accountingApproval);
-    snapshot.cycles.push({ cycle: snapshot.cycles.length + 1, configRevision: config.revision,
-      state: 'pending', submittedAt: new Date().toISOString(), submittedById: actorId, steps, approvals: [] });
+    const snapshot = await submissionSnapshot(tx, docType, document, config, actorId);
     return { managed: true, finalApproval: false, changes: { accountingApproval: snapshot, approvalStep: 1, updatedAt: revisionDate() } };
   }
   if (!cycle || cycle.state === 'legacy') return { changes: {}, finalApproval: action === 'approve', managed: false };
@@ -134,8 +144,8 @@ async function planApproval(tx, docType, document, action, actorId, reason = nul
   let finalApproval = false;
   if (action === 'approve') {
     await tx.$queryRaw`SELECT id FROM users WHERE id = ${actorId} FOR SHARE`;
-    await tx.$queryRaw`SELECT aur.user_id FROM accounting_user_roles aur
-      JOIN accounting_roles r ON r.id = aur.role_id WHERE aur.user_id = ${actorId} FOR SHARE OF aur, r`;
+    await tx.$queryRaw`SELECT aur."userId" FROM accounting_user_roles aur
+      JOIN accounting_roles r ON r.id = aur."roleId" WHERE aur."userId" = ${actorId} FOR SHARE OF aur, r`;
     if (!(await eligibleForCycle(tx, docType, document, actorId))) invalid('สิทธิ์ผู้อนุมัติเปลี่ยนแล้ว กรุณาโหลดใหม่', 403);
     const { actor } = await actorAccess(tx, actorId, documentType(docType).module);
     if (actor.signatureUrl) await tx.accountingApprovalSignature.upsert({
@@ -167,4 +177,4 @@ async function validateConfiguration(tx, docType, body) {
 }
 
 module.exports = { DOCUMENTS, ROLLOUT_READY, documentType, normalizeSteps, actorAccess, validateTargets,
-  validateConfiguration, currentCycle, eligibleForCycle, planApproval };
+  validateConfiguration, currentCycle, eligibleForCycle, submissionSnapshot, planApproval };

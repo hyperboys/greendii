@@ -7,6 +7,8 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
+  imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
+  imports["@/lib/accounting-approval"] = { isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft" };
   const filename = path.join(__dirname, "..", "src", ...parts);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,

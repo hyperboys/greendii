@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -202,6 +203,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
         </section>
       </>}
     </div>
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="gr" document={doc} canSubmit={can.create} onChanged={refresh} />}
     {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="gr-preview mt-5 w-full overflow-x-auto">
       <GoodsReceiptDocument document={doc} company={company} onReady={setPrintReady} />
     </div>}

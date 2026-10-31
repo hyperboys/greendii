@@ -3,6 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const test = require('node:test'), ts = require('typescript'), React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}) {
+  imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
   const filename = path.join(__dirname, '..', 'src', ...parts), module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,

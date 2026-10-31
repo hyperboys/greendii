@@ -23,11 +23,12 @@ export type PendingAccountingApproval = {
   documentHref: string;
 };
 export type ApprovalDetail = {
-  accountingApproval: ApprovalSnapshot | null; canApprove: boolean; status: string; updatedAt: string; docNo: string; documentHref: string;
+  accountingApproval: ApprovalSnapshot | null; canApprove: boolean; chainEnabled?: boolean; status: string; updatedAt: string; docNo: string; documentHref: string;
 };
-const ACTION_PATHS: Partial<Record<ApprovalDocumentType, string>> = {
+const ACTION_PATHS: Record<ApprovalDocumentType, string> = {
   po: "/api/ap/purchase-orders", gr: "/api/ap/goods-receipts", ps: "/api/ap/contractor-payments", pv: "/api/ap/payment-vouchers",
   is: "/api/inventory/issues", sr: "/api/inventory/returns", opening: "/api/inventory/opening-balances",
+  invoice: "/api/ar/invoices", bi: "/api/ar/billing-notes", rv: "/api/ar/receipt-vouchers", cn: "/api/ar/credit-notes",
 };
 const BASE = "/api/accounting-approvals";
 export const AccountingApprovalApi = {
@@ -36,11 +37,11 @@ export const AccountingApprovalApi = {
     method: "PUT", body: JSON.stringify({ enabled: config.enabled, steps: config.steps, revision: config.revision }),
   }),
   pending: () => apiFetch<PendingAccountingApproval[]>(`${BASE}/pending`),
+  pendingPage: (page: number) => apiFetch<{ data: PendingAccountingApproval[]; total: number; page: number; totalPages: number }>(`${BASE}/pending?page=${page}&pageSize=25`),
   detail: (docType: ApprovalDocumentType, id: string) => apiFetch<ApprovalDetail>(
     `${BASE}/${docType}/${encodeURIComponent(id)}`),
-  act: (docType: ApprovalDocumentType, id: string, action: "approve" | "return" | "reject", updatedAt: string, reason?: string) => {
+  act: (docType: ApprovalDocumentType, id: string, action: "submit" | "approve" | "return" | "reject", updatedAt: string, reason?: string) => {
     const base = ACTION_PATHS[docType];
-    if (!base) return Promise.reject(new Error("ยังไม่เปิด lifecycle อนุมัติ AR"));
     return apiFetch<ApprovalDocumentFields>(`${base}/${encodeURIComponent(id)}/${action}`, {
       method: "POST", body: JSON.stringify({ updatedAt, reason }),
     });
@@ -56,4 +57,8 @@ export function signatureText(actor: Pick<ApprovalActor, "signatureText" | "full
   if (actor.signatureText?.trim()) return actor.signatureText.trim();
   const parts = actor.fullName.trim().split(/\s+/);
   return parts.length > 1 ? `${parts[0]} ${Array.from(parts[parts.length - 1])[0]}.` : actor.fullName.trim();
+}
+export function isEditableArDocument(document: (ApprovalDocumentFields & { status: string; lifecycleVersion: number }) | null) {
+  return document?.lifecycleVersion === 1 && (document.status === "draft" ||
+    (document.status === "returned" && latestApprovalCycle(document)?.state === "returned"));
 }

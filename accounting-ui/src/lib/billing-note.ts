@@ -36,6 +36,6 @@ export function billingTotal(rows: Pick<BillingLine, "billingAmount">[]) {
   return rows.reduce((sum, row) => sum + Math.round(Number(row.billingAmount || 0) * 100), 0) / 100;
 }
 export function billingStatus(doc: Pick<BillingNote, "status" | "lifecycleVersion" | "completedAt">) {
-  const label = doc.status === "approved" && doc.completedAt ? "รับชำระครบส่วนวางบิลแล้ว" : ({ draft: "Draft", approved: "ยืนยันวางบิลแล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
+  const label = doc.status === "approved" && doc.completedAt ? "รับชำระครบส่วนวางบิลแล้ว" : ({ draft: "Draft", pending: "รออนุมัติ", returned: "ส่งกลับแก้ไข", rejected: "ปฏิเสธ", approved: "ยืนยันวางบิลแล้ว", cancelled: "ยกเลิก" } as Record<string, string>)[doc.status] || doc.status;
   return doc.lifecycleVersion === 1 ? label : `${label} (Legacy)`;
 }

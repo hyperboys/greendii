@@ -1,4 +1,6 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { isEditableArDocument } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -57,6 +59,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [workOrderError, setWorkOrderError] = useState("");
   const isForm = mode === "new" || mode === "edit";
   const linked = Boolean(form.provisionalDeliveryOrderId);
+  const sourceEditable = isEditableArDocument(doc);
   const invoiceMonth = form.ivDate.slice(0, 7);
   const customer = customers.find(item => item.id === form.customerId);
   const totals = deliveryOrderAmounts(form.items, form.discount, form.vatConfig);
@@ -86,7 +89,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   }, [mode, recordId, isForm, canWrite, reload, query]);
 
   useEffect(() => {
-    if (!isForm || !canWrite || (mode === "edit" && (loading || doc?.status !== "draft" || doc.lifecycleVersion !== 1))) return;
+    if (!isForm || !canWrite || (mode === "edit" && (loading || !sourceEditable))) return;
     let current = true;
     setSourceLoading(true); setSourceError("");
     const timer = setTimeout(() => {
@@ -95,10 +98,10 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         .finally(() => { if (current) setSourceLoading(false); });
     }, 300);
     return () => { current = false; clearTimeout(timer); };
-  }, [sourceQuery, mode, canWrite, isForm, recordId, loading, doc?.status, doc?.lifecycleVersion]);
+  }, [sourceQuery, mode, canWrite, isForm, recordId, loading, sourceEditable]);
 
   useEffect(() => {
-    if (!isForm || !canWrite || (mode === "edit" && (loading || doc?.status !== "draft" || doc.lifecycleVersion !== 1))) return;
+    if (!isForm || !canWrite || (mode === "edit" && (loading || !sourceEditable))) return;
     let current = true;
     setWorkOrderLoading(true); setWorkOrderError("");
     const timer = setTimeout(() => {
@@ -107,7 +110,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         .finally(() => { if (current) setWorkOrderLoading(false); });
     }, 300);
     return () => { current = false; clearTimeout(timer); };
-  }, [workOrderQuery, mode, canWrite, isForm, loading, doc?.status, doc?.lifecycleVersion]);
+  }, [workOrderQuery, mode, canWrite, isForm, loading, sourceEditable]);
 
   useEffect(() => {
     if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
@@ -181,7 +184,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   }
 
   if (isForm && !canWrite) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไข Invoice</p>;
-  const editable = doc?.lifecycleVersion === 1 && doc.status === "draft";
+  const editable = isEditableArDocument(doc);
   return <div className="iv-page mx-auto min-w-0 max-w-6xl">
     <InvoicePrintStyles allowed={mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError} />
     <header className="iv-no-print mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -190,8 +193,9 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ Invoice</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้าง Invoice</Link>}
         {mode === "view" && doc && !loading && !loadError && <>
+          <AccountingApprovalPanel docType="invoice" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
           {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link><button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันตั้งหนี้</button></>}
-          {canWrite && doc.lifecycleVersion === 1 && ["draft", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิก Invoice</button>}
+          {canWrite && doc.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิก Invoice</button>}
           {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={!printReady} onClick={() => window.print()}>พิมพ์ข้อมูลลงแบบฟอร์ม</button>}
         </>}
       </div>
@@ -202,7 +206,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
     {mode === "list" && <div className="iv-no-print space-y-4">
       <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ q: search, status }); }}>
         <label>ค้นหาเลขที่ / ลูกค้า<input className={control} value={search} onChange={event => setSearch(event.target.value)} /></label>
-        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="approved">ยืนยันแล้ว</option><option value="cancelled">ยกเลิก</option></select></label>
+        <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="pending">รออนุมัติ</option><option value="returned">ส่งกลับแก้ไข</option><option value="rejected">ปฏิเสธ</option><option value="approved">ยืนยันแล้ว</option><option value="cancelled">ยกเลิก</option></select></label>
         <button className={`${button} self-end`}>ค้นหา</button>
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead className="bg-gray-50"><tr>{["เลขที่", "วันที่", "ลูกค้า", "SO", "ยอดสุทธิ", "คงค้าง", "สถานะ"].map(title => <th className="p-3 text-left" key={title}>{title}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.ivNo}</Link></td><td className="p-3">{formatAccountingDate(row.ivDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{row.provisionalDeliveryOrder?.soNo || "-"}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{money(row.outstandingAmount)}</td><td className="p-3">{row.reissuedAs ? `${invoiceStatus(row)} · เลขถูกนำไปใช้ใหม่` : row.reissuedFrom ? `${invoiceStatus(row)} · ใช้เลขที่ยกเลิก` : invoiceStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5 text-center">ไม่มีรายการที่ตรงเงื่อนไข</p>}</div>}

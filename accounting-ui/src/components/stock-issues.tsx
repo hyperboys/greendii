@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -200,6 +201,7 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
         {doc.history?.map(row => <p key={row.id} className="break-words border-t pt-2 text-sm">{time(row.createdAt)} · {issueHistory[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}</p>)}
       </section>}
     </div>
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="is" document={doc} canSubmit={can.create} onChanged={refresh} />}
     {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-preview mt-5 w-full overflow-x-auto"><StockIssueDocument document={doc} company={company} onReady={setPrintReady} /></div>}
   </>;
 }

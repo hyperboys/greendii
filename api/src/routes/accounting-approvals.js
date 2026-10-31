@@ -4,6 +4,7 @@ const { authenticate, requireRole } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { invalid } = require('../lib/deliveryOrder');
+const { getPagination, paginated } = require('../lib/pagination');
 const { DOCUMENTS, ROLLOUT_READY, documentType, validateConfiguration, currentCycle, eligibleForCycle } = require('../lib/accountingApproval');
 
 router.use(authenticate);
@@ -48,7 +49,7 @@ router.get('/pending', async (req, res, next) => {
       // documents remain in their existing module lists.
       const documents = await prisma[descriptor.model].findMany({ where: {
         status: 'pending', accountingApproval: { not: require('@prisma/client').Prisma.DbNull },
-      }, orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }], take: 500 });
+      }, orderBy: [{ updatedAt: 'asc' }, { id: 'asc' }] });
       for (const document of documents) {
         if (!(await eligibleForCycle(prisma, docType, document, req.user.id))) continue;
         const cycle = currentCycle(document);
@@ -60,7 +61,10 @@ router.get('/pending', async (req, res, next) => {
           documentHref: `${descriptor.href}/${encodeURIComponent(document.id)}` });
       }
     }
-    res.json(pending);
+    pending.sort((a, b) => String(a.submittedAt).localeCompare(String(b.submittedAt))
+      || `${a.docType}:${a.id}`.localeCompare(`${b.docType}:${b.id}`));
+    const pg = getPagination(req.query);
+    res.json(pg ? paginated(pending.slice(pg.skip, pg.skip + pg.take), pending.length, pg) : pending);
   } catch (error) { next(error); }
 });
 
@@ -71,7 +75,9 @@ router.get('/:docType/:id', async (req, res, next) => {
     if (!hasAccountingPermission(access, descriptor.module, 'view')) invalid('ไม่มีสิทธิ์ดูเอกสาร Accounting', 403);
     const document = await prisma[descriptor.model].findUnique({ where: { id: req.params.id } });
     if (!document) invalid('ไม่พบเอกสาร', 404);
+    const configuration = ROLLOUT_READY ? await prisma.accountingApprovalConfig.findUnique({ where: { docType: req.params.docType } }) : null;
     res.json({ accountingApproval: document.accountingApproval || null, status: document.status, updatedAt: document.updatedAt,
+      chainEnabled: Boolean(configuration?.enabled),
       docNo: document[descriptor.number], documentHref: `${descriptor.href}/${encodeURIComponent(document.id)}`,
       canApprove: await eligibleForCycle(prisma, req.params.docType, document, req.user.id) });
   } catch (error) { next(error); }

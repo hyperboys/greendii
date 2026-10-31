@@ -7,6 +7,7 @@ const { lockInvoice } = require('../lib/invoice');
 const { generateNextRunningNumber } = require('../lib/runningNumber');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { CREDIT_INCLUDE, creditData, creditCapacity, eligible, lockCredit, assertCreditConfirmable, assertCreditReversible } = require('../lib/creditNote');
+const { arActionPermission, arTransition, arEditable } = require('../lib/arApproval');
 router.use(authenticate);
 async function canWrite(req, res, next) {
   try {
@@ -66,7 +67,7 @@ router.put('/:id', canWrite, async (req, res, next) => {
   try {
     res.json(await prisma.$transaction(async tx => {
       const previous = await lockCredit(tx, req.params.id, req.body?.updatedAt);
-      if (previous.status !== 'draft') invalid('แก้ไขได้เฉพาะ CN Draft', 409);
+      if (!arEditable(previous)) invalid('แก้ไขได้เฉพาะ CN Draft/ส่งกลับ', 409);
       const { items, ...data } = await creditData(tx, req.body, previous);
       const result = await tx.creditNote.update({ where: { id: previous.id }, data: { ...data, items: { deleteMany: {}, create: items } }, include: CREDIT_INCLUDE });
       await recordAuditLog({ entityType: 'credit_note', entityId: result.id, docNo: result.cnNo, action: 'update', oldValue: previous, newValue: result, req }, tx);
@@ -74,29 +75,30 @@ router.put('/:id', canWrite, async (req, res, next) => {
     }));
   } catch (error) { next(error); }
 });
-for (const action of ['confirm', 'cancel']) router.post(`/:id/${action}`, canWrite, async (req, res, next) => {
+for (const action of ['confirm', 'submit', 'approve', 'return', 'reject', 'cancel']) router.post(`/:id/${action}`, arActionPermission(action), async (req, res, next) => {
   try {
-    const reason = action === 'cancel' ? text(req.body?.reason, 'เหตุผลยกเลิก', true) : null;
+    const reason = ['cancel', 'return', 'reject'].includes(action) ? text(req.body?.reason, 'เหตุผล', true) : null;
     res.json(await prisma.$transaction(async tx => {
       const previous = await lockCredit(tx, req.params.id, req.body?.updatedAt);
-      if (action === 'confirm' && previous.status !== 'draft') invalid('ยืนยันได้เฉพาะ CN Draft', 409);
-      if (action === 'cancel' && !['draft', 'approved'].includes(previous.status)) invalid('สถานะนี้ยกเลิกไม่ได้', 409);
+      const transition = await arTransition(tx, 'cn', previous, action, req.user.id, reason);
       const invoice = await lockInvoice(tx, previous.invoiceId);
       let changes = {};
-      if (action === 'confirm') {
+      if (['confirm', 'submit', 'approve'].includes(action)) {
         const { items, ...data } = await creditData(tx, { ...previous, cnDate: previous.cnDate.toISOString().slice(0, 10),
           items: previous.items.map(row => ({ ...row, qty: String(row.qty), unitPrice: String(row.unitPrice) })) }, previous);
         await assertCreditConfirmable(tx, previous.invoiceId);
-        await tx.invoice.update({ where: { id: invoice.id }, data: { outstandingAmount: (moneyCents(String(invoice.outstandingAmount), 'หนี้ค้างรับ') - moneyCents(data.netAmount, 'ยอดลดหนี้')) / 100 } });
-        changes = { ...data, items: { deleteMany: {}, create: items }, confirmedAt: new Date() };
-      } else if (previous.status === 'approved') {
+        if (transition.posts) await tx.invoice.update({ where: { id: invoice.id }, data: { outstandingAmount: (moneyCents(String(invoice.outstandingAmount), 'หนี้ค้างรับ') - moneyCents(data.netAmount, 'ยอดลดหนี้')) / 100 } });
+        changes = { ...data, items: { deleteMany: {}, create: items }, ...(transition.posts ? { confirmedAt: new Date() } : {}) };
+      } else if (action === 'cancel' && previous.status === 'approved') {
         eligible(invoice);
         await assertCreditReversible(tx, previous);
         const restored = moneyCents(String(invoice.outstandingAmount), 'หนี้ค้างรับ') + moneyCents(String(previous.netAmount), 'ยอดลดหนี้');
         if (restored > moneyCents(String(invoice.netAmount), 'ยอด Invoice')) invalid('กลับยอดเกิน Invoice กรุณาตรวจข้อมูล', 409);
         await tx.invoice.update({ where: { id: invoice.id }, data: { outstandingAmount: restored / 100 } });
       }
-      const result = await tx.creditNote.update({ where: { id: previous.id }, data: { ...changes, status: action === 'confirm' ? 'approved' : 'cancelled' }, include: CREDIT_INCLUDE });
+      const result = await tx.creditNote.update({ where: { id: previous.id }, data: {
+        ...changes, ...transition.changes, status: transition.status,
+      }, include: CREDIT_INCLUDE });
       await recordAuditLog({ entityType: 'credit_note', entityId: result.id, docNo: result.cnNo, action, oldValue: previous, newValue: result, reason, req }, tx);
       return result;
     }));

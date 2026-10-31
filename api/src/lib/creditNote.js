@@ -1,5 +1,6 @@
 const { invalid, text, documentDate, moneyCents } = require('./deliveryOrder');
 const { lockInvoice } = require('./invoice');
+const { assertAvailableSettlement } = require('./arReservations');
 const CREDIT_INCLUDE = {
   customer: { select: { id: true, name: true, code: true } },
   invoice: { select: { id: true, ivNo: true, outstandingAmount: true } },
@@ -17,7 +18,7 @@ function eligible(invoice) {
   if (!['VAT7%', 'NO_VAT'].includes(invoice.vatConfig)) invalid('Invoice ไม่มี VAT ที่รองรับ กรุณาตรวจข้อมูล', 409);
 }
 async function creditCapacity(tx, invoice, exceptId) {
-  const prior = await tx.creditNote.findMany({ where: { invoiceId: invoice.id, status: 'approved',
+  const prior = await tx.creditNote.findMany({ where: { invoiceId: invoice.id, status: { in: ['approved', 'pending'] },
     ...(exceptId ? { id: { not: exceptId } } : {}) }, select: { amountBeforeVat: true, vat: true, netAmount: true } });
   const used = prior.reduce((sum, row) => ({ before: sum.before + cents(row.amountBeforeVat), vat: sum.vat + cents(row.vat), net: sum.net + cents(row.netAmount) }), { before: 0, vat: 0, net: 0 });
   const original = cents(invoice.netAmount) - cents(invoice.vat);
@@ -61,6 +62,7 @@ async function creditData(tx, body, previous) {
   if (before + vatSum > 999999999999) invalid('ยอดรวมลดหนี้เกินช่วงรองรับ');
   if (before > capacity.before || vatSum > capacity.vat || before + vatSum > capacity.net) invalid('ยอดลดก่อน VAT/VAT/ยอดรวมสะสมเกิน Invoice กรุณาปรับยอดลดหนี้', 409);
   if (before + vatSum > cents(invoice.outstandingAmount)) invalid('ยอดลดหนี้เกินยอดค้างรับปัจจุบัน ไม่รองรับคืนเงินหรือเครดิตล่วงหน้า', 409);
+  await assertAvailableSettlement(tx, invoice, before + vatSum, { cn: previous?.id });
   return {
     invoiceId, cnDate, reason, customerId: invoice.customerId, customerBranch: invoice.customerBranch,
     customerName: invoice.customerName || invoice.customer?.name, customerCode: invoice.customerCode || invoice.customer?.code,
@@ -71,7 +73,7 @@ async function creditData(tx, body, previous) {
   };
 }
 async function assertCreditConfirmable(tx, invoiceId) {
-  if (await tx.billingNoteInvoice.count({ where: { invoiceId, billingNote: { status: { not: 'cancelled' }, completedAt: null } } })) {
+  if (await tx.billingNoteInvoice.count({ where: { invoiceId, billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null } } })) {
     invalid('Invoice อยู่ใน BI ที่ยังไม่ปิด กรุณาจัดการ RV/ยกเลิก BI เดิมก่อนยืนยัน CN', 409);
   }
 }

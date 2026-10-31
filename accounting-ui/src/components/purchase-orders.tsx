@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
@@ -531,6 +532,7 @@ export function PurchaseOrders({
 
       {mode === "view" && selectedDocument && (
         <div className="mx-auto w-full min-w-0">
+          <AccountingApprovalPanel docType="po" document={selectedDocument} canSubmit={canCreate} onChanged={() => { void loadData(); }} />
           <div className="po-no-print mx-auto mb-3 flex max-w-[210mm] flex-wrap justify-end gap-2">
             {canUpdate && editableDetail && <Link href={`/ap/vouchers/${encodeURIComponent(selectedDocument.id)}/edit`} className="rounded bg-white px-4 py-2 text-sm font-bold">แก้ไข PO</Link>}
             {availableActions.map(value => <button key={value} disabled={saving || loading} onClick={() => { setAction(value); setReason(""); }} className="rounded border bg-white px-4 py-2 text-sm font-bold disabled:opacity-50">{poActionLabels[value]}</button>)}

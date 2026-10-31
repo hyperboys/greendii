@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -234,6 +235,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
       </form>)}
 
     {mode === "view" && doc && !loading && !loadError && <>
+      <AccountingApprovalPanel docType="opening" document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} />
       <section className="opening-print space-y-3 rounded border bg-white p-4">
         <h1 className="hidden text-xl font-bold print:block">ใบยอดยกมาคลัง (OB) · {doc.openingNo}</h1>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p>สถานะ: <strong>{openingStatuses[doc.status] || doc.status}</strong></p>

@@ -62,7 +62,7 @@ test("Accounting history preserves prior approved actors, identifies cycles and 
   assert.equal(invoicePrint.includes("AccountingApprovalHistory"), false);
 });
 
-test("Typed approval client uses revisioned admin settings and existing seven business action routes; AR fails explicitly", async () => {
+test("Typed approval client uses revisioned settings and all eleven business action routes", async () => {
   requests.length = 0;
   await approval.AccountingApprovalApi.saveConfiguration({ docType: "po", enabled: false, steps: [{ kind: "role", targetId: "r" }], revision: 3 });
   assert.equal(requests[0][0], "/api/accounting-approvals/configuration/po");
@@ -70,9 +70,10 @@ test("Typed approval client uses revisioned admin settings and existing seven bu
   await approval.AccountingApprovalApi.detail("po", "doc id");
   assert.equal(requests[1][0], "/api/accounting-approvals/po/doc%20id");
   const routes = { po: "ap/purchase-orders", gr: "ap/goods-receipts", ps: "ap/contractor-payments", pv: "ap/payment-vouchers",
-    is: "inventory/issues", sr: "inventory/returns", opening: "inventory/opening-balances" };
+    is: "inventory/issues", sr: "inventory/returns", opening: "inventory/opening-balances",
+    invoice: "ar/invoices", bi: "ar/billing-notes", rv: "ar/receipt-vouchers", cn: "ar/credit-notes" };
   for (const [type, route] of Object.entries(routes)) {
-    for (const action of ["approve", "return", "reject"]) {
+    for (const action of ["submit", "approve", "return", "reject"]) {
       await approval.AccountingApprovalApi.act(type, "doc id", action, "revision", "Reason");
       const [endpoint, options] = requests.at(-1);
       assert.equal(endpoint, `/api/${route}/doc%20id/${action}`);
@@ -81,7 +82,8 @@ test("Typed approval client uses revisioned admin settings and existing seven bu
       assert.equal(JSON.parse(options.body).reason, "Reason");
     }
   }
-  for (const type of ["invoice", "bi", "rv", "cn"]) await assert.rejects(approval.AccountingApprovalApi.act(type, "id", "approve", "revision"), /AR/);
+  await approval.AccountingApprovalApi.pendingPage(2);
+  assert.equal(requests.at(-1)[0], "/api/accounting-approvals/pending?page=2&pageSize=25");
 });
 
 test("Admin chain editor includes all eleven types, active Accounting role/user choices, ordered controls, and disables incomplete rollout", () => {
@@ -107,4 +109,41 @@ test("Admin chain editor includes all eleven types, active Accounting role/user 
   assert.equal(html.includes("Viewer Actor"), false);
   assert.ok(html.includes('aria-label="เลื่อนขึ้น"'));
   assert.ok(html.includes('aria-label="เลื่อนลง"'));
+});
+
+test("AR correction eligibility requires an explicitly returned cycle and all document detail screens integrate approval panels", () => {
+  assert.equal(approval.isEditableArDocument({ status: "draft", lifecycleVersion: 1 }), true);
+  assert.equal(approval.isEditableArDocument({ ...doc, status: "returned", lifecycleVersion: 1 }), false);
+  assert.equal(approval.isEditableArDocument({ accountingApproval: { version: 1, cycles: [{ ...cycle, state: "returned" }] }, status: "returned", lifecycleVersion: 1 }), true);
+  for (const status of ["pending", "approved", "rejected", "cancelled"]) {
+    assert.equal(approval.isEditableArDocument({ ...doc, status, lifecycleVersion: 1 }), false);
+  }
+  assert.equal(approval.isEditableArDocument({ status: "draft", lifecycleVersion: 0 }), false);
+  const components = { po: "purchase-orders", gr: "goods-receipts", is: "stock-issues", sr: "stock-returns",
+    ps: "contractor-payments", pv: "payment-vouchers", opening: "stock-opening-balances", invoice: "invoices",
+    bi: "billing-notes", rv: "receipt-vouchers", cn: "credit-notes" };
+  for (const [type, name] of Object.entries(components)) {
+    const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", `${name}.tsx`), "utf8");
+    assert.ok(source.includes(`<AccountingApprovalPanel docType="${type}"`), `${type} integrates revisioned detail/history/review`);
+  }
+});
+
+test("Approval panel shows only eligible review actions, offers configured submission and hides from document printing", () => {
+  const render = (canApprove, chainEnabled, status = "pending") => {
+    let index = 0;
+    const detail = { ...doc, canApprove, chainEnabled, status, updatedAt: "revision" };
+    const state = [detail, chainEnabled, "", false];
+    const Panel = load(["components", "accounting-approval-panel.tsx"], {
+      react: { ...React, useState: initial => [state[index++] ?? initial, () => {}], useEffect: () => {} },
+      "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+      "@/lib/accounting-approval": approval, "./accounting-approval-history": { AccountingApprovalHistory: () => null },
+    }).AccountingApprovalPanel;
+    return renderToStaticMarkup(React.createElement(Panel, { docType: "invoice",
+      document: { ...doc, id: "iv", status, updatedAt: "revision" }, canSubmit: true, onChanged() {} }));
+  };
+  assert.ok(render(true, true).includes('href="/approvals/invoice/iv"'));
+  assert.equal(render(false, true).includes("ตรวจสอบและอนุมัติขั้นนี้"), false);
+  assert.ok(render(false, true, "draft").includes("ส่งตามสายอนุมัติ"));
+  assert.equal(render(false, false, "draft").includes("ส่งตามสายอนุมัติ"), false);
+  assert.ok(render(true, true).includes("display:none!important"));
 });

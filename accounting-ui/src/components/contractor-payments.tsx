@@ -1,4 +1,5 @@
 "use client";
+import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -190,6 +191,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
     </form>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PS ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
+      <AccountingApprovalPanel docType="ps" document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} />
       <section className="ps-no-print mb-4 space-y-2 rounded border bg-white p-4"><p>สถานะ: <strong>{paymentStatuses[doc.status] || doc.status}</strong> · รอบ {doc.paymentRound}</p><p>PO: {doc.poNo || doc.poId} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>
         <p>ก่อน VAT {money(doc.currentRequestAmount)} · VAT {money(doc.vat)} · WHT {money(doc.wht)} · ประกัน {money(doc.retention)} · สุทธิ {money(doc.netAmount)}</p>
         <p>ยอดสะสม/คงเหลือบนเอกสารเป็นข้อมูล ณ บันทึกหรือส่ง/อนุมัติครั้งล่าสุด ไม่ใช่ยอดคงเหลือสด</p>

@@ -2,7 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+@font-face {
+  font-family: "Cordia New";
+  src: url("/fonts/CordiaNew.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Cordia New";
+  src: url("/fonts/CordiaNew-Bold.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Century Gothic";
+  src: url("/fonts/GOTHIC.TTF") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Century Gothic";
+  src: url("/fonts/GOTHICB.TTF") format("truetype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Broadway";
+  src: url("/fonts/BROADW.TTF") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Brush Script MT";
+  src: url("/fonts/BRUSHSCI.TTF") format("truetype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
 :root {
+  --font-body: "Cordia New", "Sarabun", "Noto Sans Thai", sans-serif;
+  --font-thai: "Cordia New";
+  --font-en: "Century Gothic", "Inter", "Cordia New", "Sarabun", "Noto Sans Thai", sans-serif;
+  --font-display: "Broadway", "Bebas Neue", sans-serif;
+  --font-signature: "Brush Script MT", "Dancing Script", cursive;
   --ink: #17211b;
   --paper: #f4f6f2;
   --forest: #0866ff;
@@ -19,6 +72,29 @@ body {
   color: var(--ink);
   font-family: var(--font-public-sans), var(--font-noto-thai), sans-serif;
   letter-spacing: 0;
+}
+
+/* Match Sale document typography without changing the Accounting screen UI. */
+#po-print-doc,
+#so-print-doc,
+#iv-print-doc,
+#bi-print-doc,
+#rv-print-doc,
+#cn-print-doc,
+#ps-print-doc,
+#pv-print-doc,
+.gr-paper,
+.is-paper,
+.cq-paper,
+.opening-print,
+.stock-card-print-only {
+  font-family: var(--font-body) !important;
+}
+
+@media print {
+  body {
+    font-family: var(--font-body);
+  }
 }
 
 /* Preserve the existing inherited control typography with Tailwind 3 utilities. */
