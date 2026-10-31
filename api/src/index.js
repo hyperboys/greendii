@@ -44,6 +44,7 @@ const apRoutes            = require('./routes/ap');
 const inventoryRoutes     = require('./routes/inventory');
 const accountingReportsRoutes = require('./routes/accounting-reports');
 const accountingAccessRoutes = require('./routes/accounting-access');
+const accountingApprovalRoutes = require('./routes/accounting-approvals');
 const { authenticate } = require('./middleware/auth');
 const { ACCOUNTING_RESOURCES, requireAccountingResource } = require('./middleware/accountingAccess');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -172,6 +173,7 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/accounting-access', accountingAccessRoutes);
+app.use('/api/accounting-approvals', accountingApprovalRoutes);
 for (const [route, resource] of ACCOUNTING_RESOURCES) {
   app.use(route, authenticate, requireAccountingResource(resource));
 }

@@ -10,6 +10,7 @@ export type StockOpeningLine = StockOpeningItemInput & {
   productSnapshot: Omit<StockCardProduct, "id" | "active"> & { productType: string };
 };
 export type StockOpeningBalance = Omit<StockOpeningInput, "items"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; openingNo: string; status: StockOpeningStatus; lifecycleVersion: number; createdById: string | null;
   approvedById: string | null; approvedAt: string | null; cancelledAt: string | null; cancellationReason: string | null;
   warehouseSnapshot: Omit<StockCardWarehouse, "id" | "active">; items: StockOpeningLine[];

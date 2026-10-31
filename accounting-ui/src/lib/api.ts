@@ -6,7 +6,7 @@
 import type { AccountCustomer, AccountSale, CustomerInput } from "./account-customers";
 import type { AccountSupplier, SupplierInput } from "./account-suppliers";
 import type { DeliveryOrder, DeliveryOrderInput, DeliveryOrderProduct, DeliveryOrderWorkOrder } from "./delivery-order";
-import type { Invoice, InvoiceInput, InvoiceSource } from "./invoice";
+import type { Invoice, InvoiceInput, InvoiceSource, ReusableInvoiceNumber } from "./invoice";
 import type { BillingNote, BillingInput, BillingSource } from "./billing-note";
 import type { ReceiptVoucher, ReceiptInput, ReceiptSources, ReceiptAttachment } from "./receipt-voucher";
 import type { CreditNote, CreditInput, CreditSource } from "./credit-note";
@@ -112,7 +112,8 @@ export const ArApi = {
     return apiFetch<Invoice[] | { items: Invoice[] }>(`/api/ar/invoices${q ? `?${q}` : ""}`);
   },
   getInvoice: (id: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`),
-  getInvoiceSources: (q: string) => apiFetch<InvoiceSource[]>(`/api/ar/invoices/sources?q=${encodeURIComponent(q)}`),
+  getInvoiceSources: (q: string, exceptId?: string) => apiFetch<InvoiceSource[]>(`/api/ar/invoices/sources?q=${encodeURIComponent(q)}${exceptId ? `&exceptId=${encodeURIComponent(exceptId)}` : ""}`),
+  getReusableInvoiceNumbers: (month: string) => apiFetch<ReusableInvoiceNumber[]>(`/api/ar/invoices/reusable-numbers?month=${encodeURIComponent(month)}`),
   createInvoice: (data: InvoiceInput) => apiFetch<Invoice>("/api/ar/invoices", { method: "POST", body: JSON.stringify(data) }),
   updateInvoice: (id: string, data: InvoiceInput) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
   confirmInvoice: (id: string, updatedAt: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}/confirm`, { method: "POST", body: JSON.stringify({ updatedAt }) }),

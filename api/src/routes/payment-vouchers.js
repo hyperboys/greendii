@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { createHash } = require('crypto');
 const prisma = require('../lib/prisma');
+const { planApproval } = require('../lib/accountingApproval');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { invalid } = require('../lib/deliveryOrder');
@@ -113,6 +114,7 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'pay', 'cancel'])
           : action === 'pay' ? ['approved'] : ['pending'];
         if (!allowed.includes(previous.status)) invalid('สถานะ PV ไม่รองรับคำสั่งนี้', 409);
         if (action === 'approve' && previous.createdById === req.user.id) invalid('ผู้สร้างไม่สามารถอนุมัติ PV ตัวเองได้ แม้เป็น admin', 403);
+        const approval = await planApproval(tx, 'pv', previous, action, req.user.id, reason);
         if (action === 'pay' && previous.paidAt) invalid('PV บันทึกจ่ายแล้ว ห้ามจ่ายซ้ำ', 409);
         const source = await lockVoucherSource(tx, previous.sourceDocId);
         let changes = {};
@@ -133,10 +135,12 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'pay', 'cancel'])
             changes = { ...reversalData(previous, req.body), reversedById: req.user.id, reversalRecordedAt: new Date() };
           }
         }
-        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', pay: 'approved', cancel: 'cancelled' }[action];
+        const status = action === 'approve' && !approval.finalApproval ? 'pending'
+          : { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', pay: 'approved', cancel: 'cancelled' }[action];
         const doc = await tx.paymentVoucher.update({ where: { id: previous.id }, data: { ...changes, status,
-          ...(action === 'approve' ? { approvedById: req.user.id, approvedAt: new Date() } : {}),
+          ...(action === 'approve' && approval.finalApproval ? { approvedById: req.user.id, approvedAt: new Date() } : {}),
           approvalStep: status === 'pending' ? 1 : previous.approvalStep,
+          ...approval.changes,
         }, include: VOUCHER_INCLUDE });
         await voucherAudit(tx, req, previous.paidAt && action === 'cancel' ? 'reverse' : action, previous, doc, reason);
         return doc;

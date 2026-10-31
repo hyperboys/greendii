@@ -51,43 +51,47 @@ export function PurchaseOrderDocumentView({
 
   return (
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-5 text-[11px] leading-5 text-black sm:p-6">
-      <header className="grid grid-cols-[82px_1fr_172px] items-center gap-2 text-center">
-        <div className="flex h-16 items-center justify-center border border-gray-300 p-1">
+      <header className="relative text-center">
+        <div className="absolute left-0 top-0 flex h-16 w-[82px] items-center justify-center border border-gray-300 p-1">
           {company.logoUrl ? <Image unoptimized width={160} height={56} src={fileHref(company.logoUrl)} alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" /> : <strong className="text-green-700">GREEN Dii</strong>}
         </div>
         <div>
           <h1 className="text-base font-bold">{company.companyName || "บริษัท กรีนดี จำกัด"}</h1>
           {company.companyNameEn && <p className="text-[10px]">{company.companyNameEn}</p>}
           <p>{company.address || "-"}</p>
-          <p>โทร. {company.tel || "-"}　เลขประจำตัวผู้เสียภาษี {company.taxId || "-"}</p>
-          <h2 className="mt-1 text-lg font-semibold">ใบสั่งซื้อ</h2>
+          <p>โทร. {company.tel || "02-150-7694"}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || "-"}</p>
+        </div>
+      </header>
+      <div className="relative mt-2 flex min-h-14 items-center justify-end">
+        <div className="absolute left-1/2 -translate-x-1/2 text-center">
+          <h2 className="text-lg font-semibold">ใบสั่งซื้อ</h2>
           <p className="text-[10px]">PURCHASE ORDER</p>
         </div>
-        <dl className="grid grid-cols-[auto_1fr] border border-blue-700 text-left leading-5">
+        <dl className="grid w-[172px] grid-cols-[auto_1fr] border border-blue-700 text-left leading-5">
           <dt className="border-b border-r border-blue-700 p-1 font-semibold">เลขที่เอกสาร</dt>
           <dd className="border-b border-blue-700 p-1">{document.poNo}</dd>
           <dt className="border-r border-blue-700 p-1 font-semibold">วันที่เอกสาร</dt>
           <dd className="p-1">{formatDate(document.poDate)}</dd>
         </dl>
-      </header>
+      </div>
 
-      <section className="po-print-keep mt-2 grid grid-cols-2 gap-1">
-        <div>
-          <p className="mb-1"><strong>รหัสผู้ขาย</strong>　{supplier?.code || "-"}</p>
+      <section className="po-print-keep mt-2">
+        <p className="mb-1"><strong>รหัสผู้ขาย</strong>　{supplier?.code || "-"}</p>
+        <div className="grid grid-cols-2 items-stretch gap-1">
           <div className="min-h-24 border border-blue-700 p-2">
             <p><strong>ชื่อผู้ขาย</strong>　{supplier?.name || "-"}</p>
             <p><strong>ที่อยู่</strong>　{document.address || "-"}</p>
             {document.supplierBranch && <p><strong>สาขา</strong>　{document.supplierBranch}</p>}
             <p><strong>โทร.</strong>　{supplier?.tel || "-"}　<strong>เลขประจำตัวผู้เสียภาษี</strong>　{supplier?.taxId || "-"}</p>
           </div>
-        </div>
-        <div className="min-h-24 border border-blue-700 p-2">
-          <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}</p>
-          <p><strong>จำนวนวันเครดิต</strong>　{document.paymentTerm} วัน</p>
-          <p><strong>ประเภทจัดซื้อ</strong>　{document.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
-          {document.deliveryLocation && <p><strong>ที่อยู่จัดส่ง</strong>　{document.deliveryLocation}</p>}
-          {document.deliveryDate && <p><strong>กำหนดส่ง</strong>　{formatDate(document.deliveryDate)}</p>}
-          <p><strong>สถานะ</strong>　{poStatusLabels[document.status] || document.status}</p>
+          <div className="min-h-24 border border-blue-700 p-2">
+            <p><strong>ผู้ติดต่อ</strong>　{document.contactPerson || "-"}</p>
+            <p><strong>จำนวนวันเครดิต</strong>　{document.paymentTerm} วัน</p>
+            <p><strong>ประเภทจัดซื้อ</strong>　{document.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
+            {document.deliveryLocation && <p><strong>ที่อยู่จัดส่ง</strong>　{document.deliveryLocation}</p>}
+            {document.deliveryDate && <p><strong>กำหนดส่ง</strong>　{formatDate(document.deliveryDate)}</p>}
+            <p><strong>สถานะ</strong>　{poStatusLabels[document.status] || document.status}</p>
+          </div>
         </div>
       </section>
 
@@ -119,11 +123,6 @@ export function PurchaseOrderDocumentView({
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.unitPrice)}</td>
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.discount)}</td>
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.amount)}</td>
-              </tr>
-            ))}
-            {Array.from({ length: Math.max(0, 12 - document.items.length) }).map((_, index) => (
-              <tr key={`blank-${index}`} aria-hidden="true">
-                {Array.from({ length: 7 }).map((__, cell) => <td key={cell} className="h-9 border-x border-blue-700" />)}
               </tr>
             ))}
           </tbody>
@@ -192,27 +191,41 @@ export function PurchaseOrderDocumentView({
 export function PurchaseOrderPrintStyles() {
   return (
     <style jsx global>{`
-      @page { size: A4; margin: 12mm; }
+      #po-print-doc { font-family: var(--font-noto-thai), Tahoma, sans-serif; }
+      @page { size: A4; margin: 8mm; }
       @media print {
-        .po-document-preview { overflow: visible !important; }
-        #po-print-doc { break-inside: auto; }
+        html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+        .accounting-shell, .accounting-shell > div, .accounting-shell main, .po-document-preview {
+          display: block !important;
+          width: 210mm !important;
+          min-width: 0 !important;
+          min-height: 0 !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+        }
+        #po-print-doc {
+          position: absolute !important;
+          left: 0 !important;
+          top: 0 !important;
+          width: 100% !important;
+          min-width: 0 !important;
+          max-width: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          font-size: 8.5pt !important;
+          line-height: 1.25 !important;
+          break-inside: auto;
+        }
+        #po-print-doc table { width: 100% !important; min-width: 0 !important; }
+        #po-print-doc th, #po-print-doc td { padding: 2px !important; }
         #po-print-doc header, #po-print-doc .po-print-keep, #po-print-doc tbody tr {
           break-inside: avoid;
           page-break-inside: avoid;
         }
         body * { visibility: hidden !important; }
         #po-print-doc, #po-print-doc * { visibility: visible !important; }
-        #po-print-doc {
-          position: absolute !important;
-          left: 0 !important;
-          top: 0 !important;
-          width: 100% !important;
-          max-width: none !important;
-          min-width: 0 !important;
-          padding: 0 !important;
-          margin: 0 !important;
-          box-shadow: none !important;
-        }
         .po-no-print { display: none !important; }
       }
     `}</style>

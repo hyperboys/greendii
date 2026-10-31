@@ -60,15 +60,19 @@ test("Shared item editor keeps description below the numeric row and supports ex
   assert.doesNotMatch(render(true), /เพิ่มรายการ|aria-label="ลบรายการ/);
 });
 
-test("SO-linked Invoice Drafts allow editing copied fields and lines while keeping customer and saved SO fixed", () => {
+test("SO-linked Invoice Drafts allow editing copied fields, customer and saved SO", () => {
   const saved = {
     ...invoices.newInvoice(), id: "iv", provisionalDeliveryOrderId: "so", customerId: "customer",
     provisionalDeliveryOrder: { id: "so", soNo: "SO-TEST" }, status: "draft", lifecycleVersion: 1,
+    workOrderId: "wo1", workOrder: { id: "wo1", woNo: "WO-1" },
     updatedAt: "revision", customerBranch: "Branch", address: "Edited billing", shippingAddress: "Edited shipping",
     creditTerm: 15, vatConfig: "NO_VAT", discount: 2,
     items: [{ desc: "Edited line", qty: 4, unit: "box", unitPrice: 25.5, lineDiscount: 1.5 }],
   };
   let cursor = 0;
+  let currentForm;
+  let selectors = [];
+  const searchable = load(["components", "searchable-select.tsx"]);
   const { Invoices } = load(["components", "invoices.tsx"], {
     react: {
       ...React,
@@ -77,7 +81,11 @@ test("SO-linked Invoice Drafts allow editing copied fields and lines while keepi
         const value = index === 1 ? saved : index === 2 ? invoices.invoiceForm(saved)
           : index === 3 ? [{ id: "customer", code: "C1", name: "Customer", branches: [{ id: "branch", name: "Branch" }] }]
           : initial === true ? false : initial;
-        return React.useState(value);
+        const [state] = React.useState(value);
+        if (index === 2) currentForm = state;
+        return [state, update => {
+          if (index === 2) currentForm = typeof update === "function" ? update(currentForm) : update;
+        }];
       },
     },
     "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
@@ -87,12 +95,16 @@ test("SO-linked Invoice Drafts allow editing copied fields and lines while keepi
     "@/lib/account-customers": load(["lib", "account-customers.ts"]), "@/lib/delivery-order": delivery,
     "@/lib/invoice": invoices, "@/lib/accounting-date": dates,
     "@/components/date-input": load(["components", "date-input.tsx"], { "@/lib/accounting-date": dates }),
-    "@/components/searchable-select": load(["components", "searchable-select.tsx"]),
+    "@/components/searchable-select": { SearchableSelect: props => {
+      selectors.push(props);
+      return React.createElement(searchable.SearchableSelect, props);
+    } },
     "@/components/document-items": documentItems,
     "@/components/invoice-document": { InvoicePrintStyles: () => null },
   });
   for (const mode of ["new", "edit"]) {
     cursor = 0;
+    selectors = [];
     const html = renderToStaticMarkup(React.createElement(Invoices, { mode, recordId: mode === "edit" ? "iv" : undefined }));
     assert.match(html, /บันทึก Draft/);
     assert.match(html, /เพิ่มรายการ/);
@@ -101,13 +113,23 @@ test("SO-linked Invoice Drafts allow editing copied fields and lines while keepi
     assert.match(html, /Edited shipping/);
     assert.match(html, /<dt>ยอดก่อน VAT<\/dt><dd>98\.50<\/dd>/);
     assert.doesNotMatch(html, /readonly=""/);
-    assert.equal((html.match(/<fieldset disabled=""/g) || []).length, 1, "Only the customer selector stays locked");
+    assert.equal((html.match(/<fieldset disabled=""/g) || []).length, 0, "SO-linked customer and items are editable");
     assert.doesNotMatch(html, /<select disabled=""/);
     assert.match(html, /ไม่เปลี่ยนข้อมูล SO ต้นฉบับ/);
-    if (mode === "edit") {
-      assert.match(html, /ไม่สามารถเปลี่ยนหลังบันทึก/);
-      assert.doesNotMatch(html, /คัดลอกจาก SO \(ไม่บังคับ\)/);
+    assert.match(html, /คัดลอกจาก SO \(ไม่บังคับ\)/);
+    assert.match(html, /ชื่อสาขาบนเอกสาร<input/);
+    assert.match(html, /อ้างอิง Work Order \(ไม่บังคับ\)/);
+    assert.doesNotMatch(html, /ไม่สามารถเปลี่ยนหลังบันทึก/);
+    const beforeClear = currentForm;
+    selectors.find(item => item.label === "คัดลอกจาก SO (ไม่บังคับ)").onChange("");
+    assert.equal(currentForm.provisionalDeliveryOrderId, null);
+    for (const [field, value] of Object.entries(beforeClear)) {
+      if (field !== "provisionalDeliveryOrderId") assert.equal(currentForm[field], value, `Removing SO preserves ${field}`);
     }
+    selectors.find(item => item.label === "อ้างอิง Work Order (ไม่บังคับ)").onChange("");
+    assert.equal(currentForm.workOrderId, null);
+    assert.equal(currentForm.updatedAt, "revision");
+    assert.equal(currentForm.items, beforeClear.items);
   }
   saved.items = [{ desc: "Edited line", qty: 1, unit: "box", unitPrice: 85000, lineDiscount: 0 }];
   for (const [vatConfig, discount, beforeVat, vat, net] of [

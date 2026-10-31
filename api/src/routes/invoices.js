@@ -2,7 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
-const { generateNextRunningNumber } = require('../lib/runningNumber');
+const { generateNextRunningNumber, getYYMM } = require('../lib/runningNumber');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { getPagination, paginated } = require('../lib/pagination');
 const { invalid, text } = require('../lib/deliveryOrder');
@@ -39,11 +39,53 @@ router.get('/', async (req, res, next) => {
 router.get('/sources', canWrite, async (req, res, next) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q.trim() : '';
+    const exceptId = text(req.query.exceptId, 'Invoice ที่แก้ไข');
+    if (exceptId) {
+      const editing = await prisma.invoice.findUnique({ where: { id: exceptId } });
+      if (!editing) invalid('ไม่พบ Invoice', 404);
+      if (editing.lifecycleVersion !== 1 || editing.status !== 'draft') invalid('แก้ไขได้เฉพาะ Invoice Draft', 409);
+    }
     res.json(await prisma.provisionalDeliveryOrder.findMany({
-      where: { status: { not: 'cancelled' }, invoices: { none: { status: { not: 'cancelled' } } },
+      where: { status: { not: 'cancelled' }, invoices: { none: { status: { not: 'cancelled' },
+        ...(exceptId ? { id: { not: exceptId } } : {}) } },
         ...(q ? { soNo: { contains: q, mode: 'insensitive' } } : {}) },
       select: { id: true, soNo: true, customerId: true, customer: { select: { name: true } } },
       orderBy: { docDate: 'desc' }, take: 50,
+    }));
+  } catch (error) { next(error); }
+});
+
+router.get('/reusable-numbers', canWrite, async (req, res, next) => {
+  try {
+    const month = typeof req.query.month === 'string' ? req.query.month.trim() : '';
+    const match = /^(\d{4})-(\d{2})$/.exec(month);
+    if (!match || Number(match[1]) < 1900 || Number(match[2]) < 1 || Number(match[2]) > 12) {
+      invalid('กรุณาระบุเดือน Invoice ในรูปแบบ YYYY-MM');
+    }
+    const year = Number(match[1]);
+    const monthIndex = Number(match[2]) - 1;
+    const start = new Date(Date.UTC(year, monthIndex, 1) - 7 * 60 * 60 * 1000);
+    const end = new Date(Date.UTC(year, monthIndex + 1, 1) - 7 * 60 * 60 * 1000);
+    const cancelled = await prisma.invoice.findMany({
+      where: {
+        status: 'cancelled', lifecycleVersion: 1, reissuedAs: null,
+        ivDate: { gte: start, lt: end },
+      },
+      select: { id: true, ivNo: true, ivDate: true, customerName: true, customerCode: true },
+      orderBy: { createdAt: 'desc' },
+    });
+    const numbers = [...new Set(cancelled.map(row => row.ivNo))];
+    if (!numbers.length) return res.json([]);
+    const active = await prisma.invoice.findMany({
+      where: { ivNo: { in: numbers }, status: { not: 'cancelled' } },
+      select: { ivNo: true },
+    });
+    const activeNumbers = new Set(active.map(row => row.ivNo));
+    const seen = new Set();
+    res.json(cancelled.filter(row => {
+      if (activeNumbers.has(row.ivNo) || seen.has(row.ivNo)) return false;
+      seen.add(row.ivNo);
+      return true;
     }));
   } catch (error) { next(error); }
 });
@@ -66,12 +108,36 @@ router.post('/', canWrite, async (req, res, next) => {
   try {
     const result = await prisma.$transaction(async tx => {
       const { items, ...data } = await invoiceData(tx, req.body);
-      const ivNo = await generateNextRunningNumber('iv', { date: data.ivDate }, tx);
+      const reuseInvoiceId = text(req.body.reuseInvoiceId, 'เลข Invoice ที่ยกเลิก');
+      let ivNo;
+      let reissuedFromId = null;
+      if (reuseInvoiceId) {
+        const cancelledInvoice = await lockInvoice(tx, reuseInvoiceId);
+        if (cancelledInvoice.status !== 'cancelled' || cancelledInvoice.lifecycleVersion !== 1) {
+          invalid('เลือกใช้เลขได้เฉพาะ Invoice ที่ยกเลิกแล้วในวงจรใหม่', 409);
+        }
+        if (cancelledInvoice.reissuedAs || getYYMM(cancelledInvoice.ivDate) !== getYYMM(data.ivDate)) {
+          invalid('เลข Invoice นี้ถูกใช้ไปแล้วหรืออยู่คนละเดือนกับวันที่เอกสาร', 409);
+        }
+        const activeInvoice = await tx.invoice.findFirst({
+          where: { ivNo: cancelledInvoice.ivNo, status: { not: 'cancelled' } },
+          select: { id: true },
+        });
+        if (activeInvoice) invalid('เลข Invoice นี้ถูกใช้ไปแล้ว', 409);
+        ivNo = cancelledInvoice.ivNo;
+        reissuedFromId = cancelledInvoice.id;
+      } else {
+        ivNo = await generateNextRunningNumber('iv', { date: data.ivDate }, tx);
+      }
       const doc = await tx.invoice.create({
-        data: { ...data, ivNo, lifecycleVersion: 1, status: 'draft', outstandingAmount: 0, salesId: req.user.id, items: { create: items } },
+        data: { ...data, ivNo, reissuedFromId, lifecycleVersion: 1, status: 'draft', outstandingAmount: 0, salesId: req.user.id, items: { create: items } },
         include: INVOICE_INCLUDE,
       });
-      await recordAuditLog({ entityType: 'invoice', entityId: doc.id, docNo: ivNo, action: 'create', newValue: doc, req }, tx);
+      await recordAuditLog({
+        entityType: 'invoice', entityId: doc.id, docNo: ivNo,
+        action: reissuedFromId ? 'reuse_cancelled_number' : 'create',
+        newValue: doc, reason: reissuedFromId ? `นำเลขจาก Invoice ที่ยกเลิก ${ivNo} กลับมาใช้` : null, req,
+      }, tx);
       return doc;
     });
     res.status(201).json(result);

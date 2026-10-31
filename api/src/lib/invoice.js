@@ -4,6 +4,8 @@ const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('./accountCustomer
 const INVOICE_INCLUDE = {
   customer: { select: { id: true, code: true, name: true } },
   provisionalDeliveryOrder: { select: { id: true, soNo: true } },
+  reissuedFrom: { select: { id: true, ivNo: true } },
+  reissuedAs: { select: { id: true, ivNo: true, status: true } },
   workOrder: { select: { id: true, woNo: true, project: true } },
   items: { orderBy: { seq: 'asc' } },
 };
@@ -41,12 +43,13 @@ function assertInvoiceVersion(doc, updatedAt) {
 async function invoiceData(tx, body, previous = null) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) invalid('ข้อมูล Invoice ไม่ถูกต้อง');
   const sourceId = text(body.provisionalDeliveryOrderId, 'SO');
-  if (previous && sourceId !== previous.provisionalDeliveryOrderId) invalid('ไม่สามารถเปลี่ยน SO อ้างอิงหลังบันทึก กรุณายกเลิกแล้วสร้างใหม่', 409);
+  const sourceIds = [...new Set([sourceId, previous?.provisionalDeliveryOrderId].filter(Boolean))].sort();
+  const sources = new Map();
+  for (const id of sourceIds) sources.set(id, await lockDeliveryOrder(tx, id));
   let input = body;
   if (sourceId) {
-    const source = await lockDeliveryOrder(tx, sourceId);
+    const source = sources.get(sourceId);
     if (source.status === 'cancelled') invalid('SO ถูกยกเลิกแล้ว', 409);
-    if (body.customerId !== source.customerId) invalid('SO และ Invoice ต้องเป็นลูกค้าเดียวกัน');
     if (await tx.invoice.count({ where: {
       provisionalDeliveryOrderId: sourceId, status: { not: 'cancelled' }, ...(previous ? { id: { not: previous.id } } : {}),
     } })) invalid('SO นี้มี Invoice ที่ยังไม่ยกเลิกแล้ว', 409);
@@ -60,10 +63,10 @@ async function invoiceData(tx, body, previous = null) {
     };
   }
   const customer = await tx.accountCustomer.findUnique({ where: { id: input.customerId }, include: CUSTOMER_INCLUDE });
-  const defaults = invoiceCustomerDefaults(customer, sourceId ? {
+  const defaults = invoiceCustomerDefaults(customer, {
     ...input, customerBranch: undefined,
     customerBranchId: input.customerBranchId || customer?.branches?.find(branch => branch.name === input.customerBranch)?.id,
-  } : input);
+  });
   const data = await deliveryOrderData(tx, { ...defaults, ...input, docDate: body.ivDate,
     items: Array.isArray(input.items) ? input.items.map(item => ({ ...item, discount: item?.discount ?? item?.lineDiscount ?? 0 })) : input.items });
   const dueDate = new Date(data.docDate);

@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import {
   AccountingAccessApi, AccountingAction, AccountingPermission, AccountingRole, AccountingUser, PermissionModule,
 } from "@/lib/accounting-access";
@@ -105,6 +106,7 @@ export default function AccountingAccessPage() {
         <div>
           <p className="text-xs font-bold text-[#0866ff]">Accounting Administration</p>
           <h1 className="mt-1 text-2xl font-bold">บทบาท & สิทธิ์ Accounting</h1>
+          <Link className="mt-2 inline-block text-blue-700 underline" href="/settings/approvals">ตั้งค่าลำดับอนุมัติ Accounting</Link>
           <p className="mt-2 text-sm text-[#657069]">เฉพาะ admin ระบบเดิมจัดการได้ ผู้ใช้หนึ่งคนมีหนึ่งบทบาท Accounting โดยไม่เปลี่ยนบทบาทหรือสิทธิ์ระบบเดิม</p>
         </div>
         {error && <p role="alert" className="rounded-md bg-red-50 p-3 text-sm text-red-700">{error}</p>}

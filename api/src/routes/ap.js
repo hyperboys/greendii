@@ -1,5 +1,6 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
+const { planApproval } = require('../lib/accountingApproval');
 const { authenticate } = require('../middleware/auth');
 const { generateNextRunningNumber } = require('../lib/runningNumber');
 const { validateStateTransition } = require('../lib/stateTransition');
@@ -315,14 +316,16 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
           : action === 'cancel' ? ['draft', 'returned', 'pending', 'approved'] : ['pending'];
         if (!allowed.includes(previous.status)) invalid('สถานะ PO ไม่รองรับคำสั่งนี้', 409);
         if (action === 'approve' && previous.createdById === req.user.id) invalid('ผู้สร้างไม่สามารถอนุมัติ PO ของตัวเองได้', 403);
+        const approval = await planApproval(tx, 'po', previous, action, req.user.id, reason);
         if (['return', 'reject', 'cancel'].includes(action)) await assertNoPoDependents(tx, previous.id);
         if (['submit', 'approve'].includes(action)) {
           assertPoSubmittable(previous);
           for (const item of previous.items) if (item.productId) await assertActive(tx, 'accountProduct', item.productId, 'สินค้า/บริการ');
         }
-        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
+        const status = action === 'approve' && !approval.finalApproval ? 'pending'
+          : { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
         const doc = await tx.purchaseOrder.update({ where: { id: previous.id },
-          data: { status, approvalStep: action === 'approve' ? 1 : 0 }, include: PURCHASE_ORDER_INCLUDE });
+          data: { status, approvalStep: action === 'approve' ? 1 : 0, ...approval.changes }, include: PURCHASE_ORDER_INCLUDE });
         await purchaseOrderAudit(tx, req, action, previous, doc, reason);
         return doc;
       }));

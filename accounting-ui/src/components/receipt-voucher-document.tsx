@@ -19,7 +19,7 @@ export function ReceiptVoucherDocument({ document: doc, company, onReady }: {
   const pages = receiptPrintPages(doc.allocations);
   const totals = receiptTotals(doc.allocations);
   const entries = [
-    { name: doc.paymentMethod === "cash" ? "เงินสด" : `เงินฝากธนาคาร ${doc.bankName || ""}`, debit: totals.received, credit: 0 },
+    { name: doc.paymentMethod === "cash" ? "เงินสด" : doc.paymentMethod === "cheque" ? `เช็ครับ ${doc.bankName || ""}` : `เงินฝากธนาคาร ${doc.bankName || ""}`, debit: totals.received, credit: 0 },
     { name: "ภาษีเงินได้ถูกหัก ณ ที่จ่าย", debit: totals.wht, credit: 0 },
     { name: "ค่าธรรมเนียมธนาคาร", debit: totals.fee, credit: 0 },
     { name: "ลูกหนี้การค้า", debit: 0, credit: totals.settled },
@@ -57,7 +57,7 @@ export function ReceiptVoucherDocument({ document: doc, company, onReady }: {
         <section className="rv-header">
           <p data-rv-fit>สมุดรายวัน (Journal) : สมุดรายวันรับ</p>
           <div><p data-rv-fit>เลขที่เอกสาร : {doc.rvNo}</p><p>วันที่ : {formatAccountingDate(doc.receiptDate)}</p></div>
-          <p data-rv-fit>เลขที่เอกสารอ้างอิง : {doc.refNo || ""}　{doc.whtCertificateNo ? `หนังสือรับรอง WHT: ${doc.whtCertificateNo}` : ""}</p>
+          <p data-rv-fit>เลขที่เอกสารอ้างอิง : {doc.paymentMethod === "cheque" ? doc.chequeNo : doc.refNo || ""}　{doc.whtCertificateNo ? `หนังสือรับรอง WHT: ${doc.whtCertificateNo}` : ""}</p>
           <p className="rv-description" data-rv-fit>รายละเอียด : รับชำระหนี้จาก {doc.customerName || doc.customer?.name || ""} {doc.customerBranch || ""}</p>
         </section>
         <table className="rv-grid rv-ledger">
@@ -68,7 +68,7 @@ export function ReceiptVoucherDocument({ document: doc, company, onReady }: {
           <tfoot><tr><td colSpan={3}>รวมทั้งสิ้น (Total) {last ? entries.length : ""} รายการ (Items)</td><td><div data-rv-fit>{last ? money(totals.settled) : ""}</div></td><td><div data-rv-fit>{last ? money(totals.settled) : ""}</div></td><td /></tr></tfoot>
         </table>
         <table className="rv-grid rv-bank"><thead><tr>{["สมุดเงินฝาก", "ธนาคาร", "สาขา", "เลขที่สมุดเงินฝาก", "เลขที่เช็ค", "วันที่บนเช็ค", "จำนวนเงิน"].map(label => <th key={label}>{label}</th>)}</tr></thead>
-          <tbody><tr><td /><td><div data-rv-fit>{doc.paymentMethod === "transfer" ? doc.bankName : ""}</div></td><td /><td /><td /><td /><td><div data-rv-fit>{last && doc.paymentMethod === "transfer" ? money(totals.received) : ""}</div></td></tr></tbody></table>
+          <tbody><tr><td /><td><div data-rv-fit>{doc.paymentMethod !== "cash" ? doc.bankName : ""}</div></td><td /><td /><td><div data-rv-fit>{doc.paymentMethod === "cheque" ? doc.chequeNo : ""}</div></td><td><div data-rv-fit>{doc.paymentMethod === "cheque" ? formatAccountingDate(doc.chequeDate) : ""}</div></td><td><div data-rv-fit>{last && doc.paymentMethod !== "cash" ? money(totals.received) : ""}</div></td></tr></tbody></table>
         <p className="rv-detail-title">รายละเอียดการตัดรับชำระ Invoice / BI {doc.lifecycleVersion !== 1 || doc.status !== "approved" ? "— ตัวอย่าง / ยังไม่ยืนยัน" : ""}</p>
         <table className="rv-grid rv-details">
           <colgroup>{["23%", "19%", "16%", "13%", "13%", "16%"].map((width, i) => <col key={i} style={{ width }} />)}</colgroup>

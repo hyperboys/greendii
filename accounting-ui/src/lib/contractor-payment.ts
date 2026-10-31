@@ -11,6 +11,7 @@ export type PaymentSource = {
   used?: { before: number; vat: number; gross: number; retention: number }; nextRound?: number;
 };
 export type ContractorPayment = PaymentInput & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; psNo: string; poNo: string | null; lifecycleVersion: number; status: string; updatedAt: string;
   createdById: string | null; approvedById: string | null; approvedAt: string | null; vatConfig: string;
   supplierSnapshot: { code?: string; name?: string; taxId?: string; address?: string; branch?: string; contactPerson?: string } | null;

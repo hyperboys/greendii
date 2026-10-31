@@ -4,13 +4,20 @@ export type InvoiceInput = {
   ivDate: string; customerId: string; customerBranchId?: string; customerBranch: string;
   taxId: string; address: string; shippingAddress: string; customerPoNo: string;
   provisionalDeliveryOrderId: string | null; workOrderId: string | null;
+  reuseInvoiceId?: string | null;
   creditTerm: number | string; vatConfig: "VAT7%" | "NO_VAT"; discount: number | string;
   remark: string; items: DeliveryOrderLine[]; updatedAt?: string;
 };
+export type ReusableInvoiceNumber = {
+  id: string; ivNo: string; ivDate: string; customerName: string | null; customerCode: string | null;
+};
 export type Invoice = Omit<InvoiceInput, "items" | "updatedAt"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; ivNo: string; status: string; lifecycleVersion: number; updatedAt: string; dueDate: string;
   confirmedAt?: string | null; customerName?: string | null; customerCode?: string | null;
   customer?: DeliveryOrder["customer"]; provisionalDeliveryOrder?: { id: string; soNo: string } | null;
+  reissuedFrom?: Pick<ReusableInvoiceNumber, "id" | "ivNo"> | null;
+  reissuedAs?: (Pick<ReusableInvoiceNumber, "id" | "ivNo"> & { status: string }) | null;
   workOrder?: DeliveryOrder["workOrder"]; createdBy?: DeliveryOrder["createdBy"]; history?: DeliveryOrder["history"];
   responsibleSaleName?: string | null;
   items: (Omit<DeliveryOrderLine, "discount" | "partNo" | "unit" | "remark"> & {
@@ -24,7 +31,7 @@ export function newInvoice(): InvoiceInput {
   return {
     ivDate: source.docDate, customerId: "", customerBranchId: "", customerBranch: "",
     taxId: "", address: "", shippingAddress: "", customerPoNo: "", provisionalDeliveryOrderId: null, workOrderId: null,
-    creditTerm: 30, vatConfig: "VAT7%", discount: 0, remark: "", items: source.items,
+    reuseInvoiceId: null, creditTerm: 30, vatConfig: "VAT7%", discount: 0, remark: "", items: source.items,
   };
 }
 export function invoiceForm(doc: Invoice): InvoiceInput {

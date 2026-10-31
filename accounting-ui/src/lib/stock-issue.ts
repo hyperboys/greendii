@@ -12,6 +12,7 @@ export type IssueLineInput = { productId: string; requestedQty: number | string;
 export type IssueInput = { issueDate: string; warehouseId: string; workOrderId: string; requester: string; receiver: string; remark: string;
   items: IssueLineInput[]; updatedAt?: string; requestKey?: string };
 export type StockIssue = Omit<IssueInput, "items" | "workOrderId" | "warehouseId"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; issueNo: string; warehouseId: string | null; workOrderId: string | null; lifecycleVersion: number; status: IssueStatus;
   updatedAt: string; createdById: string | null; approvedAt: string | null; cancelledAt: string | null; cancellationReason: string | null;
   warehouseSnapshot: Omit<IssueWarehouse, "id"> | null; workOrderSnapshot: Omit<IssueWorkOrder, "id"> | null;

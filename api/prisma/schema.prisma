@@ -93,6 +93,22 @@ model AccountingRole {
   @@map("accounting_roles")
 }
 
+model AccountingApprovalConfig {
+  docType   String   @id @map("doc_type")
+  enabled   Boolean  @default(false)
+  steps     Json     @default("[]")
+  revision  Int      @default(1)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("accounting_approval_configs")
+}
+
+model AccountingApprovalSignature {
+  url String @id
+
+  @@map("accounting_approval_signatures")
+}
+
 model AccountingUserRole {
   userId String @id
   roleId String
@@ -1066,8 +1082,12 @@ model ProvisionalDeliveryOrderLine {
 }
 
 model Invoice {
+  accountingApproval         Json?                     @map("accounting_approval")
   id                         String                    @id @default(cuid())
-  ivNo                       String                    @unique
+  ivNo                       String
+  reissuedFromId             String?                   @unique @map("reissued_from_id")
+  reissuedFrom               Invoice?                  @relation("InvoiceNumberReissue", fields: [reissuedFromId], references: [id], onDelete: Restrict)
+  reissuedAs                 Invoice?                  @relation("InvoiceNumberReissue")
   ivDate                     DateTime                  @default(now()) @db.Timestamptz(3)
   customerId                 String?                   @map("customer_id")
   customer                   AccountCustomer?          @relation(fields: [customerId], references: [id])
@@ -1107,6 +1127,7 @@ model Invoice {
   creditNotes         CreditNote[]
   receiptAllocations  ReceiptAllocation[]
 
+  @@index([ivNo])
   @@map("invoices")
 }
 
@@ -1131,6 +1152,7 @@ model InvoiceLine {
 }
 
 model BillingNote {
+  accountingApproval  Json?            @map("accounting_approval")
   id                  String           @id @default(cuid())
   lifecycleVersion    Int              @default(0) @map("lifecycle_version")
   confirmedAt         DateTime?        @map("confirmed_at") @db.Timestamptz(3)
@@ -1180,6 +1202,7 @@ model BillingNoteInvoice {
 }
 
 model CreditNote {
+  accountingApproval Json?             @map("accounting_approval")
   id              String           @id @default(cuid())
   lifecycleVersion Int             @default(0) @map("lifecycle_version")
   confirmedAt     DateTime?        @map("confirmed_at") @db.Timestamptz(3)
@@ -1235,6 +1258,7 @@ model CreditNoteLine {
 }
 
 model ReceiptVoucher {
+  accountingApproval Json?             @map("accounting_approval")
   id            String           @id @default(cuid())
   lifecycleVersion Int           @default(0) @map("lifecycle_version")
   confirmedAt   DateTime?        @map("confirmed_at") @db.Timestamptz(3)
@@ -1296,6 +1320,7 @@ model ReceiptAllocation {
 // ─────────────────────────────────────────────
 
 model PurchaseOrder {
+  accountingApproval Json?             @map("accounting_approval")
   id               String           @id @default(cuid())
   poNo             String           @unique
   poDate           DateTime         @default(now()) @db.Timestamptz(3)
@@ -1365,6 +1390,7 @@ model PurchaseOrderPurchaseRequest {
 }
 
 model ContractorPaymentRequest {
+  accountingApproval        Json?         @map("accounting_approval")
   id                        String        @id @default(cuid())
   lifecycleVersion          Int           @default(0) @map("lifecycle_version")
   requestKey                String?       @unique @map("request_key")
@@ -1420,6 +1446,7 @@ model ContractorPaymentRequestLine {
 }
 
 model GoodsReceipt {
+  accountingApproval Json?    @map("accounting_approval")
   id           String        @id @default(cuid())
   grNo         String        @unique
   lifecycleVersion Int @default(0) @map("lifecycle_version")
@@ -1477,6 +1504,7 @@ model GoodsReceiptLine {
 }
 
 model PaymentVoucher {
+  accountingApproval Json?   @map("accounting_approval")
   id              String    @id @default(cuid())
   lifecycleVersion Int      @default(0) @map("lifecycle_version")
   requestKey      String?   @unique @map("request_key")
@@ -1587,6 +1615,7 @@ model ChequePayment {
 // ─────────────────────────────────────────────
 
 model StockIssue {
+  accountingApproval Json?    @map("accounting_approval")
   id           String     @id @default(cuid())
   issueNo      String     @unique
   lifecycleVersion Int @default(0) @map("lifecycle_version")
@@ -1636,6 +1665,7 @@ model StockIssueLine {
 }
 
 model StockReturn {
+  accountingApproval Json?    @map("accounting_approval")
   id           String      @id @default(cuid())
   returnNo     String      @unique
   lifecycleVersion Int @default(0) @map("lifecycle_version")
@@ -1702,6 +1732,7 @@ model StockOpeningControl {
 }
 
 model StockOpeningBalance {
+  accountingApproval Json?      @map("accounting_approval")
   id                String      @id @default(cuid())
   openingNo         String      @unique @map("opening_no")
   lifecycleVersion  Int         @default(1) @map("lifecycle_version")

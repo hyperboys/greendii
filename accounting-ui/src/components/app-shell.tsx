@@ -33,6 +33,7 @@ import {
 
 const navigation = [
   { href: "/dashboard", label: "ภาพรวมบัญชี", icon: LayoutDashboard },
+  { href: "/approvals", label: "รอฉันอนุมัติ", icon: FileText },
   { href: "/ar", label: "ลูกหนี้ / รับชำระเงิน", icon: FileText, children: [
     ...invoiceTabs.map(tab => ({ ...tab, href: `/ar/invoices?tab=${tab.id}` })),
     { id: "creditNotes", label: "ใบลดหนี้", href: "/ar/credit-notes" },

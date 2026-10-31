@@ -13,6 +13,7 @@ export type BillingInput = {
   paymentTerms: string; remark: string; invoices: BillingLine[]; updatedAt?: string;
 };
 export type BillingNote = Omit<BillingInput, "expectedPaymentDate"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; biNo: string; lifecycleVersion: number; status: string; updatedAt: string;
   expectedPaymentDate: string | null; totalAmount: number | string; confirmedAt?: string | null;
   completedAt?: string | null;

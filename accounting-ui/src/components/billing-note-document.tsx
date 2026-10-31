@@ -55,6 +55,7 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
           <div className="bi-customer">
             <p className="bi-name" data-bi-fit><strong>ชื่อลูกค้า</strong>　{doc.customerName || doc.customer?.name || ""} {doc.customerBranch && `(${doc.customerBranch})`}</p>
             <p className="bi-address" data-bi-fit><strong>ที่อยู่</strong>　{doc.address || ""}</p>
+            <p className="bi-tax-id" data-bi-fit><strong>เลขประจำตัวผู้เสียภาษี</strong>　{doc.taxId || "-"}</p>
             <p data-bi-fit>{doc.contactPerson ? `ผู้ติดต่อ ${doc.contactPerson}` : ""}</p>
           </div>
           <div className="bi-terms">
@@ -100,11 +101,12 @@ export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
     .bi-company p { height: 6mm; white-space: pre-wrap; overflow-wrap: anywhere; }
     .bi-company h2 { font-size: 16pt; font-weight: bold; margin-top: 2mm; }
     .bi-code { height: 6mm; margin-top: 2mm; }
-    .bi-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm; height: 35mm; }
+    .bi-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm; height: 40mm; }
     .bi-info > div { border: 1px solid #000; border-radius: 2mm; padding: 2mm; min-width: 0; }
     .bi-info p { overflow-wrap: anywhere; white-space: pre-wrap; }
     .bi-name { height: 9mm; }
     .bi-address { height: 15mm; }
+    .bi-tax-id { height: 5mm; }
     .bi-customer > p:last-child { height: 5mm; }
     .bi-terms > p { height: 6mm; }
     .bi-terms .bi-payment-terms { height: 11mm; }

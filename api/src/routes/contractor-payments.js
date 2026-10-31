@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { createHash } = require('crypto');
 const prisma = require('../lib/prisma');
+const { planApproval } = require('../lib/accountingApproval');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { invalid } = require('../lib/deliveryOrder');
@@ -122,6 +123,7 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
         const allowed = action === 'submit' ? ['draft', 'returned'] : action === 'cancel' ? ['draft', 'returned', 'pending', 'approved'] : ['pending'];
         if (!allowed.includes(previous.status)) invalid('สถานะ PS ไม่รองรับคำสั่งนี้', 409);
         if (action === 'approve' && previous.createdById === req.user.id) invalid('ผู้สร้างไม่สามารถอนุมัติ PS ของตัวเองได้', 403);
+        const approval = await planApproval(tx, 'ps', previous, action, req.user.id, reason);
         const po = await lockPo(tx, previous.poId);
         let changes = {};
         if (action === 'submit' || action === 'approve') {
@@ -135,10 +137,12 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
           const used = await tx.paymentVoucher.count({ where: { sourceDocType: 'ps', sourceDocId: previous.id, status: { notIn: ['cancelled', 'rejected'] } } });
           if (used) invalid('PS ถูกอ้างอิงโดย PV ที่ยังไม่ยกเลิก ต้องยกเลิก PV ก่อน', 409);
         }
-        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
+        const status = action === 'approve' && !approval.finalApproval ? 'pending'
+          : { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
         const result = await tx.contractorPaymentRequest.update({ where: { id: previous.id }, data: {
           ...changes, status, approvalStep: status === 'pending' ? 1 : previous.approvalStep,
-          ...(action === 'approve' ? { approvedById: req.user.id, approvedAt: new Date() } : {}),
+          ...(action === 'approve' && approval.finalApproval ? { approvedById: req.user.id, approvedAt: new Date() } : {}),
+          ...approval.changes,
         }, include: PS_INCLUDE });
         await audit(tx, req, action, previous, result, reason);
         return result;

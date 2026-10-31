@@ -34,6 +34,55 @@ calendar-date validation. Disabled/read-only dates cannot be changed.
 
 ## Navigation
 
+### Accounting multistep approval staging (not enabled)
+
+`/settings/approvals` lets **admin only** prepare disabled ordered role/user
+chains for PO, GR, IS, SR, PS, PV, opening balances, Invoice, BI, RV and CN.
+Roles reference Accounting role IDs, not Sale role names. New `ar.approve`
+permission is additive; it does not change legacy AR `ar.create` confirmation.
+
+**The feature is incomplete and cannot be enabled.** A server-side
+`ROLLOUT_READY = false` guard rejects enabling with HTTP 409, and rejects a new
+submit if someone manually enables a configuration in the database. No
+environment flag bypass exists. This is not a production-ready eleven-type
+approval rollout.
+
+Implemented staging: revisioned/audited configuration, shared cycle/actor
+snapshot engine, seven existing PO/GR/IS/SR/PS/PV/opening approval adapters with
+final-only posting, and eligible inbox/review pages at `/approvals`. Review
+pages show preserved actor history and actual signature snapshots. A referenced
+profile image is retained under its original immutable upload URL when the
+profile signature is cleared; no image is copied.
+
+Still required before removing the guard: Invoice/BI/RV/CN lifecycle adapters,
+AR pending settlement/capacity reservations and confirm gating, history/actions
+on all existing document detail screens, all document-print signature layouts
+and pagination, and enabled submit/return/resubmit end-to-end validation.
+The Invoice preprinted-stationery component is deliberately unchanged.
+
+API staging contracts:
+- `GET /api/accounting-approvals/configuration` (admin): `{rolloutReady, configurations}`.
+- `PUT /api/accounting-approvals/configuration/:docType` (admin):
+  `{enabled, steps:[{kind:"role"|"user",targetId}], revision}`; saved row has
+  incremented revision. Invalid targets return 400; stale revision/unavailable
+  rollout return 409.
+- `GET /api/accounting-approvals/pending`: eligible snapshotted current steps
+  with review/document links; legacy pending documents stay in module lists.
+- `GET /api/accounting-approvals/:docType/:id`: snapshot, `canApprove`,
+  `status`, `updatedAt`, `docNo`, and `documentHref`, guarded by module view.
+- Review actions call the existing seven document `/:id/approve|return|reject`
+  endpoints with `updatedAt` and required reason; AR review actions explicitly
+  remain unavailable.
+
+Review the additive Prisma migration
+`20261031160000_accounting_approval_snapshots` in an **isolated database first**.
+It adds nullable snapshots to all eleven tables and two Accounting-only tables,
+without rewriting historical documents. Apply through the normal reviewed
+migration process only after backup, then `npm run db:generate`, API restart and
+Accounting UI rebuild. No migration is run automatically, and applying the
+migration does not enable approval chains. Keep the prior cancelled-Invoice
+number-reuse migration and apply pending migrations in order.
+
 ### Product units
 
 Open Master Data > หน่วยนับ (`/master?tab=units`) to add, edit or deactivate
@@ -980,7 +1029,15 @@ list. New/view/edit routes are `/ar/receipts/new`, `/ar/receipts/:id` and
   fee**. Debt 1,000 / cash 960 / WHT 30 / fee 10 closes 1,000. The API validates
   exact satang, current Invoice balance and remaining billed portion, then sums
   headers. No overpayment, advance, percentage calculation or cheque processing.
-- Cash and transfer only. Transfer requires bank name/reference; WHT requires
+- Cash, transfer and cheque are supported. Transfer requires bank name/reference;
+  cheque requires bank name, cheque number and a valid cheque date (postdated
+  cheques are allowed). Bank entry uses a dropdown of Thai commercial banks,
+  government banks and foreign branches; saved bank names outside the list
+  remain selectable when editing. Cheque number/date appear in the printed bank
+  row, and the receipt summary identifies cheques separately from deposits.
+  Confirmation reduces debt immediately, just like cash/transfer; cheque
+  clearance, dishonour and a separate cheque lifecycle are not implemented.
+  Existing cheque fields are reused without a new migration. WHT requires
   certificate number. `ar.create` manages Drafts, confirms directly and cancels
   with a reason; `ar.view` reads/prints. Draft does not change debt; confirmed RV
   cannot be edited. Legacy version 0 remains read-only and is not converted.
@@ -1090,9 +1147,16 @@ are full pages at `/ar/invoices/new`, `/ar/invoices/:id` and
   from one non-cancelled SO. These fields, customer branch and billing details
   can be edited before saving and when reopening an Invoice Draft. The API validates
   the submitted Invoice data and recomputes totals; saving never modifies the SO.
-  The customer must remain the same as the SO. Only one non-cancelled Invoice may reference a given SO, including
+  Drafts may change the customer independently of the SO, select a different SO
+  or remove the reference. Choosing another SO copies its defaults again;
+  removing the reference retains entered values. Customer changes refresh the
+  customer defaults; branch text can be edited independently of master data.
+  The copied Work Order reference can also be changed or removed in a Draft.
+  Only one non-cancelled Invoice may reference a given SO, including
   existing legacy links. Cancelled invoices release the SO for a new invoice.
-  The source cannot change after saving; cancel and recreate instead.
+  Changes retain the Invoice number and audit history; confirmed, cancelled and
+  legacy invoices remain read-only. Selecting a source while editing excludes
+  that Draft's own reservation but not any other live Invoice.
 - Confirmed invoices cannot be edited. Cancellation requires a reason, rejects
   active BI/RV/CN dependencies or an inconsistent remaining balance, and leaves
   the document/history intact with zero outstanding. Invoice writes, BI, RV and CN

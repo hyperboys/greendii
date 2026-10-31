@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { AccountingLookupApi, AccountingSettingsApi, ArApi } from "@/lib/api";
 import { branchDefaults, type AccountCustomer } from "@/lib/account-customers";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
-import { newReceipt, receiptForm, receiptStatus, receiptTotals, type ReceiptInput, type ReceiptLine, type ReceiptSource, type ReceiptSources, type ReceiptVoucher } from "@/lib/receipt-voucher";
+import { newReceipt, receiptBanks, receiptForm, receiptStatus, receiptTotals, type ReceiptInput, type ReceiptLine, type ReceiptSource, type ReceiptSources, type ReceiptVoucher } from "@/lib/receipt-voucher";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
@@ -162,8 +162,20 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
             if (selected) { setSources(emptySources); setSourceQuery(""); setForm(previous => ({ ...previous, customerId: id, ...branchDefaults(selected), taxId: selected.taxId || "", allocations: [] })); }
           }} />
           <label>สาขาลูกค้า<select className={control} value={form.customerBranchId || ""} onChange={event => { if (customer && event.target.value) setForm(previous => ({ ...previous, ...branchDefaults(customer, event.target.value) })); }}><option value="">ข้อมูลบนเอกสาร: {form.customerBranch}</option>{customer?.branches.map(branch => <option key={branch.id} value={branch.id}>{branch.code} — {branch.name}</option>)}</select></label>
-          <label>วิธีรับเงิน<select className={control} value={form.paymentMethod} onChange={event => setForm(previous => ({ ...previous, paymentMethod: event.target.value === "cash" ? "cash" : "transfer" }))}><option value="transfer">โอนเงิน</option><option value="cash">เงินสด</option></select></label>
-          {form.paymentMethod === "transfer" && <><label>ธนาคารที่รับเงิน<input required maxLength={100} className={control} value={form.bankName} onChange={event => setForm(previous => ({ ...previous, bankName: event.target.value }))} /></label><label>เลขอ้างอิงโอน<input required maxLength={100} className={control} value={form.refNo} onChange={event => setForm(previous => ({ ...previous, refNo: event.target.value }))} /></label></>}
+          <label>วิธีรับเงิน<select className={control} value={form.paymentMethod} onChange={event => setForm(previous => ({ ...previous, paymentMethod: event.target.value === "cash" ? "cash" : event.target.value === "cheque" ? "cheque" : "transfer" }))}><option value="transfer">โอนเงิน</option><option value="cash">เงินสด</option><option value="cheque">เช็ค</option></select></label>
+          {form.paymentMethod !== "cash" && <label>{form.paymentMethod === "cheque" ? "ธนาคารบนเช็ค" : "ธนาคารที่รับเงิน"}
+            <select required className={control} value={form.bankName} onChange={event => setForm(previous => ({ ...previous, bankName: event.target.value }))}>
+              <option value="">เลือกธนาคาร</option>
+              {form.bankName && !receiptBanks.includes(form.bankName) && <option value={form.bankName}>{form.bankName} (ข้อมูลเดิม)</option>}
+              {receiptBanks.map(bank => <option key={bank} value={bank}>{bank}</option>)}
+            </select>
+          </label>}
+          {form.paymentMethod === "transfer" && <label>เลขอ้างอิงโอน<input required maxLength={100} className={control} value={form.refNo} onChange={event => setForm(previous => ({ ...previous, refNo: event.target.value }))} /></label>}
+          {form.paymentMethod === "cheque" && <>
+            <label>เลขที่เช็ค<input required maxLength={100} className={control} value={form.chequeNo} onChange={event => setForm(previous => ({ ...previous, chequeNo: event.target.value }))} /></label>
+            <label>วันที่บนเช็ค<DateInput required className={control} value={form.chequeDate} onChange={chequeDate => setForm(previous => ({ ...previous, chequeDate }))} /></label>
+            <p className="text-sm text-amber-800 md:col-span-2">ยืนยันใบสำคัญรับเช็คจะลดหนี้ตามยอดรับชำระ ยังไม่มีการติดตามเช็คเคลียร์หรือเช็คคืน</p>
+          </>}
           <label>เลขหนังสือรับรองหัก ณ ที่จ่าย {totals.wht > 0 && "(จำเป็น)"}<input required={totals.wht > 0} maxLength={100} className={control} value={form.whtCertificateNo} onChange={event => setForm(previous => ({ ...previous, whtCertificateNo: event.target.value }))} /></label>
         </section>
         <section className="min-w-0 space-y-4 rounded-lg border bg-white p-4">
@@ -197,6 +209,8 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
       <section className="rv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p className="font-bold">{receiptStatus(doc)}</p>
         <p>วันที่รับชำระ {formatAccountingDate(doc.receiptDate)} · {doc.customerName || doc.customer?.name}</p>
+        <p>วิธีรับเงิน: {doc.paymentMethod === "cash" ? "เงินสด" : doc.paymentMethod === "cheque" ? "เช็ค" : "โอนเงิน"}{doc.paymentMethod !== "cash" && ` · ${doc.bankName || "-"}`}</p>
+        {doc.paymentMethod === "cheque" && <p>เลขที่เช็ค {doc.chequeNo || "-"} · วันที่บนเช็ค {formatAccountingDate(doc.chequeDate)} · ยืนยันรับเช็คจะลดหนี้ทันที ไม่ใช่การยืนยันว่าเช็คเคลียร์แล้ว</p>}
         <p>เงินเข้าสุทธิ {money(doc.totalReceived)} · WHT {money(doc.whtAmount)} · ค่าธรรมเนียม {money(doc.bankFee)} · ยอดลดหนี้ {money(receiptTotals(doc.allocations).settled)}</p>
         {doc.confirmedAt && <p>ยืนยันเมื่อ {formatAccountingDateTime(doc.confirmedAt)}</p>}
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy อ่านอย่างเดียว ไม่มีการเปลี่ยนยอดย้อนหลังหรือแปลงข้อมูลอัตโนมัติ</p>}

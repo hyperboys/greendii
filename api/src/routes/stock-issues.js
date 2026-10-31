@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { createHash } = require('crypto');
 const prisma = require('../lib/prisma');
+const { planApproval } = require('../lib/accountingApproval');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { invalid, documentDate } = require('../lib/deliveryOrder');
@@ -115,13 +116,14 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
         const allowed = action === 'submit' ? ['draft', 'returned'] : action === 'cancel' ? ['draft', 'returned', 'pending', 'approved'] : ['pending'];
         if (!allowed.includes(previous.status)) invalid('สถานะใบเบิกไม่รองรับคำสั่งนี้', 409);
         if (action === 'approve' && (!previous.createdById || previous.createdById === req.user.id)) invalid('ผู้สร้างห้ามอนุมัติใบเบิกตัวเอง หรือไม่พบผู้สร้าง', 403);
+        const approval = await planApproval(tx, 'is', previous, action, req.user.id, reason);
         let data = {};
         if (['submit', 'approve'].includes(action)) {
           const input = issueInput({ ...previous, issueDate: previous.issueDate.toISOString().slice(0, 10),
             items: previous.items.map(line => ({ ...line, requestedQty: String(line.requestedQty), issuedQty: String(line.issuedQty) })) });
           const { items, ...fields } = await issueData(tx, input, previous);
           data = { ...fields, items: { deleteMany: {}, create: items } };
-          if (action === 'approve') await postIssue(tx, { ...previous, ...fields, items }, req);
+          if (action === 'approve' && approval.finalApproval) await postIssue(tx, { ...previous, ...fields, items }, req);
         }
         if (action === 'cancel') {
           const cancelledAt = documentDate(req.body.cancellationDate, 'วันที่ยกเลิก', true);
@@ -133,9 +135,11 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
             await postIssue(tx, { ...previous, cancellationReason: reason }, req, cancelledAt);
           }
         }
-        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
+        const status = action === 'approve' && !approval.finalApproval ? 'pending'
+          : { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
         const doc = await tx.stockIssue.update({ where: { id: previous.id }, data: { ...data, status,
-          ...(action === 'approve' ? { approvalStep: 1, approvedAt: new Date(), approvedById: req.user.id } : {}) }, include: ISSUE_INCLUDE });
+          ...(action === 'approve' && approval.finalApproval ? { approvalStep: 1, approvedAt: new Date(), approvedById: req.user.id } : {}),
+          ...approval.changes }, include: ISSUE_INCLUDE });
         await issueAudit(tx, req, action, previous, action === 'cancel' && previous.status === 'approved'
           ? { ...doc, physicalReturnConfirmed: true } : doc, reason); return doc;
       }));

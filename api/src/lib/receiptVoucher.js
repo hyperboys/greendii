@@ -45,9 +45,11 @@ async function receiptData(tx, body, previous, strictLinks = false) {
   const customerId = text(body.customerId, 'ลูกค้า', true);
   const receiptDate = documentDate(body.receiptDate, 'วันที่รับชำระ', true);
   const paymentMethod = body.paymentMethod;
-  if (!['cash', 'transfer'].includes(paymentMethod)) invalid('รอบนี้รองรับเงินสดหรือโอนเท่านั้น ยังไม่เปิดเช็ครับ');
-  const bankName = limited(body.bankName, 'ธนาคาร', 100, paymentMethod === 'transfer');
+  if (!['cash', 'transfer', 'cheque'].includes(paymentMethod)) invalid('วิธีรับเงินต้องเป็นเงินสด โอนเงิน หรือเช็ค');
+  const bankName = limited(body.bankName, 'ธนาคาร', 100, paymentMethod !== 'cash');
   const refNo = limited(body.refNo, 'เลขอ้างอิงโอน', 100, paymentMethod === 'transfer');
+  const chequeNo = paymentMethod === 'cheque' ? limited(body.chequeNo, 'เลขที่เช็ค', 100, true) : null;
+  const chequeDate = paymentMethod === 'cheque' ? documentDate(body.chequeDate, 'วันที่บนเช็ค', true) : null;
   const whtCertificateNo = limited(body.whtCertificateNo, 'เลขหนังสือรับรองหัก ณ ที่จ่าย', 100);
   if (!Array.isArray(body.allocations) || !body.allocations.length || body.allocations.length > 200) invalid('ต้องมี Invoice อย่างน้อย 1 ใบ ไม่เกิน 200 ใบ');
   const ids = body.allocations.map(row => text(row?.invoiceId, 'Invoice', true));
@@ -94,7 +96,7 @@ async function receiptData(tx, body, previous, strictLinks = false) {
   }
   if (received + wht + fee > 999999999999) invalid('ยอดรวมเกินช่วงรองรับ');
   if (wht && !whtCertificateNo) invalid('กรุณาระบุเลขหนังสือรับรองหัก ณ ที่จ่ายเมื่อมี WHT');
-  return { receiptDate, customerId, paymentMethod, bankName: paymentMethod === 'transfer' ? bankName : null,
+  return { receiptDate, customerId, paymentMethod, bankName: paymentMethod !== 'cash' ? bankName : null, chequeNo, chequeDate,
     refNo: paymentMethod === 'transfer' ? refNo : null, whtCertificateNo: wht ? whtCertificateNo : null,
     customerName: limited(previous?.customerId === customerId ? previous.customerName : customer.name, 'ชื่อลูกค้า', 200),
     customerCode: limited(previous?.customerId === customerId ? previous.customerCode : customer.code, 'รหัสลูกค้า', 60),

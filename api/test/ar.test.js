@@ -61,29 +61,65 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   let failAudit = false;
   let queue = Promise.resolve();
   const customer = { id: 'c', code: 'C001', name: 'Customer', active: true, vatConfig: 'VAT7%', creditTerm: 30, branches: [], taxId: '123', address: 'Billing' };
+  const otherCustomer = { ...customer, id: 'c2', code: 'C002', name: 'Other customer', taxId: '456', branches: [] };
   const source = { id: 'so', soNo: 'SO-1', status: 'draft', customerId: 'c', customerBranch: 'Main', shippingAddress: 'Shipping',
     creditTerm: 0, vatConfig: 'VAT7%', discount: '5', items: [
       { desc: 'Source line', partNo: 'P1', qty: 3, unit: 'pcs', unitPrice: '10.25', discount: '0.75' },
       { desc: 'Manual', qty: 2, unit: 'set', unitPrice: '20', discount: '0' },
     ] };
-  const included = doc => doc ? structuredClone({ ...doc, customer, provisionalDeliveryOrder: doc.provisionalDeliveryOrderId ? { id: 'so', soNo: 'SO-1' } : null }) : null;
-  const matches = (doc, where) => (!where.id || (typeof where.id === 'string' ? doc.id === where.id : doc.id !== where.id.not))
+  const included = doc => doc ? structuredClone({
+    ...doc, customer: doc.customerId === 'c2' ? otherCustomer : customer, provisionalDeliveryOrder: doc.provisionalDeliveryOrderId ? { id: doc.provisionalDeliveryOrderId, soNo: doc.provisionalDeliveryOrderId === 'so2' ? 'SO-2' : 'SO-1' } : null,
+    reissuedFrom: doc.reissuedFromId ? (() => {
+      const sourceInvoice = state.invoices.find(row => row.id === doc.reissuedFromId);
+      return sourceInvoice ? { id: sourceInvoice.id, ivNo: sourceInvoice.ivNo } : null;
+    })() : null,
+    reissuedAs: (() => {
+      const replacement = state.invoices.find(row => row.reissuedFromId === doc.id);
+      return replacement ? { id: replacement.id, ivNo: replacement.ivNo, status: replacement.status } : null;
+    })(),
+  }) : null;
+  const matches = (doc, where = {}) => (!where.id || (typeof where.id === 'string' ? doc.id === where.id : doc.id !== where.id.not))
     && (!where.provisionalDeliveryOrderId || doc.provisionalDeliveryOrderId === where.provisionalDeliveryOrderId)
-    && (!where.status || (typeof where.status === 'string' ? doc.status === where.status : doc.status !== where.status.not));
+    && (!where.status || (typeof where.status === 'string' ? doc.status === where.status : doc.status !== where.status.not))
+    && (!where.lifecycleVersion || doc.lifecycleVersion === where.lifecycleVersion)
+    && (!where.ivNo || (typeof where.ivNo === 'string' ? doc.ivNo === where.ivNo : where.ivNo.in.includes(doc.ivNo)))
+    && (!where.ivDate || ((!where.ivDate.gte || new Date(doc.ivDate) >= where.ivDate.gte) && (!where.ivDate.lt || new Date(doc.ivDate) < where.ivDate.lt)))
+    && (where.reissuedAs !== null || !state.invoices.some(row => row.reissuedFromId === doc.id));
   const prisma = {
     $queryRaw: async () => [],
     user: { findUnique: async ({ where }) => ({ id: where.id, role: 'sales', active: true }) },
     accountingUserRole: { findUnique: async ({ where }) => ({ role: { permissions: where.userId === 'writer' ? ['ar.view', 'ar.create'] : ['ar.view'] } }) },
-    accountCustomer: { findUnique: async ({ where }) => where.id === 'c' ? customer : null },
+    accountCustomer: { findUnique: async ({ where }) => where.id === 'c' ? customer : where.id === 'c2' ? otherCustomer : null },
     accountProduct: { findMany: async () => [] },
-    workOrder: { findUnique: async () => null },
-    provisionalDeliveryOrder: { findUnique: async ({ where }) => where.id === 'so' ? structuredClone(source) : null, findMany: async () => [source] },
+    workOrder: { findUnique: async ({ where }) => where.id === 'wo2' ? { active: true, status: 'draft' } : null },
+    provisionalDeliveryOrder: {
+      findUnique: async ({ where }) => where.id === 'so' ? structuredClone(source) : where.id === 'so2' ? structuredClone({ ...source, id: 'so2', soNo: 'SO-2' }) : null,
+      findMany: async ({ where }) => {
+        const reservation = where.invoices.none;
+        return [source, { ...source, id: 'so2', soNo: 'SO-2' }].filter(row => row.status !== 'cancelled' &&
+          !state.invoices.some(doc => doc.provisionalDeliveryOrderId === row.id && doc.status !== 'cancelled' && doc.id !== reservation.id?.not));
+      },
+    },
     invoice: {
       findUnique: async ({ where }) => included(state.invoices.find(doc => doc.id === where.id)),
       findUniqueOrThrow: async ({ where }) => included(state.invoices.find(doc => doc.id === where.id)),
-      findMany: async ({ where } = {}) => state.invoices.filter(doc => !where?.id?.in || where.id.in.includes(doc.id)).map(included),
+      findMany: async ({ where, select, orderBy } = {}) => {
+        let rows = state.invoices.filter(doc => matches(doc, where));
+        if (orderBy?.createdAt === 'desc') rows = [...rows].sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+        return rows.map(doc => {
+          if (!select) return included(doc);
+          return Object.fromEntries(Object.keys(select).filter(key => select[key]).map(key => [key, doc[key]]));
+        });
+      },
+      findFirst: async ({ where } = {}) => included(state.invoices.find(doc => matches(doc, where))),
       count: async ({ where }) => state.invoices.filter(doc => matches(doc, where)).length,
       create: async ({ data }) => {
+        if (state.invoices.some(row => row.ivNo === data.ivNo && row.status !== 'cancelled')) {
+          throw Object.assign(new Error('Unique invoice number'), { code: 'P2002', meta: { target: ['ivNo'] } });
+        }
+        if (data.reissuedFromId && state.invoices.some(row => row.reissuedFromId === data.reissuedFromId)) {
+          throw Object.assign(new Error('Invoice number already reused'), { code: 'P2002', meta: { target: ['reissuedFromId'] } });
+        }
         const doc = { ...data, id: `iv-${++sequence}`, updatedAt: new Date(Date.now() + sequence), items: data.items.create };
         state.invoices.push(doc); return included(doc);
       },
@@ -144,7 +180,13 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
     },
   };
   require.cache[require.resolve('../src/lib/prisma')] = { exports: prisma, loaded: true };
-  require.cache[require.resolve('../src/lib/runningNumber')] = { exports: { generateNextRunningNumber: async () => `IV-${++sequence}` }, loaded: true };
+  require.cache[require.resolve('../src/lib/runningNumber')] = { exports: {
+    generateNextRunningNumber: async () => `IV-${++sequence}`,
+    getYYMM: value => {
+      const date = new Date(value);
+      return `${String(date.getUTCFullYear()).slice(-2)}${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+    },
+  }, loaded: true };
   const { authenticate } = require('../src/middleware/auth');
   const { requireAccountingResource } = require('../src/middleware/accountingAccess');
   const app = express();
@@ -170,6 +212,8 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal((await request('/invoices', 'POST', payload, 'viewer')).status, 403);
   assert.equal((await request('/invoices/sources')).status, 200);
   assert.equal((await request('/invoices/sources', 'GET', undefined, 'viewer')).status, 403);
+  assert.equal((await request('/invoices/reusable-numbers?month=invalid')).status, 400);
+  assert.equal((await request('/invoices/reusable-numbers?month=2026-10', 'GET', undefined, 'viewer')).status, 403);
   assert.equal((await request('/invoices')).status, 200);
   for (const patch of [{ ivDate: '2026-02-31' }, { items: [] }, { items: {} }, { items: [null] }, { discount: 71 }, { creditTerm: 2147483647 },
     { items: [{ desc: 'Bad', qty: 1.5, unit: 'pcs' }] }, { items: [{ desc: 'Bad', qty: 1, unit: 'pcs', unitPrice: -1 }] }]) {
@@ -234,6 +278,30 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   doc = (await request(`/invoices/${id}/cancel`, 'POST', { updatedAt: doc.updatedAt, reason: 'Cancelled' })).data;
   assert.equal(doc.outstandingAmount, 0);
   assert.equal(doc.status, 'cancelled');
+  const availableNumbers = await request('/invoices/reusable-numbers?month=2026-10');
+  assert.equal(availableNumbers.status, 200);
+  assert.ok(availableNumbers.data.some(row => row.id === id && row.ivNo === doc.ivNo));
+  const reused = await request('/invoices', 'POST', { ...payload, reuseInvoiceId: id });
+  assert.equal(reused.status, 201);
+  assert.equal(reused.data.ivNo, doc.ivNo);
+  assert.equal(reused.data.reissuedFrom.id, id);
+  assert.equal(state.invoices.find(row => row.id === id).status, 'cancelled');
+  assert.equal((await request(`/invoices/${id}`)).data.reissuedAs.id, reused.data.id);
+  assert.equal((await request('/invoices/reusable-numbers?month=2026-10')).data.some(row => row.id === id), false);
+  assert.equal((await request('/invoices', 'POST', { ...payload, reuseInvoiceId: id })).status, 409);
+  assert.equal((await request('/invoices', 'POST', { ...payload, ivDate: '2026-11-02', reuseInvoiceId: reused.data.id })).status, 409);
+  const cancelledReplacement = await request(`/invoices/${reused.data.id}/cancel`, 'POST', {
+    updatedAt: reused.data.updatedAt, reason: 'ออกเอกสารใหม่อีกครั้ง',
+  });
+  assert.equal(cancelledReplacement.status, 200);
+  assert.equal((await request('/invoices/reusable-numbers?month=2026-10')).data.some(row => row.id === reused.data.id), true);
+  const secondReuse = await request('/invoices', 'POST', { ...payload, reuseInvoiceId: reused.data.id });
+  assert.equal(secondReuse.status, 201);
+  assert.equal(secondReuse.data.ivNo, doc.ivNo);
+  assert.equal(secondReuse.data.reissuedFrom.id, reused.data.id);
+  const futureDated = await request('/invoices', 'POST', { ...payload, ivDate: '2026-11-02' });
+  assert.equal(futureDated.status, 201);
+  assert.equal(futureDated.data.ivDate.slice(0, 10), '2026-11-02');
   customer.branches.push(
     { id: 'hq', name: 'Head office', addresses: [{ kind: 'billing', address: 'HQ billing' }] },
     { id: 'main', name: 'Main', addresses: [{ kind: 'billing', address: 'Source branch billing' }] },
@@ -253,8 +321,45 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(linked.items[0].desc, 'Source line');
   assert.equal(linked.customerBranch, 'Main');
   assert.equal(linked.address, 'Source branch billing');
-  assert.equal((await request('/invoices', 'POST', { ...fromSource, customerId: 'foreign' })).status, 400);
-  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...payload, updatedAt: linked.updatedAt })).status, 409);
+  assert.equal((await request('/invoices', 'POST', { ...fromSource, customerId: 'foreign' })).status, 409);
+  assert.equal((await request('/invoices/sources')).data.some(row => row.id === 'so'), false);
+  assert.equal((await request(`/invoices/sources?exceptId=${linked.id}`)).data.some(row => row.id === 'so'), true);
+  assert.equal((await request('/invoices/sources?exceptId=missing')).status, 404);
+  assert.equal((await request(`/invoices/sources?exceptId=${linked.id}`, 'GET', undefined, 'viewer')).status, 403);
+  const changedCustomer = await request(`/invoices/${linked.id}`, 'PUT', {
+    ...fromSource, customerId: 'c2', customerBranch: 'Custom branch', taxId: 'Edited tax',
+    updatedAt: linked.updatedAt,
+  });
+  assert.equal(changedCustomer.status, 200);
+  assert.equal(changedCustomer.data.customerId, 'c2');
+  assert.equal(changedCustomer.data.customerBranch, 'Custom branch');
+  assert.equal(changedCustomer.data.taxId, 'Edited tax');
+  assert.equal(changedCustomer.data.provisionalDeliveryOrderId, 'so');
+  linked = changedCustomer.data;
+  const unlinked = await request(`/invoices/${linked.id}`, 'PUT', { ...payload, updatedAt: linked.updatedAt });
+  assert.equal(unlinked.status, 200);
+  assert.equal(unlinked.data.provisionalDeliveryOrderId, null);
+  assert.equal(unlinked.data.ivNo, linked.ivNo);
+  linked = unlinked.data;
+  const changedReference = await request(`/invoices/${linked.id}`, 'PUT', {
+    ...payload, customerId: 'c2', provisionalDeliveryOrderId: 'so2', updatedAt: linked.updatedAt,
+    workOrderId: 'wo2',
+  });
+  assert.equal(changedReference.status, 200);
+  assert.equal(changedReference.data.customerId, 'c2');
+  assert.equal(changedReference.data.customerName, 'Other customer');
+  assert.equal(changedReference.data.customerCode, 'C002');
+  assert.equal(changedReference.data.provisionalDeliveryOrderId, 'so2');
+  assert.equal(changedReference.data.ivNo, linked.ivNo);
+  assert.equal(changedReference.data.workOrderId, 'wo2');
+  linked = changedReference.data;
+  const occupied = await request('/invoices', 'POST', fromSource);
+  assert.equal(occupied.status, 201);
+  assert.equal((await request(`/invoices/sources?exceptId=${linked.id}`)).data.some(row => row.id === 'so'), false);
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...fromSource, updatedAt: linked.updatedAt })).status, 409);
+  assert.equal(state.invoices.find(row => row.id === linked.id).provisionalDeliveryOrderId, 'so2');
+  assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...payload, workOrderId: 'missing', updatedAt: linked.updatedAt })).status, 400);
+  await request(`/invoices/${occupied.data.id}/cancel`, 'POST', { updatedAt: occupied.data.updatedAt, reason: 'Release source' });
   const originalSource = structuredClone(source);
   const editedSource = {
     ...fromSource, customerBranchId: 'hq', customerBranch: 'Head office',
@@ -268,6 +373,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   const editedResponse = await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: linked.updatedAt });
   assert.equal(editedResponse.status, 200);
   linked = editedResponse.data;
+  assert.equal(linked.workOrderId, null);
   for (const [field, expected] of Object.entries({
     customerBranch: 'Head office', address: 'Edited billing', shippingAddress: 'Edited shipping', taxId: '456',
     creditTerm: 15, vatConfig: 'NO_VAT', discount: 2, customerPoNo: 'PO-EDIT', remark: 'Invoice only',
@@ -282,8 +388,8 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(linked.items[0].amount, 100.5);
   assert.deepEqual((await request(`/invoices/${linked.id}`)).data.items, linked.items);
   assert.deepEqual(source, originalSource, 'Editing Invoice never mutates the SO');
-  const editAudit = state.audits.find(log => log.entityId === linked.id && log.action === 'update');
-  assert.ok(editAudit.changedFields.includes('items'));
+  const editAudit = state.audits.find(log => log.entityId === linked.id && log.action === 'update' && log.changedFields.includes('items'));
+  assert.ok(editAudit);
   failAudit = true;
   assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, remark: 'Rollback', updatedAt: linked.updatedAt })).status, 500);
   assert.equal(state.invoices.find(row => row.id === linked.id).remark, 'Invoice only');
@@ -292,6 +398,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal(linkedConfirmed.status, 200);
   linked = linkedConfirmed.data;
   assert.equal(linked.outstandingAmount, 98.5);
+  assert.equal((await request(`/invoices/sources?exceptId=${linked.id}`)).status, 409);
   assert.equal((await request(`/invoices/${linked.id}`, 'PUT', { ...editedSource, updatedAt: linked.updatedAt })).status, 409);
   await request(`/invoices/${linked.id}/cancel`, 'POST', { updatedAt: linked.updatedAt, reason: 'Replace' });
   const replacement = await request('/invoices', 'POST', editedSource);
@@ -308,6 +415,8 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   source.status = 'cancelled';
   assert.equal((await request('/invoices', 'POST', fromSource)).status, 409);
   state.invoices.push({ id: 'legacy', lifecycleVersion: 0, status: 'draft', outstandingAmount: 100, updatedAt: new Date() });
+  assert.equal((await request('/invoices/sources?exceptId=legacy')).status, 409);
+  assert.equal((await request('/invoices/legacy', 'PUT', { ...payload, updatedAt: new Date().toISOString() })).status, 409);
   assert.equal((await request('/invoices/legacy/confirm', 'POST', { updatedAt: new Date().toISOString() })).status, 409);
   assert.equal(state.invoices.find(row => row.id === 'legacy').outstandingAmount, 100);
   assert.equal((await request('/invoices/missing')).status, 404);
@@ -577,6 +686,25 @@ test('RV HTTP lifecycle: exact settlement, BI closure/release/reversal, evidence
     { allocations: [{ invoiceId: 'i1', receivedAmount: 1000.001 }] }, { allocations: [{ invoiceId: 'i1', receivedAmount: -1 }] },
     { allocations: [{ invoiceId: 'i1', receivedAmount: 1001 }] }, { allocations: [{ invoiceId: 'i1', receivedAmount: 0 }] },
     { allocations: [payload.allocations[0], payload.allocations[0]] }]) assert.equal((await request(undefined, 'POST', { ...payload, ...change })).status, 400);
+  const chequePayload = { ...payload, paymentMethod: 'cheque', bankName: 'ธนาคารกรุงเทพ', refNo: '',
+    chequeNo: '000123', chequeDate: '2026-11-02' };
+  for (const change of [{ chequeNo: '' }, { chequeDate: '' }, { chequeDate: '2026-02-30' }, { bankName: '' }]) {
+    assert.equal((await request(undefined, 'POST', { ...chequePayload, ...change })).status, 400);
+  }
+  const chequeCreated = await request(undefined, 'POST', chequePayload);
+  assert.equal(chequeCreated.status, 201, JSON.stringify(chequeCreated.data));
+  assert.equal(chequeCreated.data.chequeNo, '000123');
+  assert.equal(chequeCreated.data.chequeDate.slice(0, 10), '2026-11-02');
+  assert.equal(chequeCreated.data.refNo, null);
+  const chequeConfirmed = await request(`/ar/receipt-vouchers/${chequeCreated.data.id}/confirm`, 'POST', { updatedAt: chequeCreated.data.updatedAt });
+  assert.equal(chequeConfirmed.status, 200, JSON.stringify(chequeConfirmed.data));
+  assert.equal(chequeConfirmed.data.paymentMethod, 'cheque');
+  assert.equal(state.invoices[0].outstandingAmount, 0);
+  const chequeCancelled = await request(`/ar/receipt-vouchers/${chequeCreated.data.id}/cancel`, 'POST', {
+    updatedAt: chequeConfirmed.data.updatedAt, reason: 'ทดสอบคืนยอด',
+  });
+  assert.equal(chequeCancelled.status, 200, JSON.stringify(chequeCancelled.data));
+  assert.equal(state.invoices[0].outstandingAmount, 1000);
   for (const field of ['status', 'lifecycleVersion', 'customerId']) {
     const row = state.invoices[0], before = row[field]; row[field] = field === 'status' ? 'draft' : field === 'lifecycleVersion' ? 0 : 'other';
     assert.equal((await request(undefined, 'POST', payload)).status, field === 'customerId' ? 400 : 409); state.invoices[0][field] = before;

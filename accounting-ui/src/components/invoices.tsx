@@ -7,8 +7,8 @@ import { AccountingLookupApi, ArApi } from "@/lib/api";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { branchDefaults, invoiceDueDate, type AccountCustomer } from "@/lib/account-customers";
-import { deliveryOrderAmounts, type DeliveryOrderProduct } from "@/lib/delivery-order";
-import { invoiceForm, invoiceStatus, newInvoice, type Invoice, type InvoiceInput, type InvoiceSource } from "@/lib/invoice";
+import { deliveryOrderAmounts, type DeliveryOrderProduct, type DeliveryOrderWorkOrder } from "@/lib/delivery-order";
+import { invoiceForm, invoiceStatus, newInvoice, type Invoice, type InvoiceInput, type InvoiceSource, type ReusableInvoiceNumber } from "@/lib/invoice";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
@@ -31,6 +31,9 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
   const [products, setProducts] = useState<DeliveryOrderProduct[]>([]);
   const [sources, setSources] = useState<InvoiceSource[]>([]);
+  const [reusableNumbers, setReusableNumbers] = useState<ReusableInvoiceNumber[]>([]);
+  const [reuseLoading, setReuseLoading] = useState(false);
+  const [reuseError, setReuseError] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
   const [sourceQuery, setSourceQuery] = useState("");
   const [sourceError, setSourceError] = useState("");
@@ -47,8 +50,14 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [action, setAction] = useState<"confirm" | "cancel" | null>(null);
   const [reason, setReason] = useState("");
   const [printReady, setPrintReady] = useState(false);
+  const [workOrders, setWorkOrders] = useState<DeliveryOrderWorkOrder[]>([]);
+  const [workOrderQuery, setWorkOrderQuery] = useState("");
+  const [workOrderLabel, setWorkOrderLabel] = useState("ไม่อ้างอิง WO");
+  const [workOrderLoading, setWorkOrderLoading] = useState(false);
+  const [workOrderError, setWorkOrderError] = useState("");
   const isForm = mode === "new" || mode === "edit";
   const linked = Boolean(form.provisionalDeliveryOrderId);
+  const invoiceMonth = form.ivDate.slice(0, 7);
   const customer = customers.find(item => item.id === form.customerId);
   const totals = deliveryOrderAmounts(form.items, form.discount, form.vatConfig);
 
@@ -68,6 +77,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         if (!current) return;
         setCustomers(cs); setProducts(ps);
         setForm(document ? invoiceForm(document) : newInvoice());
+        setWorkOrderLabel(document?.workOrder?.woNo || "ไม่อ้างอิง WO");
       }
       if (current) { setDoc(document); setSourceLabel(document?.provisionalDeliveryOrder?.soNo || "ไม่อ้างอิง SO"); }
     }
@@ -76,16 +86,45 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   }, [mode, recordId, isForm, canWrite, reload, query]);
 
   useEffect(() => {
-    if (mode !== "new" || !canWrite) return;
+    if (!isForm || !canWrite || (mode === "edit" && (loading || doc?.status !== "draft" || doc.lifecycleVersion !== 1))) return;
     let current = true;
     setSourceLoading(true); setSourceError("");
     const timer = setTimeout(() => {
-      ArApi.getInvoiceSources(sourceQuery).then(result => { if (current) setSources(result); })
+      ArApi.getInvoiceSources(sourceQuery, mode === "edit" ? recordId : undefined).then(result => { if (current) setSources(result); })
         .catch(error => { if (current) { setSources([]); setSourceError(message(error)); } })
         .finally(() => { if (current) setSourceLoading(false); });
     }, 300);
     return () => { current = false; clearTimeout(timer); };
-  }, [sourceQuery, mode, canWrite]);
+  }, [sourceQuery, mode, canWrite, isForm, recordId, loading, doc?.status, doc?.lifecycleVersion]);
+
+  useEffect(() => {
+    if (!isForm || !canWrite || (mode === "edit" && (loading || doc?.status !== "draft" || doc.lifecycleVersion !== 1))) return;
+    let current = true;
+    setWorkOrderLoading(true); setWorkOrderError("");
+    const timer = setTimeout(() => {
+      ArApi.getDeliveryWorkOrders(workOrderQuery).then(result => { if (current) setWorkOrders(result); })
+        .catch(error => { if (current) { setWorkOrders([]); setWorkOrderError(message(error)); } })
+        .finally(() => { if (current) setWorkOrderLoading(false); });
+    }, 300);
+    return () => { current = false; clearTimeout(timer); };
+  }, [workOrderQuery, mode, canWrite, isForm, loading, doc?.status, doc?.lifecycleVersion]);
+
+  useEffect(() => {
+    if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
+      setReusableNumbers([]);
+      setReuseLoading(false);
+      setReuseError("");
+      return;
+    }
+    let current = true;
+    setReuseLoading(true);
+    setReuseError("");
+    ArApi.getReusableInvoiceNumbers(invoiceMonth)
+      .then(result => { if (current) setReusableNumbers(result); })
+      .catch(error => { if (current) { setReusableNumbers([]); setReuseError(message(error)); } })
+      .finally(() => { if (current) setReuseLoading(false); });
+    return () => { current = false; };
+  }, [invoiceMonth, mode, canWrite]);
 
   function chooseCustomer(id: string) {
     const selected = customers.find(item => item.id === id);
@@ -95,7 +134,11 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   }
   async function chooseSource(id: string) {
     if (busy.current) return;
-    if (!id) { setForm(newInvoice()); setSourceLabel("ไม่อ้างอิง SO"); return; }
+    if (!id) {
+      setForm(previous => ({ ...previous, provisionalDeliveryOrderId: null }));
+      setSourceLabel("ไม่อ้างอิง SO");
+      return;
+    }
     busy.current = true; setSaving(true); setError("");
     try {
       const source = await ArApi.getDeliveryOrder(id);
@@ -111,6 +154,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         items: source.items.map(item => ({ ...item, unit: item.unit || "", remark: item.remark || "", partNo: item.partNo || "" })),
       }));
       setSourceLabel(source.soNo);
+      setWorkOrderLabel(source.workOrder?.woNo || "ไม่อ้างอิง WO");
     } catch (error) { setError(message(error)); }
     finally { busy.current = false; setSaving(false); }
   }
@@ -161,16 +205,28 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         <label>สถานะ<select className={control} value={status} onChange={event => setStatus(event.target.value)}><option value="">ทั้งหมด</option><option value="draft">Draft</option><option value="approved">ยืนยันแล้ว</option><option value="cancelled">ยกเลิก</option></select></label>
         <button className={`${button} self-end`}>ค้นหา</button>
       </form>
-      {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead className="bg-gray-50"><tr>{["เลขที่", "วันที่", "ลูกค้า", "SO", "ยอดสุทธิ", "คงค้าง", "สถานะ"].map(title => <th className="p-3 text-left" key={title}>{title}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.ivNo}</Link></td><td className="p-3">{formatAccountingDate(row.ivDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{row.provisionalDeliveryOrder?.soNo || "-"}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{money(row.outstandingAmount)}</td><td className="p-3">{invoiceStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5 text-center">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
+      {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead className="bg-gray-50"><tr>{["เลขที่", "วันที่", "ลูกค้า", "SO", "ยอดสุทธิ", "คงค้าง", "สถานะ"].map(title => <th className="p-3 text-left" key={title}>{title}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.ivNo}</Link></td><td className="p-3">{formatAccountingDate(row.ivDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{row.provisionalDeliveryOrder?.soNo || "-"}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{money(row.outstandingAmount)}</td><td className="p-3">{row.reissuedAs ? `${invoiceStatus(row)} · เลขถูกนำไปใช้ใหม่` : row.reissuedFrom ? `${invoiceStatus(row)} · ใช้เลขที่ยกเลิก` : invoiceStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5 text-center">ไม่มีรายการที่ตรงเงื่อนไข</p>}</div>}
     </div>}
     {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="iv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
-          <label>วันที่ Invoice<DateInput required className={control} value={form.ivDate} onChange={ivDate => setForm(previous => ({ ...previous, ivDate }))} /></label>
-          {mode === "new" ? <SearchableSelect label="คัดลอกจาก SO (ไม่บังคับ)" value={form.provisionalDeliveryOrderId || ""} selectedLabel={sourceLabel} placeholder="ไม่อ้างอิง SO" searchPlaceholder="พิมพ์เลข SO" loading={sourceLoading} error={sourceError} options={[{ value: "", label: "ไม่อ้างอิง SO" }, ...sources.map(source => ({ value: source.id, label: `${source.soNo} — ${source.customer?.name || ""}` }))]} onSearch={q => { if (q !== sourceQuery) { setSourceLoading(true); setSourceQuery(q); } }} onChange={id => { void chooseSource(id); }} />
-            : <p>SO อ้างอิง: {sourceLabel} (ไม่สามารถเปลี่ยนหลังบันทึก)</p>}
-          <fieldset disabled={linked} className="min-w-0"><SearchableSelect label="ลูกค้า" required value={customer ? form.customerId : ""} selectedLabel={customer ? `${customer.code || ""} — ${customer.name}` : ""} placeholder="เลือกลูกค้า" searchPlaceholder="พิมพ์รหัส / ชื่อ" options={customers.map(item => ({ value: item.id, label: `${item.code || ""} — ${item.name}` }))} onChange={chooseCustomer} /></fieldset>
-          {linked && <p className="text-sm text-gray-600 md:col-span-2">ข้อมูลคัดลอกจาก SO สามารถแก้ไขใน Invoice Draft ได้ โดยไม่เปลี่ยนข้อมูล SO ต้นฉบับ ลูกค้าและ SO อ้างอิงยังคงเดิม</p>}
+          <label>วันที่ Invoice<DateInput required className={control} value={form.ivDate} onChange={ivDate => setForm(previous => ({
+            ...previous, ivDate, ...(previous.ivDate.slice(0, 7) !== ivDate.slice(0, 7) ? { reuseInvoiceId: null } : {}),
+          }))} /><span className="text-sm text-gray-600">เลือกวันที่ตามเอกสารได้ล่วงหน้า เลข Invoice จะอิงเดือนของวันที่นี้</span></label>
+          <SearchableSelect label="คัดลอกจาก SO (ไม่บังคับ)" value={form.provisionalDeliveryOrderId || ""} selectedLabel={sourceLabel} placeholder="ไม่อ้างอิง SO" searchPlaceholder="พิมพ์เลข SO" loading={sourceLoading} error={sourceError} options={[{ value: "", label: "ไม่อ้างอิง SO" }, ...sources.map(source => ({ value: source.id, label: `${source.soNo} — ${source.customer?.name || ""}` }))]} onSearch={q => { if (q !== sourceQuery) { setSourceLoading(true); setSourceQuery(q); } }} onChange={id => { void chooseSource(id); }} />
+          {mode === "new" && <label className="block md:col-span-2">นำเลขจาก Invoice ที่ยกเลิกกลับมาใช้ (ไม่บังคับ)
+            <select disabled={reuseLoading} className={control} value={form.reuseInvoiceId || ""} onChange={event => setForm(previous => ({ ...previous, reuseInvoiceId: event.target.value || null }))}>
+              <option value="">ไม่ใช้เลขเดิม — สร้างเลขใหม่อัตโนมัติ</option>
+              {reusableNumbers.map(number => <option key={number.id} value={number.id}>
+                {number.ivNo} — {number.customerName || number.customerCode || "-"} · {formatAccountingDate(number.ivDate)}
+              </option>)}
+            </select>
+            <span className="text-sm text-gray-600">{reuseLoading ? "กำลังตรวจสอบเลขที่ยกเลิกในเดือนนี้..." : "เลือกได้เฉพาะเลขที่ยกเลิกและยังไม่มีบิลใหม่ใช้แทนในเดือนเดียวกัน"}</span>
+            {reuseError && <span role="alert" className="block text-sm text-red-700">{reuseError}</span>}
+            {!reuseLoading && !reuseError && reusableNumbers.length === 0 && <span className="block text-sm text-gray-500">ไม่มีเลข Invoice ที่ยกเลิกและนำกลับมาใช้ได้ในเดือนนี้</span>}
+          </label>}
+          <SearchableSelect label="ลูกค้า" required value={customer ? form.customerId : ""} selectedLabel={customer ? `${customer.code || ""} — ${customer.name}` : ""} placeholder="เลือกลูกค้า" searchPlaceholder="พิมพ์รหัส / ชื่อ" options={customers.map(item => ({ value: item.id, label: `${item.code || ""} — ${item.name}` }))} onChange={chooseCustomer} />
+          {linked && <p className="text-sm text-gray-600 md:col-span-2">ข้อมูลคัดลอกจาก SO สามารถแก้ไขใน Invoice Draft ได้ รวมลูกค้าและ SO อ้างอิง โดยไม่เปลี่ยนข้อมูล SO ต้นฉบับ การเลือก SO ใหม่จะคัดลอกข้อมูลใหม่ทับช่องที่ดึงจาก SO การเลือกไม่อ้างอิง SO จะเก็บข้อมูลที่กรอกไว้</p>}
           <label>สาขาลูกค้า<select className={control} value={form.customerBranchId || ""} onChange={event => {
             const branchId = event.target.value;
             if (customer && branchId) setForm(previous => ({ ...previous, ...branchDefaults(customer, branchId) }));
@@ -178,8 +234,16 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
           }}>
             <option value="">ข้อมูลสาขาบนเอกสาร: {form.customerBranch}</option>{customer?.branches.map(branch => <option key={branch.id} value={branch.id}>{branch.code} — {branch.name}</option>)}
           </select></label>
+          <label>ชื่อสาขาบนเอกสาร<input className={control} value={form.customerBranch} onChange={event => setForm(previous => ({ ...previous, customerBranchId: "", customerBranch: event.target.value }))} /></label>
           <label>เลขผู้เสียภาษี<input className={control} value={form.taxId} onChange={event => setForm(previous => ({ ...previous, taxId: event.target.value }))} /></label>
           <label>เลข PO ลูกค้า<input className={control} value={form.customerPoNo} onChange={event => setForm(previous => ({ ...previous, customerPoNo: event.target.value }))} /></label>
+          <SearchableSelect label="อ้างอิง Work Order (ไม่บังคับ)" value={form.workOrderId || ""} selectedLabel={workOrderLabel}
+            placeholder="ไม่อ้างอิง WO" searchPlaceholder="พิมพ์เลข WO / โครงการ" loading={workOrderLoading} error={workOrderError}
+            options={[{ value: "", label: "ไม่อ้างอิง WO" }, ...workOrders.map(workOrder => ({ value: workOrder.id, label: `${workOrder.woNo}${workOrder.project ? ` — ${workOrder.project}` : ""}` }))]}
+            onSearch={setWorkOrderQuery} onChange={id => {
+              setForm(previous => ({ ...previous, workOrderId: id || null }));
+              setWorkOrderLabel(workOrders.find(workOrder => workOrder.id === id)?.woNo || "ไม่อ้างอิง WO");
+            }} />
           <label>ที่อยู่ออกบิล<textarea rows={3} className={control} value={form.address} onChange={event => setForm(previous => ({ ...previous, address: event.target.value }))} /></label>
           <label>ที่อยู่จัดส่ง<textarea rows={3} className={control} value={form.shippingAddress} onChange={event => setForm(previous => ({ ...previous, shippingAddress: event.target.value }))} /></label>
           <label>จำนวนวันเครดิต<input required className={control} type="number" min="0" max="36500" step="1" value={form.creditTerm} onChange={event => setForm(previous => ({ ...previous, creditTerm: event.target.value }))} /><span className="text-sm">ครบกำหนด {formatAccountingDate(invoiceDueDate(form.ivDate, Number(form.creditTerm)))}</span></label>
@@ -198,6 +262,8 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
     {mode === "view" && doc && !loading && !loadError && <>
       <div className="iv-no-print mb-4 space-y-4">
         <section className="rounded-lg border bg-white p-4"><p>สถานะ: {invoiceStatus(doc)}</p><p>ยอดสุทธิ {money(doc.netAmount)} บาท · ค้างรับ {money(doc.outstandingAmount)} บาท</p><p>ครบกำหนด {formatAccountingDate(doc.dueDate)} · SO {doc.provisionalDeliveryOrder?.soNo || "-"}</p>
+          {doc.reissuedFrom && <p>นำเลขกลับมาใช้จากบิลที่ยกเลิก: <Link className="text-blue-700 underline" href={`${base}/${doc.reissuedFrom.id}`}>{doc.reissuedFrom.ivNo}</Link></p>}
+          {doc.reissuedAs && <p>เลขนี้ถูกนำไปใช้กับ Invoice ใหม่: <Link className="text-blue-700 underline" href={`${base}/${doc.reissuedAs.id}`}>{doc.reissuedAs.ivNo}</Link></p>}
           {doc.confirmedAt && <p>ยืนยันเมื่อ {formatAccountingDateTime(doc.confirmedAt)}</p>}
           {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy: คงยอดและสถานะเดิม ไม่แก้ไข/ยืนยัน/ยกเลิกผ่านวงจรใหม่โดยอัตโนมัติ ต้องตรวจข้อมูลก่อนย้าย</p>}
         </section>

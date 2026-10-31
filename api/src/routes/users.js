@@ -197,15 +197,18 @@ router.post('/:id/signature', authenticate, requireRole('admin', 'director', 'ad
 // DELETE /api/users/:id/signature  (remove signature image)
 router.delete('/:id/signature', authenticate, requireRole('admin', 'director', 'admin_mgr'), async (req, res, next) => {
   try {
-    const user = await prisma.user.findUniqueOrThrow({ where: { id: req.params.id }, select: { signatureUrl: true } });
-    if (user.signatureUrl && isR2Enabled) {
-      const key = user.signatureUrl.split('/').pop();
-      await deleteFromR2(`signatures/${key}`).catch(() => {});
-    }
-    const updated = await prisma.user.update({
-      where: { id: req.params.id },
-      data: { signatureUrl: null },
-      select: USER_SELECT,
+    const updated = await prisma.$transaction(async tx => {
+      await tx.$queryRaw`SELECT id FROM users WHERE id = ${req.params.id} FOR UPDATE`;
+      const user = await tx.user.findUniqueOrThrow({ where: { id: req.params.id }, select: { signatureUrl: true } });
+      const retained = user.signatureUrl
+        ? await tx.accountingApprovalSignature.findUnique({ where: { url: user.signatureUrl } }) : null;
+      if (user.signatureUrl && isR2Enabled && !retained) {
+        const key = user.signatureUrl.split('/').pop();
+        await deleteFromR2(`signatures/${key}`).catch(() => {});
+      }
+      return tx.user.update({
+        where: { id: req.params.id }, data: { signatureUrl: null }, select: USER_SELECT,
+      });
     });
     res.json(updated);
   } catch (e) { next(e); }

@@ -14,6 +14,7 @@ export type ReturnSourceLine = { id: string; productId: string; productSnapshot:
 export type ReturnSource = { issue: StockIssue; lines: ReturnSourceLine[] };
 export type ReturnSourceOption = Pick<StockIssue, "id" | "issueNo" | "requester" | "receiver" | "warehouseSnapshot">;
 export type StockReturn = Omit<ReturnInput, "items"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; returnNo: string; lifecycleVersion: number; status: IssueStatus; createdById: string | null; updatedAt: string;
   warehouseId: string | null; issueSnapshot: { issueNo: string; issueDate: string; requester: string; receiver: string } | null;
   warehouseSnapshot: StockIssue["warehouseSnapshot"]; workOrderSnapshot: StockIssue["workOrderSnapshot"]; condition: string;

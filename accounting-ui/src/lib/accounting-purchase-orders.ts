@@ -37,6 +37,7 @@ export type PurchaseRequestReference = {
 };
 
 export type PurchaseOrderDocument = {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string;
   poNo: string;
   poDate: string;

@@ -19,6 +19,7 @@ export type VoucherActionInput = {
   recipient: string; reversalDate: string; reversalReference: string;
 };
 export type PaymentVoucher = VoucherInput & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; pvNo: string; lifecycleVersion: number; status: string; updatedAt: string;
   sourceNo: string | null; sourceDate: string | null; poNo: string | null; supplierSnapshot: VoucherSource["supplierSnapshot"];
   createdById: string | null; approvedAt: string | null; paidAt: string | null; reversedAt: string | null;

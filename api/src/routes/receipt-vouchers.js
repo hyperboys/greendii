@@ -101,7 +101,10 @@ for (const action of ['confirm', 'cancel']) router.post(`/:id/${action}`, canWri
       let ids = [];
       let confirmation = {};
       if (action === 'confirm') {
-        const { allocations, ...data } = await receiptData(tx, { ...previous, receiptDate: previous.receiptDate.toISOString().slice(0, 10) }, previous, true);
+        const { allocations, ...data } = await receiptData(tx, {
+          ...previous, receiptDate: previous.receiptDate.toISOString().slice(0, 10),
+          chequeDate: previous.chequeDate?.toISOString().slice(0, 10) || null,
+        }, previous, true);
         for (const row of allocations) {
           await tx.invoice.update({ where: { id: row.invoiceId }, data: {
             outstandingAmount: (Math.round(Number(row.outstandingBefore) * 100) - settlement(row)) / 100,

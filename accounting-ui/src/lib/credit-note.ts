@@ -12,6 +12,7 @@ export type CreditInput = {
   cnDate: string; invoiceId: string; reason: string; contactPerson: string; remark: string; items: CreditLine[]; updatedAt?: string;
 };
 export type CreditNote = CreditInput & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; cnNo: string; lifecycleVersion: number; status: string; updatedAt: string; confirmedAt: string | null;
   customerName: string | null; customerCode: string | null; customerBranch: string | null; address: string | null; taxId: string | null;
   invoiceNo: string | null; invoiceDate: string | null; vatConfig: string;

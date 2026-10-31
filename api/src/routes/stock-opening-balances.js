@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const { createHash } = require('crypto');
 const prisma = require('../lib/prisma');
+const { planApproval } = require('../lib/accountingApproval');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
 const { invalid } = require('../lib/deliveryOrder');
@@ -135,6 +136,7 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
         if (action === 'approve' && (!previous.createdById || previous.createdById === req.user.id)) {
           invalid('ผู้สร้างห้ามอนุมัติใบยอดยกมาตัวเอง หรือไม่มีผู้สร้างให้ตรวจสอบ', 403);
         }
+        const approval = await planApproval(tx, 'opening', previous, action, req.user.id, reason);
         let data = {};
         if (['submit', 'approve'].includes(action)) {
           await lockControl(tx, previous.cutoverDate);
@@ -148,7 +150,7 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
             data = { ...fields, items: { deleteMany: {}, create: prepared.items } };
           } else {
             const prepared = await assertSubmittedBaselineUnchanged(tx, previous);
-            await postOpening(tx, { ...previous, ...fields, items: prepared.items }, req);
+            if (approval.finalApproval) await postOpening(tx, { ...previous, ...fields, items: prepared.items }, req);
           }
         } else {
           await lockWarehouse(tx, previous.warehouseId);
@@ -159,9 +161,11 @@ for (const action of ['submit', 'approve', 'return', 'reject', 'cancel']) {
             data = { cancelledAt: localDateStart(dateString(cancellationDate)), cancellationReason: reason };
           }
         }
-        const status = { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
+        const status = action === 'approve' && !approval.finalApproval ? 'pending'
+          : { submit: 'pending', approve: 'approved', return: 'returned', reject: 'rejected', cancel: 'cancelled' }[action];
         const doc = await tx.stockOpeningBalance.update({ where: { id: previous.id }, data: { ...data, status,
-          ...(action === 'approve' ? { approvalStep: 1, approvedAt: new Date(), approvedById: req.user.id } : {}) },
+          ...(action === 'approve' && approval.finalApproval ? { approvalStep: 1, approvedAt: new Date(), approvedById: req.user.id } : {}),
+          ...approval.changes },
         include: OPENING_INCLUDE });
         await openingAudit(tx, req, action, previous, doc, reason);
         return doc;

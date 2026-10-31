@@ -60,8 +60,8 @@ test("BI create is full-page and viewers cannot open an editable form", () => {
 });
 test("BI print recreates sample grid and two signature boxes; all rows print once and total only on final page", () => {
   const { BillingNoteDocument, billingPrintPages } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates });
-  const doc = { ...model.newBillingNote(), biNo: "BI-TEST", status: "approved", lifecycleVersion: 1,
-    customerName: "Snapshot customer", customerCode: "C1", address: "Saved address", totalAmount: "12345.67",
+  const doc = { ...model.newBillingNote(), billingDate: "2026-10-25", biNo: "BI-TEST", status: "approved", lifecycleVersion: 1,
+    customerName: "Snapshot customer", customerCode: "C1", address: "Saved address", taxId: "0123456789012", totalAmount: "12345.67",
     invoices: Array.from({ length: 40 }, (_, i) => ({ invoiceId: `i${i}`, invoiceNo: `UNIQUE-${i}-END`,
       invoiceDate: "2026-10-01", invoiceDueDate: "2026-10-31", invoiceNetAmount: 100, outstandingAmount: 80, billingAmount: 20 })) };
   const pages = billingPrintPages(doc.invoices);
@@ -74,5 +74,17 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   for (let i = 0; i < 40; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, "g")) || []).length, 1);
   assert.match(html, /25\/10\/2026/);
   assert.match(html, /Snapshot customer/);
+  assert.equal((html.match(/class="bi-tax-id" data-bi-fit="true"/g) || []).length, 3);
+  assert.equal((html.match(/0123456789012/g) || []).length, 3);
+  assert.match(html, /เลขประจำตัวผู้เสียภาษี/);
   assert.doesNotMatch(html, /ผู้รับเงิน|RECEIPT|<img/);
+});
+test("BI customer tax ID uses the saved document value and explicitly shows missing values", () => {
+  const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates });
+  const render = taxId => renderToStaticMarkup(React.createElement(BillingNoteDocument, {
+    document: { ...model.newBillingNote(), taxId, invoices: [], totalAmount: 0 },
+    company: { taxId: "9999999999999" },
+  }));
+  assert.match(render("0123456789012"), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　0123456789012<\/p>/);
+  assert.match(render(null), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　-<\/p>/);
 });

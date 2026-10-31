@@ -13,6 +13,7 @@ export type ReceiptSourceLine = { id: string; seq: number; desc: string; unit: s
 export type ReceiptSource = { id: string; poNo: string; poDate: string; supplier: { name?: string }; lines: ReceiptSourceLine[] };
 export type ReceiptSourceOption = Pick<ReceiptSource, "id" | "poNo" | "poDate" | "supplier">;
 export type GoodsReceipt = Omit<ReceiptInput, "items" | "warehouseId"> & {
+  accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   id: string; grNo: string; poNo: string | null; warehouseId: string | null; lifecycleVersion: number; status: ReceiptStatus;
   createdById: string | null; updatedAt: string; approvedAt: string | null; cancelledAt: string | null; cancellationReason: string | null;
   supplierSnapshot: { code?: string; name?: string; taxId?: string } | null; warehouseSnapshot: { code: string; name: string } | null;

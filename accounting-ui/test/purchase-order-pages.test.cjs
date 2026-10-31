@@ -133,7 +133,10 @@ test("PO print follows the reference structure and retains operational details",
   assert.match(html, /data-po-signature-role="signatory"/);
   assert.equal((html.match(/data-po-signature-role=/g) || []).length, 3);
   assert.match(html, /ที่อยู่จัดส่ง/);
-  assert.equal((html.match(/aria-hidden="true"/g) || []).length, 11);
+  assert.doesNotMatch(html, /aria-hidden="true"/);
+  assert.match(html, /02-150-7694/);
+  assert.match(html, /เลขประจำตัวผู้เสียภาษีอากร/);
+  assert.match(html, /grid-cols-2 items-stretch gap-1/);
   assert.match(html, /min-h-16 border-r border-blue-700 p-2/);
   assert.match(html, /เอกสารแนบจาก PR/);
   assert.match(html, /เอกสารแนบประกอบ PO/);

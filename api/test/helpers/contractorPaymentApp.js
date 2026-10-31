@@ -8,7 +8,8 @@ function createContractorPaymentApp() {
     supplierBranch: 'Head office', address: 'Saved address', contactPerson: 'Contact', supplierSnapshot: { name: supplier.name, code: supplier.code } };
   let state = { purchaseOrder: [po], goodsReceipt: [], accountProduct: [], warehouse: [], stockBalance: [], stockMovement: [],
     stockIssue: [], stockReturn: [], stockOpeningBalance: [], stockOpeningControl: [], workOrder: [],
-    contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], sequence: 0 };
+    contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [],
+    accountingApprovalConfig: [], accountingApprovalSignature: [], sequence: 0 };
   let failAudit = false, queue = Promise.resolve();
   const locks = [], storageOperations = [];
   const permissions = {
@@ -80,7 +81,8 @@ function createContractorPaymentApp() {
   };
   for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement', 'stockIssue', 'stockReturn',
     'stockOpeningBalance', 'stockOpeningControl', 'workOrder',
-    'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog']) prisma[model] = {
+    'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog',
+    'accountingApprovalConfig', 'accountingApprovalSignature']) prisma[model] = {
     findMany: async ({ where, skip = 0, take, orderBy } = {}) => {
       const rows = state[model].filter(row => matches(row, where));
       if (orderBy) {
@@ -154,7 +156,9 @@ function createContractorPaymentApp() {
     update: async ({ where, data }) => {
       const previous = state[model].find(row => matches(row, where));
       if (!previous) throw new Error('Not found');
-      const row = hydrate({ ...previous, ...data, updatedAt: new Date(Date.now() + ++state.sequence) });
+      const row = hydrate({ ...previous, ...data,
+        ...(data.revision?.increment ? { revision: previous.revision + data.revision.increment } : {}),
+        updatedAt: new Date(Date.now() + ++state.sequence) });
       state[model][state[model].indexOf(previous)] = row;
       return hydrate(row);
     },

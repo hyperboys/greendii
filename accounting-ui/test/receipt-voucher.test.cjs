@@ -69,3 +69,51 @@ test("RV print matches journal grid without fabricated account codes, balances d
   assert.match(html, /25\/10\/2026/); assert.match(html, /Snapshot customer/);
   assert.doesNotMatch(html, /11130-02|11600-05|11300-01|<img/);
 });
+test("RV cheque hydration and print retain bank, leading-zero cheque number and cheque date", () => {
+  const doc = { ...model.newReceipt(), paymentMethod: "cheque", bankName: "ธนาคารกรุงเทพ",
+    chequeNo: "000123", chequeDate: "2026-11-02T00:00:00Z", rvNo: "RV-CHEQUE",
+    allocations: [{ invoiceId: "i1", receivedAmount: 100, whtAmount: 0, bankFee: 0 }] };
+  const form = model.receiptForm(doc);
+  assert.equal(form.chequeNo, "000123");
+  assert.equal(form.chequeDate, "2026-11-02");
+  assert.equal(form.paymentMethod, "cheque");
+  assert.equal(model.receiptForm({ ...doc, chequeDate: null, chequeNo: null }).chequeDate, "");
+  const { ReceiptVoucherDocument } = load(["components", "receipt-voucher-document.tsx"], {
+    "@/lib/accounting-date": dates, "@/lib/receipt-voucher": model,
+  });
+  const html = renderToStaticMarkup(React.createElement(ReceiptVoucherDocument, { document: doc, company: {} }));
+  assert.match(html, /เช็ครับ ธนาคารกรุงเทพ/);
+  assert.match(html, /000123/);
+  assert.match(html, /02\/11\/2026/);
+  assert.doesNotMatch(html, /เงินฝากธนาคาร/);
+  assert.equal(new Set(model.receiptBanks).size, model.receiptBanks.length);
+  for (const bank of ["ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารออมสิน", "ธนาคารซิตี้แบงก์"]) {
+    assert.ok(model.receiptBanks.includes(bank));
+  }
+});
+test("RV form offers cheque and bank dropdown while preserving a saved bank outside the list", () => {
+    let cursor = 0;
+    const saved = { ...model.newReceipt(), paymentMethod: "cheque", bankName: "Saved bank",
+      chequeNo: "000123", chequeDate: "2026-11-02", lifecycleVersion: 1, status: "draft" };
+    const { ReceiptVouchers } = load(["components", "receipt-vouchers.tsx"], {
+      react: { ...React, useState(initial) {
+        const index = cursor++;
+        return React.useState(index === 1 ? saved : index === 2 ? saved : initial === true ? false : initial);
+      } },
+      "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+      "next/navigation": { useRouter: () => ({ push() {} }) }, "@/lib/api": {}, "@/lib/account-customers": {},
+      "@/lib/receipt-voucher": model, "@/lib/accounting-date": dates,
+      "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
+      "@/lib/accounting-access": { canUseAccounting: () => true },
+      "@/components/date-input": { DateInput: ({ onChange, ...props }) => React.createElement("input", { ...props, onChange: event => onChange(event.target.value) }) },
+      "@/components/searchable-select": { SearchableSelect: () => null },
+      "@/components/receipt-voucher-document": { ReceiptPrintStyles: () => null },
+    });
+    const html = renderToStaticMarkup(React.createElement(ReceiptVouchers, { mode: "edit", recordId: "rv" }));
+    assert.match(html, /<option value="cheque" selected="">เช็ค<\/option>/);
+    assert.match(html, /<option value="Saved bank" selected="">Saved bank \(ข้อมูลเดิม\)<\/option>/);
+    for (const bank of model.receiptBanks) assert.ok(html.includes(`<option value="${bank}">${bank}</option>`));
+    assert.match(html, /เลขที่เช็ค<input required=""/);
+    assert.match(html, /วันที่บนเช็ค<input required=""/);
+    assert.doesNotMatch(html, /ธนาคารที่รับเงิน<input/);
+});
