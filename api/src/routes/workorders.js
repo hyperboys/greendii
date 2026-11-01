@@ -256,16 +256,19 @@ function normalizeWorkOrderItems(items) {
       const noteBlocks = Array.isArray(parsed?.noteBlocks)
         ? parsed.noteBlocks.map((block) => sanitizeWorkOrderText(block, { trim: false }))
         : [];
-      return { detailNote, noteBlocks };
+      return { detailNote, noteBlocks, detailBeforeNote: parsed?.detailBeforeNote === true };
     } catch {
       return { detailNote: note, noteBlocks: [] };
     }
   };
 
-  const stringifyWorkOrderNote = (normalizedDetailRows, noteBlocks) => {
+  const stringifyWorkOrderNote = (normalizedDetailRows, noteBlocks, detailBeforeNote) => {
     const detailNote = normalizedDetailRows.map((row) => row.desc).join('\n');
-    if (!Array.isArray(noteBlocks) || noteBlocks.length === 0) return detailNote;
-    return `${detailNote}${WORKORDER_NOTE_META_SEPARATOR}${JSON.stringify({ noteBlocks })}`;
+    if (noteBlocks.length === 0 && !detailBeforeNote) return detailNote;
+    const meta = {};
+    if (noteBlocks.length > 0) meta.noteBlocks = noteBlocks;
+    if (detailBeforeNote) meta.detailBeforeNote = true;
+    return `${detailNote}${WORKORDER_NOTE_META_SEPARATOR}${JSON.stringify(meta)}`;
   };
 
   const normalizeDetailRows = (rows) => {
@@ -308,7 +311,7 @@ function normalizeWorkOrderItems(items) {
       return {
         seq: Number.isFinite(Number(item?.seq)) ? Number(item.seq) : index,
         desc,
-        note: stringifyWorkOrderNote(normalizedDetailRows, noteInfo.noteBlocks),
+        note: stringifyWorkOrderNote(normalizedDetailRows, noteInfo.noteBlocks, noteInfo.detailBeforeNote),
         detailRows: normalizedDetailRows,
         qty,
         unit,
@@ -916,8 +919,8 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           contactNameValue = contactName ?? prevActiveWo.contactName
           contactTelValue = contactTel ?? prevActiveWo.contactTel
           teamAssignmentValue = teamAssignment ?? prevActiveWo.teamAssignment
-          qcDateValue = qcDate || (prevActiveWo.qcDate ? prevActiveWo.qcDate.toISOString().slice(0, 10) : null)
-          installDateValue = installDate || (prevActiveWo.installDate ? prevActiveWo.installDate.toISOString().slice(0, 10) : null)
+          qcDateValue = qcDate || prevActiveWo.qcDate
+          installDateValue = installDate || prevActiveWo.installDate
           remarkValue = remark ?? prevActiveWo.remark
           checklistValue = normalizeDocChecklist(docChecklist, prevActiveWo.docChecklist || {}, canEditTeamChecklist)
           trackingValue = normalizeWorkOrderTracking({ dueDate, poRequirement, noPoReason, noPoRemark, issueStatus, issueType, issueDetail, issueOwner, issueExpectedAt }, prevActiveWo)
@@ -955,8 +958,8 @@ router.post('/', authenticate, workOrderValidators, validate, async (req, res, n
           contactName: contactNameValue,
           contactTel: contactTelValue,
           teamAssignment: teamAssignmentValue,
-          qcDate: parseBangkokDate(qcDateValue),
-          installDate: parseBangkokDate(installDateValue),
+          qcDate: qcDateValue instanceof Date ? qcDateValue : parseBangkokDate(qcDateValue),
+          installDate: installDateValue instanceof Date ? installDateValue : parseBangkokDate(installDateValue),
           ...trackingValue,
           remark: remarkValue,
           docChecklist: checklistValue,

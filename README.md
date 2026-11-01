@@ -246,6 +246,12 @@ Full documentation: **http://localhost:4000/docs** (Swagger UI)
 
 ---
 
+### Work Order editing and preview
+
+- Work Order schedule dates use Asia/Bangkok in the list, detail, preview, and edit form. Opening and saving an unchanged date must preserve the same calendar day, including when creating a revision.
+- The item note metadata (`__WO_NOTE_META__`) stores `detailBeforeNote`. Saving must preserve this flag, even before a note is added, so preview/print keeps the same detail/note order as the editor.
+- Run the focused regression checks with `node --test ui\test\workorders.test.cjs` from the repository root.
+
 ## Default Users (after seed)
 
 | Username | Password | Role |

@@ -14,6 +14,7 @@ import SearchableSelect from '@/components/SearchableSelect'
 import QuotationCheckboxSelect from '@/components/QuotationCheckboxSelect'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { toBangkokDateInput } from '@/lib/timezone'
 import {
   createEmptyWorkOrderItem,
   mapQuotationItemsToWorkOrderItems,
@@ -139,14 +140,14 @@ export default function EditWorkOrderPage() {
             : (doc.quotation?.items?.length ? mapQuotationItemsToWorkOrderItems(doc.quotation.items) : [createEmptyWorkOrderItem(0)]),
           responsibility: doc.responsibility ?? DEFAULT_RESPONSIBILITY,
           teamAssignment: doc.teamAssignment ?? '',
-          installDate: doc.installDate ? doc.installDate.slice(0, 10) : '',
-          qcDate: doc.qcDate ? doc.qcDate.slice(0, 10) : '',
-          dueDate: doc.dueDate ? doc.dueDate.slice(0, 10) : '',
+          installDate: toBangkokDateInput(doc.installDate),
+          qcDate: toBangkokDateInput(doc.qcDate),
+          dueDate: toBangkokDateInput(doc.dueDate),
           remark: doc.remark ?? '',
           poRequirement: doc.poRequirement === 'not_required' ? 'not_required' : 'required',
           noPoReason: doc.noPoReason ?? '', noPoRemark: doc.noPoRemark ?? '',
           issueStatus: doc.issueStatus === 'blocked' || doc.issueStatus === 'resolved' ? doc.issueStatus : 'none',
-          issueType: doc.issueType ?? '', issueDetail: doc.issueDetail ?? '', issueOwner: doc.issueOwner ?? '', issueExpectedAt: doc.issueExpectedAt ? doc.issueExpectedAt.slice(0, 10) : '',
+          issueType: doc.issueType ?? '', issueDetail: doc.issueDetail ?? '', issueOwner: doc.issueOwner ?? '', issueExpectedAt: toBangkokDateInput(doc.issueExpectedAt),
           docChecklist: { ...DEFAULT_DOC_CHECKLIST, ...(doc.docChecklist ?? {}) },
         })
       })

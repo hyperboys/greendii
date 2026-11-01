@@ -11,6 +11,7 @@ import { useSettingsStore } from '@/store/settings'
 import { useAuthStore } from '@/store/auth'
 import { isEditableApprovalDocStatus } from '@/lib/approvalFlowRules'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { formatBangkokDate } from '@/lib/timezone'
 import { parseColoredLine } from '@/lib/coloredText'
 import {
   getWorkOrderItemsSource,
@@ -385,9 +386,9 @@ export default function WorkOrderDetailPage() {
         <div><span className="form-label">สินค้า/บริการ</span><p>{doc.products || '-'}</p></div>
         <div><span className="form-label">ผู้รับผิดชอบ</span><p>{doc.responsibility || '-'}</p></div>
         <div><span className="form-label">ทีมงาน</span><p>{doc.teamAssignment || '-'}</p></div>
-        <div><span className="form-label">วันติดตั้ง</span><p>{doc.installDate ? new Date(doc.installDate).toLocaleDateString('en-GB') : '-'}</p></div>
-        <div><span className="form-label">วัน QC</span><p>{doc.qcDate ? new Date(doc.qcDate).toLocaleDateString('en-GB') : '-'}</p></div>
-        <div><span className="form-label">กำหนดส่งงาน</span><p>{doc.dueDate ? new Date(doc.dueDate).toLocaleDateString('en-GB') : '-'}</p></div>
+        <div><span className="form-label">วันติดตั้ง</span><p>{formatBangkokDate(doc.installDate) || '-'}</p></div>
+        <div><span className="form-label">วัน QC</span><p>{formatBangkokDate(doc.qcDate) || '-'}</p></div>
+        <div><span className="form-label">กำหนดส่งงาน</span><p>{formatBangkokDate(doc.dueDate) || '-'}</p></div>
         <div><span className="form-label">สถานะ Work</span><p>{doc.isClosed ? 'ปิดงานแล้ว' : STATUS_LABELS[doc.status]}</p></div>
         <div><span className="form-label">สถานะ PO</span><p>{doc.poRequirement === 'not_required' ? 'ไม่ต้องมี PO' : (doc.poStatus || 'ยังไม่มี PO')}</p></div>
         {doc.poRequirement === 'not_required' && <div><span className="form-label">เหตุผลที่ไม่ต้องมี PO</span><p>{doc.noPoRemark || doc.noPoReason || '-'}</p></div>}

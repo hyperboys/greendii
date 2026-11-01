@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { UsersAPI, WorkOrdersAPI } from '@/lib/api'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { formatBangkokDate } from '@/lib/timezone'
 import type { WorkOrder, DocStatus, User } from '@/types'
 import { STATUS_LABELS } from '@/types'
 import { useAuthStore } from '@/store/auth'
@@ -191,7 +192,7 @@ export default function WorkOrdersPage() {
                 <td className="max-w-[180px] truncate" title={w.project}>{w.project}</td>
                 <td className="max-w-[180px] truncate" title={w.products || '-'}>{w.products || '-'}</td>
                 <td title={w.sales?.fullName ?? w.salesId}>{w.sales?.fullName ?? w.salesId}</td>
-                <td className="text-xs text-gray-500">{w.installDate ? new Date(w.installDate).toLocaleDateString('en-GB') : '-'}</td>
+                <td className="text-xs text-gray-500">{formatBangkokDate(w.installDate) || '-'}</td>
                 <td><span className={STATUS_COLORS[w.status]}>{STATUS_LABELS[w.status]}</span></td>
                 <td>{w.isClosed ? <span className="badge bg-gray-800 text-white">ปิดแล้ว</span> : '-'}</td>
                 <td className="text-xs text-gray-500">{new Date(w.createdAt).toLocaleDateString('en-GB')}</td>

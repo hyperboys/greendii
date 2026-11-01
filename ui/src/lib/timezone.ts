@@ -52,3 +52,8 @@ export function getBangkokDateParts(value?: string | Date | null) {
   const day = get('day')
   return year && month && day ? { year, month, day } : null
 }
+
+export function toBangkokDateInput(value?: string | Date | null): string {
+  const parts = getBangkokDateParts(value)
+  return parts ? `${parts.year}-${parts.month}-${parts.day}` : ''
+}

@@ -13,6 +13,7 @@ import SearchableSelect from '@/components/SearchableSelect'
 import QuotationCheckboxSelect from '@/components/QuotationCheckboxSelect'
 import { useAuthStore } from '@/store/auth'
 import { normalizeUserRole } from '@/lib/roleAliases'
+import { toBangkokDateInput } from '@/lib/timezone'
 import {
   createEmptyWorkOrderItem,
   mapQuotationItemsToWorkOrderItems,
@@ -165,8 +166,8 @@ export default function NewWorkOrderPage() {
         contactName: source.contactName ?? f.contactName,
         contactTel: source.contactTel ?? f.contactTel,
         teamAssignment: source.teamAssignment ?? f.teamAssignment,
-        installDate: source.installDate ? source.installDate.slice(0, 10) : f.installDate,
-        qcDate: source.qcDate ? source.qcDate.slice(0, 10) : f.qcDate,
+        installDate: source.installDate ? toBangkokDateInput(source.installDate) : f.installDate,
+        qcDate: source.qcDate ? toBangkokDateInput(source.qcDate) : f.qcDate,
         remark: source.remark ?? f.remark,
         docChecklist: { ...DEFAULT_DOC_CHECKLIST, ...f.docChecklist, ...(source.docChecklist ?? {}) },
       }))
