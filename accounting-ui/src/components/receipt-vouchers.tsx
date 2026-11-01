@@ -1,6 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
-import { isEditableArDocument } from "@/lib/accounting-approval";
+import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,7 @@ import { canUseAccounting } from "@/lib/accounting-access";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { ReceiptVoucherDocument, ReceiptPrintStyles } from "@/components/receipt-voucher-document";
+import { ReceivedChequeControls } from "@/components/received-cheques";
 
 const base = "/ar/receipts";
 const control = "w-full min-w-0 rounded-md border bg-white px-3 py-2";
@@ -29,6 +30,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const canWrite = canUseAccounting(useAccountingAccess(), "ar", "create");
   const [rows, setRows] = useState<ReceiptVoucher[]>([]);
   const [doc, setDoc] = useState<ReceiptVoucher | null>(null);
+  const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<ReceiptInput>(newReceipt);
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
   const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
@@ -138,9 +140,10 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     <header className="rv-no-print mb-5 flex flex-wrap justify-between gap-3">
       <div><p className="text-xs font-bold text-blue-600">Accounts Receivable</p><h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบสำคัญรับ" : mode === "edit" ? "แก้ไขใบสำคัญรับ" : doc?.rvNo || "รับชำระเงิน"}</h1><p className="mt-1 text-sm text-gray-600">ยอดลดหนี้ = เงินเข้าสุทธิ + WHT + ค่าธรรมเนียมที่บริษัทรับภาระ · ไม่รับเกินหนี้</p></div>
       <nav className="flex flex-wrap gap-2">
+        <Link className={button} href={`${base}/cheques`}>ทะเบียนเช็ครับ</Link>
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบสำคัญรับ</Link>}
-        {mode === "view" && doc && canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link><button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันรับชำระ</button></>}
+        {mode === "view" && doc && canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันรับชำระ</button>}</>}
         {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก RV</button>}
         {mode === "view" && <button className={button} disabled={!printable || saving} onClick={() => { if (printable) window.print(); }}>พิมพ์ใบสำคัญรับ</button>}
       </nav>
@@ -148,6 +151,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     {loadError && <p role="alert" className="rv-no-print mb-4 text-red-700">{loadError} <button className={button} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button></p>}
     {error && <p role="alert" className="rv-no-print mb-4 rounded bg-red-50 p-3 text-red-700">{error}</p>}
     {loading && <p role="status" className="rv-no-print">กำลังโหลด...</p>}
+    {mode === "view" && doc && !loading && !loadError && <ReceivedChequeControls doc={doc} onChange={result => { setDoc(result); setReload(value => value + 1); }} />}
     {mode === "list" && <div className="rv-no-print space-y-4">
       <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ q: search, status }); }}>
         <label>ค้นหาเลขที่ / ลูกค้า<input className={control} value={search} onChange={event => setSearch(event.target.value)} /></label>
@@ -208,7 +212,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     </form>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
-      <AccountingApprovalPanel docType="rv" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
+      <AccountingApprovalPanel docType="rv" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
       <section className="rv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p className="font-bold">{receiptStatus(doc)}</p>
         <p>วันที่รับชำระ {formatAccountingDate(doc.receiptDate)} · {doc.customerName || doc.customer?.name}</p>

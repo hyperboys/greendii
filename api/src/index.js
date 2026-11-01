@@ -173,6 +173,9 @@ app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth/forgot-password', forgotPasswordLimiter);
 app.use('/api/auth', authRoutes);
 app.use('/api/accounting-access', accountingAccessRoutes);
+app.use('/api/accounting-gl', require('./routes/accounting-gl'));
+app.use('/api/accounting-logs', require('./routes/accounting-logs'));
+app.use('/api/accounting-notifications', require('./routes/accounting-notifications'));
 app.use('/api/accounting-approvals', accountingApprovalRoutes);
 for (const [route, resource] of ACCOUNTING_RESOURCES) {
   app.use(route, authenticate, requireAccountingResource(resource));

@@ -1,6 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
-import { isEditableArDocument } from "@/lib/accounting-approval";
+import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -27,6 +27,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
   const canWrite = canUseAccounting(useAccountingAccess(), "ar", "create");
   const [rows, setRows] = useState<CreditNote[]>([]);
   const [doc, setDoc] = useState<CreditNote | null>(null);
+  const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<CreditInput>(newCredit);
   const [source, setSource] = useState<CreditSource | null>(null);
   const [sources, setSources] = useState<CreditSource[]>([]);
@@ -121,7 +122,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
       <nav className="flex flex-wrap gap-2">
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบลดหนี้</Link>}
-        {mode === "view" && doc && editable && canWrite && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link><button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันลดหนี้</button></>}
+        {mode === "view" && doc && editable && canWrite && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันลดหนี้</button>}</>}
         {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก CN</button>}
         {mode === "view" && <button className={button} disabled={!printable || saving} onClick={() => { if (printable) window.print(); }}>พิมพ์ใบลดหนี้</button>}
       </nav>
@@ -177,7 +178,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
     </form>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
-      <AccountingApprovalPanel docType="cn" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
+      <AccountingApprovalPanel docType="cn" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
       <section className="cn-no-print mb-4 space-y-2 rounded border bg-white p-4"><p className="font-bold">{creditStatus(doc)}</p>
         <p>วันที่ {formatAccountingDate(doc.cnDate)} · Invoice <Link className="text-blue-700 underline" href={`/ar/invoices/${doc.invoiceId}`}>{doc.invoiceNo || doc.invoice?.ivNo}</Link> · {doc.customerName || doc.customer?.name}</p>
         <p>ก่อน VAT {money(doc.amountBeforeVat)} · VAT {money(doc.vat)} · ยอดลดสุทธิ {money(doc.netAmount)}</p><p className="break-words">เหตุผล: {doc.reason}</p>

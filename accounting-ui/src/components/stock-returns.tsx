@@ -1,5 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +32,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [error, setError] = useState(""), [busy, setBusy] = useState(false);
   const [reload, setReload] = useState(0), [sourceReload, setSourceReload] = useState(0), [files, setFiles] = useState<File[]>([]);
   const [action, setAction] = useState<ReturnAction | null>(null), [reason, setReason] = useState(""), [cancelDate, setCancelDate] = useState(today), [confirmed, setConfirmed] = useState(false);
+  const [chainManaged, setChainManaged] = useState(false);
   const [userId, setUserId] = useState<string>(), [company, setCompany] = useState<PurchaseOrderCompanySettings>({}), [printReady, setPrintReady] = useState(false);
   const guard = useRef(false), requestKey = useRef("");
   const editable = doc?.lifecycleVersion === 1 && ["draft", "returned"].includes(doc.status);
@@ -75,6 +77,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
   }
   const refresh = () => setReload(value => value + 1);
   const actions = doc ? availableReturnActions(doc, can, userId) : [];
+  const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
   function changeLine(index: number, patch: Partial<ReturnInput["items"][number]>) {
     setForm({ ...form, items: form.items.map((item, i) => i === index ? { ...item, ...patch } : item) });
@@ -156,7 +159,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
         {doc.stockIssueId && <Link className="block text-blue-700" href={`/inventory/issues/${encodeURIComponent(doc.stockIssueId)}`}>เปิดใบเบิกต้นทาง</Link>}
         {doc.lifecycleVersion !== 1 && <p role="alert" className="text-amber-800">ใบคืน Legacy อ่านอย่างเดียว ไม่ปรับ Stock เก่า ต้องตรวจย้ายข้อมูลแยก</p>}
         <div className="flex flex-wrap gap-2">{editable && can.update && <Link className={button} href={`${base}/${encodeURIComponent(doc.id)}/edit`}>แก้ไขใบคืน</Link>}
-          {actions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); setConfirmed(false); }}>{returnActions[value]}</button>)}
+          {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); setConfirmed(false); }}>{returnActions[value]}</button>)}
           {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}</div>
         {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
           <h3 className="font-bold">ยืนยัน{returnActions[action]}</h3>
@@ -183,7 +186,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
         {doc.history?.map(row => <p key={row.id} className="break-words border-t pt-2 text-sm">{time(row.createdAt)} · {returnHistory[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}</p>)}
       </section>}
     </div>
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="sr" document={doc} canSubmit={can.create} onChanged={refresh} />}
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="sr" document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} />}
     {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-preview mt-5 w-full overflow-x-auto"><StockReturnDocument document={doc} company={company} onReady={setPrintReady} /></div>}
   </>;
 }

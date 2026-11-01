@@ -52,6 +52,8 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   });
   const render = () => renderToStaticMarkup(React.createElement(AppShell, null, "Page content"));
   let html = render();
+  assert.match(html, /href="\/settings\/logs"/);
+  assert.equal(policy.canOpenAccountingPath(fullAccess, "/settings/logs"), true);
   assert.match(html, /aria-expanded="true" aria-controls="nav--master"/);
   assert.match(html, /href="\/master\?tab=suppliers" aria-current="page"/);
   assert.equal((html.match(/aria-current="page"/g) || []).length, 1);
@@ -88,6 +90,8 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
   html = render();
   assert.equal(html.includes('href="/master?tab=suppliers"'), false);
   assert.equal(html.includes('href="/settings/access"'), false);
+  assert.equal(html.includes('href="/settings/logs"'), false);
+  assert.equal(policy.canOpenAccountingPath(access, "/settings/logs"), false);
   pathname = "/login";
   assert.equal(render(), "Page content");
 });

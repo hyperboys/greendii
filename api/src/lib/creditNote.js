@@ -1,6 +1,7 @@
 const { invalid, text, documentDate, moneyCents } = require('./deliveryOrder');
 const { lockInvoice } = require('./invoice');
 const { assertAvailableSettlement } = require('./arReservations');
+const { assertNoUnresolvedCheque } = require('./receivedCheque');
 const CREDIT_INCLUDE = {
   customer: { select: { id: true, name: true, code: true } },
   invoice: { select: { id: true, ivNo: true, outstandingAmount: true } },
@@ -73,6 +74,7 @@ async function creditData(tx, body, previous) {
   };
 }
 async function assertCreditConfirmable(tx, invoiceId) {
+  await assertNoUnresolvedCheque(tx, invoiceId);
   if (await tx.billingNoteInvoice.count({ where: { invoiceId, billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null } } })) {
     invalid('Invoice อยู่ใน BI ที่ยังไม่ปิด กรุณาจัดการ RV/ยกเลิก BI เดิมก่อนยืนยัน CN', 409);
   }

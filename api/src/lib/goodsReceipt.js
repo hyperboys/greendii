@@ -2,11 +2,13 @@ const { invalid, documentDate } = require('./deliveryOrder');
 const { boundedText, normalizedSnapshot } = require('./contractorPayment');
 const { getAccountingAccess, hasAccountingPermission } = require('./accountingAccess');
 const { recordAuditLog } = require('./auditTrail');
+const { receiptCostInput, movementCost, D, fixed } = require('./stockCost');
+const { milli } = require('./stockCard');
 const GR_INCLUDE = { items: { orderBy: { seq: 'asc' } }, attachments: { orderBy: { uploadedAt: 'asc' } } };
 const GR_STATUSES = ['draft', 'pending', 'approved', 'returned', 'rejected', 'cancelled'];
 function quantity(value, label = 'จำนวน', zero = false) {
   if (!['string', 'number'].includes(typeof value) || !/^\d{1,9}(\.\d{1,3})?$/.test(String(value))) invalid(`${label}ต้องเป็นจำนวนไม่ติดลบ ทศนิยมไม่เกิน 3 หลัก`);
-  const scaled = Math.round(Number(value) * 1000);
+  const scaled = milli(value);
   if ((!zero && !scaled) || !Number.isSafeInteger(scaled)) invalid(`${label}ต้องมากกว่า 0`);
   return scaled;
 }
@@ -19,7 +21,7 @@ function receiptInput(body) {
     if (seen.has(poLineId)) invalid('รายการ PO ซ้ำในใบเดียวกัน');
     seen.add(poLineId);
     return { seq, poLineId, productId: boundedText(line.productId, 'สินค้า/บริการ', true, 100),
-      currentReceiptQty: quantity(line.currentReceiptQty, 'จำนวนรับครั้งนี้') / 1000 };
+      currentReceiptQty: quantity(line.currentReceiptQty, 'จำนวนรับครั้งนี้') / 1000, ...receiptCostInput(line) };
   });
   return { receiptDate: documentDate(body.receiptDate, 'วันที่รับ', true), poId: boundedText(body.poId, 'PO', true, 100),
     warehouseId: boundedText(body.warehouseId, 'คลัง', false, 100) || null,
@@ -117,7 +119,14 @@ async function postReceipt(tx, doc, req, reversalDate) {
     }
     const next = onHand + (reversal ? -amount : amount);
     if (next > 999999999999 || next < reserved) invalid('ยอด Stock เกินช่วงหรือกระทบยอดจอง', 409);
-    await tx.stockMovement.create({ data: { ...key, movementType: reversal ? 'reversal' : 'in',
+    const costLines = doc.items.filter(line => line.productId === productId);
+    const explicit = costLines.every(line => line.unitCost != null && line.costEvidence);
+    const inboundValue = explicit ? fixed(costLines.reduce((sum, line) => sum.add(D(line.unitCost).mul(String(line.currentReceiptQty))), D(0))) : null;
+    const costs = await movementCost(tx, { key, balance, quantityIn: reversal ? 0 : amount / 1000,
+      quantityOut: reversal ? amount / 1000 : 0, date: reversalDate || doc.receiptDate, inboundValue,
+      provenance: { type: 'receipt_explicit', lines: costLines.map(line => ({ lineId: line.id, unitCost: line.unitCost == null ? null : String(line.unitCost), evidence: line.costEvidence || null })) },
+      reversal, original: originals.find(row => row.productId === productId) });
+    await tx.stockMovement.create({ data: { ...key, ...costs, movementType: reversal ? 'reversal' : 'in',
       qtyIn: reversal ? 0 : amount / 1000, qtyOut: reversal ? amount / 1000 : 0,
       sourceDocType: reversal ? 'goods_receipt_reversal' : 'goods_receipt', sourceDocId: doc.id, sourceDocNo: doc.grNo,
       reversalRefId: reversal ? originals.find(row => row.productId === productId).id : null,

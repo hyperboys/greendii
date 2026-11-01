@@ -4,6 +4,7 @@ const { quantity, lockWarehouse } = require('./goodsReceipt');
 const { ISSUE_INCLUDE, ISSUE_STATUSES } = require('./stockIssue');
 const { getAccountingAccess, hasAccountingPermission } = require('./accountingAccess');
 const { recordAuditLog } = require('./auditTrail');
+const { movementCost, D, allocate, fixed } = require('./stockCost');
 const RETURN_INCLUDE = { items: { orderBy: { seq: 'asc' } }, attachments: { orderBy: { uploadedAt: 'asc' } } };
 const qty = value => quantity(String(value), 'จำนวนในระบบ', true);
 function returnInput(body) {
@@ -104,7 +105,22 @@ async function postReturn(tx, doc, req, reversalDate) {
     }
     const next = onHand + (reversalDate ? -amount : amount);
     if (next > 999999999999 || next < reserved) invalid('ยอด Stock เกินช่วงหรือกระทบยอดจอง', 409);
-    await tx.stockMovement.create({ data: { ...key, movementType: reversalDate ? 'reversal' : 'in',
+    const issueMovements = await tx.stockMovement.findMany({ where: { ...key, sourceDocId: doc.stockIssueId, sourceDocType: 'stock_issue' } });
+    const issueMovement = issueMovements.length === 1 ? issueMovements[0] : null;
+    let inboundValue = null;
+    if (!reversalDate && issueMovement?.costStatus === 'valued') {
+      const events = await tx.stockMovement.findMany({ where: key });
+      const returned = events.filter(row => row.costProvenance?.type === 'issue_return' && row.costProvenance.movementId === issueMovement.id);
+      const returnedIds = new Set(returned.map(row => row.id));
+      const reversed = events.filter(row => row.reversalRefId && returnedIds.has(row.reversalRefId));
+      const priorQty = returned.reduce((sum, row) => sum.add(String(row.qtyIn)), D(0)).sub(reversed.reduce((sum, row) => sum.add(String(row.qtyOut)), D(0)));
+      const priorValue = returned.reduce((sum, row) => sum.add(row.valueIn), D(0)).sub(reversed.reduce((sum, row) => sum.add(row.valueOut), D(0)));
+      inboundValue = fixed(allocate(issueMovement.valueOut, priorQty.add(amount / 1000), issueMovement.qtyOut).sub(priorValue));
+    }
+    const costs = await movementCost(tx, { key, balance, quantityIn: reversalDate ? 0 : amount / 1000,
+      quantityOut: reversalDate ? amount / 1000 : 0, date: reversalDate || doc.returnDate, inboundValue,
+      provenance: { type: 'issue_return', movementId: issueMovement?.id || null }, reversal: Boolean(reversalDate), original });
+    await tx.stockMovement.create({ data: { ...key, ...costs, movementType: reversalDate ? 'reversal' : 'in',
       qtyIn: reversalDate ? 0 : amount / 1000, qtyOut: reversalDate ? amount / 1000 : 0,
       sourceDocType: reversalDate ? 'stock_return_reversal' : 'stock_return', sourceDocId: doc.id, sourceDocNo: doc.returnNo,
       transactionDate: reversalDate || doc.returnDate, createdById: req.user.id, reversalRefId: original?.id || null,

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import type { CreditLine, CreditNote } from "@/lib/credit-note";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function creditPrintPages(items: CreditLine[]) {
@@ -70,7 +72,9 @@ export function CreditNoteDocument({ document: doc, company, onReady }: {
           ] as const).map(([label, value]) => <p key={label}><span>{label}</span><strong data-cn-fit>{last ? money(value) : ""}</strong></p>)}{!last && <small>ยอดรวมแสดงหน้าสุดท้าย</small>}</div>
         </section>
         <p className="cn-policy">ปรับลดมูลค่าหนี้เท่านั้น ไม่ใช่หลักฐานรับคืนสินค้า ไม่เปลี่ยน Stock และไม่ลงบัญชี GL</p>
-        <footer className="cn-signatures"><div><p>ผู้รับใบลดหนี้</p><span /><p>วันที่ ____/____/________</p></div><div><p data-cn-fit>ในนาม　{company.companyName || ""}</p><span /><p>ผู้มีอำนาจลงนาม</p></div><div><p>ผู้จัดทำ ____________</p><p>ผู้ตรวจสอบ ____________</p></div></footer>
+        <footer className="cn-signatures"><div><p>ผู้รับใบลดหนี้</p><span /><p>วันที่ ____/____/________</p></div><div><p data-cn-fit>ในนาม　{company.companyName || ""}</p><span /><p>ผู้มีอำนาจลงนาม</p></div>
+          <div>{hasApprovedActors(doc) ? <><p>ผู้อนุมัติ</p><AccountingApprovalSignatures document={doc} compact /></> :
+            <><p>ผู้จัดทำ ____________</p><p>ผู้ตรวจสอบ ____________</p></>}</div></footer>
       </article>;
     })}</div>
   </>;

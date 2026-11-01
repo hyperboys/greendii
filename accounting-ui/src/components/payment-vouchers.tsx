@@ -1,5 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -37,6 +38,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [error, setError] = useState("");
   const [saving, setSaving] = useState(false), [reload, setReload] = useState(0), [printReady, setPrintReady] = useState(false);
   const [action, setAction] = useState<VoucherAction | null>(null), [actionForm, setActionForm] = useState(newVoucherAction);
+  const [chainManaged, setChainManaged] = useState(false);
   const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
   const [category, setCategory] = useState<EvidenceCategory>("pv-document"), [files, setFiles] = useState<File[]>([]);
   const busy = useRef(false), requestKey = useRef(""), fileInput = useRef<HTMLInputElement>(null);
@@ -135,6 +137,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
     if (["draft", "returned", "pending", "approved"].includes(doc.status) && permissions.cancel && (!doc.paidAt || permissions.pay)
       && !doc.chequePayments.some(row => row.status !== "Cancelled")) actions.push("cancel");
   }
+  const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   const amounts = mode === "view" ? doc : source;
   return <div className="pv-page mx-auto max-w-[1480px]">
     <PaymentVoucherPrintStyles allowed={Boolean(printable)} />
@@ -144,7 +147,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
       <nav className="flex flex-wrap gap-2"><Link className={button} href={mode === "list" ? "/ap/vouchers?tab=ps" : voucherList}>{mode === "list" ? "ใบเบิกจ่าย PS" : "กลับรายการ PV"}</Link>
         {mode === "list" && permissions.create && <Link className={primary} href={`${base}/new`}>สร้าง PV</Link>}
         {mode === "view" && doc && editable && permissions.update && <Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>}
-        {actions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={saving || loading} onClick={() => { setAction(value); setActionForm(newVoucherAction()); }}>{actionLabel(value, Boolean(doc?.paidAt))}</button>)}
+        {visibleActions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={saving || loading} onClick={() => { setAction(value); setActionForm(newVoucherAction()); }}>{actionLabel(value, Boolean(doc?.paidAt))}</button>)}
         {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving} onClick={() => window.print()}>พิมพ์ PV</button>}
         {mode !== "list" && <button className={button} disabled={saving} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button>}
       </nav></header>
@@ -182,7 +185,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
     </form>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PV ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
-      <AccountingApprovalPanel docType="pv" document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} />
+      <AccountingApprovalPanel docType="pv" document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
       <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p>สถานะ: <strong>{voucherStatuses[doc.status] || doc.status}</strong> · <strong>{voucherPaymentLabel(doc)}</strong></p>
         <p>PS: {doc.lifecycleVersion === 1 ? <Link className="text-blue-700 underline" href={`/ap/vouchers/ps/${doc.sourceDocId}`}>{doc.sourceNo || doc.sourceDocId}</Link> : doc.sourceNo || doc.sourceDocId} · PO: {doc.poNo || "-"} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>

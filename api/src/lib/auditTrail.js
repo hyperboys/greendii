@@ -109,7 +109,9 @@ async function recordAuditLog(payload = {}, client = null) {
   };
 
   const dbClient = client || prisma;
-  return dbClient.auditLog.create({ data });
+  const audit = await dbClient.auditLog.create({ data });
+  await require('./accountingNotifications').notifyAccountingAudit(dbClient, audit, newValue, data.performedById);
+  return audit;
 }
 
 module.exports = {

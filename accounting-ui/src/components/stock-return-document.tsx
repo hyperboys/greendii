@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate as date } from "@/lib/accounting-date";
 import { returnStatuses, type StockReturn } from "@/lib/stock-return";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 import { fitStockDocument } from "./stock-issue-document";
 export { StockIssuePrintStyles as StockReturnPrintStyles } from "./stock-issue-document";
 export function StockReturnDocument({ document: doc, company, onReady }: {
@@ -34,7 +36,9 @@ export function StockReturnDocument({ document: doc, company, onReady }: {
       </tbody></table>
       <section className="is-note" data-is-fit>เหตุผลคืน {doc.returnReason} · หมายเหตุ {doc.remark || ""}{doc.cancellationReason ? `\nยกเลิก ${date(doc.cancelledAt)}: ${doc.cancellationReason}` : ""}</section>
       <p className="is-policy">Draft ไม่กันยอด · รออนุมัติกันสิทธิ์คืนจาก IS แต่ไม่เพิ่ม Stock · อนุมัติรับของจริงเพิ่ม Stock · ไม่รับของชำรุด / ไม่ลง GL</p>
-      <p className="is-approval" data-is-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · ช่องลงนามว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
-      <footer>{["ผู้ส่งคืน", "ผู้รับคืน", "ผู้อนุมัติ"].map(label => <div key={label}><p>{label}</p><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></div>)}</footer>
+      <p className="is-approval" data-is-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · แสดงลายเซ็นเฉพาะผู้อนุมัติจริง</p>
+      <footer>{["ผู้ส่งคืน", "ผู้รับคืน", "ผู้อนุมัติ"].map((label, index) => <div key={label}><p>{label}</p>
+        {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> :
+          <><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></>}</div>)}</footer>
     </article>)}</div></>;
 }

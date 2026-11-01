@@ -1,6 +1,7 @@
 const { invalid } = require('./deliveryOrder');
 const { boundedText } = require('./contractorPayment');
 const { milli, quantity } = require('./stockCard');
+const { movementCost } = require('./stockCost');
 
 const OPENING_MOVEMENTS = ['stock_opening_balance', 'stock_opening_balance_reversal'];
 const OPENING_INCLUDE = { items: { orderBy: { seq: 'asc' }, include: { product: true } }, warehouse: true };
@@ -224,7 +225,10 @@ async function postOpening(tx, doc, req) {
     if (delta < 0 && onHand - reserved < -delta) invalid(`สินค้า ${line.productSnapshot.code} มียอด available ไม่พอปรับลด โดยห้ามกินยอดจอง`, 409);
     const next = onHand + delta;
     if (!Number.isSafeInteger(next) || next < reserved || next > 999999999999) invalid('ยอด Stock เกินช่วงหรือกระทบยอดจอง', 409);
-    await tx.stockMovement.create({ data: { ...key, movementType: 'adjust', qtyIn: delta > 0 ? delta / 1000 : 0,
+    const costs = await movementCost(tx, { key, balance, quantityIn: delta > 0 ? delta / 1000 : 0,
+      quantityOut: delta < 0 ? -delta / 1000 : 0, date: openingAt(doc.cutoverDate),
+      provenance: { type: 'opening_unvalued', documentId: doc.id } });
+    await tx.stockMovement.create({ data: { ...key, ...costs, movementType: 'adjust', qtyIn: delta > 0 ? delta / 1000 : 0,
       qtyOut: delta < 0 ? -delta / 1000 : 0, sourceDocType: 'stock_opening_balance', sourceDocId: doc.id,
       sourceDocNo: doc.openingNo, transactionDate: openingAt(doc.cutoverDate), createdById: req.user.id,
       remark: `ผลต่างยอดยกมา ${doc.openingNo}` } });
@@ -265,7 +269,9 @@ async function reverseOpening(tx, doc, req, cancellationDate, reason) {
     const next = onHand - amount;
     if (amount > 0 && onHand - reserved < amount) invalid(`สินค้า ${line.productSnapshot.code} มียอด available ไม่พอกลับรายการ`, 409);
     if (!Number.isSafeInteger(next) || next < reserved || next > 999999999999) invalid('ยอด Stock เกินช่วงหรือกระทบยอดจอง', 409);
-    await tx.stockMovement.create({ data: { ...key, movementType: 'reversal', qtyIn: amount < 0 ? -amount / 1000 : 0,
+    const costs = await movementCost(tx, { key, balance, quantityIn: amount < 0 ? -amount / 1000 : 0,
+      quantityOut: amount > 0 ? amount / 1000 : 0, date: latest, reversal: true, original });
+    await tx.stockMovement.create({ data: { ...key, ...costs, movementType: 'reversal', qtyIn: amount < 0 ? -amount / 1000 : 0,
       qtyOut: amount > 0 ? amount / 1000 : 0, sourceDocType: 'stock_opening_balance_reversal', sourceDocId: doc.id,
       sourceDocNo: doc.openingNo, transactionDate: latest, createdById: req.user.id, reversalRefId: original.id, remark: reason } });
     await tx.stockBalance.update({ where: { warehouseId_productId: key },
@@ -282,4 +288,4 @@ async function openingAudit(tx, req, action, previous, doc, reason) {
 
 module.exports = { OPENING_INCLUDE, OPENING_MOVEMENTS, dateOnly, dateString, cutoverStart, openingAt,
   quantityInput, openingInput, lockOpening, lockWarehouse, lockControl, assertNoActiveDuplicate, openingData,
-  stockOpeningSnapshot, submittedItems, assertSubmittedBaselineUnchanged, postOpening, reverseOpening, openingAudit };
+  stockOpeningSnapshot, submittedItems, assertSubmittedBaselineUnchanged, assertBalance, postOpening, reverseOpening, openingAudit };

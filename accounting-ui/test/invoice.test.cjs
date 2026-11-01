@@ -9,7 +9,10 @@ const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(parts, imports = {}) {
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
-  imports["@/lib/accounting-approval"] = { isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft" };
+  imports["@/lib/accounting-approval"] = {
+    isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft",
+    legacyApprovalControlVisible: (_action, chainManaged) => !chainManaged,
+  };
   const filename = path.join(__dirname, "..", "src", ...parts);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename }).outputText;
   const module = { exports: {} };
@@ -80,13 +83,13 @@ test("SO-linked Invoice Drafts allow editing copied fields, customer and saved S
       ...React,
       useState(initial) {
         const index = cursor++;
-        const value = index === 1 ? saved : index === 2 ? invoices.invoiceForm(saved)
-          : index === 3 ? [{ id: "customer", code: "C1", name: "Customer", branches: [{ id: "branch", name: "Branch" }] }]
+        const value = index === 1 ? saved : index === 2 ? false : index === 3 ? invoices.invoiceForm(saved)
+          : index === 4 ? [{ id: "customer", code: "C1", name: "Customer", branches: [{ id: "branch", name: "Branch" }] }]
           : initial === true ? false : initial;
         const [state] = React.useState(value);
-        if (index === 2) currentForm = state;
+        if (index === 3) currentForm = state;
         return [state, update => {
-          if (index === 2) currentForm = typeof update === "function" ? update(currentForm) : update;
+          if (index === 3) currentForm = typeof update === "function" ? update(currentForm) : update;
         }];
       },
     },

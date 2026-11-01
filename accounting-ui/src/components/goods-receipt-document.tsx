@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate as date } from "@/lib/accounting-date";
 import { receiptStatuses, type GoodsReceipt } from "@/lib/goods-receipt";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 export function GoodsReceiptDocument({ document: doc, company, onReady }: {
   document: GoodsReceipt; company: PurchaseOrderCompanySettings; onReady?: (ready: boolean) => void;
 }) {
@@ -42,8 +44,10 @@ export function GoodsReceiptDocument({ document: doc, company, onReady }: {
           {[item.orderedQty, item.previouslyReceivedQty, item.pendingQty, item.currentReceiptQty, item.remainingQty].map((value, i) => <td key={i} data-gr-fit>{Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 })}</td>)}</tr>)}</tbody></table>
       <section className="gr-note" data-gr-fit>หมายเหตุ {doc.remark || ""}{doc.cancellationReason ? `\nยกเลิก ${date(doc.cancelledAt)}: ${doc.cancellationReason}` : ""}</section>
       <p className="gr-policy">ยอดจำนวนเป็น snapshot ณ บันทึก/ส่งตรวจ/อนุมัติ ไม่ใช่ Stock ปัจจุบัน · บริการไม่เพิ่ม Stock · ไม่ลง GL</p>
-      <p className="gr-approval" data-gr-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · ช่องลงนามว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
-      <footer>{["ผู้ส่ง", "ผู้รับ / ตรวจรับ", "ผู้อนุมัติ"].map(label => <div key={label}><p>{label}</p><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></div>)}</footer>
+      <p className="gr-approval" data-gr-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · แสดงลายเซ็นเฉพาะผู้อนุมัติจริง</p>
+      <footer>{["ผู้ส่ง", "ผู้รับ / ตรวจรับ", "ผู้อนุมัติ"].map((label, index) => <div key={label}><p>{label}</p>
+        {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> :
+          <><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></>}</div>)}</footer>
     </article>)}</div>
   </>;
 }

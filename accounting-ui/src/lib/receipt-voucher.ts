@@ -20,6 +20,9 @@ export type ReceiptInput = {
 export type ReceiptVoucher = Omit<ReceiptInput, "chequeNo" | "chequeDate"> & {
   accountingApproval?: import("./accounting-approval").ApprovalSnapshot | null;
   chequeNo: string | null; chequeDate: string | null;
+  receivedChequeState?: "received" | "deposited" | "cleared" | "dishonoured" | "cancelled" | null;
+  chequeDepositedAt?: string | null; chequeClearedAt?: string | null; chequeDishonouredAt?: string | null;
+  chequeDepositBank?: string | null; chequeDepositRef?: string | null; chequeDishonourReason?: string | null;
   id: string; rvNo: string; lifecycleVersion: number; status: string; updatedAt: string; confirmedAt?: string | null;
   totalReceived: number | string; whtAmount: number | string; bankFee: number | string;
   customerName: string | null; customerCode: string | null; customer?: { name: string; code: string | null };

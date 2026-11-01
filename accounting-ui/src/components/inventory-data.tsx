@@ -10,7 +10,8 @@ import { formatAccountingDateTime } from "@/lib/accounting-date";
 import { DateInput } from "@/components/date-input";
 import { StockCardApi, exportStockCard, stockCardDefaults, type StockCardFilters, type StockCardLookups, type StockCardMovement, type StockCardReport } from "@/lib/stock-card";
 type Product = { code?: string; name?: string; unit?: string; productType?: string };
-type Balance = { id: string; warehouseId: string; warehouse?: { name: string }; product?: Product; onHand: string | number; reserved: string | number; available: string | number };
+type Balance = { id: string; warehouseId: string; warehouse?: { name: string }; product?: Product; onHand: string | number; reserved: string | number; available: string | number;
+  lowStockThreshold?: string | number | null; lowStock?: boolean; valuationStatus?: string; totalValue?: string | null; averageCost?: string | null };
 const control = "rounded border bg-white px-3 py-2 text-sm";
 const button = "rounded border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40";
 const number = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 3 });
@@ -51,6 +52,8 @@ export function InventoryData({ activeTab }: { activeTab: "balances" | "movement
     <header className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-bold text-blue-600">Inventory &amp; Store</p>
       <h1 className="text-2xl font-bold">คลังสินค้า &amp; การ์ดสินค้า (Stock Card)</h1><p className="text-sm text-gray-600">ยอดยกมาต้นช่วง · รับเข้า · จ่ายออก · ยอดสะสม แยกสินค้าและคลัง</p></div>
       <div className="flex flex-wrap gap-2"><Link href="/inventory?tab=issues" className={button}>ทะเบียนใบเบิก</Link>
+        <Link href="/inventory/transfers" className={button}>โอนระหว่างคลัง</Link>
+        <Link href="/inventory/costs" className={button}>ต้นทุน / จุดเตือนสต็อก</Link>
         <Link href="/inventory?tab=returns" className={button}>ทะเบียนใบคืน</Link>
         <Link href="/inventory?tab=opening-balances" className={button}>ยอดยกมา (OB)</Link>
         {canCreate && <Link href="/inventory/issues/new" className="rounded bg-blue-600 px-4 py-2 text-white">ทำรายการเบิกสินค้า</Link>}</div></header>
@@ -71,9 +74,11 @@ export function InventoryData({ activeTab }: { activeTab: "balances" | "movement
     {loading && <p role="status">กำลังโหลดข้อมูลสต็อก...</p>}
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-700">{error} <button className={button} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button></p>}
     {!loading && !error && <div className="space-y-4">
-      {activeTab === "balances" ? <div className="overflow-x-auto rounded border bg-white"><table className="w-full min-w-[750px] text-left text-sm"><thead><tr><th className="p-3">คลัง</th><th>สินค้า</th><th>ประเภท</th><th>On Hand</th><th>Reserved</th><th>Available</th></tr></thead>
+      {activeTab === "balances" ? <div className="overflow-x-auto rounded border bg-white"><table className="w-full min-w-[950px] text-left text-sm"><thead><tr><th className="p-3">คลัง</th><th>สินค้า</th><th>ประเภท</th><th>On Hand</th><th>Reserved</th><th>Available / จุดเตือน</th><th>มูลค่า / เฉลี่ย</th></tr></thead>
         <tbody>{balances.map(row => <tr key={row.id} className="border-t"><td className="p-3">{row.warehouse?.name || row.warehouseId}</td><td>{row.product?.name}<br />{row.product?.code}</td><td>{row.product?.productType}</td>
-          <td>{n(row.onHand)} {row.product?.unit}</td><td>{n(row.reserved)}</td><td className="font-bold">{n(row.available)}</td></tr>)}</tbody></table>{!balances.length && <p className="p-4">ยังไม่มีข้อมูลสินค้าคงเหลือในคลัง</p>}</div> :
+          <td>{n(row.onHand)} {row.product?.unit}</td><td>{n(row.reserved)}</td><td className={row.lowStock ? "font-bold text-red-700" : "font-bold"}>{n(row.available)}
+            {row.lowStock && <span role="status" className="block">⚠ ต่ำกว่าหรือเท่าจุดเตือน {String(row.lowStockThreshold)}</span>}</td>
+          <td>{row.valuationStatus === "valued" ? <>{row.totalValue} / {row.averageCost}</> : <Link href="/inventory/costs" className="text-amber-800">{row.valuationStatus === "blocked" ? "ฐานต้นทุนไม่ตรงจำนวน" : "ยังไม่ตีมูลค่า"}</Link>}</td></tr>)}</tbody></table>{!balances.length && <p className="p-4">ยังไม่มีข้อมูลสินค้าคงเหลือในคลัง</p>}</div> :
         report && <>
           <section className="overflow-x-auto rounded border bg-white">
             <h3 className="px-3 pt-3 font-bold">สรุปยอดตามสินค้าและคลัง · {report.from} ถึง {report.to}</h3>

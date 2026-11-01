@@ -7,10 +7,10 @@ function createContractorPaymentApp() {
     vat: 700, netAmount: 10700, vatConfig: 'VAT7%', status: 'draft', supplierId: supplier.id, supplier,
     supplierBranch: 'Head office', address: 'Saved address', contactPerson: 'Contact', supplierSnapshot: { name: supplier.name, code: supplier.code } };
   let state = { purchaseOrder: [po], goodsReceipt: [], accountProduct: [], warehouse: [], stockBalance: [], stockMovement: [],
-    stockIssue: [], stockReturn: [], stockOpeningBalance: [], stockOpeningControl: [], workOrder: [],
-    contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [],
+    stockIssue: [], stockReturn: [], stockOpeningBalance: [], stockOpeningControl: [], stockTransfer: [], stockValuation: [], stockCostInitialization: [], workOrder: [],
+    contractorPaymentRequest: [], paymentVoucher: [], chequePayment: [], attachment: [], auditLog: [], accountingNotification: [],
     accountingApprovalConfig: [], accountingApprovalSignature: [], sequence: 0 };
-  let failAudit = false, queue = Promise.resolve();
+  let failAudit = false, failNotification = false, queue = Promise.resolve();
   const locks = [], storageOperations = [];
   const permissions = {
     maker: ['ap.view', 'ap.create', 'ap.update', 'ap.cancel', 'ap.approve', 'ap.pay', 'inventory.view', 'inventory.create', 'inventory.update', 'inventory.approve', 'inventory.cancel'],
@@ -80,7 +80,7 @@ function createContractorPaymentApp() {
     },
   };
   for (const model of ['purchaseOrder', 'goodsReceipt', 'accountProduct', 'warehouse', 'stockBalance', 'stockMovement', 'stockIssue', 'stockReturn',
-    'stockOpeningBalance', 'stockOpeningControl', 'workOrder',
+    'stockOpeningBalance', 'stockOpeningControl', 'stockTransfer', 'stockValuation', 'stockCostInitialization', 'workOrder',
     'contractorPaymentRequest', 'paymentVoucher', 'chequePayment', 'attachment', 'auditLog',
     'accountingApprovalConfig', 'accountingApprovalSignature']) prisma[model] = {
     findMany: async ({ where, skip = 0, take, orderBy } = {}) => {
@@ -137,7 +137,7 @@ function createContractorPaymentApp() {
       }
       const now = new Date(Date.now() + ++state.sequence);
       const row = hydrate({ ...(model === 'paymentVoucher' ? { paidAt: null, reversedAt: null, taxpayerType: null, taxDescription: null } : {}),
-        ...data, id: model === 'stockOpeningControl' ? data.id : `${model}-${state.sequence}`,
+        ...data, id: data.id || `${model}-${state.sequence}`,
         updatedAt: now, createdAt: now, uploadedAt: now });
       if (model === 'auditLog') row.performedBy = { fullName: data.performedById };
       state[model].push(row);
@@ -163,6 +163,22 @@ function createContractorPaymentApp() {
       return hydrate(row);
     },
   };
+  prisma.accountingNotification = {
+    createMany: async ({ data, skipDuplicates = false }) => {
+      if (failNotification) throw new Error('Notification unavailable');
+      let count = 0;
+      for (const entry of data) {
+        const duplicate = state.accountingNotification.some(row => row.eventId === entry.eventId && row.userId === entry.userId);
+        if (duplicate) {
+          if (skipDuplicates) continue;
+          throw Object.assign(new Error('Duplicate notification'), { code: 'P2002' });
+        }
+        state.accountingNotification.push({ ...structuredClone(entry), id: `notification-${++state.sequence}` });
+        count += 1;
+      }
+      return { count };
+    },
+  };
   prisma.supplier = { findUnique: async () => supplier };
   prisma.purchaseOrderLine = { deleteMany: async () => ({ count: 0 }) };
   prisma.purchaseOrderPurchaseRequest = { deleteMany: async () => ({ count: 0 }) };
@@ -171,7 +187,7 @@ function createContractorPaymentApp() {
     '../../src/lib/runningNumber', '../../src/lib/auditTrail', '../../src/lib/accountingMaster', '../../src/lib/paymentVoucher',
     '../../src/lib/chequePayment', '../../src/routes/cheque-payments', '../../src/lib/purchaseOrderApproval', '../../src/lib/goodsReceipt', '../../src/routes/goods-receipts',
     '../../src/lib/stockIssue', '../../src/routes/stock-issues', '../../src/lib/stockReturn', '../../src/routes/stock-returns',
-    '../../src/lib/stockOpeningBalance', '../../src/routes/stock-opening-balances', '../../src/routes/inventory',
+    '../../src/lib/stockOpeningBalance', '../../src/routes/stock-opening-balances', '../../src/routes/stock-transfers', '../../src/routes/inventory-costs', '../../src/routes/inventory',
     '../../src/routes/ap', '../../src/routes/contractor-payments', '../../src/routes/payment-vouchers', '../../src/routes/upload']) {
     delete require.cache[require.resolve(file)];
   }
@@ -194,6 +210,7 @@ function createContractorPaymentApp() {
   app.use('/api/upload', require('../../src/routes/upload'));
   app.use((error, _req, res, _next) => res.status(error.status || (error.code === 'P2002' ? 409 : 500)).json({ message: error.message }));
   return { app, prisma, locks, storageOperations, state: () => state, failAudit: value => { failAudit = value; },
+    failNotification: value => { failNotification = value; },
     token: (id = 'maker') => jwt.sign({ sub: id }, process.env.JWT_SECRET) };
 }
 module.exports = { createContractorPaymentApp };

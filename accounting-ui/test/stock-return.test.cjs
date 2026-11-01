@@ -2,6 +2,8 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), path = re
 const vm = require('node:vm'), ts = require('typescript'), React = require('react'), { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}, globals = {}) {
   imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
+  imports['@/lib/accounting-approval'] = { hasApprovedActors: () => false, ...(imports['@/lib/accounting-approval'] || {}) };
+  imports['./accounting-approval-signatures'] = { AccountingApprovalSignatures: () => null };
   const filename = path.join(__dirname, '..', 'src', ...parts), module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
   vm.runInNewContext(code, { module, exports: module.exports, URLSearchParams, ...globals,

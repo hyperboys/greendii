@@ -1,5 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -41,6 +42,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [error, setError] = useState("");
   const [saving, setSaving] = useState(false), [reload, setReload] = useState(0);
   const [action, setAction] = useState<PaymentAction | null>(null), [reason, setReason] = useState("");
+  const [chainManaged, setChainManaged] = useState(false);
   const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
   const [printReady, setPrintReady] = useState(false);
   const busy = useRef(false), requestKey = useRef("");
@@ -130,6 +132,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
     }
     if (["draft", "returned", "pending", "approved"].includes(doc.status) && canCancel) actions.push("cancel");
   }
+  const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   return <div className="ps-page mx-auto max-w-370">
     <ContractorPaymentPrintStyles allowed={Boolean(printable)} />
     <header className="ps-no-print mb-5 flex flex-wrap justify-between gap-3">
@@ -139,7 +142,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
         <Link className={button} href={mode === "list" ? "/ap/vouchers" : paymentList}>{mode === "list" ? "ใบสั่งซื้อ PO" : "กลับรายการ PS"}</Link>
         {mode === "list" && canCreate && <Link className={primary} href={`${base}/new`}>สร้าง PS</Link>}
         {mode === "view" && doc && editable && canEdit && <Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>}
-        {actions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={loading || saving} onClick={() => { setAction(value); setReason(""); }}>{paymentActions[value]}</button>)}
+        {visibleActions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={loading || saving} onClick={() => { setAction(value); setReason(""); }}>{paymentActions[value]}</button>)}
         {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving} onClick={() => window.print()}>พิมพ์ PS</button>}
         {mode !== "list" && <button className={button} disabled={saving} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button>}
       </nav>
@@ -191,7 +194,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
     </form>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PS ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
-      <AccountingApprovalPanel docType="ps" document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} />
+      <AccountingApprovalPanel docType="ps" document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
       <section className="ps-no-print mb-4 space-y-2 rounded border bg-white p-4"><p>สถานะ: <strong>{paymentStatuses[doc.status] || doc.status}</strong> · รอบ {doc.paymentRound}</p><p>PO: {doc.poNo || doc.poId} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>
         <p>ก่อน VAT {money(doc.currentRequestAmount)} · VAT {money(doc.vat)} · WHT {money(doc.wht)} · ประกัน {money(doc.retention)} · สุทธิ {money(doc.netAmount)}</p>
         <p>ยอดสะสม/คงเหลือบนเอกสารเป็นข้อมูล ณ บันทึกหรือส่ง/อนุมัติครั้งล่าสุด ไม่ใช่ยอดคงเหลือสด</p>

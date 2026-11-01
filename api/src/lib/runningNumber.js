@@ -36,6 +36,10 @@ const DOC_PATTERNS = {
   sr:                          { prefix: 'SR', padLen: 4, separator: '',  periodType: 'YYMM' },
   stock_opening_balance:       { prefix: 'OB', padLen: 4, separator: '',  periodType: 'YYMM' },
   ob:                          { prefix: 'OB', padLen: 4, separator: '',  periodType: 'YYMM' },
+  stock_transfer:              { prefix: 'TR', padLen: 4, separator: '',  periodType: 'YYMM' },
+  tr:                          { prefix: 'TR', padLen: 4, separator: '',  periodType: 'YYMM' },
+  supplier_bill:               { prefix: 'SB', padLen: 4, separator: '',  periodType: 'YYMM' },
+  sb:                          { prefix: 'SB', padLen: 4, separator: '',  periodType: 'YYMM' },
 };
 
 /**

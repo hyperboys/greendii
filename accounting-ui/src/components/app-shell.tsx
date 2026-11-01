@@ -34,6 +34,7 @@ import {
 const navigation = [
   { href: "/dashboard", label: "ภาพรวมบัญชี", icon: LayoutDashboard },
   { href: "/approvals", label: "รอฉันอนุมัติ", icon: FileText },
+  { href: "/notifications", label: "การแจ้งเตือน", icon: FileText },
   { href: "/ar", label: "ลูกหนี้ / รับชำระเงิน", icon: FileText, children: [
     ...invoiceTabs.map(tab => ({ ...tab, href: `/ar/invoices?tab=${tab.id}` })),
     { id: "creditNotes", label: "ใบลดหนี้", href: "/ar/credit-notes" },
@@ -209,6 +210,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             {access?.isAdmin && (
               <Link href="/settings/access" aria-label="บทบาท & สิทธิ์ Accounting" title={collapsed ? "บทบาท & สิทธิ์ Accounting" : undefined} onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/settings/access") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
                 <Settings size={18} className="shrink-0" /><span className={collapsed ? "lg:hidden" : undefined}>บทบาท & สิทธิ์ Accounting</span>
+              </Link>
+            )}
+            {access?.isAdmin && (
+              <Link href="/settings/logs" aria-label="บันทึกกิจกรรม Accounting" title={collapsed ? "บันทึกกิจกรรม Accounting" : undefined} onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/settings/logs") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+                <FileText size={18} className="shrink-0" /><span className={collapsed ? "lg:hidden" : undefined}>บันทึกกิจกรรม Accounting</span>
+              </Link>
+            )}
+            {access?.isAdmin && (
+              <Link href="/settings/gl" aria-label="ตั้งค่า GL" title={collapsed ? "ตั้งค่า GL" : undefined} onClick={() => setOpen(false)} className={`flex min-h-11 w-full items-center gap-3 rounded-r-xl border-l-[3px] px-3 py-2 text-[15px] ${pathname.startsWith("/settings/gl") ? "border-white bg-[#054cbd] shadow-sm" : "border-transparent hover:bg-[#054cbd]"}`}>
+                <BookOpenText size={18} className="shrink-0" /><span className={collapsed ? "lg:hidden" : undefined}>ตั้งค่า GL</span>
               </Link>
             )}
           </div>

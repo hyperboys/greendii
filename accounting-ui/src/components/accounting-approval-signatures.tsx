@@ -2,9 +2,30 @@ import Image from "next/image";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import { latestApprovalCycle, signatureText, type ApprovalDocumentFields } from "@/lib/accounting-approval";
 
-export function AccountingApprovalSignatures({ document }: { document: ApprovalDocumentFields }) {
+export function AccountingApprovalSignatures({ document, compact = false }: { document: ApprovalDocumentFields; compact?: boolean }) {
   const cycle = latestApprovalCycle(document);
   if (!cycle || cycle.state === "legacy") return null;
+  if (compact) {
+    if (!cycle.approvals.length) return null;
+    const columns = Math.min(cycle.approvals.length, 4);
+    return <div className="accounting-approval-signatures accounting-approval-signatures-compact" style={{
+      display: "grid", gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+      gridTemplateRows: `repeat(${Math.ceil(cycle.approvals.length / columns)}, minmax(0, 1fr))`,
+      gap: "0.5mm", width: "100%", height: "100%", minHeight: 0, overflow: "hidden",
+    }}>
+      {cycle.approvals.map(actor => <div key={actor.step} style={{
+        display: "flex", flexDirection: "column", justifyContent: "center", minWidth: 0, minHeight: 0,
+        overflow: "hidden", textAlign: "center", lineHeight: 1.05,
+      }}>
+        {actor.signatureUrl ? <Image unoptimized src={actor.signatureUrl} alt={`ลายเซ็น ${actor.fullName}`}
+          width={80} height={16} style={{ width: "100%", height: "4mm", objectFit: "contain" }} /> :
+          <span style={{ fontFamily: "var(--font-signature, 'Brush Script MT', 'Dancing Script', cursive)",
+            fontStyle: "italic", fontSize: "7pt", maxHeight: "4mm", overflow: "hidden", overflowWrap: "anywhere" }}>{signatureText(actor)}</span>}
+        <span style={{ fontSize: "5pt", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{actor.fullName}</span>
+        <span style={{ fontSize: "4pt" }}>{formatAccountingDate(actor.approvedAt)}</span>
+      </div>)}
+    </div>;
+  }
   return <div className="accounting-approval-signatures" style={{ display: "grid",
     gridTemplateColumns: `repeat(${Math.min(cycle.steps.length, 4)}, minmax(0, 1fr))`, gap: "2mm" }}>
     {cycle.steps.map((step, index) => {

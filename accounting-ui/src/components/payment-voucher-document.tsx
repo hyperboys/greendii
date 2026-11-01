@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import { voucherPaymentLabel, voucherStatuses, type PaymentVoucher, type VoucherLine } from "@/lib/payment-voucher";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function voucherPrintPages(items: VoucherLine[]) {
@@ -64,7 +66,8 @@ export function PaymentVoucherDocument({ document: doc, company, onReady }: {
           <tbody><tr><td><div data-pv-fit>{doc.paymentMethod === "cash" ? "เงินสด" : doc.paymentMethod === "transfer" ? "โอน" : doc.paidAt ? "เช็ค" : "เช็ค (รอส่งมอบ)"}</div></td><td><div data-pv-fit>{doc.payerBank || ""}</div></td><td><div data-pv-fit>{doc.payeeBank || doc.recipient || ""}</div></td><td><div data-pv-fit>{doc.paymentReference || doc.chequePayments.filter(row => row.status !== "Cancelled").map(row => row.chequeNo).join(", ")}</div></td><td>{formatAccountingDate(doc.paidAt)}</td><td>{last ? money(doc.netPayment) : ""}</td></tr></tbody></table>
         <p className="pv-reversal" data-pv-fit>{doc.reversedAt ? `กลับรายการจ่าย ${formatAccountingDate(doc.reversedAt)} · อ้างอิง ${doc.reversalReference}` : ""}</p>
         <p className="pv-policy">ตารางเดบิต/เครดิตเป็นสรุปการจัดสรรตาม PS เท่านั้น ไม่ลง GL · ช่องรหัสบัญชี/แผนก/โครงการเว้นว่าง · อนุมัติไม่ใช่การจ่ายเงินจริง</p>
-        <footer className="pv-signatures">{["ผู้เตรียม (Prepared by)", "ผู้ตรวจ (Checked by)", "ผู้อนุมัติ (Approved by)", "ผู้ลงบัญชี (Posted by)", "ผู้รับเงิน / ผู้จ่ายเงิน"].map(label => <div key={label}><p>{label}</p><span /></div>)}</footer>
+        <footer className="pv-signatures">{["ผู้เตรียม (Prepared by)", "ผู้ตรวจ (Checked by)", "ผู้อนุมัติ (Approved by)", "ผู้ลงบัญชี (Posted by)", "ผู้รับเงิน / ผู้จ่ายเงิน"].map((label, index) => <div key={label}><p>{label}</p>
+          {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> : <span />}</div>)}</footer>
       </article>;
     })}</div>
   </>;

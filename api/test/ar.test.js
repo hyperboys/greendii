@@ -131,7 +131,11 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
       },
     },
     billingNoteInvoice: { count: async ({ where }) => state.bi.filter(id => id === where.invoiceId).length, findMany: async () => [] },
-    receiptAllocation: { findMany: async () => [], count: async ({ where }) => state.rv.filter(id => id === where.invoiceId).length },
+    receiptAllocation: { findMany: async () => [], count: async ({ where }) => where.receiptVoucher?.receivedChequeState
+      ? state.rvDocs.filter(doc => doc.paymentMethod === 'cheque' && doc.status === 'approved' &&
+        where.receiptVoucher.receivedChequeState.in.includes(doc.receivedChequeState))
+        .flatMap(doc => doc.allocations).filter(row => row.invoiceId === where.invoiceId).length
+      : state.rv.filter(id => id === where.invoiceId).length },
     creditNote: {
       count: async ({ where }) => state.cn.filter(id => id === where.invoiceId).length,
       findMany: async () => [],
@@ -474,6 +478,7 @@ test('Billing Note HTTP partial lifecycle: reservations, source balances, cancel
       },
     },
     receiptAllocation: { findMany: async () => [], count: async ({ where }) => {
+      if (where.receiptVoucher.receivedChequeState) return 0;
       assert.ok(where.OR[1].receiptVoucher.OR[0].confirmedAt.gte);
       assert.equal(where.receiptVoucher.status, 'approved');
       return Number(state.receipt);
@@ -847,6 +852,7 @@ test('CN HTTP lifecycle: authoritative lines/VAT, cumulative limits, BI/RV guard
       return Number(state.laterBI);
     } },
     receiptAllocation: { findMany: async () => [], count: async ({ where }) => {
+      if (where.receiptVoucher.receivedChequeState) return 0;
       assert.equal(where.receiptVoucher.status, 'approved');
       assert.ok(where.receiptVoucher.OR[0].confirmedAt.gte);
       return Number(state.laterRV);

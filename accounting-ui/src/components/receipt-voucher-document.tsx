@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import { receiptTotals, type ReceiptLine, type ReceiptVoucher } from "@/lib/receipt-voucher";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function receiptPrintPages(rows: ReceiptLine[]) {
@@ -81,7 +83,8 @@ export function ReceiptVoucherDocument({ document: doc, company, onReady }: {
         </table>
         <p className="rv-remark" data-rv-fit>หมายเหตุ : {doc.remark || ""}</p>
         <p className="rv-not-gl">แสดงสรุปการรับชำระ ไม่ใช่การลงบัญชี GL · เว้นรหัสบัญชี แผนก และโครงการไว้ตรวจสอบ</p>
-        <div className="rv-signatures">{["ผู้เตรียม (Prepared by)", "ผู้ตรวจ (Checked by)", "ผู้อนุมัติ (Approved by)", "ผู้ลงบัญชี (Posted by)", "ผู้รับเงิน / ผู้จ่ายเงิน"].map(label => <div key={label}><p>{label}</p><span /></div>)}</div>
+        <div className="rv-signatures">{["ผู้เตรียม (Prepared by)", "ผู้ตรวจ (Checked by)", "ผู้อนุมัติ (Approved by)", "ผู้ลงบัญชี (Posted by)", "ผู้รับเงิน / ผู้จ่ายเงิน"].map((label, index) => <div key={label}><p>{label}</p>
+          {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> : <span />}</div>)}</div>
       </article>;
     })}</div>
   </>;

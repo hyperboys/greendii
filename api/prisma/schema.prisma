@@ -69,6 +69,7 @@ model User {
   purchaseRequests   PurchaseRequest[]
   approvalLogs       ApprovalLog[]
   notifications      Notification[]
+  accountingNotifications AccountingNotification[]
   activityLogs       ActivityLog[]
   sentEmailLogs      EmailLog[]
   customers          Customer[]
@@ -340,6 +341,7 @@ model Supplier {
   contractorPaymentRequests ContractorPaymentRequest[]
   goodsReceipts             GoodsReceipt[]
   paymentVouchers           PaymentVoucher[]
+  supplierBills             SupplierBill[]
   branches                  SupplierBranch[]
 
   @@map("suppliers")
@@ -447,6 +449,7 @@ model StockBalance {
   onHand      Decimal        @default(0) @map("on_hand") @db.Decimal(12, 3)
   reserved    Decimal        @default(0) @db.Decimal(12, 3)
   available   Decimal        @default(0) @db.Decimal(12, 3)
+  lowStockThreshold Decimal? @map("low_stock_threshold") @db.Decimal(12, 3)
   createdAt   DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
 
@@ -466,6 +469,17 @@ model ChartOfAccount {
   updatedAt      DateTime @updatedAt @db.Timestamptz(3)
 
   @@map("chart_of_accounts")
+}
+
+model AccountingGlConfiguration {
+  id                   String   @id @default("main")
+  revision             Int      @default(0)
+  fiscalYearStartMonth  Int      @default(1) @map("fiscal_year_start_month")
+  mappings             Json     @default("[]")
+  policyNotes          String   @default("") @map("policy_notes")
+  updatedAt            DateTime @updatedAt @db.Timestamptz(3)
+
+  @@map("accounting_gl_configuration")
 }
 
 // ─────────────────────────────────────────────
@@ -877,6 +891,25 @@ model Notification {
   @@map("notifications")
 }
 
+model AccountingNotification {
+  id         String    @id @default(cuid())
+  userId     String    @map("user_id")
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventId    String    @map("event_id")
+  module     String
+  docType    String    @map("doc_type")
+  documentId String    @map("document_id")
+  docNo      String?   @map("doc_no")
+  action     String
+  text       String
+  readAt     DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([eventId, userId])
+  @@index([userId, module, readAt, createdAt])
+  @@map("accounting_notifications")
+}
+
 model EmailLog {
   id            String       @id @default(cuid())
   workOrderId   String?
@@ -1277,6 +1310,13 @@ model ReceiptVoucher {
   refNo         String?          @map("ref_no")
   chequeNo      String?          @map("cheque_no")
   chequeDate    DateTime?        @map("cheque_date") @db.Timestamptz(3)
+  receivedChequeState String?    @map("received_cheque_state")
+  chequeDepositedAt DateTime?    @map("cheque_deposited_at") @db.Timestamptz(3)
+  chequeClearedAt DateTime?      @map("cheque_cleared_at") @db.Timestamptz(3)
+  chequeDishonouredAt DateTime?  @map("cheque_dishonoured_at") @db.Timestamptz(3)
+  chequeDepositBank String?      @map("cheque_deposit_bank")
+  chequeDepositRef String?       @map("cheque_deposit_ref")
+  chequeDishonourReason String?  @map("cheque_dishonour_reason")
   totalReceived Decimal          @default(0) @map("total_received") @db.Decimal(12, 2)
   whtAmount     Decimal          @default(0) @map("wht_amount") @db.Decimal(12, 2)
   bankFee       Decimal          @default(0) @map("bank_fee") @db.Decimal(12, 2)
@@ -1290,6 +1330,7 @@ model ReceiptVoucher {
   allocations ReceiptAllocation[]
   attachments Attachment[]
 
+  @@index([receivedChequeState, chequeDate], map: "receipt_vouchers_received_cheque_idx")
   @@map("receipt_vouchers")
 }
 
@@ -1482,6 +1523,8 @@ model GoodsReceipt {
 }
 
 model GoodsReceiptLine {
+  unitCost              Decimal? @map("unit_cost") @db.Decimal(38, 12)
+  costEvidence          String?  @map("cost_evidence")
   id                    String          @id @default(cuid())
   goodsReceiptId        String          @map("goods_receipt_id")
   goodsReceipt          GoodsReceipt    @relation(fields: [goodsReceiptId], references: [id], onDelete: Cascade)
@@ -1553,6 +1596,7 @@ model PaymentVoucher {
   items          PaymentVoucherLine[]
   chequePayments ChequePayment[]
   attachments    Attachment[]
+  supplierBillSettlements SupplierBillSettlement[]
 
   @@index([sourceDocType, sourceDocId])
   @@map("payment_vouchers")
@@ -1776,6 +1820,12 @@ model StockOpeningBalanceLine {
 }
 
 model StockMovement {
+  costStatus      String         @default("unvalued") @map("cost_status")
+  valueIn         Decimal?       @map("value_in") @db.Decimal(38, 12)
+  valueOut        Decimal?       @map("value_out") @db.Decimal(38, 12)
+  balanceValue    Decimal?       @map("balance_value") @db.Decimal(38, 12)
+  averageCost     Decimal?       @map("average_cost") @db.Decimal(38, 12)
+  costProvenance  Json?          @map("cost_provenance")
   id              String         @id @default(cuid())
   movementType    String         @map("movement_type") // in | out | adjust | reversal
   productId       String         @map("product_id")
@@ -1797,4 +1847,144 @@ model StockMovement {
   @@index([sourceDocType, sourceDocId])
   @@index([transactionDate])
   @@map("stock_movements")
+}
+
+model StockValuation {
+  id             String   @id @default(cuid())
+  warehouseId    String   @map("warehouse_id")
+  productId      String   @map("product_id")
+  status         String   @default("unvalued")
+  quantity       Decimal  @db.Decimal(12, 3)
+  totalValue     Decimal? @map("total_value") @db.Decimal(38, 12)
+  lastMovementId String?  @map("last_movement_id")
+  lastDate       DateTime? @map("last_date") @db.Timestamptz(3)
+  provenance     Json
+  revision       Int      @default(1)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@unique([warehouseId, productId])
+  @@map("stock_valuations")
+}
+
+model StockCostInitialization {
+  id              String   @id @default(cuid())
+  requestKey      String   @unique @map("request_key")
+  requestHash     String   @map("request_hash")
+  warehouseId     String   @map("warehouse_id")
+  productId       String   @map("product_id")
+  quantity        Decimal  @db.Decimal(12, 3)
+  totalValue      Decimal  @map("total_value") @db.Decimal(38, 12)
+  evidence        String
+  asOf            DateTime @map("as_of") @db.Timestamptz(3)
+  balanceRevision DateTime @map("balance_revision") @db.Timestamptz(3)
+  snapshot        Json
+  status          String   @default("pending")
+  revision        Int      @default(1)
+  createdById     String   @map("created_by_id")
+  approvedById    String?  @map("approved_by_id")
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([warehouseId, productId, status])
+  @@map("stock_cost_initializations")
+}
+
+model StockTransfer {
+  id              String   @id @default(cuid())
+  transferNo      String   @unique @map("transfer_no")
+  requestKey      String   @unique @map("request_key")
+  requestHash     String   @map("request_hash")
+  sourceWarehouseId String @map("source_warehouse_id")
+  destinationWarehouseId String @map("destination_warehouse_id")
+  transferDate    DateTime @map("transfer_date") @db.Timestamptz(3)
+  status          String   @default("draft")
+  revision        Int      @default(1)
+  items           Json
+  snapshot        Json
+  remark          String?
+  createdById     String   @map("created_by_id")
+  approvedById    String?  @map("approved_by_id")
+  reason          String?
+  createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@index([status, transferDate])
+  @@map("stock_transfers")
+}
+
+// Actual AP liability register: supplier invoice / tax invoice. PO is a commitment, not debt.
+// Partial unique indexes (duplicate supplier invoice / tax invoice while not cancelled) live in the migration SQL.
+model SupplierBill {
+  id                   String    @id @default(cuid())
+  billNo               String    @unique @map("bill_no")
+  requestKey           String    @unique @map("request_key")
+  requestHash          String    @map("request_hash")
+  revision             Int       @default(1)
+  status               String    @default("draft") // draft | confirmed | cancelled
+  supplierId           String    @map("supplier_id")
+  supplier             Supplier  @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  supplierSnapshot     Json      @map("supplier_snapshot")
+  supplierInvoiceNo    String    @map("supplier_invoice_no")
+  supplierInvoiceNoKey String    @map("supplier_invoice_no_key")
+  supplierInvoiceDate  DateTime  @map("supplier_invoice_date") @db.Timestamptz(3)
+  taxInvoiceNo         String?   @map("tax_invoice_no")
+  taxInvoiceNoKey      String?   @map("tax_invoice_no_key")
+  taxInvoiceDate       DateTime? @map("tax_invoice_date") @db.Timestamptz(3)
+  creditTermDays       Int       @map("credit_term_days")
+  dueDate              DateTime  @map("due_date") @db.Timestamptz(3)
+  dueDateManual        Boolean   @default(false) @map("due_date_manual")
+  vatMode              String    @map("vat_mode") // VAT7 | NO_VAT
+  subTotal             Decimal   @map("sub_total") @db.Decimal(14, 2)
+  vat                  Decimal   @db.Decimal(14, 2)
+  netAmount            Decimal   @map("net_amount") @db.Decimal(14, 2)
+  reference            String?
+  remark               String?
+  createdById          String    @map("created_by_id")
+  confirmedById        String?   @map("confirmed_by_id")
+  confirmedAt          DateTime? @map("confirmed_at") @db.Timestamptz(3)
+  cancelledById        String?   @map("cancelled_by_id")
+  cancelledAt          DateTime? @map("cancelled_at") @db.Timestamptz(3)
+  cancelReason         String?   @map("cancel_reason")
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  items       SupplierBillLine[]
+  settlements SupplierBillSettlement[]
+
+  @@index([supplierId, status])
+  @@index([status, supplierInvoiceDate])
+  @@map("supplier_bills")
+}
+
+model SupplierBillLine {
+  id     String       @id @default(cuid())
+  billId String       @map("bill_id")
+  bill   SupplierBill @relation(fields: [billId], references: [id], onDelete: Cascade)
+  seq    Int
+  desc   String
+  amount Decimal      @db.Decimal(14, 2)
+
+  @@unique([billId, seq])
+  @@map("supplier_bill_lines")
+}
+
+// Allocation of an already-paid PV to a confirmed bill. Effective only while the PV stays paid
+// (approved, paidAt set, not reversed); voided rows are kept for audit, never deleted.
+model SupplierBillSettlement {
+  id               String         @id @default(cuid())
+  billId           String         @map("bill_id")
+  bill             SupplierBill   @relation(fields: [billId], references: [id], onDelete: Restrict)
+  paymentVoucherId String         @map("payment_voucher_id")
+  paymentVoucher   PaymentVoucher @relation(fields: [paymentVoucherId], references: [id], onDelete: Restrict)
+  amount           Decimal        @db.Decimal(14, 2)
+  status           String         @default("active") // active | voided
+  createdById      String         @map("created_by_id")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  voidedById       String?        @map("voided_by_id")
+  voidedAt         DateTime?      @map("voided_at") @db.Timestamptz(3)
+  voidReason       String?        @map("void_reason")
+
+  @@index([billId, status])
+  @@index([paymentVoucherId, status])
+  @@map("supplier_bill_settlements")
 }

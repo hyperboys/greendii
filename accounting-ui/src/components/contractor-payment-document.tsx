@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import { paymentStatuses, type ContractorPayment, type PaymentLine } from "@/lib/contractor-payment";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function paymentPrintPages(items: PaymentLine[]) {
@@ -61,7 +63,9 @@ export function ContractorPaymentDocument({ document: doc, company, onReady }: {
           ["ประกันรวมถึงใบนี้", (Math.round(Number(doc.previouslyRetainedAmount) * 100) + Math.round(Number(doc.retention) * 100)) / 100],
         ] as const).map(([label, value]) => <p key={label}><span>{label}</span><strong data-ps-fit>{last ? money(value) : ""}</strong></p>)}{!last && <small>ยอดรวมแสดงหน้าสุดท้าย</small>}</div></section>
         <p className="ps-policy">ยอดสะสม ณ บันทึก/ส่ง/อนุมัติล่าสุด · ไม่ใช่หลักฐานจ่ายเงินจริง · ไม่ลง GL / Stock / คืนเงินประกัน</p>
-        <footer className="ps-signatures">{["ผู้จัดทำ", "ผู้ตรวจสอบ", "ผู้อนุมัติ"].map(label => <div key={label}><p>{label}</p><span /><p>วันที่ ____/____/________</p></div>)}</footer>
+        <footer className="ps-signatures">{["ผู้จัดทำ", "ผู้ตรวจสอบ", "ผู้อนุมัติ"].map((label, index) => <div key={label}><p>{label}</p>
+          {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> :
+            <><span /><p>วันที่ ____/____/________</p></>}</div>)}</footer>
       </article>;
     })}</div>
   </>;

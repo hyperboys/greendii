@@ -13,6 +13,7 @@ const RECEIPT_INCLUDE = {
 };
 const cents = value => moneyCents(String(value), 'จำนวนเงิน');
 const settlement = row => cents(row.receivedAmount) + cents(row.whtAmount) + cents(row.bankFee);
+const remainingSettlement = (row, dishonoured) => settlement(row) - (dishonoured ? cents(row.receivedAmount) : 0);
 function limited(value, label, max = 300, required = false) {
   const result = text(value, label, required);
   if (result && Array.from(result).length > max) invalid(`${label}ยาวเกิน ${max} ตัวอักษร`);
@@ -28,8 +29,9 @@ async function lockReceipt(tx, id, updatedAt) {
 }
 async function billingPaid(tx, billingNoteId, invoiceId) {
   const rows = await tx.receiptAllocation.findMany({ where: { billingNoteId, ...(invoiceId ? { invoiceId } : {}),
-    receiptVoucher: { lifecycleVersion: 1, status: 'approved' } }, select: { receivedAmount: true, whtAmount: true, bankFee: true } });
-  return rows.reduce((sum, row) => sum + settlement(row), 0);
+    receiptVoucher: { lifecycleVersion: 1, status: 'approved' } }, select: { receivedAmount: true, whtAmount: true, bankFee: true,
+      receiptVoucher: { select: { chequeDishonouredAt: true } } } });
+  return rows.reduce((sum, row) => sum + remainingSettlement(row, row.receiptVoucher?.chequeDishonouredAt), 0);
 }
 async function currentBilling(tx, invoiceId) {
   const rows = await tx.billingNoteInvoice.findMany({ where: { invoiceId, billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, completedAt: null } },
@@ -119,11 +121,16 @@ async function refreshBilling(tx, ids, req, recordAuditLog) {
     }
   }
 }
-async function reverseReceipt(tx, doc) {
+async function lockReceiptSources(tx, doc) {
   const ids = [...new Set(doc.allocations.map(row => row.billingNoteId).filter(Boolean))].sort();
   const bills = ids.length ? await tx.billingNote.findMany({ where: { id: { in: ids } }, include: { invoices: true } }) : [];
   const invoices = await lockInvoices(tx, [...doc.allocations.map(row => row.invoiceId), ...bills.flatMap(bill => bill.invoices.map(row => row.invoiceId))]);
   for (const id of ids) await tx.$queryRaw`SELECT id FROM billing_notes WHERE id = ${id} FOR UPDATE`;
+  return { ids, invoices };
+}
+async function reverseReceipt(tx, doc, { cashOnly = false } = {}) {
+  const { ids, invoices } = await lockReceiptSources(tx, doc);
+  if (cashOnly && doc.chequeDishonouredAt) invalid('เช็คนี้กลับยอดเงินเช็คแล้ว', 409);
   for (const id of ids) {
     const bill = await tx.billingNote.findUnique({ where: { id }, include: { invoices: true } });
     if (bill.status !== 'approved') invalid('BI ต้นทางไม่ได้ยืนยัน กรุณาตรวจสอบก่อนกลับยอด', 409);
@@ -138,10 +145,16 @@ async function reverseReceipt(tx, doc) {
   for (const row of doc.allocations) {
     const invoice = invoices.get(row.invoiceId);
     if (invoice.status !== 'approved' || invoice.lifecycleVersion !== 1) invalid('Invoice ต้นทางไม่พร้อมกลับยอด', 409);
-    const restored = cents(invoice.outstandingAmount) + settlement(row);
+    if (!row.billingNoteId && await tx.billingNoteInvoice.count({ where: { invoiceId: row.invoiceId,
+      billingNote: { status: { notIn: ['cancelled', 'rejected', 'returned'] }, createdAt: { gte: doc.confirmedAt } } } })) {
+      invalid('มี BI หลังรับชำระโดยตรง ต้องจัดการ BI ต่อเนื่องก่อนกลับยอด RV', 409);
+    }
+    // Dishonour restores net cheque cash; cancellation only restores what is still settled.
+    const restored = cents(invoice.outstandingAmount) + (cashOnly ? cents(row.receivedAmount)
+      : remainingSettlement(row, doc.chequeDishonouredAt));
     if (restored > cents(invoice.netAmount)) invalid('กลับยอดแล้วเกินยอด Invoice กรุณาตรวจข้อมูล', 409);
     await tx.invoice.update({ where: { id: invoice.id }, data: { outstandingAmount: restored / 100 } });
   }
   return ids;
 }
-module.exports = { RECEIPT_INCLUDE, receiptData, lockReceipt, billingPaid, currentBilling, refreshBilling, reverseReceipt, settlement };
+module.exports = { RECEIPT_INCLUDE, receiptData, lockReceipt, billingPaid, currentBilling, refreshBilling, reverseReceipt, settlement, remainingSettlement, lockReceiptSources };

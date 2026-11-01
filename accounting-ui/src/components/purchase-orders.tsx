@@ -19,6 +19,7 @@ import { DateInput } from "@/components/date-input";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
 import { getStoredUser } from "@/lib/auth";
 import { poStatusLabels, poActionLabels, poHistoryLabels, purchaseOrderActions, type PurchaseOrderAction } from "@/lib/accounting-purchase-orders";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 const todayBangkok = () => new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" });
 
@@ -106,6 +107,7 @@ export function PurchaseOrders({
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   const [editing, setEditing] = useState<PurchaseOrderDocument | null>(null);
   const [selectedDocument, setSelectedDocument] = useState<PurchaseOrderDocument | null>(null);
+  const [chainManaged, setChainManaged] = useState(false);
   const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
   const savingRef = useRef(false);
 
@@ -273,6 +275,7 @@ export function PurchaseOrders({
   };
   const availableActions = selectedDocument ? purchaseOrderActions(selectedDocument,
     { create: canCreate, approve: canApprove, cancel: canCancel }, userId) : [];
+  const visibleActions = availableActions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   const editableDetail = selectedDocument && ["draft", "returned"].includes(selectedDocument.status);
 
   if ((mode === "new" && !canCreate) || (mode === "edit" && !canUpdate)) {
@@ -532,10 +535,10 @@ export function PurchaseOrders({
 
       {mode === "view" && selectedDocument && (
         <div className="mx-auto w-full min-w-0">
-          <AccountingApprovalPanel docType="po" document={selectedDocument} canSubmit={canCreate} onChanged={() => { void loadData(); }} />
+          <AccountingApprovalPanel docType="po" document={selectedDocument} canSubmit={canCreate} onChanged={() => { void loadData(); }} onModeChange={setChainManaged} />
           <div className="po-no-print mx-auto mb-3 flex max-w-[210mm] flex-wrap justify-end gap-2">
             {canUpdate && editableDetail && <Link href={`/ap/vouchers/${encodeURIComponent(selectedDocument.id)}/edit`} className="rounded bg-white px-4 py-2 text-sm font-bold">แก้ไข PO</Link>}
-            {availableActions.map(value => <button key={value} disabled={saving || loading} onClick={() => { setAction(value); setReason(""); }} className="rounded border bg-white px-4 py-2 text-sm font-bold disabled:opacity-50">{poActionLabels[value]}</button>)}
+            {visibleActions.map(value => <button key={value} disabled={saving || loading} onClick={() => { setAction(value); setReason(""); }} className="rounded border bg-white px-4 py-2 text-sm font-bold disabled:opacity-50">{poActionLabels[value]}</button>)}
             <button disabled={saving || loading} onClick={() => window.print()} className="flex items-center gap-2 rounded bg-[#0866ff] px-4 py-2 text-sm font-bold text-white disabled:opacity-50"><Printer size={16} />พิมพ์ / บันทึก PDF</button>
           </div>
           <section className="po-no-print mx-auto mb-4 max-w-[210mm] space-y-3 rounded border bg-white p-4">

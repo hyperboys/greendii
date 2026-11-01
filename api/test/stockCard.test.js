@@ -5,9 +5,16 @@ test('Stock Card reports Bangkok date boundaries, opening and stable running qua
   process.env.JWT_SECRET = 'stock-card-isolated-test';
   const fixture = createContractorPaymentApp(), state = fixture.state();
   state.accountProduct.push(
-    { id: 'mat', code: 'MAT', name: 'Material', unit: 'Pcs', active: true },
-    { id: 'other', code: 'OTH', name: 'Other', unit: 'Box', active: false },
+    { id: 'mat', code: 'MAT', name: 'Material', unit: 'Pcs', active: true, productType: 'material' },
+    { id: 'other', code: 'OTH', name: 'Other', unit: 'Box', active: false, productType: 'material' },
+    { id: 'service', code: 'SVC', name: 'Service', unit: 'Job', active: true, productType: 'service' },
   );
+  const findProducts = fixture.prisma.accountProduct.findMany;
+  fixture.prisma.accountProduct.findMany = async options => {
+    const rows = await findProducts(options);
+    return options.select ? rows.map(row => Object.fromEntries(Object.keys(options.select)
+      .filter(key => options.select[key]).map(key => [key, row[key]]))) : rows;
+  };
   state.warehouse.push({ id: 'main', code: 'MAIN', name: 'Main', active: true },
     { id: 'old', code: 'OLD', name: 'Old store', active: false });
   const event = (id, date, productId = 'mat', warehouseId = 'main', qtyIn = 0, qtyOut = 0, sourceDocType = 'stock_issue') => ({
@@ -55,6 +62,8 @@ test('Stock Card reports Bangkok date boundaries, opening and stable running qua
   assert.equal(quietPeriod.summaries[0].closingQty, '13.500');
   await request('/api/inventory/stock-card?from=2026-10-26&to=2026-10-26&productId=mat&productId=other', { status: 400 });
   const lookups = await request('/api/inventory/stock-card/lookups');
-  assert.equal(lookups.products.length, 2);
+  assert.equal(lookups.products.length, 3);
+  assert.equal(lookups.products.find(row => row.id === 'mat').productType, 'material');
+  assert.equal(lookups.products.find(row => row.id === 'service').productType, 'service');
   assert.equal(lookups.warehouses.length, 2);
 });

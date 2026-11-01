@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate as date } from "@/lib/accounting-date";
 import { issueStatuses, type StockIssue } from "@/lib/stock-issue";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 export function fitStockDocument(root: HTMLElement) {
   let overflow = false;
   for (const field of Array.from(root.querySelectorAll<HTMLElement>("[data-is-fit]"))) {
@@ -47,8 +49,10 @@ export function StockIssueDocument({ document: doc, company, onReady }: {
       </tbody></table>
       <section className="is-note" data-is-fit>หมายเหตุ {doc.remark || ""}{doc.cancellationReason ? `\nยกเลิก ${date(doc.cancelledAt)}: ${doc.cancellationReason}` : ""}</section>
       <p className="is-policy">Draft / รออนุมัติ ยังไม่จ่ายและไม่จอง Stock · อนุมัติแล้วตัดตามจำนวนจ่าย ส่วนที่เหลือยกเลิก ไม่มีค้างส่ง · ไม่ลง GL</p>
-      <p className="is-approval" data-is-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · ช่องลงนามว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
-      <footer>{["ผู้ขอ / ผู้จ่าย", "ผู้รับของ", "ผู้อนุมัติ"].map(label => <div key={label}><p>{label}</p><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></div>)}</footer>
+      <p className="is-approval" data-is-fit>{approval ? `อนุมัติโดย ${approval.performedBy?.fullName || "-"} · ${date(approval.createdAt)}` : "ยังไม่มีประวัติอนุมัติ"} · แสดงลายเซ็นเฉพาะผู้อนุมัติจริง</p>
+      <footer>{["ผู้ขอ / ผู้จ่าย", "ผู้รับของ", "ผู้อนุมัติ"].map((label, index) => <div key={label}><p>{label}</p>
+        {index === 2 && hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> :
+          <><span>ลงชื่อ __________________</span><span>วันที่ __________________</span></>}</div>)}</footer>
     </article>)}</div></>;
 }
 export function StockIssuePrintStyles({ allowed }: { allowed: boolean }) {

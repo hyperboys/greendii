@@ -4,6 +4,8 @@ const test = require('node:test'), ts = require('typescript'), React = require('
 const { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}) {
   imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
+  imports['@/lib/accounting-approval'] = { hasApprovedActors: () => false, ...(imports['@/lib/accounting-approval'] || {}) };
+  imports['./accounting-approval-signatures'] = { AccountingApprovalSignatures: () => null };
   const filename = path.join(__dirname, '..', 'src', ...parts), module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,
@@ -23,7 +25,7 @@ test('PV separate routes reject extra actions; list dispatch and data-only API p
   const List = load(['app', 'ap', 'vouchers', 'page.tsx'], {
     '@/components/payment-vouchers': { PaymentVouchers: Component }, '@/components/contractor-payments': {}, '@/components/purchase-orders': {},
     '@/components/cheque-payments': {},
-    '@/components/goods-receipts': {},
+    '@/components/goods-receipts': {}, '@/components/supplier-bills': { SupplierBills: () => null },
   }).default;
   assert.equal(List({ searchParams: { tab: 'pv' } }).type, Component);
   const form = model.voucherForm({ ...model.newVoucher(), sourceDocId: 'ps', pvDate: '2026-10-26T00:00:00Z', updatedAt: 'revision', taxpayerType: null });

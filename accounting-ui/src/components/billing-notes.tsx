@@ -1,6 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
-import { isEditableArDocument } from "@/lib/accounting-approval";
+import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -28,6 +28,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
   const canWrite = canUseAccounting(useAccountingAccess(), "ar", "create");
   const [rows, setRows] = useState<BillingNote[]>([]);
   const [doc, setDoc] = useState<BillingNote | null>(null);
+  const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<BillingInput>(newBillingNote);
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
   const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
@@ -137,8 +138,8 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         {mode !== "list" && <Link className={button} href={base}>กลับรายการใบวางบิล</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบวางบิล</Link>}
         {mode === "view" && doc && !loading && !loadError && <>
-          <AccountingApprovalPanel docType="bi" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} />
-          {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link><button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันวางบิล</button></>}
+          <AccountingApprovalPanel docType="bi" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
+          {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันวางบิล</button>}</>}
           {canWrite && doc.lifecycleVersion === 1 && !doc.completedAt && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิกใบวางบิล</button>}
           {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={!printReady} onClick={() => window.print()}>พิมพ์ใบวางบิล</button>}
         </>}

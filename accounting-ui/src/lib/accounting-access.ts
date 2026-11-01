@@ -53,6 +53,9 @@ export function canUseAccounting(access: AccountingAccess | null, module: Accoun
 
 export function canOpenAccountingPath(access: AccountingAccess, pathname: string) {
   if (!access.allowed) return false;
+  if (pathname === "/notifications" || pathname.startsWith("/notifications/")) {
+    return (["ar", "ap", "inventory"] as const).some(module => canUseAccounting(access, module));
+  }
   if (pathname.startsWith("/settings")) return access.isAdmin;
   const paths: [string, AccountingModule][] = [
     ["/ar", "ar"],

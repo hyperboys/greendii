@@ -1,6 +1,8 @@
 import Image from "next/image";
 import { formatAccountingDate as formatDate } from "@/lib/accounting-date";
 import { poStatusLabels } from "@/lib/accounting-purchase-orders";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 import type {
   PurchaseOrderCompanySettings, PurchaseOrderDocument, PurchaseOrderAttachment,
 } from "@/lib/accounting-purchase-orders";
@@ -162,12 +164,11 @@ export function PurchaseOrderDocumentView({
             <p className="mt-1">{company.companyName || "บริษัท กรีนดี จำกัด"}</p>
           </div>
           <div data-po-signature-role="reviewer" className="min-h-16 border-r border-blue-700 p-1">
-            <strong>ผู้ตรวจสอบ</strong>
-            <p className="mt-1">{approval
+            <strong>ผู้อนุมัติ</strong>
+            {hasApprovedActors(document) ? <AccountingApprovalSignatures document={document} compact /> : <p className="mt-1">{approval
               ? `${document.status === "cancelled" ? "เคยอนุมัติ" : "อนุมัติ"}โดย ${approval.performedBy?.fullName || "-"} · ${formatDate(approval.createdAt)}`
-              : document.status === "approved" ? "อนุมัติเดิม (ไม่มีประวัติผู้อนุมัติ)" : "ยังไม่มีข้อมูลการอนุมัติ"}</p>
-            <p className="mt-1">ลงชื่อ __________________</p>
-            <p>วันที่ ____/____/________</p>
+              : document.status === "approved" ? "อนุมัติเดิม (ไม่มีประวัติผู้อนุมัติ)" : "ยังไม่มีข้อมูลการอนุมัติ"}</p>}
+            {!hasApprovedActors(document) && <><p className="mt-1">ลงชื่อ __________________</p><p>วันที่ ____/____/________</p></>}
           </div>
           <div data-po-signature-role="signatory" className="min-h-16 p-1">
             <strong>ผู้มีอำนาจลงนาม</strong>
@@ -183,7 +184,7 @@ export function PurchaseOrderDocumentView({
           {(document.attachments || []).length > 0 && <div className="p-1"><strong>เอกสารแนบประกอบ PO</strong><div><AttachmentList attachments={document.attachments || []} /></div></div>}
         </section>
       )}
-      <p className="mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ช่องลงนามเว้นว่าง ไม่ใช่ลายเซ็นดิจิทัล</p>
+      <p className="mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ลายเซ็นจะแสดงเมื่ออนุมัติจริงเท่านั้น</p>
     </article>
   );
 }

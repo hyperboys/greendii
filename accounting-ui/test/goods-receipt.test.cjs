@@ -2,6 +2,8 @@ const assert = require('node:assert/strict'), fs = require('node:fs'), path = re
 const vm = require('node:vm'), ts = require('typescript'), React = require('react'), { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}) {
   imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
+  imports['@/lib/accounting-approval'] = { hasApprovedActors: () => false, ...(imports['@/lib/accounting-approval'] || {}) };
+  imports['./accounting-approval-signatures'] = { AccountingApprovalSignatures: () => null };
   const filename = path.join(__dirname, '..', 'src', ...parts);
   const module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(filename, 'utf8'), { compilerOptions: { target: ts.ScriptTarget.ES2022, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX } }).outputText;
@@ -18,13 +20,13 @@ const plain = value => JSON.parse(JSON.stringify(value));
 test('GR routes list dispatch and strict new/view/edit URL shape', () => {
   const Component = () => null;
   const Page = load(['app', 'ap', 'vouchers', 'gr', '[...record]', 'page.tsx'], {
-    'next/navigation': { notFound() { throw Error('Not found'); } }, '@/components/goods-receipts': { GoodsReceipts: Component },
+    'next/navigation': { notFound() { throw Error('Not found'); } }, '@/components/goods-receipts': { GoodsReceipts: Component }, '@/components/supplier-bills': { SupplierBills: () => null },
   }).default;
   assert.equal(Page({ params: { record: ['new'] } }).props.mode, 'new');
   assert.equal(Page({ params: { record: ['gr', 'edit'] } }).props.recordId, 'gr');
   for (const record of [['new', 'edit'], ['gr', 'delete'], ['gr', 'edit', 'extra']]) assert.throws(() => Page({ params: { record } }), /Not found/);
   const List = load(['app', 'ap', 'vouchers', 'page.tsx'], {
-    '@/components/goods-receipts': { GoodsReceipts: Component }, '@/components/purchase-orders': {}, '@/components/contractor-payments': {},
+    '@/components/goods-receipts': { GoodsReceipts: Component }, '@/components/supplier-bills': { SupplierBills: () => null }, '@/components/purchase-orders': {}, '@/components/contractor-payments': {},
     '@/components/payment-vouchers': {}, '@/components/cheque-payments': {},
   }).default;
   assert.equal(List({ searchParams: { tab: 'gr' } }).type, Component);

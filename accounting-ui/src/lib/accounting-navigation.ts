@@ -10,6 +10,7 @@ export const payableTabs = [
   { id: "gr", label: "ใบตรวจรับ (GR)" },
   { id: "pv", label: "ใบสำคัญจ่าย (PV)" },
   { id: "cq", label: "การจ่ายเงิน / เช็คจ่าย" },
+  { id: "bills", label: "ใบแจ้งหนี้ผู้ขาย / ตั้งหนี้" },
 ] as const;
 
 export const inventoryTabs = [
@@ -33,6 +34,7 @@ export const masterTabs = [
 export const reportTabs = [
   { id: "arAging", label: "วิเคราะห์อายุลูกหนี้" },
   { id: "apAging", label: "วิเคราะห์อายุเจ้าหนี้" },
+  { id: "apPoCommitment", label: "ยอดผูกพัน PO (ไม่ใช่หนี้)" },
   { id: "reconDelivery", label: "กระทบยอดส่งของ / ใบแจ้งหนี้" },
   { id: "reconPo", label: "กระทบยอดใบสั่งซื้อ / รับสินค้า" },
 ] as const;

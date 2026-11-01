@@ -8,7 +8,10 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
-  imports["@/lib/accounting-approval"] = { isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft" };
+  imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false,
+    isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft", ...(imports["@/lib/accounting-approval"] || {}) };
+  imports["./accounting-approval-signatures"] = { AccountingApprovalSignatures: () => null };
+  imports["@/components/received-cheques"] = { ReceivedChequeControls: () => null };
   const filename = path.join(__dirname, "..", "src", ...parts);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,
@@ -100,7 +103,7 @@ test("RV form offers cheque and bank dropdown while preserving a saved bank outs
     const { ReceiptVouchers } = load(["components", "receipt-vouchers.tsx"], {
       react: { ...React, useState(initial) {
         const index = cursor++;
-        return React.useState(index === 1 ? saved : index === 2 ? saved : initial === true ? false : initial);
+        return React.useState(index === 1 || index === 3 ? saved : initial === true ? false : initial);
       } },
       "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
       "next/navigation": { useRouter: () => ({ push() {} }) }, "@/lib/api": {}, "@/lib/account-customers": {},

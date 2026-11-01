@@ -1,5 +1,7 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { hasApprovedActors, legacyApprovalControlVisible } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "@/components/accounting-approval-signatures";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -31,6 +33,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
   const allowedForm = mode === "new" ? can.create : can.update;
   const [rows, setRows] = useState<StockOpeningBalance[]>([]);
   const [doc, setDoc] = useState<StockOpeningBalance | null>(null);
+  const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<StockOpeningInput>({ warehouseId: "", cutoverDate: localAccountingDate(), remark: "", items: [] });
   const [lookups, setLookups] = useState<StockOpeningLookups>({ products: [], warehouses: [], cutoverDate: null });
   const [preview, setPreview] = useState<StockOpeningPreview | null>(null);
@@ -143,6 +146,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
     ...(can.approve && doc.status === "pending" && doc.createdById !== userId ? ["approve" as const, "return" as const, "reject" as const] : []),
     ...(can.cancel && ["draft", "returned", "pending", "approved"].includes(doc.status) ? ["cancel" as const] : []),
   ] : [];
+  const visibleActions = actions.filter(action => legacyApprovalControlVisible(action, chainManaged));
 
   return <main className="mx-auto max-w-6xl space-y-4 p-4">
     <header className="flex flex-wrap items-center justify-between gap-3">
@@ -235,15 +239,18 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
       </form>)}
 
     {mode === "view" && doc && !loading && !loadError && <>
-      <AccountingApprovalPanel docType="opening" document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} />
+      <AccountingApprovalPanel docType="opening" document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
       <section className="opening-print space-y-3 rounded border bg-white p-4">
-        <h1 className="hidden text-xl font-bold print:block">ใบยอดยกมาคลัง (OB) · {doc.openingNo}</h1>
+        <h1 className="hidden text-xl font-bold print:flex print:items-center print:justify-between">
+          <span>ใบยอดยกมาคลัง (OB) · {doc.openingNo}</span>
+          {hasApprovedActors(doc) && <span className="block h-12 w-2/5"><AccountingApprovalSignatures document={doc} compact /></span>}
+        </h1>
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p>สถานะ: <strong>{openingStatuses[doc.status] || doc.status}</strong></p>
           <p>วันเริ่มใช้ {doc.cutoverDate.slice(0, 10)} · คลัง {doc.warehouseSnapshot?.name || doc.warehouseId}</p>
           <p>หมายเหตุ: {doc.remark || "-"}</p></div>
           <div className="is-no-print flex flex-wrap gap-2">
             {doc.status === "draft" || doc.status === "returned" ? can.update && <Link className={button} href={`${openingBase}/${encodeURIComponent(doc.id)}/edit`}>แก้ไข</Link> : null}
-            {actions.map(action => <button key={action} className={action === "approve" ? primary : button} disabled={busy} onClick={() => void perform(action)}>{openingActions[action]}</button>)}
+            {visibleActions.map(action => <button key={action} className={action === "approve" ? primary : button} disabled={busy} onClick={() => void perform(action)}>{openingActions[action]}</button>)}
             <button className={button} onClick={() => window.print()}>พิมพ์</button>
           </div>
         </div>

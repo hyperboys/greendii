@@ -99,6 +99,27 @@ async function eligibleForCycle(tx, docType, document, actorId) {
     (step.kind === 'user' ? step.targetId === actorId : step.targetId === access.roleId));
 }
 
+async function eligibleRecipientsForCycle(tx, docType, document) {
+  const cycle = currentCycle(document);
+  if (!cycle || cycle.state !== 'pending' || document.status !== 'pending') return [];
+  const step = cycle.steps[cycle.approvals.length];
+  if (!step) return [];
+  let candidates;
+  if (step.kind === 'user') candidates = [step.targetId];
+  else {
+    const { module } = documentType(docType);
+    const role = await tx.accountingRole.findUnique({ where: { id: step.targetId },
+      include: { assignments: { include: { user: { select: { id: true, active: true } } } } } });
+    if (!role || !role.permissions.includes(`${module}.view`) || !role.permissions.includes(`${module}.approve`)) return [];
+    candidates = role.assignments.filter(assignment => assignment.user.active).map(assignment => assignment.user.id);
+  }
+  const eligible = [];
+  for (const actorId of [...new Set(candidates)].sort()) {
+    if (await eligibleForCycle(tx, docType, document, actorId)) eligible.push(actorId);
+  }
+  return eligible;
+}
+
 async function submissionSnapshot(tx, docType, document, config, actorId) {
   const creatorId = document.createdById || document.salesId;
   if (!creatorId) invalid('ไม่พบผู้สร้างเอกสารสำหรับตรวจสิทธิ์อนุมัติ', 409);
@@ -113,7 +134,7 @@ async function submissionSnapshot(tx, docType, document, config, actorId) {
 
 // Caller must hold its existing document row lock, verify updatedAt, and persist
 // changes together with the business posting and audit in the same transaction.
-async function planApproval(tx, docType, document, action, actorId, reason = null) {
+async function planApproval(tx, docType, document, action, actorId, reason = null, { rolloutReady = ROLLOUT_READY } = {}) {
   documentType(docType);
   const cycle = currentCycle(document);
   const creatorId = document.createdById || document.salesId;
@@ -131,7 +152,7 @@ async function planApproval(tx, docType, document, action, actorId, reason = nul
         submittedAt: new Date().toISOString(), submittedById: actorId });
       return { changes: { accountingApproval: history, updatedAt: revisionDate() }, finalApproval: false, managed: false };
     }
-    if (!ROLLOUT_READY) invalid('ยังไม่เปิด rollout: ต้องตรวจครบทั้ง 11 ประเภทและการจองยอด AR ก่อน', 409);
+    if (!rolloutReady) invalid('ยังไม่เปิด rollout: ต้องตรวจครบทั้ง 11 ประเภทและการจองยอด AR ก่อน', 409);
     const snapshot = await submissionSnapshot(tx, docType, document, config, actorId);
     return { managed: true, finalApproval: false, changes: { accountingApproval: snapshot, approvalStep: 1, updatedAt: revisionDate() } };
   }
@@ -167,14 +188,14 @@ async function planApproval(tx, docType, document, action, actorId, reason = nul
       approvalStep: finalApproval ? next.steps.length : next.approvals.length + 1 } };
 }
 
-async function validateConfiguration(tx, docType, body) {
+async function validateConfiguration(tx, docType, body, { rolloutReady = ROLLOUT_READY } = {}) {
   documentType(docType);
   if (!body || typeof body.enabled !== 'boolean') invalid('enabled ต้องเป็น boolean');
   const steps = normalizeSteps(body.steps, body.enabled);
   await validateTargets(tx, docType, steps);
-  if (body.enabled && !ROLLOUT_READY) invalid('ยังไม่เปิด rollout: ต้องตรวจครบทั้ง 11 ประเภทและการจองยอด AR ก่อน', 409);
+  if (body.enabled && !rolloutReady) invalid('ยังไม่เปิด rollout: ต้องตรวจครบทั้ง 11 ประเภทและการจองยอด AR ก่อน', 409);
   return { enabled: body.enabled, steps };
 }
 
 module.exports = { DOCUMENTS, ROLLOUT_READY, documentType, normalizeSteps, actorAccess, validateTargets,
-  validateConfiguration, currentCycle, eligibleForCycle, submissionSnapshot, planApproval };
+  validateConfiguration, currentCycle, eligibleForCycle, eligibleRecipientsForCycle, submissionSnapshot, planApproval };

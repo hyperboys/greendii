@@ -51,6 +51,40 @@ test("Accounting signatures prefer signature text and retain exact immutable ima
   assert.ok(html.includes("cursive") || !html.includes("font-family"));
 });
 
+test("Original print signatures render approved actors compactly and never render pending steps", () => {
+  const image = "https://images.invalid/signatures/original-immutable-key.png";
+  const source = { accountingApproval: { version: 1, cycles: [{ ...cycle,
+    approvals: [{ ...actor, signatureUrl: image }] }] } };
+  const html = renderToStaticMarkup(React.createElement(signatureModule.AccountingApprovalSignatures, { document: source, compact: true }));
+  assert.ok(html.includes(`src="${image}"`));
+  assert.ok(html.includes("Somchai Example"));
+  assert.equal(html.includes("Final approver"), false);
+  assert.equal(renderToStaticMarkup(React.createElement(signatureModule.AccountingApprovalSignatures, {
+    document: { accountingApproval: { version: 1, cycles: [{ ...cycle, approvals: [] }] } }, compact: true,
+  })), "");
+
+  const layouts = ["purchase-order-document.tsx", "goods-receipt-document.tsx", "stock-issue-document.tsx",
+    "stock-return-document.tsx", "contractor-payment-document.tsx", "payment-voucher-document.tsx",
+    "stock-opening-balances.tsx", "billing-note-document.tsx", "receipt-voucher-document.tsx", "credit-note-document.tsx"];
+  for (const filename of layouts) {
+    const layout = fs.readFileSync(path.join(__dirname, "..", "src", "components", filename), "utf8");
+    assert.ok(layout.includes("AccountingApprovalSignatures"), `${filename} must render approval signatures`);
+  }
+  const invoice = fs.readFileSync(path.join(__dirname, "..", "src", "components", "invoice-document.tsx"), "utf8");
+  assert.equal(invoice.includes("AccountingApprovalSignatures"), false);
+});
+
+test("Chain-managed controls replace legacy approval actions while legacy documents keep them", () => {
+  for (const action of ["submit", "confirm", "approve", "return", "reject"]) {
+    assert.equal(approval.legacyApprovalControlVisible(action, true), false);
+    assert.equal(approval.legacyApprovalControlVisible(action, false), true);
+  }
+  assert.equal(approval.legacyApprovalControlVisible("cancel", true), true);
+  assert.equal(approval.legacyApprovalControlVisible("pay", true), true);
+  assert.equal(approval.hasManagedApprovalCycle(doc), true);
+  assert.equal(approval.hasManagedApprovalCycle({}), false);
+});
+
 test("Accounting history preserves prior approved actors, identifies cycles and does not print as document stationery", () => {
   const data = { accountingApproval: { version: 1, cycles: [cycle, { ...cycle, cycle: 2, state: "returned", reason: "Correction", approvals: [] }] } };
   const html = renderToStaticMarkup(React.createElement(historyModule.AccountingApprovalHistory, { document: data }));
@@ -125,6 +159,8 @@ test("AR correction eligibility requires an explicitly returned cycle and all do
   for (const [type, name] of Object.entries(components)) {
     const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", `${name}.tsx`), "utf8");
     assert.ok(source.includes(`<AccountingApprovalPanel docType="${type}"`), `${type} integrates revisioned detail/history/review`);
+    assert.ok(source.includes("onModeChange={setChainManaged}"), `${type} switches controls to configured chains`);
+    assert.ok(source.includes("legacyApprovalControlVisible"), `${type} retains only non-approval legacy actions`);
   }
 });
 

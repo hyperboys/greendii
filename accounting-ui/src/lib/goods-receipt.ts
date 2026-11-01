@@ -5,7 +5,7 @@ export type ReceiptStatus = "draft" | "pending" | "approved" | "returned" | "rej
 export type ReceiptAction = "submit" | "approve" | "return" | "reject" | "cancel";
 export type ReceiptProduct = { id: string; code: string; name: string; unit: string | null; productType: string };
 export type ReceiptWarehouse = { id: string; code: string; name: string };
-export type ReceiptLineInput = { poLineId: string; productId: string; currentReceiptQty: string | number };
+export type ReceiptLineInput = { poLineId: string; productId: string; currentReceiptQty: string | number; unitCost?: string | number | null; costEvidence?: string | null };
 export type ReceiptInput = { receiptDate: string; poId: string; warehouseId: string; sender: string; receiver: string; remark: string;
   items: ReceiptLineInput[]; updatedAt?: string; requestKey?: string };
 export type ReceiptSourceLine = { id: string; seq: number; desc: string; unit: string | null; productId: string | null;
@@ -37,7 +37,8 @@ export function newReceipt(): ReceiptInput {
 export function receiptForm(doc: GoodsReceipt): ReceiptInput {
   return { receiptDate: doc.receiptDate.slice(0, 10), poId: doc.poId, warehouseId: doc.warehouseId || "", sender: doc.sender || "",
     receiver: doc.receiver || "", remark: doc.remark || "", updatedAt: doc.updatedAt,
-    items: doc.items.map(item => ({ poLineId: item.poLineId, productId: item.productId, currentReceiptQty: String(item.currentReceiptQty) })) };
+    items: doc.items.map(item => ({ poLineId: item.poLineId, productId: item.productId, currentReceiptQty: String(item.currentReceiptQty),
+      unitCost: item.unitCost == null ? "" : String(item.unitCost), costEvidence: item.costEvidence || "" })) };
 }
 export function availableReceiptActions(doc: GoodsReceipt, can: { create: boolean; approve: boolean; cancel: boolean }, userId?: string): ReceiptAction[] {
   if (doc.lifecycleVersion !== 1) return [];

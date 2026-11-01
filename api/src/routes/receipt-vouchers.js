@@ -8,6 +8,8 @@ const { recordAuditLog } = require('../lib/auditTrail');
 const { RECEIPT_INCLUDE, receiptData, lockReceipt, billingPaid, currentBilling, refreshBilling, reverseReceipt, settlement } = require('../lib/receiptVoucher');
 const { arActionPermission, arTransition, arEditable } = require('../lib/arApproval');
 const { reservedSettlement } = require('../lib/arReservations');
+const { chequeTransition, CHEQUE_STATES } = require('../lib/receivedCheque');
+const { lockReceiptSources } = require('../lib/receiptVoucher');
 
 router.use(authenticate);
 async function canWrite(req, res, next) {
@@ -23,6 +25,29 @@ router.get('/', async (req, res, next) => {
       ...(status ? { status } : {}), ...(customerId ? { customerId } : {}),
       ...(q ? { OR: [{ rvNo: { contains: q, mode: 'insensitive' } }, { customerName: { contains: q, mode: 'insensitive' } }] } : {}),
     }, include: RECEIPT_INCLUDE, orderBy: { receiptDate: 'desc' } }));
+  } catch (error) { next(error); }
+});
+router.get('/received-cheques', async (req, res, next) => {
+  try {
+    if (!hasAccountingPermission(await getAccountingAccess(req.user), 'ar', 'view')) return res.status(403).json({ message: 'ไม่มีสิทธิ์ดูเช็ครับ' });
+    const state = text(req.query.state, 'สถานะเช็ค');
+    if (state && !CHEQUE_STATES.includes(state)) invalid('สถานะเช็คไม่ถูกต้อง');
+    res.json(await prisma.receiptVoucher.findMany({ where: { paymentMethod: 'cheque',
+      ...(state ? { receivedChequeState: state } : {}) }, include: RECEIPT_INCLUDE, orderBy: { chequeDate: 'asc' } }));
+  } catch (error) { next(error); }
+});
+for (const action of ['deposit', 'clear', 'dishonour']) router.post(`/:id/cheque/${action}`, canWrite, async (req, res, next) => {
+  try {
+    res.json(await prisma.$transaction(async tx => {
+      const previous = await lockReceipt(tx, req.params.id, req.body?.updatedAt);
+      const changes = chequeTransition(previous, action, req.body);
+      const ids = action === 'dishonour' ? await reverseReceipt(tx, previous, { cashOnly: true }) : (await lockReceiptSources(tx, previous)).ids;
+      const doc = await tx.receiptVoucher.update({ where: { id: previous.id }, data: changes, include: RECEIPT_INCLUDE });
+      if (action === 'dishonour') await refreshBilling(tx, ids, req, recordAuditLog);
+      await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo,
+        action: `cheque_${action}`, oldValue: previous, newValue: doc, reason: changes.chequeDishonourReason || null, req }, tx);
+      return doc;
+    }));
   } catch (error) { next(error); }
 });
 router.get('/sources', canWrite, async (req, res, next) => {
@@ -116,11 +141,13 @@ for (const action of ['confirm', 'submit', 'approve', 'return', 'reject', 'cance
           } });
         }
         ids = transition.posts ? allocations.map(row => row.billingNoteId) : [];
-        confirmation = { ...data, ...(transition.posts ? { confirmedAt: new Date() } : {}),
+        confirmation = { ...data, ...(transition.posts ? { confirmedAt: new Date(),
+          ...(data.paymentMethod === 'cheque' ? { receivedChequeState: 'received' } : {}) } : {}),
           allocations: { deleteMany: {}, create: allocations } };
       } else if (action === 'cancel' && previous.status === 'approved') ids = await reverseReceipt(tx, previous);
       const doc = await tx.receiptVoucher.update({ where: { id: previous.id }, data: {
         ...confirmation, ...transition.changes, status: transition.status,
+        ...(action === 'cancel' && previous.receivedChequeState ? { receivedChequeState: 'cancelled' } : {}),
       }, include: RECEIPT_INCLUDE });
       await refreshBilling(tx, ids, req, recordAuditLog);
       await recordAuditLog({ entityType: 'receipt_voucher', entityId: doc.id, docNo: doc.rvNo, action, oldValue: previous, newValue: doc, reason, req }, tx);

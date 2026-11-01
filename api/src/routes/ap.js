@@ -348,5 +348,6 @@ router.use('/payment-vouchers', require('./payment-vouchers'));
 // ─── 5. CHEQUE PAYMENTS (CQ) ──────────────────────────────────────────────────
 
 router.use('/cheque-payments', require('./cheque-payments'));
+router.use('/supplier-bills', require('./supplier-bills'));
 
 module.exports = router;

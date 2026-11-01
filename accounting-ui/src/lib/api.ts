@@ -141,6 +141,9 @@ export const ArApi = {
 
   getReceiptVouchers: (params?: Record<string, string>) => apiFetch<ReceiptVoucher[]>(`/api/ar/receipt-vouchers?${new URLSearchParams(params)}`),
   getReceiptVoucher: (id: string) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}`),
+  getReceivedCheques: () => apiFetch<ReceiptVoucher[]>("/api/ar/receipt-vouchers/received-cheques"),
+  receivedChequeAction: (id: string, action: import("./received-cheque").ReceivedChequeAction, data: import("./received-cheque").ReceivedChequeInput) =>
+    apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}/cheque/${action}`, { method: "POST", body: JSON.stringify(data) }),
   getReceiptSources: (params: Record<string, string>) => apiFetch<ReceiptSources>(`/api/ar/receipt-vouchers/sources?${new URLSearchParams(params)}`),
   createReceiptVoucher: (data: ReceiptInput) => apiFetch<ReceiptVoucher>("/api/ar/receipt-vouchers", { method: "POST", body: JSON.stringify(data) }),
   updateReceiptVoucher: (id: string, data: ReceiptInput) => apiFetch<ReceiptVoucher>(`/api/ar/receipt-vouchers/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),
@@ -230,10 +233,45 @@ export const InventoryApi = {
 
 // ─── REPORTS ─────────────────────────────────────────────────────────────────
 export const ReportsApi = {
-  getArAging: (asOfDate?: string) => apiFetch(`/api/accounting-reports/ar/aging${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
-  getApAging: (asOfDate?: string) => apiFetch(`/api/accounting-reports/ap/aging${asOfDate ? `?asOfDate=${asOfDate}` : ""}`),
-  getReconDeliveryToInvoice: () => apiFetch("/api/accounting-reports/recon/delivery-to-invoice"),
-  getReconPoToGoodsReceipt: () => apiFetch("/api/accounting-reports/recon/po-to-goods-receipt"),
+  getArAging: (asOfDate?: string) => apiFetch<import("./accounting-reports").AccountingReport>(`/api/accounting-reports/ar/aging${asOfDate ? `?${new URLSearchParams({ asOfDate })}` : ""}`),
+  getApAging: (asOfDate?: string) => apiFetch<import("./accounting-reports").AccountingReport>(`/api/accounting-reports/ap/aging${asOfDate ? `?${new URLSearchParams({ asOfDate })}` : ""}`),
+  getApPoCommitment: (asOfDate?: string) => apiFetch<import("./accounting-reports").AccountingReport>(`/api/accounting-reports/ap/po-commitment${asOfDate ? `?${new URLSearchParams({ asOfDate })}` : ""}`),
+  getReconDeliveryToInvoice: (range: import("./accounting-reports").ReportRange = {}) => {
+    const query = new URLSearchParams();
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    return apiFetch<import("./accounting-reports").AccountingReport>(`/api/accounting-reports/recon/delivery-to-invoice?${query}`);
+  },
+  getReconPoToGoodsReceipt: (range: import("./accounting-reports").ReportRange = {}) => {
+    const query = new URLSearchParams();
+    if (range.from) query.set("from", range.from);
+    if (range.to) query.set("to", range.to);
+    return apiFetch<import("./accounting-reports").AccountingReport>(`/api/accounting-reports/recon/po-to-goods-receipt?${query}`);
+  },
+};
+
+// ─── SUPPLIER BILLS (AP LIABILITY REGISTER) ─────────────────────────────────
+const supplierBillPath = (id: string, suffix = "") => `/api/ap/supplier-bills/${encodeURIComponent(id)}${suffix}`;
+export const SupplierBillsApi = {
+  list: (params: Record<string, string> = {}) =>
+    apiFetch<import("./supplier-bill").SupplierBill[]>(`/api/ap/supplier-bills?${new URLSearchParams(params)}`),
+  get: (id: string) => apiFetch<import("./supplier-bill").SupplierBillDetail>(supplierBillPath(id)),
+  eligibleVouchers: (id: string) => apiFetch<import("./supplier-bill").SettlementVoucher[]>(supplierBillPath(id, "/payment-vouchers")),
+  create: (data: import("./supplier-bill").SupplierBillInput & { requestKey: string }) =>
+    apiFetch<import("./supplier-bill").SupplierBill>("/api/ap/supplier-bills", { method: "POST", body: JSON.stringify(data) }),
+  update: (id: string, data: import("./supplier-bill").SupplierBillInput & { revision: number }) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id), { method: "PUT", body: JSON.stringify(data) }),
+  confirm: (id: string, revision: number) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id, "/confirm"), { method: "POST", body: JSON.stringify({ revision }) }),
+  cancel: (id: string, revision: number, reason: string) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id, "/cancel"), { method: "POST", body: JSON.stringify({ revision, reason }) }),
+  changeDueDate: (id: string, revision: number, dueDate: string, reason: string) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id, "/due-date"), { method: "PATCH", body: JSON.stringify({ revision, dueDate, reason }) }),
+  settle: (id: string, data: { revision: number; paymentVoucherId: string; amount: string; reason?: string }) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id, "/settlements"), { method: "POST", body: JSON.stringify(data) }),
+  voidSettlement: (id: string, settlementId: string, revision: number, reason: string) =>
+    apiFetch<import("./supplier-bill").SupplierBill>(supplierBillPath(id, `/settlements/${encodeURIComponent(settlementId)}/void`),
+      { method: "POST", body: JSON.stringify({ revision, reason }) }),
 };
 
 export const AccountingSettingsApi = {

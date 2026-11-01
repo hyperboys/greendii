@@ -14,7 +14,7 @@ function arActionPermission(action) {
   };
 }
 
-async function arTransition(tx, docType, document, action, actorId, reason) {
+async function arTransition(tx, docType, document, action, actorId, reason, { rolloutReady = ROLLOUT_READY } = {}) {
   const cycle = currentCycle(document);
   const editable = document.status === 'draft' || (document.status === 'returned' && cycle?.state === 'returned');
   if (['submit', 'confirm'].includes(action) && !editable) invalid('ส่ง/ยืนยันได้เฉพาะ Draft หรือเอกสารที่ส่งกลับ', 409);
@@ -25,12 +25,12 @@ async function arTransition(tx, docType, document, action, actorId, reason) {
     invalid('สถานะนี้ยกเลิกไม่ได้', 409);
   }
   if (action === 'confirm') {
-    const config = ROLLOUT_READY ? await tx.accountingApprovalConfig.findUnique({ where: { docType } }) : null;
+    const config = rolloutReady ? await tx.accountingApprovalConfig.findUnique({ where: { docType } }) : null;
     if (config?.enabled) invalid('เอกสารนี้ต้องส่งตามสายอนุมัติ ไม่สามารถยืนยันโดยตรง', 409);
     if (cycle && cycle.state !== 'legacy') invalid('เอกสารในสายอนุมัติต้องส่งและอนุมัติครบขั้น', 409);
     return { status: 'approved', posts: true, changes: {} };
   }
-  const approval = await planApproval(tx, docType, document, action, actorId, reason);
+  const approval = await planApproval(tx, docType, document, action, actorId, reason, { rolloutReady });
   if (action !== 'cancel' && !approval.managed) invalid('เอกสารประเภทนี้ยังไม่เปิดใช้สายอนุมัติ กรุณาใช้ยืนยันแบบเดิม', 409);
   return {
     status: action === 'approve' ? (approval.finalApproval ? 'approved' : 'pending')

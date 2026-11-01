@@ -50,8 +50,18 @@ export const AccountingApprovalApi = {
 export function latestApprovalCycle(document: ApprovalDocumentFields): ApprovalCycle | null {
   return document.accountingApproval?.cycles.at(-1) || null;
 }
+export function hasManagedApprovalCycle(document: ApprovalDocumentFields): boolean {
+  const cycle = latestApprovalCycle(document);
+  return Boolean(cycle && cycle.state !== "legacy");
+}
+export function legacyApprovalControlVisible(action: string, managed: boolean): boolean {
+  return !managed || !["submit", "confirm", "approve", "return", "reject"].includes(action);
+}
 export function approvedActors(document: ApprovalDocumentFields): ApprovalActor[] {
   return latestApprovalCycle(document)?.approvals || [];
+}
+export function hasApprovedActors(document: ApprovalDocumentFields): boolean {
+  return approvedActors(document).length > 0;
 }
 export function signatureText(actor: Pick<ApprovalActor, "signatureText" | "fullName">) {
   if (actor.signatureText?.trim()) return actor.signatureText.trim();

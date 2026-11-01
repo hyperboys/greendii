@@ -1,5 +1,6 @@
 "use client";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -34,6 +35,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [error, setError] = useState("");
   const [busy, setBusy] = useState(false), [reload, setReload] = useState(0), [files, setFiles] = useState<File[]>([]);
   const [action, setAction] = useState<ReceiptAction | null>(null), [reason, setReason] = useState(""), [cancelDate, setCancelDate] = useState(today);
+  const [chainManaged, setChainManaged] = useState(false);
   const [userId, setUserId] = useState<string>(), [company, setCompany] = useState<PurchaseOrderCompanySettings>({}), [printReady, setPrintReady] = useState(false);
   const guard = useRef(false), requestKey = useRef("");
   const isForm = mode === "new" || mode === "edit", allowedForm = mode === "new" ? can.create : can.update;
@@ -89,6 +91,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
   }
   const refresh = () => { setReload(value => value + 1); };
   const actions = doc ? availableReceiptActions(doc, can, userId) : [];
+  const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
   if (isForm && !allowedForm) return <p role="alert">ไม่มีสิทธิ์สร้าง/แก้ GR <Link href={list}>กลับทะเบียน</Link></p>;
   return <>
@@ -155,6 +158,11 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
                     options={options.map(product => ({ value: product.id, label: `${product.code} · ${product.name} · ${product.productType === "service" ? "บริการ" : "สินค้า"}` }))}
                     placeholder="เลือก master หน่วยตรง PO" searchPlaceholder="ค้นหาสินค้า / บริการ" onChange={productId => change({ productId })} />
                   <label>จำนวนรับครั้งนี้ *<input required type="number" min="0.001" step="0.001" max={Number(line.remainingQty)} className={control} value={entry.currentReceiptQty} onChange={event => change({ currentReceiptQty: event.target.value })} /></label>
+                  {products.find(product => product.id === entry.productId)?.productType !== "service" && <>
+                    <p className="text-sm text-amber-800 sm:col-span-2">ต้นทุนต่อหน่วยรับเข้า = สุทธิหลังส่วนลด ไม่รวม VAT รวมค่าขนส่ง/ค่าใช้จ่ายที่เป็นต้นทุนสินค้าที่จัดสรรและตรวจสอบแล้ว ไม่เดาหรือจัดสรรอัตโนมัติ ว่าง = ยังไม่ตีมูลค่า; หากมีฐาน Moving Average แล้วต้องระบุต้นทุนพร้อมหลักฐานก่อนอนุมัติ</p>
+                    <label>ต้นทุนต่อหน่วยที่ตรวจสอบแล้ว<input inputMode="decimal" pattern="(0|[1-9][0-9]*)(\.[0-9]{1,12})?" className={control} value={entry.unitCost ?? ""} onChange={event => change({ unitCost: event.target.value })} /></label>
+                    <label>ที่มา/วิธีจัดสรรต้นทุน (บังคับเมื่อระบุต้นทุน)<textarea required={entry.unitCost != null && entry.unitCost !== ""} maxLength={1000} className={control} value={entry.costEvidence || ""} onChange={event => change({ costEvidence: event.target.value })} /></label>
+                  </>}
                 </div>}
               </section>;
             })}
@@ -169,7 +177,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
           <Link className="text-blue-700" href={`/ap/vouchers/${encodeURIComponent(doc.poId)}`}>ดู PO {doc.poNo}</Link>
           {doc.lifecycleVersion !== 1 && <p role="alert" className="text-amber-800">GR Legacy อ่านอย่างเดียว ต้องตรวจย้าย PO-line/ยอด Stock ก่อนใช้ workflow ใหม่</p>}
           <div className="flex flex-wrap gap-2">{editable && can.update && <Link className={button} href={`${base}/${encodeURIComponent(doc.id)}/edit`}>แก้ไข GR</Link>}
-            {actions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); }}>{receiptActions[value]}</button>)}
+            {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); }}>{receiptActions[value]}</button>)}
             {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}
           </div>
           {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate); refresh(); }); }}>
@@ -203,7 +211,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
         </section>
       </>}
     </div>
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="gr" document={doc} canSubmit={can.create} onChanged={refresh} />}
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="gr" document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} />}
     {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="gr-preview mt-5 w-full overflow-x-auto">
       <GoodsReceiptDocument document={doc} company={company} onReady={setPrintReady} />
     </div>}

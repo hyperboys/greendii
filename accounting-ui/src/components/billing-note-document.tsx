@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import type { BillingLine, BillingNote } from "@/lib/billing-note";
+import { hasApprovedActors } from "@/lib/accounting-approval";
+import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function billingPrintPages(items: BillingLine[]) {
@@ -83,7 +85,9 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
         </table>
         <div className="bi-remark" data-bi-fit><strong>หมายเหตุ</strong>　{doc.remark || ""}</div>
         <footer className="bi-signatures">
-          <div><p>ในนาม　{company.companyName || ""}</p><span /><p>ผู้วางบิล</p><p>วันที่ ____/____/________</p></div>
+          <div><p>ในนาม　{company.companyName || ""}</p>
+            {hasApprovedActors(doc) ? <AccountingApprovalSignatures document={doc} compact /> : <span />}
+            <p>{hasApprovedActors(doc) ? "ผู้อนุมัติ" : "ผู้วางบิล"}</p><p>วันที่ ____/____/________</p></div>
           <div><p>&nbsp;</p><span /><p>ผู้รับวางบิล</p><p>วันที่ ____/____/________</p></div>
         </footer>
       </article>)}

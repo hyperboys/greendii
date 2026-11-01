@@ -53,7 +53,7 @@ chains for PO, GR, IS, SR, PS, PV, opening balances, Invoice, BI, RV and CN.
 Roles reference Accounting role IDs, not Sale role names. New `ar.approve`
 permission is additive; it does not change legacy AR `ar.create` confirmation.
 
-**The feature is incomplete and cannot be enabled.** A server-side
+**The feature remains staged and cannot be enabled before real-database UAT.** A server-side
 `ROLLOUT_READY = false` guard rejects enabling with HTTP 409, and rejects a new
 submit if someone manually enables a configuration in the database. No
 environment flag bypass exists. This is not a production-ready eleven-type
@@ -63,7 +63,9 @@ Implemented staging: revisioned/audited configuration, shared cycle/actor
 snapshot engine, all eleven document approval adapters with
 final-only posting, and eligible inbox/review pages at `/approvals`. Existing
 document details now link to the current eligible review step and show cycle
-history. The inbox supports standard opt-in pagination without the old
+history. Original detail controls are chain-aware and original print layouts
+display immutable actual approver signatures; Invoice remains data-only.
+The inbox supports standard opt-in pagination without the old
 500-document truncation. Review
 pages show preserved actor history and actual signature snapshots. A referenced
 profile image is retained under its original immutable upload URL when the
@@ -77,9 +79,11 @@ BI cancellation cannot orphan a pending RV/CN. Final approval alone sets
 debt/settles a receipt/posts a credit. AR corrections are editable only in
 Draft or an explicitly returned snapshotted cycle.
 
-Still required before removing the guard: all document-print signature layouts
-and pagination, replacement of legacy action buttons with fully chain-aware
-controls, and enabled submit/return/resubmit end-to-end validation.
+Still required before removing the guard: enabled configuration and complete
+submit/return/edit/resubmit/final-approval HTTP flows in a real PostgreSQL UAT
+database, storage/role checks and physical-print review. Helper-level enabled
+workflow tests pass under explicit test policy; production configuration and
+routes cannot bypass the disabled rollout guard.
 The Invoice preprinted-stationery component is deliberately unchanged.
 
 API staging contracts:
@@ -98,12 +102,16 @@ API staging contracts:
   AR endpoints retain `/:id/confirm` for unconfigured legacy behavior.
 
 Confirmed next-phase rules: received cheques settle debt on receipt and
-dishonour restores debt; SO never posts stock (IS owns stock issues);
-inventory costing uses Moving Average; notifications use the in-app channel.
-AP liability source/due dates still require Accounting confirmation. GL
-configuration may be prepared, but automatic posting and period closing must
+dishonour restores only cheque cash, keeping WHT/company bank fee settled;
+SO never posts stock (IS owns stock issues);
+inventory costing uses Moving Average per product/warehouse, and transfers
+carry source-warehouse cost; notifications use the in-app channel.
+AP debt uses supplier invoice/tax invoice and due date equals invoice date
+plus credit term, manually editable. GL configuration is prepared, but
+automatic posting and period closing must
 remain disabled until Accounting supplies posting/tax/period policies. These
-next-phase workflows are not implemented by the approval adapter batch.
+next-phase workflows are not implemented by the approval adapter batch alone;
+their subsequent implementations and remaining boundaries are documented below.
 
 Review the additive Prisma migration
 `20261031160000_accounting_approval_snapshots` in an **isolated database first**.
@@ -724,9 +732,11 @@ together. Generation in this session encountered Windows `EPERM` on a loaded
 engine DLL; no unrelated/user API process was stopped. Schema validation passed,
 but target DB rollout and real-data/concurrency UAT remain pending.
 
-Not included: sublocations, opening balances, stock transfers/thresholds/valuation,
-GL/journals/period closing, Accounting approvals, notification delivery or advanced
-business reports. API tests use transactional Prisma substitutes; browser checks
+This master-data batch alone did not include stock or approval workflows.
+Later sections document opening balances, transfers/thresholds/valuation,
+Accounting approval staging and in-app notifications. Automatic GL/journals,
+period closing, sublocations and advanced business reports remain outside the
+verified implementation. API tests use transactional Prisma substitutes; browser checks
 exercise the real Express routes/validators, not a target PostgreSQL database.
 
 The root layout owns the shared sidebar and header so they remain mounted while
@@ -1066,8 +1076,8 @@ list. New/view/edit routes are `/ar/receipts/new`, `/ar/receipts/:id` and
   government banks and foreign branches; saved bank names outside the list
   remain selectable when editing. Cheque number/date appear in the printed bank
   row, and the receipt summary identifies cheques separately from deposits.
-  Confirmation reduces debt immediately, just like cash/transfer; cheque
-  clearance, dishonour and a separate cheque lifecycle are not implemented.
+  Confirmation reduces debt immediately, just like cash/transfer; the separate
+  received-cheque lifecycle below adds deposit, clearance and cash-only dishonour.
   Existing cheque fields are reused without a new migration. WHT requires
   certificate number. `ar.create` manages Drafts, confirms directly and cancels
   with a reason; `ar.view` reads/prints. Draft does not change debt; confirmed RV
@@ -1311,6 +1321,100 @@ database substitute; production PostgreSQL locking and target-database UAT still
 need verification. Invoice line import/partial invoicing is the next process,
 not part of this Draft batch.
 
+## Accounting report reconciliation and export
+
+The Reports page supports an Aging reference date, source-document date ranges
+for SO/PO reconciliation, document/partner searches and reconciliation-state
+filters. CSV and print/PDF use exactly the displayed filtered rows, include the
+applied dates and report warnings, and are disabled while loading or after an
+error. Printing uses the local Sale body font and repeating table headers.
+
+- **PO → GR:** compare quantities separately per PO line/unit. Only approved GR
+  counts as received; pending, cancelled and draft GR do not make a PO complete.
+  Display not-received, partial, complete, source-cancelled and review-required
+  states, approved/pending/cancelled GR numbers and per-line ordered, received,
+  pending and remaining quantities. Legacy/orphan mappings, missing lines and
+  overreceipts require explicit data review instead of a successful match.
+- **SO → Invoice:** managed draft/pending/returned/rejected/cancelled Invoices
+  do not count as posted invoices. Pending Invoice numbers are displayed
+  separately. Existing posted legacy pending Invoices retain their behavior.
+- **AR Aging:** exclude managed pending and future-dated Invoices; display five
+  distinct buckets (current, 1–30, 31–60, 61–90, over 90). This ages the
+  **current outstanding balance** against the selected reference date, not a
+  reconstruction of historical balances.
+- **AP Aging:** confirmed supplier bills establish debt; age their actual
+  outstanding balances against the editable due date. Only effective
+  settlements backed by currently paid, non-reversed PVs reduce debt, and
+  vouchers paid after the reference date are excluded. Later cancellation or
+  reversal still affects older reference dates: this is explicitly warned,
+  not a fully reconstructed historical ledger.
+- **PO commitments:** the old PO-date Aging logic is retained separately at
+  `/api/accounting-reports/ap/po-commitment` and its own report tab. It remains
+  explicitly labelled PO commitment, not outstanding supplier debt.
+
+All four endpoints enforce live `reports.view` Accounting permission. Sale
+export roles are not required to view Accounting reports. Date filters reject
+invalid calendars, repeated parameters and reversed ranges. Reconciliation
+uses current document states; a source-date range is not a historical cutoff
+for downstream approvals or cancellation.
+
+## Supplier invoice / tax-invoice register
+
+Open **เจ้าหนี้ / ค่าใช้จ่าย → ใบแจ้งหนี้ผู้ขาย** (`/ap/vouchers?tab=bills`).
+Supplier bills start as Draft; only confirmation establishes AP debt.
+`ap.create` creates, `ap.update` edits Drafts/changes due dates, `ap.approve`
+confirms, `ap.pay` allocates paid PVs, and `ap.cancel` cancels. The creator cannot
+confirm their own bill, including admin. This new register has a separate
+single-step confirmation lifecycle; it is not silently added to the eleven-type
+configurable approval chain.
+
+The server calculates exact-satang totals and VAT and snapshots the supplier,
+tax identity, invoice references and dates. Duplicate supplier/tax invoice
+numbers are checked transactionally and protected by database uniqueness.
+The default due date is supplier invoice date plus credit term; manual due-date
+changes require a reason. All mutations are revisioned and audited.
+
+Settlement allocates an existing paid new-lifecycle PV from the same supplier,
+not a new cash payment. A bill cannot be over-settled or a PV reused above its
+capacity. Capacity includes net payment plus WHT; retention remains owed.
+Cancelled/reversed PVs cease to settle the bill, restore outstanding debt and
+are flagged for review. Settlement voids retain history and require payment
+and cancellation permissions. No GL posting occurs.
+
+Review/back up before applying the additive `20261101020000_supplier_bills`
+Prisma migration; regenerate the Prisma client and deploy API/UI together.
+No live migration or deployment has been performed by the assistant.
+
+## GL configuration skeleton
+
+Admin can prepare account-role mappings, fiscal-year start month and policy
+notes at `/settings/gl` (`/api/accounting-gl`). Only active detail accounts are
+accepted; updates require the current revision and an atomic audit write.
+Disabled/deleted mapped accounts must be reviewed rather than silently replaced.
+
+**Automatic posting and period closing remain disabled.** Saving mappings never
+creates journals or changes balances; attempts to enable either return HTTP 409.
+Accounting must confirm tax/posting/closing policies and opening balances before
+those workflows are enabled. Review the additive
+`20261101010000_accounting_gl_configuration` migration before deployment.
+
+## Accounting in-app notifications
+
+`/notifications` displays current-step approval requests and creator outcome
+notifications for managed Accounting approval cycles. It uses a separate
+Accounting notification table and never sends Email or LINE or mixes Sale
+messages. Notifications are created in the same document/audit transaction,
+deduplicated by audit event and recipient, and roll back when insertion fails.
+Current-step recipients reuse the approval engine's live eligibility checks.
+There is no synthetic backfill for old unmanaged pending documents.
+
+Lists/read actions enforce the current owner and live AR/AP/Inventory view
+permission. Unread counts include all eligible messages, not just the displayed
+page; pagination, per-message/read-all actions, focus refresh and visible-page
+minute refresh are provided. Failures are shown explicitly. Notification text
+records the event at the time; opening the document shows its current state.
+The additive `20261101030000_accounting_notifications` migration is required.
+
 ## Date format
 
 Accounting dates use `dd/mm/yyyy` with Gregorian years and the Asia/Bangkok
@@ -1346,3 +1450,89 @@ If Coolify reports `Missing: @emnapi/runtime ... from lock file`, deploy the com
 with the repaired lockfile rather than replacing `npm ci` with `npm install`.
 Node engine warnings are separate: some transitive tooling requires Node 22.13+
 on the Node 22 line, so use a compatible build image instead of Node 22.11.
+## Admin Accounting logs
+
+Admin can open **บันทึกกิจกรรม Accounting** from the sidebar at `/settings/logs`.
+Like Sale, the menu separates document Audit Log from API Activity Log. Both are
+read-only and enforce admin access on the server, including direct API requests.
+
+Document history includes existing Accounting document/master/config events,
+actor, action, reason, changed fields and masked before/after snapshots.
+Filter by document type, action, document number/ID/reason, actor and Thai dates.
+Activity shows Accounting resource API paths, method, HTTP status, duration,
+request ID and recorded error summary; it supports actor/path/date/method/status
+filters. Both lists paginate and display Bangkok time. Failed loads explicitly
+hide stale results and offer reload.
+
+No new log tables or migration are needed. Existing records are reused; missing
+historical events are not fabricated. Activity is scoped by API resource rather
+than the browser application: shared Accounting master endpoints can be called
+from Sale as well. Shared login/upload/general Sale endpoints are not included.
+The existing best-effort Activity logger is diagnostic, not a guaranteed
+transactional audit trail. This menu does not change document/approval behavior.
+
+## Received cheques (AR / RV)
+
+`/ar/receipts/cheques` is the received-cheque register; issued cheques remain in AP / CQ.
+Only new-lifecycle cheque RVs finally confirmed after the received-cheque feature can
+deposit, clear or dishonour; pending approvals and older RVs without cheque state are read-only.
+Final confirmation settles net cheque cash + WHT + company bank fee immediately.
+Deposit/clear do not settle twice. Dishonour restores **only net cheque cash**, per allocation
+in exact satang; WHT and company bank fee continue settling debt. Cancelling a dishonoured
+RV subsequently restores only the still-settled WHT/fee, never the cheque cash again.
+
+Deposit requires an effective date, destination bank/account and deposit reference.
+Clear follows deposit; dishonour is allowed from received/deposited, requires date/reason,
+and re-evaluates completion of the original BI. Each transition uses `ar.create`, a
+fresh RV revision and immutable audit snapshots under document/Invoice/BI locks.
+Uncleared cheques block new BI and CN confirmation on their invoices. Later active BI
+blocks unsafe reversal; retained settlements keep the RV approved and prevent orphaning
+Invoice cancellation until the RV is cancelled. Clearing is terminal for cheque stages.
+
+Migration `20261101040000_received_cheques` is additive and not applied by this change.
+Existing confirmed RVs are not backfilled; operator review is needed for historical adoption.
+No Invoice stationery, numbering, stock or GL posting is changed; approval rollout is unchanged.
+
+## Inventory transfers, thresholds and Moving Average
+
+Open `/inventory/transfers` for warehouse transfers and `/inventory/costs` for
+verified cost initialization and per-product/warehouse low-stock thresholds.
+Both are linked from the inventory page. These additional workflows use their
+own single-step approval, not the eleven-type configurable approval chain.
+
+- Draft transfers do not post or reserve stock. Submission reserves source stock;
+  return/reject/cancel releases the reservation. Independent approval posts the
+  two warehouse movements and their costs atomically. Creators, including admin,
+  cannot self-approve. Revisions and request keys protect against stale/replayed
+  writes; insufficient available stock cannot consume other reservations.
+- Costs use exact decimal Moving Average per product/warehouse. Transfers carry
+  source cost. GR costs must explicitly include net price after discount,
+  exclude VAT and include reviewed allocated freight/capitalizable expenses,
+  with evidence. IS uses posted average cost; SR restores the issue's recorded
+  cost, including cumulative rounding residuals instead of current master prices.
+- Existing unknown stock remains **unvalued**, not zero or today's master price.
+  Start a cost basis only by submitting Accounting-verified current quantity,
+  total value and evidence for independent approval. The quantity/revision must
+  still match at approval. This establishes a current basis without rewriting
+  historical movements.
+- Backdated valued posting and reversal of a nonlatest valued movement are
+  explicitly rejected; historical cost recomputation/revaluation is not
+  implemented. Cancelling an approved transfer requires physical return
+  confirmation, available destination stock and reversible cost provenance.
+- Low-stock warnings compare available quantity against an explicit threshold.
+  Clearing the threshold disables that pair's warning; unknown costs are
+  displayed separately from known valuation.
+
+The additive `20261031190000_inventory_cost_transfers` migration must be reviewed
+with the existing opening-balance and approval prerequisites before deployment.
+No migration or production deployment was performed. Full regression/build
+checks do not certify PostgreSQL concurrency or actual printer calibration.
+
+### Current validation boundary
+
+Combined API and Accounting UI regression tests, production build, Prisma
+validation/generation and changed API syntax checks pass. The shared API client
+still has seven pre-existing `no-explicit-any` lint errors; all other changed
+Accounting TypeScript files pass targeted lint. Approval rollout remains disabled
+until real PostgreSQL/storage/role UAT. Automatic GL posting and period closing
+remain disabled pending Accounting policy and validation.

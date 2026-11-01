@@ -2,6 +2,7 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { once } = require('events');
 const { reservedSettlement, assertAvailableSettlement } = require('../src/lib/arReservations');
+const { arTransition } = require('../src/lib/arApproval');
 
 test('AR reservations combine pending RV and CN in exact satang and exclude the current document', async () => {
   let receiptWhere, creditWhere;
@@ -16,6 +17,17 @@ test('AR reservations combine pending RV and CN in exact satang and exclude the 
   assert.equal(creditWhere.id.not, 'cn');
   await assertAvailableSettlement(tx, { id: 'iv', outstandingAmount: 100 }, 1800);
   await assert.rejects(assertAvailableSettlement(tx, { id: 'iv', outstandingAmount: 100 }, 1801), { status: 409 });
+});
+
+test('AR confirm preserves legacy behavior while a configured chain blocks direct confirmation', async () => {
+  const tx = { accountingApprovalConfig: { findUnique: async () => ({
+    enabled: true, revision: 1, steps: [{ kind: 'user', targetId: 'approver' }],
+  }) } };
+  const draft = { id: 'legacy', salesId: 'maker', status: 'draft' };
+  const legacy = await arTransition(tx, 'invoice', draft, 'confirm', 'maker');
+  assert.equal(legacy.status, 'approved');
+  assert.equal(legacy.posts, true);
+  await assert.rejects(arTransition(tx, 'invoice', draft, 'confirm', 'maker', null, { rolloutReady: true }), { status: 409 });
 });
 
 for (const type of ['invoice', 'bi', 'rv', 'cn']) {
@@ -38,7 +50,7 @@ for (const type of ['invoice', 'bi', 'rv', 'cn']) {
       invoice: [{ id: 'source', ivNo: 'IV-SOURCE', lifecycleVersion: 1, status: 'approved', customerId: 'c',
         customerName: 'Customer', customerCode: 'C', customerBranch: 'Main', ivDate: new Date('2026-10-01'),
         vatConfig: 'NO_VAT', vat: 0, netAmount: 100, outstandingAmount: 100, updatedAt: revision() }],
-      billingNote: [], receiptVoucher: [], creditNote: [], audits: [], posts: 0,
+      billingNote: [], receiptVoucher: [], creditNote: [], audits: [], notifications: [], posts: 0,
     };
     const doc = { id: 'target', lifecycleVersion: 1, status: 'pending', salesId: 'maker', customerId: 'c', customerBranch: 'Main',
       updatedAt: revision(), createdAt: new Date('2026-10-01'), [descriptor.date]: new Date('2026-10-25'),
@@ -66,7 +78,23 @@ for (const type of ['invoice', 'bi', 'rv', 'cn']) {
       receiptAllocation: { count: async () => 0, findMany: async ({ where }) => copy(state.receiptVoucher
         .filter(row => row.status === where.receiptVoucher.status && row.id !== where.receiptVoucherId?.not)
         .flatMap(row => row.allocations).filter(row => row.invoiceId === where.invoiceId)) },
-      auditLog: { create: async ({ data }) => { if (failAudit) throw new Error('Audit unavailable'); state.audits.push(copy(data)); return data; } },
+      auditLog: { create: async ({ data }) => {
+        if (failAudit) throw new Error('Audit unavailable');
+        const row = { ...copy(data), id: `audit-${state.audits.length + 1}` };
+        state.audits.push(row); return row;
+      } },
+      accountingNotification: { createMany: async ({ data, skipDuplicates = false }) => {
+        let count = 0;
+        for (const notification of data) {
+          const duplicate = state.notifications.some(row => row.eventId === notification.eventId && row.userId === notification.userId);
+          if (duplicate) {
+            if (skipDuplicates) continue;
+            throw Object.assign(new Error('Duplicate notification'), { code: 'P2002' });
+          }
+          state.notifications.push(copy(notification)); count += 1;
+        }
+        return { count };
+      } },
     };
     for (const model of ['invoice', 'billingNote', 'receiptVoucher', 'creditNote']) prisma[model] = {
       findUnique: async ({ where }) => copy(state[model].find(row => row.id === where.id)),

@@ -3,6 +3,7 @@ const { boundedText, normalizedSnapshot } = require('./contractorPayment');
 const { quantity, lockWarehouse } = require('./goodsReceipt');
 const { getAccountingAccess, hasAccountingPermission } = require('./accountingAccess');
 const { recordAuditLog } = require('./auditTrail');
+const { movementCost } = require('./stockCost');
 const ISSUE_INCLUDE = { items: { orderBy: { seq: 'asc' } }, attachments: { orderBy: { uploadedAt: 'asc' } } };
 const ISSUE_STATUSES = ['draft', 'pending', 'approved', 'returned', 'rejected', 'cancelled'];
 const qty = value => quantity(String(value), 'จำนวนในระบบ', true);
@@ -71,7 +72,9 @@ async function postIssue(tx, doc, req, reversalDate) {
     }
     const next = onHand + (reversalDate ? amount : -amount);
     if (next > 999999999999 || next < reserved) invalid('ยอด Stock เกินช่วงหรือกระทบยอดจอง', 409);
-    await tx.stockMovement.create({ data: { ...key, movementType: reversalDate ? 'reversal' : 'out',
+    const costs = await movementCost(tx, { key, balance, quantityIn: reversalDate ? amount / 1000 : 0,
+      quantityOut: reversalDate ? 0 : amount / 1000, date: reversalDate || doc.issueDate, reversal: Boolean(reversalDate), original });
+    await tx.stockMovement.create({ data: { ...key, ...costs, movementType: reversalDate ? 'reversal' : 'out',
       qtyIn: reversalDate ? amount / 1000 : 0, qtyOut: reversalDate ? 0 : amount / 1000,
       sourceDocType: reversalDate ? 'stock_issue_reversal' : 'stock_issue', sourceDocId: doc.id, sourceDocNo: doc.issueNo,
       reversalRefId: reversalDate ? original.id : null, transactionDate: reversalDate || doc.issueDate,

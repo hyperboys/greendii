@@ -4,6 +4,8 @@ const test = require('node:test'), ts = require('typescript'), React = require('
 const { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}) {
   imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
+  imports['@/lib/accounting-approval'] = { hasApprovedActors: () => false, ...(imports['@/lib/accounting-approval'] || {}) };
+  imports['./accounting-approval-signatures'] = { AccountingApprovalSignatures: () => null };
   const filename = path.join(__dirname, '..', 'src', ...parts);
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {
     compilerOptions: { target: ts.ScriptTarget.ES2020, module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,
@@ -25,7 +27,7 @@ test('PS routes select full pages and reject invalid action URLs', () => {
     '@/components/contractor-payments': { ContractorPayments: Component }, '@/components/purchase-orders': { PurchaseOrders: () => null },
     '@/components/payment-vouchers': { PaymentVouchers: () => null },
     '@/components/cheque-payments': { ChequePayments: () => null },
-    '@/components/goods-receipts': { GoodsReceipts: () => null },
+    '@/components/goods-receipts': { GoodsReceipts: () => null }, '@/components/supplier-bills': { SupplierBills: () => null },
   }).default;
   assert.equal(List({ searchParams: { tab: 'ps' } }).type, Component);
 });

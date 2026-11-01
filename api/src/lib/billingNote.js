@@ -2,6 +2,7 @@ const { invalid, text, documentDate, moneyCents } = require('./deliveryOrder');
 const { lockInvoice } = require('./invoice');
 const { CUSTOMER_INCLUDE, invoiceCustomerDefaults } = require('./accountCustomers');
 const { reservedSettlement } = require('./arReservations');
+const { assertNoUnresolvedCheque } = require('./receivedCheque');
 
 const BILLING_INCLUDE = {
   customer: { select: { id: true, code: true, name: true } },
@@ -78,6 +79,7 @@ async function billingData(tx, body, previous) {
   for (const [seq, row] of body.invoices.entries()) {
     const invoice = locked.get(ids[seq]);
     assertBillable(invoice, customerId);
+    await assertNoUnresolvedCheque(tx, invoice.id);
     if (await reservedSettlement(tx, invoice.id)) invalid('Invoice มี RV/CN ที่รออนุมัติ กรุณาจัดการก่อนวางบิล', 409);
     await assertNoOtherBilling(tx, invoice.id, previous?.id);
     const cents = moneyCents(row.billingAmount, 'ยอดวางบิล');
