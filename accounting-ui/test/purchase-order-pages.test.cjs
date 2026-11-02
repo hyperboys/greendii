@@ -144,6 +144,7 @@ test("PO print follows the reference structure and retains operational details",
   assert.match(html, /เอกสารแนบจาก PR/);
   assert.match(html, /เอกสารแนบประกอบ PO/);
   assert.match(html, /Sample item/);
+  assert.equal((html.match(/class="po-print-empty-row"/g) || []).length, 9);
   assert.match(html, /อนุมัติโดย Saved approver/);
   assert.doesNotMatch(html, /ยังไม่มีข้อมูลการอนุมัติ/);
   assert.match(render({ ...doc, status: "cancelled" }), /เคยอนุมัติโดย Saved approver/);

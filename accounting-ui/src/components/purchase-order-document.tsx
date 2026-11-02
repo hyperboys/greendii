@@ -50,6 +50,7 @@ export function PurchaseOrderDocumentView({
   const signature = document.createdBy?.signatureUrl;
   const supplier = document.supplierSnapshot ?? document.supplier;
   const approval = document.history?.find(row => row.action === "approve");
+  const emptyPrintRows = Math.max(0, 10 - document.items.length);
 
   return (
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-5 text-[11px] leading-5 text-black sm:p-6">
@@ -127,6 +128,13 @@ export function PurchaseOrderDocumentView({
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.amount)}</td>
               </tr>
             ))}
+            {Array.from({ length: emptyPrintRows }, (_, index) => (
+              <tr key={`empty-print-row-${index}`} className="po-print-empty-row">
+                {Array.from({ length: 7 }, (_, cellIndex) => (
+                  <td key={cellIndex} className="border-x border-b border-blue-700 p-1">&nbsp;</td>
+                ))}
+              </tr>
+            ))}
           </tbody>
         </table>
         <div className="grid grid-cols-[1fr_43%] border-t border-blue-700">
@@ -193,6 +201,7 @@ export function PurchaseOrderPrintStyles() {
   return (
     <style jsx global>{`
       #po-print-doc { font-family: var(--font-noto-thai), Tahoma, sans-serif; }
+      #po-print-doc .po-print-empty-row { display: none; }
       @page { size: A4; margin: 8mm; }
       @media print {
         html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
@@ -215,12 +224,15 @@ export function PurchaseOrderPrintStyles() {
           max-width: none !important;
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 8.5pt !important;
+          font-size: 11pt !important;
           line-height: 1.25 !important;
           break-inside: auto;
         }
+        #po-print-doc * { font-size: 11pt !important; }
+        #po-print-doc header h1, #po-print-doc h2 { font-size: 17pt !important; }
         #po-print-doc table { width: 100% !important; min-width: 0 !important; }
-        #po-print-doc th, #po-print-doc td { padding: 2px !important; }
+        #po-print-doc th, #po-print-doc td { padding: 2px !important; font-size: 12pt !important; }
+        #po-print-doc .po-print-empty-row { display: table-row; }
         #po-print-doc header, #po-print-doc .po-print-keep, #po-print-doc tbody tr {
           break-inside: avoid;
           page-break-inside: avoid;

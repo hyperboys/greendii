@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function InvoiceDocument({ document: doc, onReady }: { document: Invoice; onReady?: (ready: boolean) => void }) {
-  const pages = deliveryOrderPrintPages(invoiceForm(doc).items.map(item => ({ ...item, desc: `${item.desc}${item.unit ? `\n(${item.unit})` : ""}`, unit: "" })));
+  const pages = deliveryOrderPrintPages(invoiceForm(doc).items.map(item => ({ ...item, desc: `${item.desc}${item.unit ? `\n(${item.unit})` : ""}`, unit: "" })), 23, 20);
   const root = useRef<HTMLDivElement>(null);
   const [fitError, setFitError] = useState(false);
   useEffect(() => {
@@ -16,7 +16,7 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
       if (!current || !root.current) return;
       let valid = true;
       for (const element of root.current.querySelectorAll<HTMLElement>("[data-print-fit]")) {
-        let size = 10;
+        let size = 12;
         element.style.fontSize = `${size}pt`;
         while (size > 6 && (element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1)) {
           size -= 0.5;
@@ -30,11 +30,12 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
     return () => { current = false; };
   }, [doc, onReady]);
   return <><p className={`iv-no-print rounded bg-red-50 p-3 text-red-700 ${fitError ? "" : "hidden"}`} role={fitError ? "alert" : undefined}>ข้อมูลหัวเอกสารยาวเกินพื้นที่แบบฟอร์ม กรุณาปรับข้อมูลก่อนพิมพ์ ไม่มีการตัดข้อความเพื่อซ่อนข้อมูล</p><div ref={root} id="iv-print-doc" className="mx-auto w-[210mm] text-black">
-    {pages.map((rows, pageIndex) => <article key={pageIndex} className="iv-overlay relative h-[297mm] w-[210mm] bg-white text-[10pt] leading-tight">
+    {pages.map((rows, pageIndex) => <article key={pageIndex} className="iv-overlay relative h-[297mm] w-[210mm] bg-white text-[12pt] leading-tight">
       <div data-print-fit className="iv-value" style={{ left: "32mm", top: "41mm", width: "94mm", height: "4mm" }}>{doc.customerCode || doc.customer?.code}</div>
       <div data-print-fit className="iv-value" style={{ left: "32mm", top: "46mm", width: "94mm", height: "4mm" }}>{doc.customerName || doc.customer?.name} {doc.customerBranch ? `(${doc.customerBranch})` : ""}</div>
       <div data-print-fit className="iv-value" style={{ left: "23mm", top: "51mm", width: "103mm", height: "10mm" }}>{doc.address}</div>
-      <div data-print-fit className="iv-value" style={{ left: "29mm", top: "62mm", width: "97mm", height: "4mm" }}>{doc.taxId}{doc.remark ? ` / ${doc.remark}` : ""}</div>
+      <div data-print-fit className="iv-value text-center" style={{ left: "73mm", top: "41mm", width: "53mm", height: "4mm" }}>{doc.taxId}</div>
+      <div data-print-fit className="iv-value" style={{ left: "29mm", top: "62mm", width: "97mm", height: "4mm" }}>{doc.remark}</div>
       <div data-print-fit className="iv-value" style={{ left: "31mm", top: "67mm", width: "95mm", height: "4mm" }}>{doc.customerPoNo}</div>
       <div data-print-fit className="iv-value" style={{ left: "155mm", top: "42mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.ivDate)}</div>
       <div data-print-fit className="iv-value" style={{ left: "155mm", top: "47mm", width: "45mm", height: "4mm" }}>{doc.ivNo}</div>

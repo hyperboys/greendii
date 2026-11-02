@@ -12,8 +12,8 @@ const { BANGKOK_TIME_ZONE } = require('./timezone');
 const DOC_PATTERNS = {
   provisional_delivery_order: { prefix: 'SO', padLen: 5, separator: '-', periodType: 'YYMM' },
   so:                          { prefix: 'SO', padLen: 5, separator: '-', periodType: 'YYMM' },
-  invoice:                     { prefix: 'IV', padLen: 4, separator: '',  periodType: 'YYMM' },
-  iv:                          { prefix: 'IV', padLen: 4, separator: '',  periodType: 'YYMM' },
+  invoice:                     { prefix: 'IV', padLen: 4, separator: '',  periodType: 'BEYYMM' },
+  iv:                          { prefix: 'IV', padLen: 4, separator: '',  periodType: 'BEYYMM' },
   billing_note:                { prefix: 'BI', padLen: 5, separator: '-', periodType: 'YYMM' },
   bi:                          { prefix: 'BI', padLen: 5, separator: '-', periodType: 'YYMM' },
   credit_note:                 { prefix: 'CN', padLen: 5, separator: '-', periodType: 'YYMM' },
@@ -58,21 +58,52 @@ function getYYMM(date = new Date()) {
   return `${yy}${mm}`;
 }
 
-/**
- * Generate next running number for a document type atomically.
- */
-async function generateNextRunningNumber(docTypeKey, options = {}, client = null) {
+function getBEYYMM(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BANGKOK_TIME_ZONE,
+    year: 'numeric',
+    month: '2-digit',
+  }).formatToParts(new Date(date));
+  const year = Number(parts.find(p => p.type === 'year')?.value);
+  const month = parts.find(p => p.type === 'month')?.value || '01';
+  return `${String(year + 543).slice(-2)}${month}`;
+}
+
+function getNumberParts(docTypeKey, options = {}) {
   const key = String(docTypeKey || '').trim().toLowerCase();
   const config = DOC_PATTERNS[key];
   if (!config) {
     throw new Error(`ไม่พบรูปแบบเลขที่เอกสารสำหรับประเภท "${docTypeKey}"`);
   }
-
   const date = options.date || new Date();
-  const yymm = getYYMM(date);
-  const periodKey = config.periodType === 'YYMM' ? yymm : 'GLOBAL';
+  const periodKey = config.periodType === 'BEYYMM'
+    ? getBEYYMM(date)
+    : config.periodType === 'YYMM' ? getYYMM(date) : 'GLOBAL';
   const prefix = config.prefix + (config.separator ? config.separator : '') + (periodKey !== 'GLOBAL' ? periodKey : '');
-  const round = options.round != null ? options.round : 1;
+  return { key, config, periodKey, prefix, round: options.round != null ? options.round : 1 };
+}
+
+function formatRunningNumber(config, periodKey, lastSeq, round) {
+  const seqStr = String(lastSeq).padStart(config.padLen, '0');
+  if (config.suffix === '-R') return `${config.prefix}${periodKey}${seqStr}-R${round}`;
+  if (config.separator) return `${config.prefix}${periodKey}${config.separator}${seqStr}`;
+  return `${config.prefix}${periodKey}${seqStr}`;
+}
+
+async function previewNextRunningNumber(docTypeKey, options = {}, client = prisma) {
+  const { key, config, periodKey, prefix, round } = getNumberParts(docTypeKey, options);
+  const sequence = await client.documentSequence.findUnique({
+    where: { docType_periodKey_prefix: { docType: key, periodKey, prefix } },
+    select: { lastSeq: true },
+  });
+  return formatRunningNumber(config, periodKey, (sequence?.lastSeq || 0) + 1, round);
+}
+
+/**
+ * Generate next running number for a document type atomically.
+ */
+async function generateNextRunningNumber(docTypeKey, options = {}, client = null) {
+  const { key, config, periodKey, prefix, round } = getNumberParts(docTypeKey, options);
 
   const executeAtomicIncrement = async (tx) => {
     // 1. Ensure counter row exists
@@ -108,17 +139,7 @@ async function generateNextRunningNumber(docTypeKey, options = {}, client = null
       select: { lastSeq: true },
     });
 
-    const seqStr = String(updated.lastSeq).padStart(config.padLen, '0');
-
-    if (config.suffix === '-R') {
-      return `${config.prefix}${periodKey}${seqStr}-R${round}`;
-    }
-
-    if (config.separator) {
-      return `${config.prefix}${periodKey}${config.separator}${seqStr}`;
-    }
-
-    return `${config.prefix}${periodKey}${seqStr}`;
+    return formatRunningNumber(config, periodKey, updated.lastSeq, round);
   };
 
   if (client) {
@@ -133,5 +154,7 @@ async function generateNextRunningNumber(docTypeKey, options = {}, client = null
 module.exports = {
   DOC_PATTERNS,
   getYYMM,
+  getBEYYMM,
+  previewNextRunningNumber,
   generateNextRunningNumber,
 };

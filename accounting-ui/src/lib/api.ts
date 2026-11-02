@@ -113,6 +113,7 @@ export const ArApi = {
   },
   getInvoice: (id: string) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`),
   getInvoiceSources: (q: string, exceptId?: string) => apiFetch<InvoiceSource[]>(`/api/ar/invoices/sources?q=${encodeURIComponent(q)}${exceptId ? `&exceptId=${encodeURIComponent(exceptId)}` : ""}`),
+  getNextInvoiceNumber: (month: string) => apiFetch<{ ivNo: string }>(`/api/ar/invoices/next-number?month=${encodeURIComponent(month)}`),
   getReusableInvoiceNumbers: (month: string) => apiFetch<ReusableInvoiceNumber[]>(`/api/ar/invoices/reusable-numbers?month=${encodeURIComponent(month)}`),
   createInvoice: (data: InvoiceInput) => apiFetch<Invoice>("/api/ar/invoices", { method: "POST", body: JSON.stringify(data) }),
   updateInvoice: (id: string, data: InvoiceInput) => apiFetch<Invoice>(`/api/ar/invoices/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),

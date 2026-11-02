@@ -187,6 +187,9 @@ test("Invoice overlay prints data only, omits preprinted labels/payment/signatur
   assert.equal((html.match(/132\.09/g) || []).length, 1);
   assert.match(html, /Snapshot Customer/);
   assert.match(html, /IV-TEST/);
+  assert.match(html, /text-\[12pt\]/);
+  assert.match(html, /class="iv-value text-center"/);
+  assert.match(html, />123<\/div>/);
   assert.doesNotMatch(html, /<table|<img|<svg|RECEIPT|ผู้รับเงิน|Paid by|<h1|ใบเสร็จ/);
   assert.match(html, /top-\[82mm\]/);
 });

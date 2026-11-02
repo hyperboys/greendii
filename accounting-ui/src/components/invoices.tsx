@@ -35,6 +35,8 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [products, setProducts] = useState<DeliveryOrderProduct[]>([]);
   const [sources, setSources] = useState<InvoiceSource[]>([]);
   const [reusableNumbers, setReusableNumbers] = useState<ReusableInvoiceNumber[]>([]);
+  const [nextInvoiceNo, setNextInvoiceNo] = useState("");
+  const [numberPreviewError, setNumberPreviewError] = useState("");
   const [reuseLoading, setReuseLoading] = useState(false);
   const [reuseError, setReuseError] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
@@ -115,6 +117,21 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
 
   useEffect(() => {
     if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
+      setNextInvoiceNo("");
+      setNumberPreviewError("");
+      return;
+    }
+    let current = true;
+    setNextInvoiceNo("");
+    setNumberPreviewError("");
+    ArApi.getNextInvoiceNumber(invoiceMonth)
+      .then(result => { if (current) setNextInvoiceNo(result.ivNo); })
+      .catch(error => { if (current) setNumberPreviewError(message(error)); });
+    return () => { current = false; };
+  }, [invoiceMonth, mode, canWrite]);
+
+  useEffect(() => {
+    if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
       setReusableNumbers([]);
       setReuseLoading(false);
       setReuseError("");
@@ -186,6 +203,8 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
 
   if (isForm && !canWrite) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไข Invoice</p>;
   const editable = isEditableArDocument(doc);
+  const selectedReusableNumber = reusableNumbers.find(number => number.id === form.reuseInvoiceId)?.ivNo;
+  const displayedInvoiceNo = selectedReusableNumber || nextInvoiceNo;
   return <div className="iv-page mx-auto min-w-0 max-w-6xl">
     <InvoicePrintStyles allowed={mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError} />
     <header className="iv-no-print mb-5 flex flex-wrap items-start justify-between gap-3">
@@ -214,6 +233,11 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
     </div>}
     {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="iv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
+        {mode === "new" && <p className="rounded border bg-white p-3 text-sm">
+          เลข Invoice ที่จะใช้: <strong>{displayedInvoiceNo || (numberPreviewError ? "ตรวจสอบเลขไม่สำเร็จ" : "กำลังตรวจสอบ...")}</strong>
+          {!selectedReusableNumber && <span className="ml-1 text-gray-600">(เลขตัวอย่าง อาจเปลี่ยนหากมีผู้สร้างเอกสารพร้อมกัน)</span>}
+          {numberPreviewError && <span role="alert" className="ml-2 text-red-700">{numberPreviewError}</span>}
+        </p>}
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่ Invoice<DateInput required className={control} value={form.ivDate} onChange={ivDate => setForm(previous => ({
             ...previous, ivDate, ...(previous.ivDate.slice(0, 7) !== ivDate.slice(0, 7) ? { reuseInvoiceId: null } : {}),
