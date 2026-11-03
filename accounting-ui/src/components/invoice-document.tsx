@@ -6,7 +6,7 @@ import { useEffect, useRef, useState } from "react";
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function InvoiceDocument({ document: doc, onReady }: { document: Invoice; onReady?: (ready: boolean) => void }) {
-  const pages = deliveryOrderPrintPages(invoiceForm(doc).items.map(item => ({ ...item, desc: `${item.desc}${item.unit ? `\n(${item.unit})` : ""}`, unit: "" })), 23, 20);
+  const pages = deliveryOrderPrintPages(invoiceForm(doc).items.map(item => ({ ...item, desc: `${item.desc}${item.unit ? `\n(${item.unit})` : ""}`, unit: "" })), 27, 20);
   const root = useRef<HTMLDivElement>(null);
   const [fitError, setFitError] = useState(false);
   useEffect(() => {
@@ -34,15 +34,16 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
       <div data-print-fit className="iv-value" style={{ left: "32mm", top: "41mm", width: "94mm", height: "4mm" }}>{doc.customerCode || doc.customer?.code}</div>
       <div data-print-fit className="iv-value" style={{ left: "32mm", top: "46mm", width: "94mm", height: "4mm" }}>{doc.customerName || doc.customer?.name} {doc.customerBranch ? `(${doc.customerBranch})` : ""}</div>
       <div data-print-fit className="iv-value" style={{ left: "23mm", top: "51mm", width: "103mm", height: "10mm" }}>{doc.address}</div>
-      <div data-print-fit className="iv-value text-center" style={{ left: "73mm", top: "41mm", width: "53mm", height: "4mm" }}>{doc.taxId}</div>
+      <div data-print-fit className="iv-value text-center" style={{ left: "73mm", top: "41mm", width: "53mm", height: "4mm" }}>{doc.taxId ? `TAX ID: ${doc.taxId}` : ""}</div>
       <div data-print-fit className="iv-value" style={{ left: "29mm", top: "62mm", width: "97mm", height: "4mm" }}>{doc.remark}</div>
       <div data-print-fit className="iv-value" style={{ left: "31mm", top: "67mm", width: "95mm", height: "4mm" }}>{doc.customerPoNo}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "42mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.ivDate)}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "47mm", width: "45mm", height: "4mm" }}>{doc.ivNo}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "52mm", width: "45mm", height: "4mm" }}>{doc.responsibleSaleName}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "62mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.dueDate)}</div>
+      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "40mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.ivDate)}</div>
+      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "45mm", width: "45mm", height: "4mm" }}>{doc.ivNo}</div>
+      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "50mm", width: "45mm", height: "4mm" }}>{doc.responsibleSaleName}</div>
+      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "60mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.dueDate)}</div>
+      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "65mm", width: "45mm", height: "4mm" }}>เครดิต {doc.creditTerm} วัน</div>
       <div className="absolute left-[11mm] top-[82mm] w-[190mm]">
-        {rows.map(({ item, height, continuation }, index) => <div key={index} className="grid grid-cols-[22mm_74mm_25mm_25mm_20mm_24mm]" style={{ height: `${height * 25.4 / 96}mm` }}>
+        {rows.map(({ item, height, continuation }, index) => <div key={index} className="grid grid-cols-[18mm_84mm_24mm_24mm_18mm_22mm]" style={{ height: `${height * 25.4 / 96}mm` }}>
           <div className="break-words px-1 whitespace-pre-wrap">{item.partNo}</div>
           <div className="break-words px-1 whitespace-pre-wrap">{item.desc}</div>
           <div data-print-fit className="h-[6mm] px-1 text-right">{continuation ? "" : Number(item.qty).toLocaleString("en-US")}</div>

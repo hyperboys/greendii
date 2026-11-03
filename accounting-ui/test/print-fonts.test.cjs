@@ -21,10 +21,11 @@ test("Accounting embeds the exact Sale font assets with regular and bold faces",
 test("All Accounting print roots share Sale body typography without changing screen body or stationery geometry", () => {
   const rule = css.match(/#po-print-doc,[\s\S]*?\{\s*font-family: var\(--font-body\) !important;\s*\}/)?.[0];
   assert.ok(rule);
-  for (const selector of ["#so-print-doc", "#iv-print-doc", "#bi-print-doc", "#rv-print-doc", "#cn-print-doc",
+  for (const selector of ["#so-print-doc", "#bi-print-doc", "#rv-print-doc", "#cn-print-doc",
     "#ps-print-doc", "#pv-print-doc", ".gr-paper", ".is-paper", ".cq-paper", ".opening-print", ".stock-card-print-only"]) {
     assert.ok(rule.includes(selector), selector);
   }
+  assert.match(css, /#iv-print-doc\s*\{\s*font-family: var\(--font-en\) !important;/);
   assert.ok(css.includes("font-family: var(--font-public-sans), var(--font-noto-thai), sans-serif;"));
   assert.equal(rule.includes("font-size"), false);
   assert.equal(rule.includes("height"), false);
