@@ -56,7 +56,7 @@ export function PurchaseOrderDocumentView({
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-5 text-[11px] leading-5 text-black sm:p-6">
       <header className="relative text-center">
         <div className="absolute left-0 top-0 flex h-16 w-[82px] items-center justify-center border border-gray-300 p-1">
-          {company.logoUrl ? <Image unoptimized width={160} height={56} src={fileHref(company.logoUrl)} alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" /> : <strong className="text-green-700">GREEN Dii</strong>}
+          <Image unoptimized width={160} height={56} src="/logo.jpg" alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" />
         </div>
         <div>
           <h1 className="text-base font-bold">{company.companyName || "บริษัท กรีนดี จำกัด"}</h1>
@@ -187,12 +187,12 @@ export function PurchaseOrderDocumentView({
       </section>
 
       {(prAttachments.length > 0 || (document.attachments || []).length > 0) && (
-        <section className="mt-2 grid grid-cols-2 border border-blue-700 text-[10px]">
+        <section className="po-no-print mt-2 grid grid-cols-2 border border-blue-700 text-[10px]">
           {prAttachments.length > 0 && <div className="border-r border-blue-700 p-1"><strong>เอกสารแนบจาก PR</strong><div><AttachmentList attachments={prAttachments} /></div></div>}
           {(document.attachments || []).length > 0 && <div className="p-1"><strong>เอกสารแนบประกอบ PO</strong><div><AttachmentList attachments={document.attachments || []} /></div></div>}
         </section>
       )}
-      <p className="mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ลายเซ็นจะแสดงเมื่ออนุมัติจริงเท่านั้น</p>
+      <p className="po-no-print mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ลายเซ็นจะแสดงเมื่ออนุมัติจริงเท่านั้น</p>
     </article>
   );
 }

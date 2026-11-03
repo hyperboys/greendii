@@ -108,7 +108,7 @@ test("PO actions revisions files history and print status are wired through type
 
 test("PO print follows the reference structure and retains operational details", () => {
   const { PurchaseOrderDocumentView } = load(["components", "purchase-order-document.tsx"], {
-    "next/image": { default: () => null },
+    "next/image": { default: ({ unoptimized, ...props }) => React.createElement("img", props) },
     "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
     "@/lib/accounting-purchase-orders": load(["lib", "accounting-purchase-orders.ts"]),
   });
@@ -144,6 +144,10 @@ test("PO print follows the reference structure and retains operational details",
   assert.match(html, /min-h-16 border-r border-blue-700 p-2/);
   assert.match(html, /เอกสารแนบจาก PR/);
   assert.match(html, /เอกสารแนบประกอบ PO/);
+  assert.match(html, /<img[^>]+src="\/logo\.jpg"/);
+  assert.match(html, /class="po-no-print mt-2 grid grid-cols-2/);
+  assert.match(html, /class="po-no-print mt-1 text-center/);
+  assert.match(fs.readFileSync(path.join(__dirname, "..", "src", "components", "purchase-order-document.tsx"), "utf8"), /\.po-no-print \{ display: none !important; \}/);
   assert.match(html, /Sample item/);
   assert.equal((html.match(/class="po-print-empty-row"/g) || []).length, 9);
   assert.match(html, /อนุมัติโดย Saved approver/);
