@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -120,7 +121,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
       <div aria-labelledby="customer-title" className="w-full rounded-lg border border-[#dfe5de] bg-white p-6 shadow-sm">
         <h2 id="customer-title" className="text-lg font-bold">{modal.readOnly ? "ข้อมูลลูกค้า" : modal.customer ? "แก้ไขลูกค้า" : "เพิ่มลูกค้า"}</h2>
         <p className="mt-1 text-xs text-[#657069]">ลูกค้าบัญชีและทะเบียน Sale บัญชีแยกจากระบบ Sales</p>
-        <form onSubmit={save} className="mt-4 space-y-4">
+        <ManualSubmitForm onSubmit={save} className="mt-4 space-y-4">
           {formError && <p role="alert" className="rounded bg-red-50 p-3 text-sm text-red-700">{formError}</p>}
           {duplicateTax.length > 0 && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-800">Tax ID ตรงกับลูกค้า: {duplicateTax.map(c => `${c.code || "-"} ${c.name}`).join(", ")} กรุณาตรวจสอบข้อมูลซ้ำก่อนบันทึก</p>}
           <fieldset disabled={!writable || saving} className="space-y-4">
@@ -173,7 +174,7 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
             <Link href="/master?tab=customers" className={buttonClass}>กลับรายการ</Link>
             {!modal.readOnly && <button disabled={saving || !writable} className={`${buttonClass} bg-[#0866ff] text-white`} type="submit">{saving ? "กำลังบันทึก..." : "บันทึกข้อมูลลูกค้า"}</button>}
           </div>
-        </form>
+        </ManualSubmitForm>
       </div>
       {modal.customer && <MasterRecordTools kind="customers" id={modal.customer.id} updatedAt={modal.customer.updatedAt} />}
     </div>}

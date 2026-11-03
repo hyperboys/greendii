@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -159,7 +160,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "เงินเข้าสุทธิ", "WHT", "ค่าธรรมเนียม", "ยอดลดหนี้", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.rvNo}</Link></td><td className="p-3">{formatAccountingDate(row.receiptDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{money(row.totalReceived)}</td><td className="p-3">{money(row.whtAmount)}</td><td className="p-3">{money(row.bankFee)}</td><td className="p-3">{money(receiptTotals(row.allocations).settled)}</td><td className="p-3">{receiptStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="rv-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="rv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่รับชำระ<DateInput required className={control} value={form.receiptDate} onChange={receiptDate => setForm(previous => ({ ...previous, receiptDate }))} /></label>
@@ -209,7 +210,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
         <p className="text-sm">บันทึก Draft ก่อนแนบหลักฐานได้ที่หน้ารายละเอียด · Draft ยังไม่ลดหนี้</p>
         <button className={primary} disabled={saving || !form.allocations.length}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
       <AccountingApprovalPanel docType="rv" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
@@ -223,11 +224,11 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy อ่านอย่างเดียว ไม่มีการเปลี่ยนยอดย้อนหลังหรือแปลงข้อมูลอัตโนมัติ</p>}
         <p>ยืนยันแล้วแก้ไม่ได้ · ยกเลิกจะคืนยอดลดหนี้ทั้งหมดและเปิด BI กลับ แต่ห้ามกลับยอดหากมี BI ใหม่หลังปิด BI เดิม</p>
       </section>
-      {action && <form className="rv-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
+      {action && <ManualSubmitForm className="rv-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
         <h2 className="font-bold">{action === "confirm" ? "ยืนยันลดหนี้ตามยอดเงิน + WHT + ค่าธรรมเนียม?" : "ยกเลิก RV และคืนยอดหนี้ (ถ้ายืนยันแล้ว)?"}</h2>
         {action === "cancel" && <label className="block">เหตุผลยกเลิก<textarea required maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
         <div className="flex gap-2"><button className={primary} disabled={saving}>{saving ? "กำลังดำเนินการ..." : "ยืนยันดำเนินการ"}</button><button className={button} disabled={saving} type="button" onClick={() => setAction(null)}>กลับ</button></div>
-      </form>}
+      </ManualSubmitForm>}
       <section className="rv-no-print mb-4 space-y-3 rounded border bg-white p-4">
         <h2 className="font-bold">หลักฐานแนบ (ไม่บังคับ)</h2>
         <ul className="space-y-2">{doc.attachments.map(file => <li className="flex flex-wrap items-center gap-3" key={file.id}><a className="min-w-0 break-all text-blue-700 underline" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>{editable && canWrite && <button className={button} disabled={saving} onClick={() => void evidence(file.id)}>ลบหลักฐาน</button>}</li>)}</ul>

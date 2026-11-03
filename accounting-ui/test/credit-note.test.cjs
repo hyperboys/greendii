@@ -3,6 +3,7 @@ const fs = require("node:fs"), path = require("node:path"), vm = require("node:v
 const test = require("node:test"), ts = require("typescript"), React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false,
     isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft", ...(imports["@/lib/accounting-approval"] || {}) };

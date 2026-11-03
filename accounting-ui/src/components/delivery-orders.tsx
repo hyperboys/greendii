@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -200,7 +201,7 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
       </>}
       {isForm && !loadError && (mode === "new" || document) && (
         document && document.status !== "draft" ? <p role="alert">แก้ไขได้เฉพาะสถานะ Draft <Link href={`${listHref}/${document.id}`} className="underline">ดูเอกสาร</Link></p> :
-        <form onSubmit={save} className="so-no-print space-y-5">
+        <ManualSubmitForm onSubmit={save} className="so-no-print space-y-5">
           <fieldset disabled={loading || saving} className="min-w-0 space-y-5">
             <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
               <label>วันที่เอกสาร<DateInput required className={control} value={form.docDate} onChange={docDate => setForm(previous => ({ ...previous, docDate }))} /></label>
@@ -266,14 +267,14 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
             <label className="block">หมายเหตุเอกสาร<textarea className={control} rows={3} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
             <div className="flex flex-wrap gap-2"><button className={primary} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button><Link className={button} href={document ? `${listHref}/${document.id}` : listHref}>กลับโดยไม่บันทึก</Link></div>
           </fieldset>
-        </form>
+        </ManualSubmitForm>
       )}
       {mode === "view" && document && !loading && !loadError && <>
-        {cancelOpen && canWrite && <form onSubmit={cancel} className="so-no-print mb-5 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
+        {cancelOpen && canWrite && <ManualSubmitForm onSubmit={cancel} className="so-no-print mb-5 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
           <p>ยกเลิกได้เมื่อไม่มี Invoice ที่ยังไม่ยกเลิกอ้างอิง และไม่สามารถแก้ไขเอกสารหลังยกเลิก</p>
           <label className="block">เหตุผลยกเลิก<textarea required className={control} value={cancelReason} onChange={event => setCancelReason(event.target.value)} /></label>
           <div className="flex flex-wrap gap-2"><button className={`${button} text-red-700`} disabled={saving || !cancelReason.trim()}>{saving ? "กำลังยกเลิก..." : "ยืนยันยกเลิกเอกสาร"}</button><button type="button" className={button} disabled={saving} onClick={() => setCancelOpen(false)}>กลับ</button></div>
-        </form>}
+        </ManualSubmitForm>}
         <div className="so-preview max-w-full overflow-x-auto rounded-lg border"><DeliveryOrderDocument document={document} company={company} /></div>
         <section className="so-no-print mt-5 rounded-lg border bg-white p-4">
           <h2 className="font-bold">ประวัติเอกสาร</h2>

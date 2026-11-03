@@ -8,6 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(parts, imports = {}) {
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = {
     isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft",

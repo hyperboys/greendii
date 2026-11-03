@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import Link from "next/link";
@@ -119,7 +120,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
             onClick={() => setQuery({ ...query, page: String(Number(query.page) + step) })}>{step < 0 ? "ก่อนหน้า" : "ถัดไป"}</button>)}</div></>}
       </>}
       {isForm && !loading && !loadError && (mode === "edit" && !editable ? <p role="alert">GR นี้อ่านอย่างเดียว แก้ได้เฉพาะ Draft / ส่งกลับรุ่นใหม่</p> :
-        <form className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
+        <ManualSubmitForm className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
           event.preventDefault();
           void run(async () => {
             if (!source) throw new Error("กรุณาโหลด PO และตรวจยอดคงเหลือก่อนบันทึก");
@@ -170,7 +171,7 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
             <p className="text-sm">บันทึกร่างก่อน แล้วแนบหลักฐาน PDF/JPG/PNG บนหน้าเอกสารก่อนส่งตรวจ</p>
           </fieldset>
           <button disabled={busy || !source || !form.items.length} className={primary}>{busy ? "กำลังบันทึก..." : "บันทึก GR"}</button>
-        </form>)}
+        </ManualSubmitForm>)}
       {mode === "view" && doc && !loading && !loadError && <>
         <section className="space-y-3 rounded border bg-white p-4">
           <h2 className="text-lg font-bold">{doc.grNo} · {receiptStatuses[doc.status] || doc.status}</h2>
@@ -180,14 +181,14 @@ export function GoodsReceipts({ mode = "list", recordId }: { mode?: "list" | "ne
             {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); }}>{receiptActions[value]}</button>)}
             {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}
           </div>
-          {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate); refresh(); }); }}>
+          {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate); refresh(); }); }}>
             <h3 className="font-bold">ยืนยัน{receiptActions[action]}</h3>
             {["return", "reject", "cancel"].includes(action) && <label className="block">เหตุผล *<textarea required disabled={busy} maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
             {action === "cancel" && <><label className="block">วันที่ยกเลิก *<DateInput required className={control} value={cancelDate} onChange={setCancelDate} /></label>
               <p className="text-amber-800">ยกเลิกทั้งใบ ถ้าอนุมัติแล้วจะกลับ Stock/คืนจำนวนรับ PO เมื่อ available พอ ไม่กินยอดจอง · วันที่ต้องไม่ก่อน Movement ล่าสุด · ไม่คืนเงิน/คืนผู้ขายให้เอง</p></>}
             {action === "approve" && <p>สินค้าจะเพิ่ม Stock และ Movement ในคลังที่ระบุ บริการไม่เพิ่ม Stock</p>}
             <button disabled={busy || !actions.includes(action)} className={primary}>ยืนยัน</button> <button type="button" disabled={busy} className={button} onClick={() => setAction(null)}>ปิด</button>
-          </form>}
+          </ManualSubmitForm>}
           <h3 className="font-bold">หลักฐานตรวจรับ (บังคับก่อนส่งตรวจ)</h3>
           {doc.attachments.map(file => <div key={file.id} className="flex flex-wrap items-center gap-2">
             <a className="min-w-0 break-all text-blue-700" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>

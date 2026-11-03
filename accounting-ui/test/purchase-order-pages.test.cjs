@@ -8,6 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(relativePath, imports = {}) {
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false, ...(imports["@/lib/accounting-approval"] || {}) };
   imports["./accounting-approval-signatures"] = { AccountingApprovalSignatures: () => null };

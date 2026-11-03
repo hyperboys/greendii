@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -161,7 +162,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
       {!rows.length && <p>ไม่พบใบเบิกจ่ายผู้รับเหมา</p>}
       <div className="flex flex-wrap items-center gap-3"><span>{total} รายการ · หน้า {query.page} / {Math.max(1, pages)}</span><button className={button} disabled={Number(query.page) <= 1} onClick={() => setQuery({ ...query, page: String(Number(query.page) - 1) })}>ก่อนหน้า</button><button className={button} disabled={Number(query.page) >= pages} onClick={() => setQuery({ ...query, page: String(Number(query.page) + 1) })}>ถัดไป</button></div>
     </section>}
-    {!loading && !loadError && isForm && (mode === "new" || editable) && <form onSubmit={save} className="ps-no-print space-y-5">
+    {!loading && !loadError && isForm && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="ps-no-print space-y-5">
       <section className="grid gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
         <label>วันที่เอกสาร *<DateInput required value={form.docDate} onChange={docDate => setForm({ ...form, docDate })} className={control} /></label>
         {mode === "new" ? <SearchableSelect label="PO" required value={form.poId} selectedLabel={source ? `${source.poNo} · ${source.supplier.name}` : undefined}
@@ -191,7 +192,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
         <p className="text-sm text-gray-600 md:col-span-2">WHT และเงินประกันคิดจากยอดก่อน VAT · ยังไม่ทำคืนเงินประกัน/GL/จ่ายเงินจริง</p>
       </section>
       <button className={primary} disabled={saving || !source}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
-    </form>}
+    </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PS ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
       <AccountingApprovalPanel docType="ps" document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
@@ -205,11 +206,11 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
         {doc.items.map((row, index) => <div key={index} className="grid min-w-0 gap-2 border-b pb-3 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 whitespace-pre-wrap break-words">{index + 1}. {row.desc}{row.remark && <p className="text-sm text-gray-600">{row.remark}</p>}</div><strong>{money(row.amount)}</strong></div>)}
         <p className="whitespace-pre-wrap break-words">หมายเหตุ: {doc.remark || "-"}</p>
       </section>
-      {action && <form onSubmit={execute} className="ps-no-print mb-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-4">
+      {action && <ManualSubmitForm onSubmit={execute} className="ps-no-print mb-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-4">
         <h2 className="font-bold">ยืนยัน{paymentActions[action]} {doc.psNo}</h2>
         <label>เหตุผล {["return", "reject", "cancel"].includes(action) ? "*" : "(ถ้ามี)"}<textarea autoFocus maxLength={1000} required={["return", "reject", "cancel"].includes(action)} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>
         <div className="flex gap-3"><button className={primary} disabled={saving}>ยืนยัน{paymentActions[action]}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
-      </form>}
+      </ManualSubmitForm>}
       <section className="ps-no-print mb-5 rounded border bg-white p-4"><h2 className="mb-3 font-bold">ประวัติเอกสาร</h2>
         <ol className="space-y-2 text-sm">{doc.history?.map(row => <li key={row.id} className="border-b pb-2">{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {paymentActions[row.action as PaymentAction] || row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol>
       </section>

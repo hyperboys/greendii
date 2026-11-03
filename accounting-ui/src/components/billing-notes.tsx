@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -156,7 +157,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "นัดชำระ", "ยอดวางบิล", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t"><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.biNo}</Link></td><td className="p-3">{formatAccountingDate(row.billingDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{formatAccountingDate(row.expectedPaymentDate)}</td><td className="p-3">{money(row.totalAmount)}</td><td className="p-3">{billingStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="bi-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="bi-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่วางบิล<DateInput required className={control} value={form.billingDate} onChange={billingDate => setForm(previous => ({ ...previous, billingDate }))} /></label>
@@ -186,7 +187,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         <label className="block">หมายเหตุ<textarea maxLength={1000} rows={3} className={control} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
         <button className={primary} disabled={!form.invoices.length || saving}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">แก้ไขได้เฉพาะใบวางบิล Draft ใหม่เท่านั้น</p>}
     {mode === "view" && doc && !loading && !loadError && <>
       <section className="bi-no-print mb-5 space-y-3 rounded-lg border bg-white p-4">
@@ -194,11 +195,11 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy: อ่านอย่างเดียว ไม่เปลี่ยนสถานะ/ยอดเก่าอัตโนมัติ และไม่พิมพ์เป็นเอกสารยืนยันใหม่</p>}
         <p>ลูกค้า: {doc.customerName || doc.customer?.name} · ยอดวางบิล {money(doc.totalAmount)} บาท</p>
         <p>ยอดวางบิลเป็นข้อมูล ณ บันทึก ไม่ใช่ยอดค้างรับปัจจุบัน และไม่ใช่หลักฐานรับเงิน</p>
-        {action && <form className="space-y-3 rounded border p-3" onSubmit={execute}>
+        {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={execute}>
           {action === "confirm" ? <p>ยืนยันวางบิลแล้วจะแก้ไขไม่ได้ และไม่เปลี่ยนยอดหนี้ Invoice ยืนยันดำเนินการต่อ</p> : <label className="block">เหตุผลยกเลิก<textarea required className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           <button className={primary} disabled={saving}>{action === "confirm" ? "ยืนยันวางบิลจริง" : "ยืนยันยกเลิก"}</button>{" "}
           <button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ไม่ดำเนินการ</button>
-        </form>}
+        </ManualSubmitForm>}
         <h2 className="font-bold">ประวัติ</h2>{doc.history?.map(row => <p className="break-words text-sm" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.action} · {row.performedBy?.fullName || "-"} {row.reason && `— ${row.reason}`}</p>)}
       </section>
       <div className="bi-preview overflow-x-auto rounded-lg border bg-white"><BillingNoteDocument document={doc} company={company} onReady={setPrintReady} /></div>

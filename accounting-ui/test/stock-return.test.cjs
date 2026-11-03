@@ -1,6 +1,7 @@
 const assert = require('node:assert/strict'), fs = require('node:fs'), path = require('node:path'), test = require('node:test');
 const vm = require('node:vm'), ts = require('typescript'), React = require('react'), { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}, globals = {}) {
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports['@/components/accounting-approval-panel'] = { AccountingApprovalPanel: () => null };
   imports['@/lib/accounting-approval'] = { hasApprovedActors: () => false, ...(imports['@/lib/accounting-approval'] || {}) };
   imports['./accounting-approval-signatures'] = { AccountingApprovalSignatures: () => null };

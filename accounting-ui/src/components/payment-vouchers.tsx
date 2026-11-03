@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -165,7 +166,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
       {!rows.length && <p>ไม่พบใบสำคัญจ่าย</p>}
       <div className="flex flex-wrap items-center gap-3"><span>{total} รายการ · หน้า {query.page} / {Math.max(1, pages)}</span><button className={button} disabled={Number(query.page) <= 1} onClick={() => setQuery({ ...query, page: String(Number(query.page) - 1) })}>ก่อนหน้า</button><button className={button} disabled={Number(query.page) >= pages} onClick={() => setQuery({ ...query, page: String(Number(query.page) + 1) })}>ถัดไป</button></div>
     </section>}
-    {!loading && !loadError && isForm && (mode === "new" || editable) && <form className="pv-no-print space-y-4" onSubmit={save}>
+    {!loading && !loadError && isForm && (mode === "new" || editable) && <ManualSubmitForm className="pv-no-print space-y-4" onSubmit={save}>
       <fieldset disabled={saving} className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
         <label>วันที่ PV *<DateInput required className={control} value={form.pvDate} onChange={pvDate => setForm({ ...form, pvDate })} /></label>
         {mode === "new" ? <SearchableSelect label="PS อนุมัติ" required value={form.sourceDocId} selectedLabel={source ? `${source.psNo} · ${source.supplierSnapshot?.name || ""}` : undefined}
@@ -182,7 +183,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
       <section className="rounded border bg-white p-4"><h2 className="mb-3 font-bold">รายการจาก PS</h2>{source?.items?.map((row, i) => <p className="flex justify-between gap-3 border-b py-2" key={i}><span className="min-w-0 whitespace-pre-wrap break-words">{i + 1}. {row.desc}</span><strong>{money(row.amount)}</strong></p>)}
         <VoucherTotals amounts={amounts} />
       </section><button className={primary} disabled={saving || !source}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
-    </form>}
+    </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PV ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
       <AccountingApprovalPanel docType="pv" document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
@@ -207,7 +208,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
           <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐาน</button></div>}
         <p className="text-sm text-gray-600">โอนต้องมีหลักฐานจ่ายเงินก่อนบันทึกจ่าย · กลับรายการหลังจ่ายต้องแนบหลักฐานกลับรายการ · ไม่ออก 50 ทวิ/ภงด. ในระยะนี้</p>
       </section>
-      {action && <form onSubmit={execute} className="pv-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
+      {action && <ManualSubmitForm onSubmit={execute} className="pv-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
         <h2 className="font-bold md:col-span-2">ยืนยัน{actionLabel(action, Boolean(doc.paidAt))} {doc.pvNo}</h2>
         {(action === "pay" || (action === "cancel" && doc.paidAt)) && <p className="text-sm md:col-span-2">บันทึกรายการที่ทำจริงภายนอกเท่านั้น ระบบไม่ได้สั่งโอนหรือคืนเงินจริงจากธนาคาร</p>}
         {action === "pay" && <><label>วันที่จ่ายจริง *<DateInput required className={control} value={actionForm.paidDate} onChange={paidDate => setActionForm({ ...actionForm, paidDate })} /></label>
@@ -221,7 +222,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
           <p className="text-sm md:col-span-2">ต้องมีหลักฐานกลับรายการจ่ายก่อนยืนยัน · ปลด PS ให้ทำ PV ใหม่ แต่ไม่ยกเลิก PS/คืนวงเงิน PO</p></>}
         <label className="md:col-span-2">เหตุผล {["return", "reject", "cancel"].includes(action) ? "*" : "(ถ้ามี)"}<textarea required={["return", "reject", "cancel"].includes(action)} maxLength={1000} className={control} value={actionForm.reason} onChange={event => setActionForm({ ...actionForm, reason: event.target.value })} /></label>
         <div className="flex flex-wrap gap-3 md:col-span-2"><button className={primary} disabled={saving}>ยืนยัน{actionLabel(action, Boolean(doc.paidAt))}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
-      </form>}
+      </ManualSubmitForm>}
       {doc.paymentMethod === "cheque" && <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4"><h2 className="font-bold">เช็คอ้างอิง</h2>
         {doc.chequePayments.some(row => row.status !== "Cancelled") && <p>มีเช็คที่ยังไม่ยกเลิก ต้องยกเลิก/กลับรายการผ่านหน้าเช็ค ไม่ยกเลิก PV ข้ามขั้น</p>}
         <Link className="text-blue-700 underline" href="/ap/vouchers?tab=cq">เปิดทะเบียนเช็คจ่าย / หลักฐานส่งมอบ-ตัดบัญชี-กลับรายการ</Link>

@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { ArApi } from "@/lib/api";
@@ -28,7 +29,7 @@ export function ReceivedChequeControls({ doc, onChange }: { doc: ReceiptVoucher;
     {doc.chequeClearedAt && <p>เช็คผ่าน {formatAccountingDate(doc.chequeClearedAt)}</p>}
     {doc.chequeDishonouredAt && <p>เช็คคืน {formatAccountingDate(doc.chequeDishonouredAt)} · {doc.chequeDishonourReason}</p>}
     {canWrite && actions.map(value => <button key={value} className={button} disabled={busy} onClick={() => { setAction(value); setError(""); }}>{actionLabels[value]}</button>)}
-    {canWrite && action && <form className="space-y-2" onSubmit={async event => {
+    {canWrite && action && <ManualSubmitForm className="space-y-2" onSubmit={async event => {
       event.preventDefault();
       if (locked.current || !actions.includes(action)) return;
       locked.current = true; setBusy(true); setError("");
@@ -42,7 +43,7 @@ export function ReceivedChequeControls({ doc, onChange }: { doc: ReceiptVoucher;
         {action === "dishonour" && <><p className="text-red-700">จะกลับเฉพาะเงินเช็คและทบทวนการปิด BI เดิม WHT/ค่าธรรมเนียมยังลดหนี้อยู่ ไม่มีการคืนเงิน / ออกเช็คจ่าย</p><label className="block">เหตุผลเช็คคืน<textarea required maxLength={1000} value={reason} onChange={event => setReason(event.target.value)} /></label></>}
         <button className={button}>ยืนยัน{actionLabels[action]}</button> <button type="button" className={button} onClick={() => setAction("")}>ปิด</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {error && <p role="alert" className="text-red-700">{error}</p>}
   </section>;
 }

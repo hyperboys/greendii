@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -356,7 +357,7 @@ export function PurchaseOrders({
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 id="po-form-title" className="text-lg font-bold">{editing ? `แก้ไขใบสั่งซื้อ ${editing.poNo}` : "สร้างใบสั่งซื้อ (Purchase Order)"}</h2>
             </div>
-            <form onSubmit={savePurchaseOrder} className="space-y-5">
+            <ManualSubmitForm onSubmit={savePurchaseOrder} className="space-y-5">
               <fieldset disabled={saving} className="space-y-5">
                 <section className="grid gap-3 rounded border border-[#dfe5de] p-4 sm:grid-cols-3">
                   <label className={fieldClass}>วันที่เอกสาร *
@@ -528,7 +529,7 @@ export function PurchaseOrders({
                   {saving ? "กำลังบันทึก..." : editing ? "บันทึกการแก้ไข" : "บันทึกใบสั่งซื้อ"}
                 </button>
               </div>
-            </form>
+            </ManualSubmitForm>
           </section>
         </div>
       )}
@@ -545,7 +546,7 @@ export function PurchaseOrders({
             <p><strong>สถานะ: {poStatusLabels[selectedDocument.status] || selectedDocument.status}</strong> · {selectedDocument.purchaseType === "overseas" ? "ต่างประเทศ" : "ในประเทศ"}</p>
             <p className="text-sm text-gray-600">อนุมัติหนึ่งขั้นทั้งสองประเภท ผู้สร้างห้ามอนุมัติตัวเอง · ยังไม่ส่งอีเมลผู้ขาย/ไม่เพิ่ม Stock · เปิดหรือพิมพ์ไม่เปลี่ยนสถานะ</p>
             {!selectedDocument.createdById && <p role="alert" className="text-amber-800">PO เดิมไม่มีผู้สร้าง ต้องตรวจสอบข้อมูลก่อนส่งอนุมัติ</p>}
-            {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void runDetail(doc => ApApi.purchaseOrderAction(doc.id, action, doc.updatedAt, reason)); }}>
+            {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void runDetail(doc => ApApi.purchaseOrderAction(doc.id, action, doc.updatedAt, reason)); }}>
               <h3 className="font-bold">ยืนยัน{poActionLabels[action]}</h3>
               {["return", "reject", "cancel"].includes(action) && <label className={fieldClass}>เหตุผล *
                 <textarea required maxLength={1000} disabled={saving} className={inputClass} value={reason} onChange={event => setReason(event.target.value)} />
@@ -555,7 +556,7 @@ export function PurchaseOrders({
                 <button disabled={saving || !availableActions.includes(action)} className="rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-50">ยืนยัน</button>
                 <button type="button" disabled={saving} onClick={() => setAction(null)} className="rounded border px-4 py-2 text-sm">ปิด</button>
               </div>
-            </form>}
+            </ManualSubmitForm>}
             <div className="space-y-2 text-sm">
               <h3 className="font-bold">เอกสารแนบ PO</h3>
               {(selectedDocument.attachments || []).map(file => <div key={file.id} className="flex flex-wrap items-center justify-between gap-2">

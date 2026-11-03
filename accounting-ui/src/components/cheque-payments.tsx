@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -139,7 +140,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
       {!rows.length && <p>ไม่พบเช็คจ่าย</p>}
       <div className="flex flex-wrap items-center gap-3"><span>{total} รายการ · หน้า {query.page} / {Math.max(1, pages)}</span><button className={button} disabled={Number(query.page) <= 1} onClick={() => setQuery({ ...query, page: String(Number(query.page) - 1) })}>ก่อนหน้า</button><button className={button} disabled={Number(query.page) >= pages} onClick={() => setQuery({ ...query, page: String(Number(query.page) + 1) })}>ถัดไป</button></div>
     </section>}
-    {!loading && !loadError && isForm && (mode === "new" || editable) && <form onSubmit={save} className="cq-no-print space-y-4">
+    {!loading && !loadError && isForm && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="cq-no-print space-y-4">
       <fieldset disabled={saving} className="grid min-w-0 gap-4 rounded border bg-white p-4 md:grid-cols-2">
         <label>วันที่เอกสาร *<DateInput required disabled={mode === "edit"} className={control} value={form.docDate} onChange={value => draft("docDate", value)} /></label>
         {mode === "new" ? <SearchableSelect label="PV อนุมัติ วิธีเช็ค" required value={form.paymentVoucherId} selectedLabel={source ? `${source.pvNo} · ${source.supplierSnapshot?.name || ""}` : undefined}
@@ -157,7 +158,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
         <p className="text-sm text-gray-600 md:col-span-2">เลข CQ ออกตามเดือนวันที่เอกสาร · บัญชี/เลขเช็ค/PV/วันที่เอกสารเปลี่ยนไม่ได้หลังสร้าง ต้องยกเลิกแล้วออกใหม่ · เลขเช็คที่ยกเลิกแล้วห้ามใช้ซ้ำ · บัญชีนี้เป็นของบริษัท ไม่ใช่ Supplier</p>
         {sourceError && mode === "edit" && <p className="text-red-700 md:col-span-2" role="alert">{sourceError}</p>}
       </fieldset><button className={primary} disabled={saving || !source}>{saving ? "กำลังบันทึก..." : "บันทึกเตรียมเช็ค"}</button>
-    </form>}
+    </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะเช็คใหม่สถานะ Prepared</p>}
     {!loading && !loadError && mode === "view" && doc && <>
       <section className="cq-no-print mb-4 space-y-2 rounded border bg-white p-4">
@@ -181,7 +182,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
           <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐานเช็ค</button></div>}
         <p className="text-sm text-gray-600">แนบหลักฐานตามขั้นก่อนดำเนินการ; หลักฐานขั้นที่ผ่านแล้วแก้ไม่ได้ การกลับรายการต้องตรวจการคืนเช็ค/หยุดจ่าย/คืนเงินจริงภายนอกให้เสร็จก่อน</p>
       </section>
-      {action && <form onSubmit={execute} className="cq-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
+      {action && <ManualSubmitForm onSubmit={execute} className="cq-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
         <h2 className="font-bold md:col-span-2">ยืนยัน{chequeActionLabels[action]} {doc.cqNo}</h2>
         <p className="text-sm md:col-span-2">บันทึกการดำเนินการที่ทำจริงภายนอก ระบบไม่สั่งพิมพ์เช็ค ลงนาม ส่งเงิน หรือหยุดจ่ายผ่านธนาคาร</p>
         {action === "Printed" && <label>วันที่พิมพ์เช็คจริง *<DateInput required className={control} value={actionForm.printedDate} onChange={value => setActionForm({ ...actionForm, printedDate: value })} /></label>}
@@ -198,7 +199,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
           <label className="md:col-span-2">เหตุผลยกเลิก *<textarea required maxLength={1000} className={control} value={actionForm.reason} onChange={event => setActionForm({ ...actionForm, reason: event.target.value })} /></label>
           <p className="text-sm md:col-span-2">{doc.releaseDate ? "ต้องแนบหลักฐานกลับรายการ · ยกเลิกเช็คและกลับรายการ/ยกเลิก PV พร้อมกัน ปลด PS ให้ทำ PV ใหม่ ไม่คืนวงเงิน PO" : "ก่อนส่งมอบ: ยกเลิกเช็คแล้ว PV ยังรอจ่าย ออกเช็คเลขใหม่ได้"} · เลขเช็คยกเลิกห้ามใช้ซ้ำ</p></>}
         <div className="flex flex-wrap gap-3 md:col-span-2"><button className={primary} disabled={saving}>ยืนยัน{chequeActionLabels[action]}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
-      </form>}
+      </ManualSubmitForm>}
       <section className="cq-no-print mb-4 rounded border bg-white p-4"><h2 className="mb-3 font-bold">ประวัติเช็ค</h2><ol className="space-y-2 text-sm">{doc.history?.map(row => <li className="break-words border-b pb-2" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol></section>
       {doc.lifecycleVersion === 1 && <div className="cq-preview overflow-x-auto rounded border bg-white"><ChequePaymentDocument document={doc} company={company} onReady={setPrintReady} /></div>}
     </>}

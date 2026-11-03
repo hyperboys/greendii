@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -231,7 +232,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead className="bg-gray-50"><tr>{["เลขที่", "วันที่", "ลูกค้า", "SO", "ยอดสุทธิ", "คงค้าง", "สถานะ"].map(title => <th className="p-3 text-left" key={title}>{title}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.ivNo}</Link></td><td className="p-3">{formatAccountingDate(row.ivDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{row.provisionalDeliveryOrder?.soNo || "-"}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{money(row.outstandingAmount)}</td><td className="p-3">{row.reissuedAs ? `${invoiceStatus(row)} · เลขถูกนำไปใช้ใหม่` : row.reissuedFrom ? `${invoiceStatus(row)} · ใช้เลขที่ยกเลิก` : invoiceStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5 text-center">ไม่มีรายการที่ตรงเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="iv-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="iv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         {mode === "new" && <p className="rounded border bg-white p-3 text-sm">
           เลข Invoice ที่จะใช้: <strong>{displayedInvoiceNo || (numberPreviewError ? "ตรวจสอบเลขไม่สำเร็จ" : "กำลังตรวจสอบ...")}</strong>
@@ -286,7 +287,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         <label className="block">หมายเหตุ<textarea className={control} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
         <button className={primary} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && doc && !editable && <p role="alert">แก้ไขได้เฉพาะ Draft ในวงจรใหม่ เอกสาร Legacy/ยืนยัน/ยกเลิกแล้วเป็นแบบอ่านอย่างเดียว</p>}
     {mode === "view" && doc && !loading && !loadError && <>
       <div className="iv-no-print mb-4 space-y-4">
@@ -296,11 +297,11 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
           {doc.confirmedAt && <p>ยืนยันเมื่อ {formatAccountingDateTime(doc.confirmedAt)}</p>}
           {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy: คงยอดและสถานะเดิม ไม่แก้ไข/ยืนยัน/ยกเลิกผ่านวงจรใหม่โดยอัตโนมัติ ต้องตรวจข้อมูลก่อนย้าย</p>}
         </section>
-        {action && <form className="space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
+        {action && <ManualSubmitForm className="space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
           <p>{action === "confirm" ? `ยืนยันตั้งหนี้ ${money(doc.netAmount)} บาท? หลังยืนยันแก้ไขไม่ได้ และไม่ตัด Stock` : "ยกเลิกและล้างยอดค้างรับได้เฉพาะไม่มี BI/RV/CN ที่ยังไม่ยกเลิกอ้างอิง"}</p>
           {action === "cancel" && <label className="block">เหตุผลยกเลิก<textarea required className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           <div className="flex gap-2"><button className={primary} disabled={saving}>{saving ? "กำลังดำเนินการ..." : action === "confirm" ? "ยืนยันตั้งหนี้จริง" : "ยืนยันยกเลิก"}</button><button className={button} type="button" disabled={saving} onClick={() => setAction(null)}>กลับ</button></div>
-        </form>}
+        </ManualSubmitForm>}
         <p className="text-sm text-gray-600">ตัวอย่างด้านล่างเป็นข้อมูลสำหรับพิมพ์ทับกระดาษสำเร็จรูปตาม invoice.pdf ไม่พิมพ์โลโก้ เส้นตาราง หัวเอกสาร หรือช่องรับชำระซ้ำ · พิมพ์ได้เมื่อยืนยันแล้ว ตั้ง A4 ขนาดจริง 100% ปิดหัว/ท้ายกระดาษของเบราว์เซอร์ และทดลองกระดาษก่อนใช้จริง</p>
       </div>
       <div className="iv-preview max-w-full overflow-x-auto rounded border"><InvoiceDocument document={doc} onReady={setPrintReady} /></div>

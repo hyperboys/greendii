@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { hasApprovedActors, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import { AccountingApprovalSignatures } from "@/components/accounting-approval-signatures";
@@ -180,7 +181,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
 
     {isForm && !loading && !loadError && (mode === "edit" && !editable
       ? <p role="alert">แก้ได้เฉพาะ Draft / ส่งกลับ</p>
-      : <form className="space-y-4 rounded border bg-white p-4" onSubmit={save}>
+      : <ManualSubmitForm className="space-y-4 rounded border bg-white p-4" onSubmit={save}>
         <fieldset disabled={busy} className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="grid gap-1 text-sm">คลัง *<select required className={input} disabled={Boolean(doc)}
@@ -236,7 +237,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
           <div className="flex flex-wrap gap-2"><button disabled={busy || !preview || Boolean(preview.activeDocument)} className={primary}>บันทึก Draft</button>
             {doc && <Link className={button} href={`${openingBase}/${encodeURIComponent(doc.id)}`}>ยกเลิกการแก้ไข</Link>}</div>
         </fieldset>
-      </form>)}
+      </ManualSubmitForm>)}
 
     {mode === "view" && doc && !loading && !loadError && <>
       <AccountingApprovalPanel docType="opening" document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />

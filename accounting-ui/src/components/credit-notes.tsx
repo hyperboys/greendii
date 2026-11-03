@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -137,7 +138,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "Invoice", "ลูกค้า", "ยอดลดก่อน VAT", "VAT", "ยอดลดสุทธิ", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.cnNo}</Link></td><td className="p-3">{formatAccountingDate(row.cnDate)}</td><td className="p-3">{row.invoiceNo || row.invoice?.ivNo}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{money(row.amountBeforeVat)}</td><td className="p-3">{money(row.vat)}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{creditStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form className="cn-no-print space-y-5" onSubmit={save}>
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm className="cn-no-print space-y-5" onSubmit={save}>
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่ลดหนี้<DateInput required className={control} value={form.cnDate} onChange={cnDate => setForm(previous => ({ ...previous, cnDate }))} /></label>
@@ -175,7 +176,7 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
         <p className="text-sm">Draft ไม่ลดหนี้ · ยืนยันแล้วแก้ไม่ได้ · ไม่รองรับ Invoice Legacy หรือหนี้ที่ชำระเต็มแล้ว</p>
         <button className={primary} disabled={saving || !source || !form.items.length}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
       <AccountingApprovalPanel docType="cn" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
@@ -186,11 +187,11 @@ export function CreditNotes({ mode = "list", recordId }: { mode?: "list" | "new"
         <p>ยกเลิกคืนยอดหนี้ได้เมื่อไม่มี BI ใหม่/RV ยืนยันที่ยังมีผลหลังยืนยัน CN · ไม่คืน Stock และไม่ลง GL</p>
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy อ่านอย่างเดียว ไม่ย้ายสถานะ/ยอดย้อนหลังอัตโนมัติ</p>}
       </section>
-      {action && <form className="cn-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
+      {action && <ManualSubmitForm className="cn-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
         <h2 className="font-bold">{action === "confirm" ? "ยืนยันลดหนี้ตามยอดรวมและ VAT?" : "ยกเลิก CN และคืนยอดหนี้ (ถ้ายืนยันแล้ว)?"}</h2>
         {action === "cancel" && <label className="block">เหตุผลยกเลิก<textarea required maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
         <div className="flex gap-2"><button className={primary} disabled={saving}>{saving ? "กำลังดำเนินการ..." : "ยืนยันดำเนินการ"}</button><button className={button} type="button" disabled={saving} onClick={() => setAction(null)}>กลับ</button></div>
-      </form>}
+      </ManualSubmitForm>}
       {doc.lifecycleVersion === 1 && <div className="cn-preview overflow-x-auto rounded border bg-gray-100 p-3"><CreditNoteDocument document={doc} company={company} onReady={setPrintReady} /></div>}
       <section className="cn-no-print mt-5 rounded border bg-white p-4"><h2 className="font-bold">ประวัติ</h2>{doc.history?.map(entry => <p className="mt-2 break-words text-sm" key={entry.id}>{formatAccountingDateTime(entry.createdAt)} · {entry.action} · {entry.performedBy?.fullName || ""}{entry.reason ? ` · ${entry.reason}` : ""}</p>)}</section>
     </>}

@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import Link from "next/link";
@@ -109,7 +110,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
             onClick={() => setQuery({ ...query, page: String(Number(query.page) + step) })}>{step < 0 ? "ก่อนหน้า" : "ถัดไป"}</button>)}</div></>}
       </>}
       {isForm && !loading && !loadError && (mode === "edit" && !editable ? <p role="alert">ใบคืนนี้อ่านอย่างเดียว แก้ได้เฉพาะ Draft / ส่งกลับรุ่นใหม่</p> :
-        <form className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
+        <ManualSubmitForm className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
           event.preventDefault(); void run(async () => {
             const saved = doc ? await api.update(doc.id, { ...form, updatedAt: doc.updatedAt }) : await api.create({ ...form, requestKey: requestKey.current });
             router.push(`${base}/${encodeURIComponent(saved.id)}`);
@@ -152,7 +153,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
           <label className="block">หมายเหตุ<textarea maxLength={1000} rows={3} className={control} value={form.remark} onChange={event => setForm({ ...form, remark: event.target.value })} /></label>
           <p className="text-sm">บันทึก Draft ยังไม่รับ Stock; หลักฐาน PDF/JPG/PNG ไม่บังคับ แนบเพิ่มบนหน้าเอกสาร</p></fieldset>
           <button disabled={busy || sourceLoading || !source || Boolean(sourceError) || !form.items.length} className={primary}>{busy ? "กำลังบันทึก..." : "บันทึกใบคืน"}</button>
-        </form>)}
+        </ManualSubmitForm>)}
       {mode === "view" && doc && !loading && !loadError && <section className="space-y-3 rounded border bg-white p-4">
         <h2 className="text-lg font-bold">{doc.returnNo} · {returnStatuses[doc.status] || doc.status}</h2>
         <p className="break-words">IS {doc.issueSnapshot?.issueNo || "-"} · คลังเดิม {doc.warehouseSnapshot?.name || doc.warehouseId || "-"} · ผู้ส่งคืน {doc.sender || "-"} · ผู้รับคืน {doc.receiver || "-"}</p>
@@ -161,7 +162,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
         <div className="flex flex-wrap gap-2">{editable && can.update && <Link className={button} href={`${base}/${encodeURIComponent(doc.id)}/edit`}>แก้ไขใบคืน</Link>}
           {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); setConfirmed(false); }}>{returnActions[value]}</button>)}
           {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}</div>
-        {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
+        {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
           <h3 className="font-bold">ยืนยัน{returnActions[action]}</h3>
           {["return", "reject", "cancel"].includes(action) && <label className="block">เหตุผล *<textarea required disabled={busy} maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           {action === "cancel" && <><label className="block">วันที่ยกเลิก *<DateInput required className={control} value={cancelDate} onChange={setCancelDate} /></label>
@@ -169,7 +170,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
             <p className="text-sm">ต้องมี Available พอ ไม่กินยอดจอง วันที่ไม่ก่อน Movement ล่าสุด; ยกเลิกแล้วปล่อยสิทธิ์คืนให้ IS</p></>}
           {action === "approve" && <p className="text-amber-800">อนุมัติคือยืนยันรับของดีจริงเข้าคลังเดิมและเพิ่ม Stock ตามจำนวนใบนี้</p>}
           <div className="flex gap-2"><button disabled={busy} className={primary}>ยืนยัน</button><button type="button" disabled={busy} className={button} onClick={() => setAction(null)}>ปิด</button></div>
-        </form>}
+        </ManualSubmitForm>}
         <h3 className="font-bold">หลักฐาน (ไม่บังคับ)</h3>
         {doc.attachments.map(file => <div key={file.id} className="flex flex-wrap items-center gap-2"><a className="min-w-0 break-all text-blue-700" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>
           {editable && (can.create || can.update) && <button disabled={busy} className={button} onClick={() => void run(async () => { await api.deleteFile(doc, file.id); refresh(); })}>ลบหลักฐาน</button>}</div>)}

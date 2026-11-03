@@ -4,6 +4,7 @@ const fs = require("node:fs"), path = require("node:path"), vm = require("node:v
 const ts = require("typescript"), React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(file, imports = {}) {
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   const filename = path.join(__dirname, "..", "src", ...file);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,

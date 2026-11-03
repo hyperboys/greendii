@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import { useEffect, useRef, useState } from "react";
 import { AccountingLookupApi, SupplierBillsApi as api } from "@/lib/api";
@@ -123,7 +124,7 @@ function BillEditor({ bill, onCancel, onSaved }: { bill: SupplierBill | null; on
       onSaved(bill ? await api.update(bill.id, { ...payload, revision: bill.revision }) : await api.create({ ...payload, requestKey: requestKey.current }));
     } catch (err) { setError(message(err)); } finally { setSaving(false); }
   }
-  return <form className="space-y-4 rounded border bg-white p-4" onSubmit={event => { event.preventDefault(); void save(); }}>
+  return <ManualSubmitForm className="space-y-4 rounded border bg-white p-4" onSubmit={event => { event.preventDefault(); void save(); }}>
     <h2 className="text-lg font-bold">{bill ? `แก้ไขร่าง ${bill.billNo}` : "บันทึกใบแจ้งหนี้ผู้ขาย (ร่าง)"}</h2>
     <div className="grid gap-3 sm:grid-cols-3">
       <div className="sm:col-span-3">
@@ -178,7 +179,7 @@ function BillEditor({ bill, onCancel, onSaved }: { bill: SupplierBill | null; on
       <button className={primary} disabled={saving}>{saving ? "กำลังบันทึก..." : "บันทึกร่าง"}</button>
       <button type="button" className={button} onClick={onCancel} disabled={saving}>ยกเลิก</button>
     </div>
-  </form>;
+  </ManualSubmitForm>;
 }
 
 function BillDetail({ id, can, onBack, onEdit }: { id: string; can: Record<string, boolean>; onBack: () => void; onEdit: (bill: SupplierBill) => void }) {
@@ -220,7 +221,7 @@ function BillDetail({ id, can, onBack, onEdit }: { id: string; can: Record<strin
       {bill.status !== "cancelled" && can.cancel && !activeSettlements && <button className={button} onClick={() => open({ kind: "cancel" })}>ยกเลิกใบแจ้งหนี้</button>}
     </div>
     {error && <p role="alert" className="rounded bg-red-50 p-3 text-red-700">{error}</p>}
-    {action && <form className="grid gap-3 rounded border border-blue-200 bg-blue-50 p-4 sm:grid-cols-3" onSubmit={event => {
+    {action && <ManualSubmitForm className="grid gap-3 rounded border border-blue-200 bg-blue-50 p-4 sm:grid-cols-3" onSubmit={event => {
       event.preventDefault();
       if (action.kind === "cancel") void run(() => api.cancel(bill.id, bill.revision, reason));
       if (action.kind === "due") void run(() => api.changeDueDate(bill.id, bill.revision, dueDate, reason));
@@ -249,7 +250,7 @@ function BillDetail({ id, can, onBack, onEdit }: { id: string; can: Record<strin
         <button className={primary} disabled={busy}>{{ cancel: "ยืนยันยกเลิก", due: "บันทึกวันครบกำหนด", settle: "บันทึกตัดชำระ", void: "ยืนยันยกเลิกการตัดชำระ" }[action.kind]}</button>
         <button type="button" className={button} disabled={busy} onClick={() => setAction(null)}>ปิด</button>
       </div>
-    </form>}
+    </ManualSubmitForm>}
     <div className="grid gap-4 rounded border bg-white p-4 sm:grid-cols-3">
       <Info label="เลขที่ตั้งหนี้" value={`${bill.billNo} (rev ${bill.revision})`} />
       <Info label="สถานะ" value={`${supplierBillStatusLabels[bill.status]}${bill.paymentState ? ` · ${supplierBillPaymentLabels[bill.paymentState]}` : ""}`} />
