@@ -133,7 +133,7 @@ export const ArApi = {
 
   getCreditNotes: (params?: Record<string, string>) => apiFetch<CreditNote[]>(`/api/ar/credit-notes?${new URLSearchParams(params)}`),
   getCreditNote: (id: string) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}`),
-  getCreditSources: (q: string) => apiFetch<CreditSource[]>(`/api/ar/credit-notes/sources?q=${encodeURIComponent(q)}`),
+  getCreditSources: (q: string) => apiFetch<Omit<CreditSource, "items">[]>(`/api/ar/credit-notes/sources?q=${encodeURIComponent(q)}`),
   getCreditSource: (id: string) => apiFetch<CreditSource>(`/api/ar/credit-notes/sources/${encodeURIComponent(id)}`),
   createCreditNote: (data: CreditInput) => apiFetch<CreditNote>("/api/ar/credit-notes", { method: "POST", body: JSON.stringify(data) }),
   updateCreditNote: (id: string, data: CreditInput) => apiFetch<CreditNote>(`/api/ar/credit-notes/${encodeURIComponent(id)}`, { method: "PUT", body: JSON.stringify(data) }),

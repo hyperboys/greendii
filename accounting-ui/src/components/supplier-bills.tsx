@@ -7,6 +7,7 @@ import { canUseAccounting } from "@/lib/accounting-access";
 import { useAccountingAccess } from "./accounting-access-provider";
 import { DateInput } from "./date-input";
 import { SearchableSelect } from "./searchable-select";
+import { SupplierBillInformation } from "./ap-document-information";
 import { formatAccountingDate as date, formatAccountingDateTime } from "@/lib/accounting-date";
 import { localAccountingDate } from "@/lib/stock-card";
 import type { PurchaseOrderSupplier } from "@/lib/accounting-purchase-orders";
@@ -251,30 +252,11 @@ function BillDetail({ id, can, onBack, onEdit }: { id: string; can: Record<strin
         <button type="button" className={button} disabled={busy} onClick={() => setAction(null)}>ปิด</button>
       </div>
     </ManualSubmitForm>}
-    <div className="grid gap-4 rounded border bg-white p-4 sm:grid-cols-3">
-      <Info label="เลขที่ตั้งหนี้" value={`${bill.billNo} (rev ${bill.revision})`} />
-      <Info label="สถานะ" value={`${supplierBillStatusLabels[bill.status]}${bill.paymentState ? ` · ${supplierBillPaymentLabels[bill.paymentState]}` : ""}`} />
-      <Info label="ผู้ขาย (ข้อมูล ณ วันที่บันทึก)" value={`${bill.supplierSnapshot.code} ${bill.supplierSnapshot.name}${bill.supplierSnapshot.taxId ? ` · ${bill.supplierSnapshot.taxId}` : ""}${bill.supplierSnapshot.branch ? ` · ${bill.supplierSnapshot.branch}` : ""}`} />
-      <Info label="เลขที่/วันที่ใบแจ้งหนี้" value={`${bill.supplierInvoiceNo} · ${date(bill.supplierInvoiceDate)}`} />
-      <Info label="เลขที่/วันที่ใบกำกับภาษี" value={bill.taxInvoiceNo ? `${bill.taxInvoiceNo} · ${date(bill.taxInvoiceDate)}` : "-"} />
-      <Info label="ครบกำหนด" value={`${date(bill.dueDate)} · เครดิต ${bill.creditTermDays} วัน${bill.dueDateManual ? " (แก้ไขเอง)" : ""}`} />
-      <Info label="อ้างอิง" value={bill.reference || "-"} />
-      <Info label="หมายเหตุ" value={bill.remark || "-"} />
-      {bill.cancelReason && <Info label="เหตุผลยกเลิก" value={bill.cancelReason} />}
-    </div>
-    <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left text-sm">
-      <thead className="border-b bg-[#f8faf7]"><tr><th className="p-3">#</th><th className="p-3">รายการ</th><th className="p-3 text-right">จำนวนเงิน</th></tr></thead>
-      <tbody>{bill.items.map((item, index) => <tr key={item.id} className="border-b"><td className="p-3">{index + 1}</td><td className="p-3">{item.desc}</td>
-        <td className="p-3 text-right tabular-nums">{money(item.amount)}</td></tr>)}</tbody>
-      <tfoot>
-        {([["ยอดก่อน VAT", bill.subTotal], [supplierBillVatLabels[bill.vatMode], bill.vat], ["ยอดตามบิล", bill.netAmount],
-          ["ตัดชำระแล้ว (PV ที่จ่ายจริงและยังไม่ถูกยกเลิก)", bill.settledAmount], ["ยอดคงค้าง", bill.outstandingAmount]] as const).map(([label, value]) =>
-          <tr key={label}><td /><td className="p-2 text-right font-semibold">{label}</td><td className="p-2 text-right font-semibold tabular-nums">{money(value)}</td></tr>)}
-      </tfoot>
-    </table></div>
+    <p className="rounded border bg-white p-3 text-sm">สถานะ: <strong>{supplierBillStatusLabels[bill.status]}{bill.paymentState ? ` · ${supplierBillPaymentLabels[bill.paymentState]}` : ""}</strong></p>
+    <SupplierBillInformation document={bill} />
     {bill.ineffectiveSettlementAmount > 0 && <p className="rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
       มีรายการตัดชำระ {money(bill.ineffectiveSettlementAmount)} ที่อ้าง PV ซึ่งถูกยกเลิก/กลับรายการแล้ว ระบบไม่นับเป็นการชำระและคืนยอดคงค้าง ควรยกเลิกรายการตัดชำระนั้น</p>}
-    <section className="rounded border bg-white p-4">
+    <section className="overflow-x-auto rounded border bg-white p-4">
       <h3 className="mb-2 font-bold">รายการตัดชำระด้วย PV</h3>
       {!bill.settlements.length ? <p className="text-sm text-gray-600">ยังไม่มีรายการตัดชำระ</p> : <table className="w-full text-left text-sm">
         <thead><tr>{["PV", "วันที่จ่าย", "ยอดตัดชำระ", "สถานะ", ""].map(label => <th key={label} className="p-2">{label}</th>)}</tr></thead>
@@ -288,15 +270,11 @@ function BillDetail({ id, can, onBack, onEdit }: { id: string; can: Record<strin
         </tr>)}</tbody>
       </table>}
     </section>
-    <section className="rounded border bg-white p-4">
-      <h3 className="mb-2 font-bold">ประวัติการดำเนินการ (Audit)</h3>
+    <details className="rounded-xl border bg-white p-5">
+      <summary className="cursor-pointer font-bold">ประวัติการดำเนินการ (Audit) ({bill.history.length})</summary>
       <ul className="space-y-1 text-sm">{bill.history.map(row => <li key={row.id}>
         {formatAccountingDateTime(row.createdAt)} · {supplierBillHistoryLabels[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}
       </li>)}</ul>
-    </section>
+    </details>
   </section>;
-}
-
-function Info({ label, value }: { label: string; value: string }) {
-  return <div><p className="text-xs text-gray-500">{label}</p><p className="font-semibold">{value}</p></div>;
 }

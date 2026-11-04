@@ -91,7 +91,7 @@ body {
 }
 
 #iv-print-doc {
-  font-family: var(--font-en) !important;
+  font-family: Calibri, Tahoma, var(--font-noto-thai), sans-serif !important;
 }
 
 @media print {

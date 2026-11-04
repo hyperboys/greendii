@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import type { BillingLine, BillingNote } from "@/lib/billing-note";
+import { billingAmountText } from "@/lib/billing-note";
 import { hasApprovedActors } from "@/lib/accounting-approval";
 import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
@@ -81,7 +82,7 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
             </tr>)}
             <tr className="bi-filler" style={{ height: `${Math.max(0, 120 - rows.length * 7)}mm` }} aria-hidden="true">{Array.from({ length: 7 }, (_, i) => <td key={i} />)}</tr>
           </tbody>
-          <tfoot><tr><td colSpan={3}>รวม　{page === pages.length - 1 ? doc.invoices.length : ""}　รายการ　เป็นเงิน</td><td colSpan={3}>{page !== pages.length - 1 && "ยอดรวมแสดงหน้าสุดท้าย"}</td><td className="bi-money"><div data-bi-fit>{page === pages.length - 1 ? money(doc.totalAmount) : ""}</div></td></tr></tfoot>
+          <tfoot><tr><td colSpan={3}>รวม　{page === pages.length - 1 ? doc.invoices.length : ""}　รายการ　เป็นเงิน</td><td colSpan={3}><div data-bi-fit>{page === pages.length - 1 ? billingAmountText(doc.totalAmount) : "ยอดรวมแสดงหน้าสุดท้าย"}</div></td><td className="bi-money"><div data-bi-fit>{page === pages.length - 1 ? money(doc.totalAmount) : ""}</div></td></tr></tfoot>
         </table>
         <div className="bi-remark" data-bi-fit><strong>หมายเหตุ</strong>　{doc.remark || ""}</div>
         <footer className="bi-signatures">

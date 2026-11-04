@@ -1,12 +1,15 @@
 // Keep server-side calendar logic (running numbers, reports, and date boundaries) in UTC+7.
 process.env.TZ = 'Asia/Bangkok';
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
+if (!process.env.DATABASE_URL?.trim()) {
+  throw new Error('DATABASE_URL is required. Set it in api/.env or the process environment, then restart the API.');
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { randomUUID } = require('crypto');
-const path = require('path');
 const fs = require('fs');
 const YAML = require('yamljs');
 const swaggerUi = require('swagger-ui-express');

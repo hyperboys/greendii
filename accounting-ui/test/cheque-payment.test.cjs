@@ -3,6 +3,7 @@ const fs = require('node:fs'), path = require('node:path'), vm = require('node:v
 const test = require('node:test'), ts = require('typescript'), React = require('react');
 const { renderToStaticMarkup } = require('react-dom/server');
 function load(parts, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   const filename = path.join(__dirname, '..', 'src', ...parts), module = { exports: {} };
   const source = ts.transpileModule(fs.readFileSync(filename, 'utf8'), {

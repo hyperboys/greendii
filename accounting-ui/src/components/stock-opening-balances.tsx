@@ -1,8 +1,9 @@
 "use client";
 import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
-import { hasApprovedActors, legacyApprovalControlVisible } from "@/lib/accounting-approval";
-import { AccountingApprovalSignatures } from "@/components/accounting-approval-signatures";
+import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
+import { StockOpeningInformation } from "@/components/inventory-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -44,6 +45,7 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
   const [userId, setUserId] = useState<string>();
   const [reload, setReload] = useState(0);
   const guard = useRef(false), requestKey = useRef("");
+  const print = useAccountingDocumentPrint(doc);
 
   useEffect(() => { setUserId(getStoredUser()?.id); }, []);
   useEffect(() => {
@@ -55,9 +57,9 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
         if (current) setRows(data);
         return;
       }
-      const options = await StockOpeningApi.lookups();
+      const options = isForm ? await StockOpeningApi.lookups() : null;
       if (!current) return;
-      setLookups(options);
+      if (options) setLookups(options);
       if (recordId) {
         const saved = await StockOpeningApi.get(recordId);
         if (!current) return;
@@ -67,13 +69,13 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
       } else {
         requestKey.current = crypto.randomUUID();
         setDoc(null); setPreview(null);
-        setForm({ warehouseId: "", cutoverDate: options.cutoverDate || localAccountingDate(), remark: "", items: [] });
+        setForm({ warehouseId: "", cutoverDate: options?.cutoverDate || localAccountingDate(), remark: "", items: [] });
       }
     }
     void load().catch(reason => { if (current) setLoadError(message(reason)); })
       .finally(() => { if (current) setLoading(false); });
     return () => { current = false; };
-  }, [mode, recordId, search, statusFilter, reload]);
+  }, [mode, recordId, search, statusFilter, reload, isForm]);
 
   useEffect(() => {
     if (!isForm || !form.warehouseId || !form.cutoverDate) { setPreview(null); return; }
@@ -240,35 +242,32 @@ export function StockOpeningBalances({ mode = "list", recordId }: { mode?: Mode;
       </ManualSubmitForm>)}
 
     {mode === "view" && doc && !loading && !loadError && <>
-      <AccountingApprovalPanel docType="opening" document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
-      <section className="opening-print space-y-3 rounded border bg-white p-4">
-        <h1 className="hidden text-xl font-bold print:flex print:items-center print:justify-between">
-          <span>ใบยอดยกมาคลัง (OB) · {doc.openingNo}</span>
-          {hasApprovedActors(doc) && <span className="block h-12 w-2/5"><AccountingApprovalSignatures document={doc} compact /></span>}
-        </h1>
+      <div className="is-no-print empty:hidden"><AccountingApprovalPanel docType="opening" hideWhenEmpty document={doc} canSubmit={can.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
+      {print.error && <p role="alert" className="is-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
+      <section className="is-no-print space-y-4">
         <div className="flex flex-wrap items-start justify-between gap-3"><div><p>สถานะ: <strong>{openingStatuses[doc.status] || doc.status}</strong></p>
           <p>วันเริ่มใช้ {doc.cutoverDate.slice(0, 10)} · คลัง {doc.warehouseSnapshot?.name || doc.warehouseId}</p>
           <p>หมายเหตุ: {doc.remark || "-"}</p></div>
           <div className="is-no-print flex flex-wrap gap-2">
             {doc.status === "draft" || doc.status === "returned" ? can.update && <Link className={button} href={`${openingBase}/${encodeURIComponent(doc.id)}/edit`}>แก้ไข</Link> : null}
             {visibleActions.map(action => <button key={action} className={action === "approve" ? primary : button} disabled={busy} onClick={() => void perform(action)}>{openingActions[action]}</button>)}
-            <button className={button} onClick={() => window.print()}>พิมพ์</button>
+            <button className={button} disabled={busy || print.printing} onClick={() => void print.requestPrint(async onReady => {
+              const template = await import("@/components/stock-opening-document");
+              onReady(true);
+              return <template.StockOpeningDocument document={doc} />;
+            })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์"}</button>
           </div>
         </div>
         <p className="rounded bg-amber-50 p-3 text-sm text-amber-900">ผลต่างเท่านั้นที่มี Movement เมื่ออนุมัติ; ยอดตรวจนับไม่ได้ถูกบวกซ้ำทั้งจำนวน</p>
-        <div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm">
-          <thead><tr><th className="p-2">สินค้า</th><th>หน่วย</th><th>ยอดตาม Movement</th><th>ยอดตรวจนับ</th><th>ผลต่าง</th></tr></thead>
-          <tbody>{doc.items.map(line => <tr key={line.id} className="border-t"><td className="p-2">{line.productSnapshot.code} · {line.productSnapshot.name}</td>
-            <td>{line.productSnapshot.unit}</td><td>{qty(line.bookQtyAtCutover)}</td><td>{qty(line.countedQty)}</td><td className="font-bold">{Number(line.deltaQty) > 0 ? "+" : ""}{qty(line.deltaQty)}</td></tr>)}</tbody>
-        </table></div>
-        {doc.movements?.length ? <div><h2 className="font-bold">Stock Movements</h2>{doc.movements.map(row => <p key={row.id} className="text-sm">
+        <StockOpeningInformation document={doc} />
+        {doc.movements?.length ? <details className="rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">Stock Movements ({doc.movements.length})</summary>{doc.movements.map(row => <p key={row.id} className="mt-3 text-sm">
           {row.sourceDocType === "stock_opening_balance_reversal" ? "กลับรายการ" : "ปรับยอด"} · เข้า {qty(row.qtyIn)} · ออก {qty(row.qtyOut)} · {row.transactionDate.slice(0, 10)}
-        </p>)}</div> : null}
-        {doc.history?.length ? <div><h2 className="font-bold">ประวัติการดำเนินการ</h2>{doc.history.map(row => <p key={row.id} className="text-sm">
+        </p>)}</details> : null}
+        {doc.history?.length ? <details className="rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">ประวัติการดำเนินการ ({doc.history.length})</summary>{doc.history.map(row => <p key={row.id} className="mt-3 text-sm">
           {row.createdAt.slice(0, 16).replace("T", " ")} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}
-        </p>)}</div> : null}
+        </p>)}</details> : null}
       </section>
+      {print.printContent}
     </>}
-    <style jsx global>{`@media print{body *{visibility:hidden}.opening-print,.opening-print *{visibility:visible}.opening-print{display:block!important;position:absolute;left:0;top:0;width:100%;border:0!important}.opening-print table{width:100%;border-collapse:collapse}.opening-print th,.opening-print td{border-bottom:1px solid #888;padding:6px;text-align:left}.opening-print .is-no-print{display:none!important}}`}</style>
   </main>;
 }

@@ -8,6 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(relativePath, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   const filename = path.join(__dirname, "..", "src", ...relativePath);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {

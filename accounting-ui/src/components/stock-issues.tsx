@@ -12,8 +12,8 @@ import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { SearchableSelect } from "@/components/searchable-select";
 import { DateInput } from "@/components/date-input";
 import { formatAccountingDate as date, formatAccountingDateTime as time } from "@/lib/accounting-date";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
-import { StockIssueDocument, StockIssuePrintStyles } from "@/components/stock-issue-document";
+import { StockIssueInformation } from "@/components/inventory-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { StockIssuesApi as api, issueBase as base, issueList as list, issueStatuses, issueActions, issueHistory, availableIssueActions,
   newIssue, issueForm, cancelledIssueQty, exportIssues, issueToday as today, type StockIssue, type IssueInput, type IssueAction,
   type IssueProduct, type IssueWarehouse, type IssueWorkOrder, type IssueBalance,
@@ -37,13 +37,14 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
   const [reload, setReload] = useState(0), [balanceReload, setBalanceReload] = useState(0), [files, setFiles] = useState<File[]>([]);
   const [action, setAction] = useState<IssueAction | null>(null), [reason, setReason] = useState(""), [cancelDate, setCancelDate] = useState(today);
   const [chainManaged, setChainManaged] = useState(false);
-  const [confirmed, setConfirmed] = useState(false), [userId, setUserId] = useState<string>(), [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
-  const [printReady, setPrintReady] = useState(false), guard = useRef(false), requestKey = useRef("");
+  const [confirmed, setConfirmed] = useState(false), [userId, setUserId] = useState<string>();
+  const guard = useRef(false), requestKey = useRef("");
+  const print = useAccountingDocumentPrint(doc);
   const editable = doc?.lifecycleVersion === 1 && ["draft", "returned"].includes(doc.status);
   useEffect(() => { setUserId(getStoredUser()?.id); }, []);
   useEffect(() => {
     if (isForm && !allowedForm) return;
-    let current = true; setLoading(true); setLoadError(""); setPrintReady(false); setAction(null); setFiles([]);
+    let current = true; setLoading(true); setLoadError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") {
         const result = await api.list(query);
@@ -53,7 +54,6 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
         if (!current) return;
         setDoc(result);
         if (isForm) setForm(issueForm(result));
-        else { const settings = await AccountingSettingsApi.get(); if (current) setCompany(settings); }
       } else {
         requestKey.current = crypto.randomUUID();
         if (current) { setDoc(null); setForm(newIssue()); }
@@ -91,13 +91,13 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
   const refresh = () => setReload(value => value + 1);
   const actions = doc ? availableIssueActions(doc, can, userId) : [];
   const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError;
   function changeLine(index: number, patch: Partial<IssueInput["items"][number]>) {
     setForm({ ...form, items: form.items.map((item, i) => i === index ? { ...item, ...patch } : item) });
   }
   if (isForm && !allowedForm) return <p role="alert">ไม่มีสิทธิ์สร้าง/แก้ใบเบิก <Link href={list}>กลับทะเบียน</Link></p>;
   return <>
-    <StockIssuePrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="is-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <div className="is-no-print mx-auto max-w-6xl space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div><h1 className="text-2xl font-bold">เบิกสินค้า (Stock Issue)</h1><p className="text-sm text-gray-600">ไม่จองขณะรออนุมัติ · อนุมัติแล้วตัดตามจำนวนจ่าย · ยกเลิกส่วนที่เหลือ ไม่มีค้างส่ง</p></div>
@@ -176,7 +176,10 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
         {doc.lifecycleVersion !== 1 && <p role="alert" className="text-amber-800">ใบเบิก Legacy อ่านอย่างเดียว ไม่กลับ Stock เก่า ต้องตรวจย้ายข้อมูลแยก</p>}
         <div className="flex flex-wrap gap-2">{editable && can.update && <Link className={button} href={`${base}/${encodeURIComponent(doc.id)}/edit`}>แก้ไขใบเบิก</Link>}
           {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); setConfirmed(false); }}>{issueActions[value]}</button>)}
-          {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}
+          {doc.lifecycleVersion === 1 && <button disabled={busy || !printable || print.printing} className={button} onClick={() => void print.requestPrint(async onReady => {
+            const [module, company] = await Promise.all([import("@/components/stock-issue-document"), AccountingSettingsApi.get()]);
+            return <><module.StockIssuePrintStyles allowed /><module.StockIssueDocument document={doc} company={company} onReady={onReady} /></>;
+          })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ / PDF"}</button>}
         </div>
         {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
           <h3 className="font-bold">ยืนยัน{issueActions[action]}</h3>
@@ -190,22 +193,20 @@ export function StockIssues({ mode = "list", recordId }: { mode?: "list" | "new"
         <h3 className="font-bold">หลักฐาน (ไม่บังคับ)</h3>
         {doc.attachments.map(file => <div key={file.id} className="flex flex-wrap items-center gap-2"><a className="min-w-0 break-all text-blue-700" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>
           {editable && (can.create || can.update) && <button disabled={busy} className={button} onClick={() => void run(async () => { await api.deleteFile(doc, file.id); refresh(); })}>ลบหลักฐาน</button>}</div>)}
-        {editable && (can.create || can.update) && <div className="space-y-2">
+        {editable && (can.create || can.update) && <details><summary className="cursor-pointer font-semibold text-blue-700">+ เพิ่มหลักฐานใบเบิก</summary><div className="mt-3 space-y-2">
           <input key={doc.updatedAt} aria-label="หลักฐานใบเบิก" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" disabled={busy} className="block max-w-full" onChange={event => setFiles(Array.from(event.target.files || []))} />
           <button disabled={busy || !files.length} className={button} onClick={() => void run(async () => { await api.upload(doc, files); refresh(); })}>แนบหลักฐานใบเบิก</button>
-        </div>}
-        <h3 className="font-bold">รายการตามเอกสาร {doc.status === "draft" || doc.status === "pending" || doc.status === "returned" ? "(ยังไม่จ่าย)" : ""}</h3>
-        {doc.items.map(item => <div key={item.id} className="min-w-0 rounded border p-3 text-sm"><p className="break-words font-semibold">{item.seq + 1}. {item.productSnapshot?.code} · {item.productSnapshot?.name || item.productId}</p>
-          <p>ขอ {number(item.requestedQty)} · <strong>จ่ายตามใบนี้ {number(item.issuedQty)}</strong> · ยกเลิกส่วนที่เหลือ {number(item.cancelledQty)} {item.productSnapshot?.unit}</p></div>)}
-        <p className="whitespace-pre-wrap break-words">หมายเหตุ: {doc.remark || "-"}</p>
-        {doc.cancelledAt && <p className="break-words text-red-700">ยกเลิก {date(doc.cancelledAt)} · {doc.cancellationReason}</p>}
-        <h3 className="font-bold">Stock Movement อ้างใบนี้</h3>
+        </div></details>}
+        <StockIssueInformation document={doc} />
+        <details><summary className="cursor-pointer font-bold">Stock Movement อ้างใบนี้ ({doc.movements?.length || 0})</summary>
         {doc.movements?.map(row => <p key={row.id} className="break-words text-sm">{date(row.transactionDate)} · {doc.items.find(item => item.productId === row.productId)?.productSnapshot?.name || row.productId} · เข้า {number(row.qtyIn)} / ออก {number(row.qtyOut)}{row.reversalRefId ? ` · กลับ ${row.reversalRefId}` : ""}</p>)}
-        <h3 className="font-bold">ประวัติ</h3>
+        </details>
+        <details><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>
         {doc.history?.map(row => <p key={row.id} className="break-words border-t pt-2 text-sm">{time(row.createdAt)} · {issueHistory[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}</p>)}
+        </details>
       </section>}
     </div>
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="is" document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} />}
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-preview mt-5 w-full overflow-x-auto"><StockIssueDocument document={doc} company={company} onReady={setPrintReady} /></div>}
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-no-print mt-4 empty:hidden"><AccountingApprovalPanel docType="is" hideWhenEmpty document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} /></div>}
+    {print.printContent}
   </>;
 }

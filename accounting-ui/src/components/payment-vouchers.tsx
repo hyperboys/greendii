@@ -13,8 +13,8 @@ import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
-import { PaymentVoucherDocument, PaymentVoucherPrintStyles } from "@/components/payment-voucher-document";
+import { PaymentVoucherInformation } from "@/components/ap-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { PaymentVouchersApi as api, newVoucher, voucherForm, voucherBase as base, voucherList, voucherStatuses, voucherActions,
   voucherPaymentLabel, methodLabels, newVoucherAction, evidenceCategories, evidenceLabels,
   type PaymentVoucher, type VoucherSource, type VoucherInput, type VoucherAction, type EvidenceCategory } from "@/lib/payment-voucher";
@@ -37,21 +37,21 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const [total, setTotal] = useState(0), [pages, setPages] = useState(0);
   const [sourceQuery, setSourceQuery] = useState(""), [sourceLoading, setSourceLoading] = useState(false), [sourceError, setSourceError] = useState("");
   const [loading, setLoading] = useState(true), [loadError, setLoadError] = useState(""), [error, setError] = useState("");
-  const [saving, setSaving] = useState(false), [reload, setReload] = useState(0), [printReady, setPrintReady] = useState(false);
+  const [saving, setSaving] = useState(false), [reload, setReload] = useState(0);
   const [action, setAction] = useState<VoucherAction | null>(null), [actionForm, setActionForm] = useState(newVoucherAction);
   const [chainManaged, setChainManaged] = useState(false);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
+  const print = useAccountingDocumentPrint(doc);
   const [category, setCategory] = useState<EvidenceCategory>("pv-document"), [files, setFiles] = useState<File[]>([]);
   const busy = useRef(false), requestKey = useRef(""), fileInput = useRef<HTMLInputElement>(null);
   const isForm = mode === "new" || mode === "edit", allowedForm = mode === "new" ? permissions.create : permissions.update;
   const editable = doc?.lifecycleVersion === 1 && ["draft", "returned"].includes(doc.status);
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError;
   const categories = useMemo(() => doc ? evidenceCategories(doc, { create: permissions.create, update: permissions.update, pay: permissions.pay, cancel: permissions.cancel }) : [],
     [doc, permissions.create, permissions.update, permissions.pay, permissions.cancel]);
   useEffect(() => {
     if (isForm && !allowedForm) return;
     let current = true;
-    setLoading(true); setLoadError(""); setError(""); setAction(null); setPrintReady(false); setFiles([]);
+    setLoading(true); setLoadError(""); setError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") {
         const result = await api.list(query);
@@ -61,10 +61,6 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
         if (!current) return;
         setDoc(result);
         if (isForm) setForm(voucherForm(result));
-        else {
-          const settings = await AccountingSettingsApi.get();
-          if (current) setCompany(settings);
-        }
       } else if (current) {
         requestKey.current = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
         setDoc(null); setForm(newVoucher());
@@ -141,7 +137,7 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   const amounts = mode === "view" ? doc : source;
   return <div className="pv-page mx-auto max-w-[1480px]">
-    <PaymentVoucherPrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="pv-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="pv-no-print mb-5 flex flex-wrap justify-between gap-3"><div><p className="text-xs font-bold text-blue-600">Accounts Payable</p>
       <h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบสำคัญจ่าย" : mode === "edit" ? "แก้ไข PV" : doc?.pvNo || "ใบสำคัญจ่าย (PV)"}</h1>
       <p className="mt-1 text-sm text-gray-600">PS อนุมัติเต็มยอด 1 ต่อ 1 · อนุมัติแยกจากจ่ายจริง · ไม่ลง GL</p></div>
@@ -149,7 +145,10 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
         {mode === "list" && permissions.create && <Link className={primary} href={`${base}/new`}>สร้าง PV</Link>}
         {mode === "view" && doc && editable && permissions.update && <Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>}
         {visibleActions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={saving || loading} onClick={() => { setAction(value); setActionForm(newVoucherAction()); }}>{actionLabel(value, Boolean(doc?.paidAt))}</button>)}
-        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving} onClick={() => window.print()}>พิมพ์ PV</button>}
+        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving || print.printing} onClick={() => void print.requestPrint(async onReady => {
+          const [module, company] = await Promise.all([import("@/components/payment-voucher-document"), AccountingSettingsApi.get()]);
+          return <><module.PaymentVoucherPrintStyles allowed /><module.PaymentVoucherDocument document={doc} company={company} onReady={onReady} /></>;
+        })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ PV"}</button>}
         {mode !== "list" && <button className={button} disabled={saving} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button>}
       </nav></header>
     {loading && <p className="pv-no-print" role="status">กำลังโหลด...</p>}
@@ -186,26 +185,20 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
     </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PV ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
-      <AccountingApprovalPanel docType="pv" document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
+      <div className="pv-no-print mb-4 empty:hidden"><AccountingApprovalPanel docType="pv" hideWhenEmpty document={doc} canSubmit={permissions.create} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
       <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p>สถานะ: <strong>{voucherStatuses[doc.status] || doc.status}</strong> · <strong>{voucherPaymentLabel(doc)}</strong></p>
-        <p>PS: {doc.lifecycleVersion === 1 ? <Link className="text-blue-700 underline" href={`/ap/vouchers/ps/${doc.sourceDocId}`}>{doc.sourceNo || doc.sourceDocId}</Link> : doc.sourceNo || doc.sourceDocId} · PO: {doc.poNo || "-"} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>
-        <p>วิธีจ่าย: {methodLabels[doc.paymentMethod] || doc.paymentMethod} · ประเภทผู้ถูกหัก: {doc.taxpayerType === "company" ? "นิติบุคคล" : doc.taxpayerType === "individual" ? "บุคคลธรรมดา" : "-"}</p>
-        <p className="whitespace-pre-wrap break-words">รายละเอียดภาษี: {doc.taxDescription || "-"} · หมายเหตุ: {doc.remark || "-"}</p>
-        {doc.paidAt && <p className="whitespace-pre-wrap break-words">จ่ายวันที่ {formatAccountingDate(doc.paidAt)} · ผู้รับ {doc.recipient} · จาก {doc.payerBank || "-"} → {doc.payeeBank || "-"} · อ้างอิง {doc.paymentReference || "-"}</p>}
         {doc.reversedAt && <p className="text-red-700">กลับรายการวันที่ {formatAccountingDate(doc.reversedAt)} · อ้างอิง {doc.reversalReference}</p>}
         {doc.createdById === getStoredUser()?.id && doc.status === "pending" && <p className="text-amber-800">ผู้สร้างไม่สามารถอนุมัติ PV ตัวเองได้ ต้องให้ผู้อนุมัติอีกคนดำเนินการ</p>}
         {doc.lifecycleVersion !== 1 && <p role="alert">Legacy อ่านอย่างเดียว ไม่ย้ายยอด/สถานะอัตโนมัติ</p>}
-        <VoucherTotals amounts={doc} />
       </section>
-      <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4"><h2 className="font-bold">รายการจ่ายจาก PS</h2>{doc.items.map((row, i) => <p key={i} className="flex justify-between gap-3 border-b py-2"><span className="min-w-0 whitespace-pre-wrap break-words">{i + 1}. {row.desc}</span><strong>{money(row.amount)}</strong></p>)}</section>
       <section className="pv-no-print mb-4 space-y-3 rounded border bg-white p-4"><h2 className="font-bold">เอกสารแนบ / หลักฐาน</h2>
         {doc.attachments.map(file => <div className="flex flex-wrap items-center gap-3" key={file.id}><a className="break-all text-blue-700 underline" href={file.fileUrl} target="_blank" rel="noreferrer">{evidenceLabels[file.category] || file.category}: {file.originalName}</a>
           {categories.includes(file.category) && <button className={button} disabled={saving} onClick={() => { if (window.confirm("ยืนยันลบหลักฐานนี้?")) void evidence(file.id); }}>ลบหลักฐาน</button>}</div>)}
         {!doc.attachments.length && <p className="text-sm text-gray-600">ยังไม่มีไฟล์แนบ</p>}
-        {categories.length > 0 && <div className="grid gap-3 md:grid-cols-2"><label>ประเภทหลักฐาน<select className={control} value={category} onChange={event => setCategory(event.target.value as EvidenceCategory)}>{categories.map(value => <option value={value} key={value}>{evidenceLabels[value]}</option>)}</select></label>
+        {categories.length > 0 && <details><summary className="cursor-pointer font-semibold text-blue-700">+ เพิ่มหลักฐานแนบ</summary><div className="mt-3 grid gap-3 md:grid-cols-2"><label>ประเภทหลักฐาน<select className={control} value={category} onChange={event => setCategory(event.target.value as EvidenceCategory)}>{categories.map(value => <option value={value} key={value}>{evidenceLabels[value]}</option>)}</select></label>
           <label>เลือกไฟล์ PDF / JPG / PNG<input className={`${control} text-sm`} ref={fileInput} type="file" accept=".pdf,.jpg,.jpeg,.png" multiple onChange={event => setFiles(Array.from(event.target.files || []))} /></label>
-          <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐาน</button></div>}
+          <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐาน</button></div></details>}
         <p className="text-sm text-gray-600">โอนต้องมีหลักฐานจ่ายเงินก่อนบันทึกจ่าย · กลับรายการหลังจ่ายต้องแนบหลักฐานกลับรายการ · ไม่ออก 50 ทวิ/ภงด. ในระยะนี้</p>
       </section>
       {action && <ManualSubmitForm onSubmit={execute} className="pv-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
@@ -223,12 +216,13 @@ export function PaymentVouchers({ mode = "list", recordId }: { mode?: "list" | "
         <label className="md:col-span-2">เหตุผล {["return", "reject", "cancel"].includes(action) ? "*" : "(ถ้ามี)"}<textarea required={["return", "reject", "cancel"].includes(action)} maxLength={1000} className={control} value={actionForm.reason} onChange={event => setActionForm({ ...actionForm, reason: event.target.value })} /></label>
         <div className="flex flex-wrap gap-3 md:col-span-2"><button className={primary} disabled={saving}>ยืนยัน{actionLabel(action, Boolean(doc.paidAt))}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
       </ManualSubmitForm>}
+      <PaymentVoucherInformation document={doc} />
       {doc.paymentMethod === "cheque" && <section className="pv-no-print mb-4 space-y-2 rounded border bg-white p-4"><h2 className="font-bold">เช็คอ้างอิง</h2>
         {doc.chequePayments.some(row => row.status !== "Cancelled") && <p>มีเช็คที่ยังไม่ยกเลิก ต้องยกเลิก/กลับรายการผ่านหน้าเช็ค ไม่ยกเลิก PV ข้ามขั้น</p>}
         <Link className="text-blue-700 underline" href="/ap/vouchers?tab=cq">เปิดทะเบียนเช็คจ่าย / หลักฐานส่งมอบ-ตัดบัญชี-กลับรายการ</Link>
         {doc.chequePayments.map(row => <p className="break-words" key={row.id}><Link className="text-blue-700 underline" href={`/ap/vouchers/cq/${row.id}`}>{row.cqNo}</Link> · {row.chequeNo} · {row.status} · {money(row.amount)}</p>)}</section>}
-      <section className="pv-no-print mb-4 rounded border bg-white p-4"><h2 className="mb-3 font-bold">ประวัติเอกสาร</h2><ol className="space-y-2 text-sm">{doc.history?.map(row => <li className="break-words border-b pb-2" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {voucherActions[row.action as keyof typeof voucherActions] || row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol></section>
-      {doc.lifecycleVersion === 1 && <div className="pv-preview overflow-x-auto rounded border bg-white"><PaymentVoucherDocument document={doc} company={company} onReady={setPrintReady} /></div>}
+      <details className="pv-no-print mb-4 rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">ประวัติเอกสาร ({doc.history?.length || 0})</summary><ol className="mt-4 space-y-2 text-sm">{doc.history?.map(row => <li className="break-words border-b pb-2" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {voucherActions[row.action as keyof typeof voucherActions] || row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol></details>
+      {print.printContent}
     </>}
   </div>;
 }

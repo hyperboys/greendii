@@ -2,6 +2,7 @@ const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm");
 const ts = require("typescript"), React = require("react"), { renderToStaticMarkup } = require("react-dom/server");
 function load(relative, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   const filename = path.join(__dirname, "..", "src", relative), module = { exports: {} };
   const code = ts.transpileModule(fs.readFileSync(filename, "utf8"), {

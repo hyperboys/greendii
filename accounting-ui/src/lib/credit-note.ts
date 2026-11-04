@@ -3,6 +3,10 @@ export type CreditSource = {
   customerBranch: string | null; address: string | null; taxId: string | null; vatConfig: string;
   netAmount: number | string; vat: number | string; outstandingAmount: number | string;
   capacity?: { before: number; vat: number; net: number }; activeBilling?: boolean;
+  items: {
+    desc: string; partNo: string | null; unit: string | null; qty: number | string;
+    unitPrice: number | string; amount?: number | string;
+  }[];
 };
 export type CreditLine = {
   desc: string; partNo: string; unit: string; qty: number | string; unitPrice: number | string;
@@ -24,6 +28,12 @@ export type CreditNote = CreditInput & {
 };
 export function newCreditLine(): CreditLine {
   return { desc: "", partNo: "", unit: "รายการ", qty: 1, unitPrice: 0 };
+}
+export function creditLinesFromSource(source: CreditSource): CreditLine[] {
+  return source.items.length ? source.items.map(row => ({
+    desc: row.desc, partNo: row.partNo || "", unit: row.unit || "",
+    qty: row.qty, unitPrice: 0,
+  })) : [newCreditLine()];
 }
 export function newCredit(): CreditInput {
   return { cnDate: new Date().toLocaleDateString("sv-SE", { timeZone: "Asia/Bangkok" }), invoiceId: "", reason: "", contactPerson: "", remark: "", items: [newCreditLine()] };

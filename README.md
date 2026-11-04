@@ -173,6 +173,19 @@ npm run dev
 API will be available at: `http://localhost:4000`  
 Swagger UI at: `http://localhost:4000/docs`
 
+The API always loads `api/.env`, regardless of the working directory used to
+launch it. Existing process environment variables take precedence. Restart the
+API after editing this file. Startup stops with a configuration error if
+`DATABASE_URL` is missing or blank.
+
+For local development against an existing server database, set its real
+PostgreSQL connection string in `api/.env`; masked example values are not usable.
+Do not run migration, reset, or seed commands against that database as part of
+troubleshooting login configuration.
+
+Run the environment regression tests from `api` with
+`node --test test/environment.test.js`.
+
 ### 3. UI Setup
 
 The UI is plain HTML/JS — no build step required.

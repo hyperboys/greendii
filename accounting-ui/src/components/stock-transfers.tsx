@@ -8,6 +8,7 @@ import { useAccountingAccess } from "./accounting-access-provider";
 import { getStoredUser } from "@/lib/auth";
 import { DateInput } from "./date-input";
 import { today } from "@/lib/goods-receipt";
+import { StockTransferInformation } from "./inventory-document-information";
 const input = "rounded border bg-white px-3 py-2";
 const button = "rounded border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40";
 const labels: Record<string, string> = { draft: "ร่าง", pending: "รออนุมัติ", returned: "ส่งกลับ", approved: "อนุมัติ", rejected: "ปฏิเสธ", cancelled: "ยกเลิก",
@@ -63,8 +64,7 @@ export function StockTransfers() {
       <label className="block">หมายเหตุ<textarea maxLength={1000} className={input} value={form.remark || ""} onChange={event => setForm({ ...form, remark: event.target.value })} /></label>
     </fieldset><div className="flex gap-2"><button className={button} disabled={busy}>บันทึกร่าง</button><button type="button" className={button} onClick={() => setEditing(false)}>ปิดการแก้ไข</button></div></ManualSubmitForm>}
     {doc && !editing && <section className="space-y-3 rounded border bg-white p-4">
-      <h2 className="font-bold">{doc.transferNo} · {labels[doc.status] || doc.status}</h2><p>{doc.snapshot.source.name} → {doc.snapshot.destination.name} · {doc.transferDate.slice(0, 10)}</p>
-      <ul>{doc.items.map(line => <li key={line.productId}>{line.productSnapshot?.code} {line.productSnapshot?.name} · {String(line.quantity)} {line.productSnapshot?.unit}</li>)}</ul><p>{doc.remark}</p>
+      <h2 className="text-lg font-bold">{doc.transferNo} · {labels[doc.status] || doc.status}</h2>
       <div className="flex flex-wrap gap-2">{can.update && ["draft", "returned"].includes(doc.status) && <button className={button} disabled={busy} onClick={() => edit(doc)}>แก้ไข</button>}
         {transferActions(doc, can, userId).map(value => <button key={value} className={button} disabled={busy} onClick={() => { setAction(value); setReason(""); setPhysical(false); setCancelDate(today()); }}>{labels[value]}</button>)}
         <button className={button} onClick={() => { setDoc(null); setAction(""); }}>ปิดรายละเอียด</button></div>
@@ -75,8 +75,9 @@ export function StockTransfers() {
         {action === "cancel" && doc.status === "approved" && <><label>วันที่โอนกลับ *<DateInput required className={input} value={cancelDate} onChange={setCancelDate} /></label>
           <label className="block"><input required type="checkbox" checked={physical} onChange={event => setPhysical(event.target.checked)} /> ยืนยันโอนสินค้ากลับจริง (ต้องไม่กระทบยอดจอง/ติดลบ; ต้นทุนที่มีรายการต่อแล้วกลับไม่ได้)</label></>}
         <button className={button} disabled={busy}>ยืนยัน</button></ManualSubmitForm>}
-      <h3 className="font-bold">Movements / ต้นทุนที่บันทึกจริง</h3>{doc.movements?.map(row => <p className="text-sm" key={row.id}>{row.warehouseId} / {row.productId} รับ {String(row.qtyIn)} จ่าย {String(row.qtyOut)} · มูลค่ารับ {row.valueIn ?? "ไม่ทราบ"} จ่าย {row.valueOut ?? "ไม่ทราบ"} · {row.costStatus === "valued" ? "มีต้นทุน" : "ยังไม่ตีมูลค่า"}</p>)}
-      <h3 className="font-bold">ประวัติ</h3>{doc.history?.map(row => <p className="text-sm" key={row.id}>{row.createdAt} · {row.performedBy?.fullName} · {labels[row.action] || row.action} · {row.reason}</p>)}
+      <StockTransferInformation document={doc} />
+      <details><summary className="cursor-pointer font-bold">Movements / ต้นทุนที่บันทึกจริง ({doc.movements?.length || 0})</summary>{doc.movements?.map(row => <p className="break-words text-sm" key={row.id}>{row.warehouseId} / {row.productId} รับ {String(row.qtyIn)} จ่าย {String(row.qtyOut)} · มูลค่ารับ {row.valueIn ?? "ไม่ทราบ"} จ่าย {row.valueOut ?? "ไม่ทราบ"} · {row.costStatus === "valued" ? "มีต้นทุน" : "ยังไม่ตีมูลค่า"}</p>)}</details>
+      <details><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>{doc.history?.map(row => <p className="break-words text-sm" key={row.id}>{row.createdAt} · {row.performedBy?.fullName} · {labels[row.action] || row.action} · {row.reason}</p>)}</details>
     </section>}
     <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ ...query, q: search, page: "1" }); }}>
       <input aria-label="ค้นหาเลขใบโอน" className={input} value={search} onChange={event => setSearch(event.target.value)} />

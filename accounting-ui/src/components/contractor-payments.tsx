@@ -13,8 +13,8 @@ import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
-import { ContractorPaymentDocument, ContractorPaymentPrintStyles } from "@/components/contractor-payment-document";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { ContractorPaymentInformation } from "@/components/ap-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import {
   ContractorPaymentsApi as api, paymentBase as base, paymentList, paymentStatuses, paymentActions,
   newPayment, newPaymentLine, paymentForm, paymentPreview,
@@ -44,18 +44,17 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
   const [saving, setSaving] = useState(false), [reload, setReload] = useState(0);
   const [action, setAction] = useState<PaymentAction | null>(null), [reason, setReason] = useState("");
   const [chainManaged, setChainManaged] = useState(false);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
-  const [printReady, setPrintReady] = useState(false);
+  const print = useAccountingDocumentPrint(doc);
   const busy = useRef(false), requestKey = useRef("");
   const isForm = mode === "new" || mode === "edit";
   const allowedForm = mode === "new" ? canCreate : canEdit;
   const editable = doc?.lifecycleVersion === 1 && ["draft", "returned"].includes(doc.status);
   const totals = paymentPreview(form, source?.vatConfig || doc?.vatConfig || "NO_VAT");
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError;
   useEffect(() => {
     if (isForm && !allowedForm) return;
     let current = true;
-    setLoading(true); setLoadError(""); setError(""); setPrintReady(false); setAction(null);
+    setLoading(true); setLoadError(""); setError(""); setAction(null);
     async function load() {
       if (mode === "list") {
         const result = await api.list(query);
@@ -65,10 +64,6 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
         if (!current) return;
         setDoc(result);
         if (isForm) setForm(paymentForm(result));
-        else {
-          const settings = await AccountingSettingsApi.get();
-          if (current) setCompany(settings);
-        }
       } else if (current) {
         requestKey.current = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
         setDoc(null); setForm(newPayment());
@@ -135,7 +130,7 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
   }
   const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
   return <div className="ps-page mx-auto max-w-370">
-    <ContractorPaymentPrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="ps-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="ps-no-print mb-5 flex flex-wrap justify-between gap-3">
       <div><p className="text-xs font-bold text-blue-600">Accounts Payable</p><h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบเบิกจ่ายผู้รับเหมา" : mode === "edit" ? "แก้ไข PS" : doc?.psNo || "ใบเบิกจ่ายผู้รับเหมา (PS)"}</h1>
         <p className="mt-1 text-sm text-gray-600">เบิกเป็นงวดตาม PO · กันวงเงินเมื่อส่งอนุมัติ · ไม่ใช่หลักฐานจ่ายเงินจริง</p></div>
@@ -144,7 +139,10 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
         {mode === "list" && canCreate && <Link className={primary} href={`${base}/new`}>สร้าง PS</Link>}
         {mode === "view" && doc && editable && canEdit && <Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>}
         {visibleActions.map(value => <button className={value === "cancel" ? `${button} text-red-700` : button} key={value} disabled={loading || saving} onClick={() => { setAction(value); setReason(""); }}>{paymentActions[value]}</button>)}
-        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving} onClick={() => window.print()}>พิมพ์ PS</button>}
+        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving || print.printing} onClick={() => void print.requestPrint(async onReady => {
+          const [module, company] = await Promise.all([import("@/components/contractor-payment-document"), AccountingSettingsApi.get()]);
+          return <><module.ContractorPaymentPrintStyles allowed /><module.ContractorPaymentDocument document={doc} company={company} onReady={onReady} /></>;
+        })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ PS"}</button>}
         {mode !== "list" && <button className={button} disabled={saving} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button>}
       </nav>
     </header>
@@ -195,26 +193,22 @@ export function ContractorPayments({ mode = "list", recordId }: { mode?: "list" 
     </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะ PS ใหม่สถานะ Draft / ส่งกลับ</p>}
     {!loading && !loadError && mode === "view" && doc && <>
-      <AccountingApprovalPanel docType="ps" document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
-      <section className="ps-no-print mb-4 space-y-2 rounded border bg-white p-4"><p>สถานะ: <strong>{paymentStatuses[doc.status] || doc.status}</strong> · รอบ {doc.paymentRound}</p><p>PO: {doc.poNo || doc.poId} · ผู้รับเหมา: {doc.supplierSnapshot?.name || "-"}</p>
-        <p>ก่อน VAT {money(doc.currentRequestAmount)} · VAT {money(doc.vat)} · WHT {money(doc.wht)} · ประกัน {money(doc.retention)} · สุทธิ {money(doc.netAmount)}</p>
+      <div className="ps-no-print mb-4 empty:hidden"><AccountingApprovalPanel docType="ps" hideWhenEmpty document={doc} canSubmit={canCreate} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
+      <section className="ps-no-print mb-4 space-y-2 rounded border bg-white p-4"><p>สถานะ: <strong>{paymentStatuses[doc.status] || doc.status}</strong> · รอบ {doc.paymentRound}</p>
         <p>ยอดสะสม/คงเหลือบนเอกสารเป็นข้อมูล ณ บันทึกหรือส่ง/อนุมัติครั้งล่าสุด ไม่ใช่ยอดคงเหลือสด</p>
         {ownDocument && doc.status === "pending" && <p className="text-amber-800">ผู้สร้างไม่สามารถอนุมัติใบตัวเองได้ ต้องให้ผู้อนุมัติอีกคนดำเนินการ</p>}
         {doc.lifecycleVersion !== 1 && <p role="alert" className="text-amber-800">Legacy: อ่านอย่างเดียว ไม่เปลี่ยนยอด/อนุมัติ/ยกเลิกอัตโนมัติ ต้องตรวจข้อมูลก่อนย้ายระบบ</p>}
-      </section>
-      <section className="ps-no-print mb-4 space-y-3 rounded border bg-white p-4"><h2 className="font-bold">รายละเอียดรายการเบิก</h2>
-        {doc.items.map((row, index) => <div key={index} className="grid min-w-0 gap-2 border-b pb-3 sm:grid-cols-[minmax(0,1fr)_auto]"><div className="min-w-0 whitespace-pre-wrap break-words">{index + 1}. {row.desc}{row.remark && <p className="text-sm text-gray-600">{row.remark}</p>}</div><strong>{money(row.amount)}</strong></div>)}
-        <p className="whitespace-pre-wrap break-words">หมายเหตุ: {doc.remark || "-"}</p>
       </section>
       {action && <ManualSubmitForm onSubmit={execute} className="ps-no-print mb-4 space-y-3 rounded border border-amber-300 bg-amber-50 p-4">
         <h2 className="font-bold">ยืนยัน{paymentActions[action]} {doc.psNo}</h2>
         <label>เหตุผล {["return", "reject", "cancel"].includes(action) ? "*" : "(ถ้ามี)"}<textarea autoFocus maxLength={1000} required={["return", "reject", "cancel"].includes(action)} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>
         <div className="flex gap-3"><button className={primary} disabled={saving}>ยืนยัน{paymentActions[action]}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
       </ManualSubmitForm>}
-      <section className="ps-no-print mb-5 rounded border bg-white p-4"><h2 className="mb-3 font-bold">ประวัติเอกสาร</h2>
+      <ContractorPaymentInformation document={doc} />
+      <details className="ps-no-print my-5 rounded-xl border bg-white p-5"><summary className="mb-3 cursor-pointer font-bold">ประวัติเอกสาร ({doc.history?.length || 0})</summary>
         <ol className="space-y-2 text-sm">{doc.history?.map(row => <li key={row.id} className="border-b pb-2">{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {paymentActions[row.action as PaymentAction] || row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol>
-      </section>
-      {doc.lifecycleVersion === 1 && <div className="ps-preview overflow-x-auto rounded border bg-white"><ContractorPaymentDocument document={doc} company={company} onReady={setPrintReady} /></div>}
+      </details>
+      {print.printContent}
     </>}
   </div>;
 }

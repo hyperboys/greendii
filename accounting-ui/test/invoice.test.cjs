@@ -8,6 +8,7 @@ const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(parts, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = {
