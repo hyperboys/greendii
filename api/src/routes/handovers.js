@@ -189,6 +189,7 @@ router.get('/', authenticate, async (req, res, next) => {
     ];
     const listInclude = {
       sales: { select: { id: true, fullName: true, email: true, phone: true } },
+      quotation: { select: { id: true, quoNo: true } },
       quotationLinks: { select: { quotationId: true }, orderBy: { createdAt: 'asc' } },
     };
     const pg = getPagination(req.query);

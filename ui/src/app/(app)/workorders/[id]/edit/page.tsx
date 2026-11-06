@@ -158,7 +158,22 @@ export default function EditWorkOrderPage() {
   const filteredHandovers = form.quotationId
     ? handovers.filter(h => !h.quotationId || h.quotationId === form.quotationId || h.id === form.handOverJobId)
     : handovers
-  const selectedQuotation = quotations.find(q => q.id === form.quotationId)
+  const linkedQuotation = handovers.find(h => h.id === form.handOverJobId)?.quotation
+  const quotationOptions = quotations.map(q => ({
+    value: q.id,
+    label: `${q.quoNo} — ${q.customerName}`,
+    shortLabel: q.quoNo,
+    description: q.project || undefined,
+  }))
+  if (linkedQuotation && !quotationOptions.some(option => option.value === linkedQuotation.id)) {
+    quotationOptions.push({
+      value: linkedQuotation.id,
+      label: linkedQuotation.quoNo,
+      shortLabel: linkedQuotation.quoNo,
+      description: undefined,
+    })
+  }
+  const selectedQuotation = quotations.find(q => q.id === form.quotationId) ?? linkedQuotation
 
   const handleQuotation = (qId: string) => {
     setLinkNotice('')
@@ -271,7 +286,7 @@ export default function EditWorkOrderPage() {
         <div className="md:col-span-2">
           <label className="form-label">อ้างอิงใบเสนอราคา (ถ้ามี)</label>
           <QuotationCheckboxSelect
-            options={quotations.map(q => ({ value: q.id, label: `${q.quoNo} — ${q.customerName}`, shortLabel: q.quoNo, description: q.project || undefined }))}
+            options={quotationOptions}
             selected={form.quotationIds}
             onChange={handleQuotations}
           />

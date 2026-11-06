@@ -532,6 +532,7 @@ export interface HandOverJob {
     sales?: { id: string; fullName: string; email?: string; phone?: string }
     items?: QuotationItem[]
   }
+  quotationLinks?: Array<{ quotation: { id: string; quoNo: string } }>
   workOrderId?: string
   workOrder?: {
     id: string
