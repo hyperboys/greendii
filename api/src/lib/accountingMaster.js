@@ -164,6 +164,45 @@ function addMasterReads(router, { model, entityType, include, fields, filters },
     catch (error) { next(error); }
   });
 }
+function addProductImport(router, prisma) {
+  router.post('/import', async (req, res, next) => {
+    try {
+      const rows = req.body?.products;
+      if (!Array.isArray(rows) || rows.length < 1 || rows.length > 2000) invalid('ต้องมีสินค้า 1-2,000 รายการ');
+      const seen = new Set();
+      const products = rows.map((row, index) => {
+        let product;
+        try {
+          product = validateProduct({ ...row, active: true, productType: row?.productType ?? 'stored',
+            vatConfig: row?.vatConfig ?? 'VAT7%', price: row?.price ?? 0, cost: row?.cost ?? 0 });
+        } catch (error) {
+          error.message = `สินค้าแถว ${index + 1}: ${error.message}`;
+          throw error;
+        }
+        const key = product.code.toLocaleLowerCase('en');
+        if (seen.has(key)) invalid(`รหัสสินค้า ${product.code} ซ้ำในไฟล์`);
+        seen.add(key);
+        return product;
+      });
+      const result = await prisma.$transaction(async tx => {
+        const existing = await tx.accountProduct.findMany({
+          where: { code: { in: products.map(product => product.code) } }, select: { code: true },
+        });
+        const existingCodes = new Set(existing.map(product => product.code));
+        const skippedCodes = products.filter(product => existingCodes.has(product.code)).map(product => product.code);
+        let createdCount = 0;
+        for (const product of products) {
+          if (existingCodes.has(product.code)) continue;
+          const saved = await tx.accountProduct.create({ data: product });
+          await audit(tx, req, 'account_product', null, saved, 'create');
+          createdCount += 1;
+        }
+        return { createdCount, skippedCodes };
+      }, { isolationLevel: 'Serializable', timeout: 60000 });
+      res.status(201).json({ ...result, skippedCount: result.skippedCodes.length });
+    } catch (error) { next(conflict(error)); }
+  });
+}
 function addMasterDeletes(router, { model, entityType, include, allowPermanent = true }, prisma) {
   for (const permanent of allowPermanent ? [false, true] : [false]) router.delete(permanent ? '/:id/permanent' : '/:id', async (req, res, next) => {
     try {
@@ -186,6 +225,7 @@ function createMasterRouter(config) {
   const prisma = require('./prisma');
   router.use(require('../middleware/auth').authenticate);
   addMasterReads(router, config, prisma);
+  if (config.model === 'accountProduct') addProductImport(router, prisma);
   async function save(req, res, next) {
     try {
       if (!req.body || typeof req.body !== 'object' || Array.isArray(req.body)) invalid('ข้อมูลหลักไม่ถูกต้อง');

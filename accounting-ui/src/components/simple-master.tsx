@@ -5,7 +5,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { apiFetch } from "@/lib/api";
-import { masterEndpoints, masterForm, exportMasterCsv, type MasterRow, type MasterMode, type MasterDraft } from "@/lib/master-data";
+import { masterEndpoints, masterForm, exportMasterCsv, parseProductReportCsv, type MasterRow, type MasterMode, type MasterDraft,
+  type ProductImportProduct } from "@/lib/master-data";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { MasterPagination, MasterRecordTools } from "@/components/master-record-tools";
@@ -29,6 +30,10 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [productImportRows, setProductImportRows] = useState<ProductImportProduct[] | null>(null);
+  const [productImportResult, setProductImportResult] = useState<{ createdCount: number; skippedCount: number; skippedCodes: string[] }>();
+  const [productImportQuery, setProductImportQuery] = useState("");
+  const [importing, setImporting] = useState(false);
   const busy = useRef(false);
   const endpoint = masterEndpoints[kind];
   const writable = mode !== "view" && canUseAccounting(access, "master", mode === "new" ? "create" : "update");
@@ -57,11 +62,38 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
     } catch (err) { setError(err instanceof Error ? err.message : "บันทึกไม่สำเร็จ"); }
     finally { busy.current = false; setSaving(false); }
   };
+  const readProductImport = async (file?: File) => {
+    if (!file) return;
+    setError(""); setProductImportResult(undefined); setProductImportQuery("");
+    try { setProductImportRows(parseProductReportCsv(await file.text())); }
+    catch (err) { setProductImportRows(null); setError(err instanceof Error ? err.message : "อ่านไฟล์สินค้าไม่สำเร็จ"); }
+  };
+  const importProducts = async () => {
+    if (!productImportRows?.length || busy.current) return;
+    const existing = new Set(rows.map(row => row.code));
+    const existingCount = productImportRows.filter(row => existing.has(row.code)).length;
+    const storedCount = productImportRows.filter(row => row.productType === "stored").length;
+    const manufacturedCount = productImportRows.filter(row => row.productType === "manufactured").length;
+    const serviceCount = productImportRows.filter(row => row.productType === "service").length;
+    if (!window.confirm(`ยืนยันเพิ่มสินค้าใหม่ ${productImportRows.length - existingCount} รายการ${existingCount ? ` และข้ามรหัสที่มีอยู่ ${existingCount} รายการ` : ""}?\n\nประเภท: สต็อก ${storedCount}, ผลิต ${manufacturedCount}, บริการ ${serviceCount}\nราคา/ต้นทุนอ้างอิงเป็น 0 และจะไม่นำยอดคงเหลือจากรายงานมาลง Stock`)) return;
+    busy.current = true; setImporting(true); setError("");
+    try {
+      const result = await apiFetch<{ createdCount: number; skippedCount: number; skippedCodes: string[] }>(`${endpoint}/import`, {
+        method: "POST", body: JSON.stringify({ products: productImportRows }),
+      });
+      setProductImportRows(null); setProductImportQuery(""); setProductImportResult(result);
+      await load();
+    } catch (err) { setError(err instanceof Error ? err.message : "นำเข้าสินค้าไม่สำเร็จ"); }
+    finally { busy.current = false; setImporting(false); }
+  };
   const filtered = rows.filter(row => (status === "all" || row.active === (status === "active")) &&
     (!category || (kind === "products" ? row.productType : row.category) === category) &&
     [row.code, row.name, row.category, row.unit, row.tel, row.email, row.location, row.accountMapping]
       .some(value => value?.toLowerCase().includes(query.trim().toLowerCase())));
   const currentPage = Math.min(page, Math.max(1, Math.ceil(filtered.length / 20)));
+  const matchingImportRows = (productImportRows ?? []).filter(row =>
+    [row.code, row.name, row.unit].some(value => value.toLocaleLowerCase().includes(productImportQuery.trim().toLocaleLowerCase())));
+  const visibleImportRows = matchingImportRows.slice(0, 50);
   const field = (key: keyof MasterDraft, label: string, numeric = false, required = false) => <label className="block text-sm" key={key}>{label}
     <input className={input} required={required} type={numeric ? "number" : key === "email" ? "email" : "text"}
       list={key === "unit" ? "accounting-unit-options" : undefined} maxLength={kind === "units" && key === "name" ? 40 : undefined}
@@ -84,8 +116,42 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
           <option value="">ทั้งหมด</option>{(kind === "products" ? types : categories).map(([value, text]) => <option key={value} value={value}>{text}</option>)}</select></label>}
         <button className={button} disabled={loading} onClick={() => void load()}>โหลดใหม่</button>
         <button className={button} disabled={loading || Boolean(error) || !filtered.length} onClick={() => exportMasterCsv(kind, filtered)}>Export CSV ({filtered.length})</button>
+        {kind === "products" && canUseAccounting(access, "master", "create") && <label className={`${button} cursor-pointer bg-blue-50`}>
+          นำเข้ารายงานสินค้า CSV<input type="file" accept=".csv,text/csv" className="sr-only" disabled={loading || importing}
+            onChange={event => { const target = event.currentTarget; void readProductImport(target.files?.[0]).finally(() => { target.value = ""; }); }} />
+        </label>}
         {canUseAccounting(access, "master", "create") && <Link className={`${button} bg-blue-600 text-white`} href={`/master/${kind}/new`}>เพิ่ม{labels[kind]}</Link>}
       </div>
+      {productImportResult && <div role="status" className="rounded border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+        เพิ่มสินค้าแล้ว {productImportResult.createdCount} รายการ; ข้ามรหัสเดิม {productImportResult.skippedCount} รายการ
+        {productImportResult.skippedCodes.length > 0 && <details className="mt-1"><summary className="cursor-pointer">ดูรหัสที่ข้าม</summary>
+          <p className="break-all">{productImportResult.skippedCodes.join(", ")}</p></details>}
+      </div>}
+      {kind === "products" && productImportRows && <section className="space-y-3 rounded border border-blue-200 bg-blue-50 p-4">
+        <div className="flex flex-wrap items-center justify-between gap-2"><div>
+          <h2 className="font-bold">ตรวจสอบก่อนนำเข้าสินค้า</h2>
+          <p className="text-sm">พบ {productImportRows.length} รายการ · ปรับประเภทสินค้าแต่ละรายการได้ · ราคาและต้นทุนอ้างอิงเป็น 0 · ยอดคงเหลือ/ค้างรับ/ค้างส่งจะไม่ถูกนำเข้า</p>
+        </div><div className="flex gap-2">
+          <button type="button" className={button} disabled={importing} onClick={() => setProductImportRows(null)}>ยกเลิก</button>
+          <button type="button" className={`${button} bg-blue-600 text-white`} disabled={importing || loading || Boolean(error)} onClick={() => void importProducts()}>
+            {importing ? "กำลังนำเข้า..." : "ยืนยันนำเข้าสินค้า"}
+          </button>
+        </div></div>
+        <label className="block text-sm">ค้นหารหัส / ชื่อ / หน่วย<input className={input} value={productImportQuery} onChange={event => setProductImportQuery(event.target.value)} /></label>
+        <div className="max-h-72 overflow-auto rounded border bg-white"><table className="w-full text-left text-sm">
+          <thead className="sticky top-0 bg-gray-100"><tr><th className="p-2">รหัส</th><th className="p-2">ชื่อสินค้า</th><th className="p-2">หน่วย</th><th className="p-2">ประเภท</th></tr></thead>
+          <tbody>{visibleImportRows.map(row => <tr key={row.code} className="border-t">
+            <td className="p-2">{row.code}</td><td className="p-2">{row.name}</td><td className="p-2">{row.unit || "-"}</td>
+            <td className="p-2"><select className="rounded border bg-white p-1" value={row.productType} disabled={importing}
+              onChange={event => setProductImportRows(current => current?.map(product => product.code === row.code
+                ? { ...product, productType: event.target.value as ProductImportProduct["productType"] } : product) ?? null)}>
+              {types.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+            </select></td>
+          </tr>)}</tbody></table>
+          {matchingImportRows.length === 0 && <p className="p-2 text-sm text-gray-600">ไม่พบสินค้า</p>}
+          {matchingImportRows.length > visibleImportRows.length && <p className="p-2 text-xs text-gray-600">แสดง 50 รายการแรกจาก {matchingImportRows.length} รายการที่ค้นพบ</p>}
+        </div>
+      </section>}
       {loading ? <p>กำลังโหลด...</p> : <div className="overflow-x-auto rounded border bg-white"><table className="w-full text-left text-sm">
         <thead><tr>{["รหัส", "ชื่อ", "รายละเอียด", "สถานะ", "จัดการ"].map(label => <th className="p-3" key={label}>{label}</th>)}</tr></thead>
         <tbody>{!filtered.length ? <tr><td className="p-5" colSpan={5}>ไม่พบข้อมูล</td></tr> : filtered.slice((currentPage - 1) * 20, currentPage * 20).map(row => <tr key={row.id} className="border-t">

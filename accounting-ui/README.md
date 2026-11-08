@@ -522,6 +522,17 @@ warehouse product with ledger movements and StockBalance; it blocks saving to
 approval when the two disagree and requires a counted quantity for every
 non-zero book balance.
 
+The Accounting product register can import the 14-column CSV exported from the
+Thai product report. On Master > products, choose **นำเข้ารายงานสินค้า CSV**,
+review the parsed rows (including changing each product type), then confirm.
+The importer creates new codes only, skips codes already present, and audits
+each created product; it does not update existing records. Imported products
+default to stored and active, with blank category and zero price/cost. Report
+stock, incoming, outgoing, and reserved
+columns are intentionally ignored; reconcile their physical counts separately
+through the opening-balance workflow. Review service-type entries (for example
+work/charge items) in the product register before using the stock workflow.
+
 The selected count is the physical quantity at the end of the day before the
 company cutover date. Submission snapshots the movement-derived book quantity
 and calculates `counted - book`; only that delta posts to StockBalance after an

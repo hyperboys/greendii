@@ -112,7 +112,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <AuthGuard>
-      <div className={`accounting-shell min-h-screen bg-[#f4f6f2] lg:grid ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[252px_minmax(0,1fr)]"}`}>
+      <div className={`accounting-shell min-h-screen bg-white lg:grid ${collapsed ? "lg:grid-cols-[72px_minmax(0,1fr)]" : "lg:grid-cols-[252px_minmax(0,1fr)]"}`}>
         {open && (
           <button aria-label="ปิดเมนู" className="fixed inset-0 z-30 bg-black/25 lg:hidden" onClick={() => setOpen(false)} />
         )}

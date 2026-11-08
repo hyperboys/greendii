@@ -15,6 +15,8 @@ function createMasterApp({ units = false } = {}) {
   const missing = () => { throw Object.assign(new Error('Not found'), { code: 'P2025' }); };
   const matches = (row, where = {}) => Object.entries(where).every(([key, value]) => key === 'OR'
     ? value.some(condition => matches(row, condition))
+    : value && typeof value === 'object' && 'in' in value
+      ? value.in.includes(row[key])
     : value && typeof value === 'object' && 'contains' in value
       ? String(row[key] ?? '').toLowerCase().includes(value.contains.toLowerCase())
       : row[key] === value);

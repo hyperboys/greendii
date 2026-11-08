@@ -43,6 +43,43 @@ test('Master filters reject malformed active status rather than silently filteri
   assert.throws(() => masterWhere({ active: 'junk' }), /สถานะ/);
 });
 
+test('Product bulk import creates and audits new records, skips existing codes, and rolls back on audit failure', async t => {
+  const previousSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'isolated-master-import-test';
+  t.after(() => { if (previousSecret === undefined) delete process.env.JWT_SECRET; else process.env.JWT_SECRET = previousSecret; });
+  const fixture = require('./helpers/accountingMasterApp').createMasterApp();
+  const server = fixture.app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const request = (body, user = 'admin') => fetch(`http://127.0.0.1:${server.address().port}/api/account-products/import`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${fixture.token(user)}` },
+    body: JSON.stringify(body),
+  });
+  const products = [
+    { code: '00001', name: 'น็อต', unit: 'Pcs' },
+    { code: 'A-2', name: 'Part', unit: 'Set' },
+  ];
+  assert.equal((await request({ products }, 'viewer')).status, 403);
+  const imported = await request({ products });
+  assert.equal(imported.status, 201);
+  assert.deepEqual(await imported.json(), { createdCount: 2, skippedCodes: [], skippedCount: 0 });
+  assert.equal(fixture.state().accountProduct.length, 2);
+  assert.equal(fixture.state().accountProduct[0].code, '00001');
+  assert.equal(fixture.state().accountProduct[0].productType, 'stored');
+  assert.equal(fixture.state().accountProduct[0].price, '0.00');
+  assert.equal(fixture.state().auditLog.length, 2);
+
+  const replay = await request({ products });
+  assert.equal(replay.status, 201);
+  assert.deepEqual(await replay.json(), { createdCount: 0, skippedCodes: ['00001', 'A-2'], skippedCount: 2 });
+  assert.equal((await request({ products: [products[0], { ...products[0], code: '00001' }] })).status, 400);
+  assert.equal(fixture.state().accountProduct.length, 2);
+
+  fixture.failAudit(true);
+  assert.equal((await request({ products: [{ code: 'ROLLBACK', name: 'Rollback' }] })).status, 500);
+  assert.equal(fixture.state().accountProduct.some(row => row.code === 'ROLLBACK'), false);
+});
+
 test('All six master HTTP routers persist complete records, paginate, audit, enforce permissions and guard deletion', async t => {
     const previousSecret = process.env.JWT_SECRET;
     process.env.JWT_SECRET = 'isolated-master-test';

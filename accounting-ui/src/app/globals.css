@@ -57,7 +57,7 @@
   --font-display: "Broadway", "Bebas Neue", sans-serif;
   --font-signature: "Brush Script MT", "Dancing Script", cursive;
   --ink: #17211b;
-  --paper: #f4f6f2;
+  --paper: #ffffff;
   --forest: #0866ff;
   --leaf: #0866ff;
 }
@@ -124,6 +124,17 @@ input[type="radio"] {
 
 .accounting-shell table.so-items-table {
   min-width: 0;
+}
+
+/* On the white page, give unstyled list headers a light tint; explicit thead classes and print output are untouched. */
+@media screen {
+  .accounting-shell main table.w-full > thead:not([class]):not(.opening-print *) {
+    background: #f5f7fb;
+  }
+
+  .accounting-shell main td :where(button, a[class*="border"]) {
+    white-space: nowrap;
+  }
 }
 
 .accounting-modal > div {

@@ -101,6 +101,10 @@ then `npm start` in each UI) and compare the same document operations and data
 volumes in the browser Network panel. Development route compilation is not a
 representative production latency measurement.
 
+The API gzips responses (`compression` middleware), because Nginx does not
+compress `application/json` by default; the Accounting customer master list
+shrinks from about 1.1 MB to about 115 KB.
+
 ### Accounting audit snapshots
 
 Audit snapshots serialize Prisma Decimal amounts as strings (without losing

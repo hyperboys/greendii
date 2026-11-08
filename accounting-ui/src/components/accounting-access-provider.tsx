@@ -90,7 +90,7 @@ export function AccountingAccessProvider({ children }: { children: React.ReactNo
   const access = result.access;
   if (!access || !canOpenAccountingPath(access, pathname)) {
     return (
-      <main className="grid min-h-screen place-items-center bg-[#f4f6f2] p-6">
+      <main className="grid min-h-screen place-items-center bg-white p-6">
         <section className="w-full max-w-lg rounded-lg border border-[#dfe5de] bg-white p-7">
           <h1 className="text-xl font-bold">สิทธิ์การใช้งาน Accounting</h1>
           <p role="alert" className="mt-3 text-sm text-[#657069]">

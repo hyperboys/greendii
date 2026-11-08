@@ -40,6 +40,29 @@ test("CSV exports all filtered rows and nested branches safely, with UTF-8 BOM a
   assert.equal(full.split("\r\n").length, 27);
   assert.ok(full.includes('"P-25"'));
 });
+test("Product report CSV parser preserves leading zero codes, quoted names and ignores stock columns", () => {
+  const reportRow = values => {
+    const row = Array(14).fill("");
+    for (const [index, value] of Object.entries(values)) row[Number(index)] = value;
+    return row.map(value => `"${String(value).replaceAll('"', '""')}"`).join(",");
+  };
+  const report = [
+    reportRow({ 1: "รหัสสินค้า", 4: "ชื่อสินค้า", 7: "หน่วยนับหลัก", 9: "ยอดคงเหลือ" }),
+    reportRow({ 1: "00001", 4: 'น็อต "ตัวผู้"', 7: "Pcs", 9: "340.00" }),
+    reportRow({ 1: "ค่าปัก", 4: "ปัก LOGO", 7: "Pcs", 11: "-659.00" }),
+    reportRow({ 2: "รวม", 3: "2", 5: "รายการ" }),
+  ].join("\r\n");
+  const products = model.parseProductReportCsv(`\ufeff${report}`);
+  assert.equal(products.length, 2);
+  assert.equal(products[0].code, "00001");
+  assert.equal(products[0].name, 'น็อต "ตัวผู้"');
+  assert.equal(products[0].productType, "stored");
+  assert.equal(products[0].price, 0);
+  assert.equal(products[1].code, "ค่าปัก");
+  assert.throws(() => model.parseProductReportCsv([report.split("\r\n")[0], report.split("\r\n")[1],
+    report.split("\r\n")[1]].join("\r\n")), /ซ้ำ/);
+  assert.throws(() => model.parseProductReportCsv("code,name,unit"), /ไม่พบหัวตาราง/);
+});
 test("Four master direct routes select full-page modes and reject unknown domains/actions", () => {
   const Page = load(["app", "master", "[kind]", "[...record]", "page.tsx"], {
     "next/navigation": { notFound: () => { throw new Error("Not found"); } },
@@ -85,4 +108,10 @@ test("All simple master forms render complete editable fields while viewers rema
     assert.ok(viewer.includes("<fieldset disabled="));
     assert.equal(viewer.includes('type="submit"'), false);
   }
+  index = 0; allowed = true;
+  const productList = renderToStaticMarkup(React.createElement(SimpleMaster, { kind: "products", mode: "list" }));
+  assert.ok(productList.includes("นำเข้ารายงานสินค้า CSV"));
+  index = 0; allowed = false;
+  const readOnlyProductList = renderToStaticMarkup(React.createElement(SimpleMaster, { kind: "products", mode: "list" }));
+  assert.equal(readOnlyProductList.includes("นำเข้ารายงานสินค้า CSV"), false);
 });

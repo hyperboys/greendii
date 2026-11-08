@@ -8,6 +8,7 @@ if (!process.env.DATABASE_URL?.trim()) {
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
+const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const { randomUUID } = require('crypto');
 const fs = require('fs');
@@ -66,6 +67,11 @@ app.use(helmet({
   crossOriginResourcePolicy: { policy: 'cross-origin' },
   contentSecurityPolicy: false, // Swagger UI needs inline scripts/styles
 }));
+
+// ─── COMPRESSION ────────────────────────────────────────────────────────────
+// Large JSON lists (e.g. Accounting customer master ~1 MB) shrink ~10x with gzip;
+// Nginx does not gzip application/json by default.
+app.use(compression());
 
 // ─── CORS ───────────────────────────────────────────────────────────────────
 const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000,http://localhost:3001')
