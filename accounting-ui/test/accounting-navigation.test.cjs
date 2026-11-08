@@ -243,6 +243,71 @@ test("Access refresh keeps same-session children mounted, rejects revocation/err
   assert.match(renderToStaticMarkup(render()), /ไม่มีสิทธิ์เข้าเมนูนี้/);
 });
 
+test("Cached access for the same session renders immediately, is revalidated by /me and ignored for other sessions", async () => {
+  let token = "session-1";
+  const states = [], effects = [], pendingEffects = [], requests = [];
+  const storage = new Map();
+  let cursor = 0;
+  const router = { replace() {} };
+  const { AccountingAccessProvider } = load(["components", "accounting-access-provider.tsx"], {
+    react: {
+      ...React,
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in states)) states[index] = initial;
+        return [states[index], value => { states[index] = typeof value === "function" ? value(states[index]) : value; }];
+      },
+      useEffect(callback, deps) {
+        const index = cursor++;
+        const previous = effects[index];
+        if (!previous || deps.some((value, i) => value !== previous.deps[i])) {
+          pendingEffects.push(() => { previous?.cleanup?.(); effects[index] = { deps, cleanup: callback() }; });
+        }
+      },
+    },
+    "next/navigation": { usePathname: () => "/dashboard", useRouter: () => router },
+    "@/lib/accounting-access": {
+      ...policy, AccountingAccessApi: { me: () => new Promise((resolve, reject) => requests.push({ resolve, reject })) },
+    },
+    "@/lib/accounting-navigation": navigation,
+    "@/lib/auth": { getSessionToken: () => token, getStoredUser: () => ({}) },
+  }, {
+    window: {
+      addEventListener() {}, removeEventListener() {},
+      localStorage: {
+        getItem: key => storage.has(key) ? storage.get(key) : null,
+        setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key),
+      },
+    },
+    Error,
+  });
+  const children = React.createElement("div", null, "Protected content");
+  const render = () => { cursor = 0; const tree = AccountingAccessProvider({ children }); pendingEffects.splice(0).forEach(effect => effect()); return tree; };
+  const settle = async (index, access) => { requests[index].resolve(access); await new Promise(resolve => setImmediate(resolve)); };
+
+  assert.match(renderToStaticMarkup(render()), /กำลังตรวจสอบสิทธิ์ Accounting/, "first visit waits for /me");
+  await settle(0, fullAccess);
+  assert.deepEqual(JSON.parse(storage.get("gd_accounting_access")), { sessionToken: "session-1", access: fullAccess });
+
+  // Simulate a full page reload: fresh component state, same session.
+  states.length = 0; effects.length = 0;
+  render();
+  assert.equal(render().props.children, children, "cached access renders before /me returns");
+  assert.equal(requests.length, 2, "/me still revalidates");
+  await settle(1, { ...fullAccess, allowed: false });
+  assert.match(renderToStaticMarkup(render()), /ยังไม่ได้รับสิทธิ์ Accounting/, "revocation from /me replaces the cache");
+  assert.equal(JSON.parse(storage.get("gd_accounting_access")).access.allowed, false);
+
+  storage.set("gd_accounting_access", JSON.stringify({ sessionToken: "session-1", access: fullAccess }));
+  token = "session-2";
+  states.length = 0; effects.length = 0;
+  render();
+  assert.match(renderToStaticMarkup(render()), /กำลังตรวจสอบสิทธิ์ Accounting/, "another session's cache is ignored");
+  requests[2].reject(new Error("Access service unavailable"));
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(storage.has("gd_accounting_access"), false, "failed checks clear the cache");
+});
+
 test("Only the root layout owns AppShell, not individual pages", () => {
   const app = path.join(__dirname, "..", "src", "app");
   assert.match(fs.readFileSync(path.join(app, "layout.tsx"), "utf8"), /<AppShell>/);

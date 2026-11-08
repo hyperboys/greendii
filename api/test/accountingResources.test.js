@@ -76,3 +76,79 @@ test('Accounting resource gates protect every route and do not alter legacy acce
   t.mock.method(prisma.accountingUserRole, 'findUnique', async () => { throw new Error('Database unavailable'); });
   assert.equal((await fetch(`${base}/api/ar/invoices`, { headers })).status, 500);
 });
+
+test('Nested Accounting authentication reads the user once per request without caching revocation', async t => {
+  const originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'accounting-authentication-test-secret';
+  t.after(() => {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  });
+  let active = true, permissions = ['ar.view'], userQueries = 0;
+  t.mock.method(prisma.user, 'findUnique', async ({ where }) => {
+    userQueries++;
+    return { id: where.id, role: 'sales', active };
+  });
+  t.mock.method(prisma.accountingUserRole, 'findUnique', async () =>
+    ({ role: { id: 'role', name: 'AR', permissions } }));
+  const app = express();
+  app.use('/api/ar', authenticate, requireAccountingResource('ar'));
+  app.get('/api/ar/invoices', authenticate, authenticate, (req, res) => res.json({ userId: req.user.id }));
+  const server = app.listen(0, '127.0.0.1');
+  await new Promise(resolve => server.once('listening', resolve));
+  t.after(() => { server.closeAllConnections(); server.close(); });
+  const url = `http://127.0.0.1:${server.address().port}/api/ar/invoices`;
+  const headers = { Authorization: `Bearer ${jwt.sign({ sub: 'account-user' }, process.env.JWT_SECRET)}` };
+  const response = await fetch(url, { headers });
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { userId: 'account-user' });
+  assert.equal(userQueries, 1, 'three middleware invocations use one user query');
+  assert.equal((await fetch(url, { headers })).status, 200);
+  assert.equal(userQueries, 2, 'new requests always read the current user');
+  permissions = [];
+  assert.equal((await fetch(url, { headers })).status, 403);
+  assert.equal(userQueries, 3, 'permission revocation is effective on the next request');
+  active = false;
+  assert.equal((await fetch(url, { headers })).status, 401);
+  assert.equal(userQueries, 4, 'deactivation is effective on the next request');
+  assert.equal((await fetch(url)).status, 401);
+  assert.equal(userQueries, 4);
+});
+
+test('Authentication reuse requires the same request, token and authenticated user object', async t => {
+  const originalSecret = process.env.JWT_SECRET;
+  process.env.JWT_SECRET = 'accounting-authentication-identity-secret';
+  t.after(() => {
+    if (originalSecret === undefined) delete process.env.JWT_SECRET;
+    else process.env.JWT_SECRET = originalSecret;
+  });
+  let queries = 0, nextCalls = 0, status;
+  t.mock.method(prisma.user, 'findUnique', async ({ where }) => {
+    queries++;
+    return { id: where.id, role: 'sales', active: true };
+  });
+  const header = id => `Bearer ${jwt.sign({ sub: id }, process.env.JWT_SECRET)}`;
+  const req = { headers: { authorization: header('first') }, user: { id: 'forged', role: 'admin' } };
+  const res = { status(code) { status = code; return this; }, json() {} };
+  const next = () => { nextCalls++; };
+  await authenticate(req, res, next);
+  assert.equal(req.user.id, 'first');
+  await authenticate(req, res, next);
+  assert.equal(queries, 1);
+  req.user = { ...req.user, role: 'admin' };
+  await authenticate(req, res, next);
+  assert.equal(queries, 2);
+  assert.equal(req.user.role, 'sales');
+  req.headers.authorization = header('second');
+  await authenticate(req, res, next);
+  assert.equal(queries, 3);
+  assert.equal(req.user.id, 'second');
+  req.headers.authorization = `Bearer ${jwt.sign({ sub: 'admin' }, 'wrong-secret')}`;
+  await authenticate(req, res, next);
+  assert.equal(status, 401);
+  assert.equal(nextCalls, 4);
+  req.headers.authorization = `Bearer ${jwt.sign({ sub: 'second' }, process.env.JWT_SECRET, { expiresIn: -1 })}`;
+  await authenticate(req, res, next);
+  assert.equal(status, 401);
+  assert.equal(nextCalls, 4);
+});

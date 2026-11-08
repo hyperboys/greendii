@@ -80,6 +80,27 @@ to the same master-data tab after viewing or saving.
 
 These pages use the existing Accounting master-data permissions and APIs.
 
+### Accounting loading performance
+
+Accounting resource gates and nested API routers share a successful authentication
+only within the same HTTP request, avoiding a duplicate user lookup. Each new
+request still validates its token and reads the current active user; no user or
+permission cache is shared across requests.
+
+PO edit/view and Invoice form pages load independent document and reference
+requests concurrently. Loading and error states still prevent using incomplete
+forms. The Invoice form requests SO/WO references once (not again when loading
+finishes), and the customer lookup omits Sale relations that AR forms do not use.
+
+The Accounting shell caches the last `/api/accounting-access/me` result in
+`localStorage` (`gd_accounting_access`, bound to the current session token) so
+pages start loading data without waiting for `/me`. `/me` still revalidates on
+every navigation and window focus, failures clear the cache, logout removes it,
+and the API enforces permissions on every request regardless of the cache. To compare Accounting with Sales, use production builds (`npm run build`,
+then `npm start` in each UI) and compare the same document operations and data
+volumes in the browser Network panel. Development route compilation is not a
+representative production latency measurement.
+
 ### Accounting audit snapshots
 
 Audit snapshots serialize Prisma Decimal amounts as strings (without losing

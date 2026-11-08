@@ -8,6 +8,28 @@ import { getStoredUser, getSessionToken, logout } from "@/lib/auth";
 import { isPublicAccountingPath } from "@/lib/accounting-navigation";
 
 const AccessContext = createContext<AccountingAccess | null>(null);
+const ACCESS_CACHE_KEY = "gd_accounting_access";
+
+// The API enforces permissions on every request; the cache only lets the shell render
+// without waiting for /me before page data starts loading. /me always revalidates it.
+function readCachedAccess(sessionToken: string): AccountingAccess | null {
+  try {
+    const cached = JSON.parse(window.localStorage.getItem(ACCESS_CACHE_KEY) || "null");
+    return cached?.sessionToken === sessionToken && cached.access && Array.isArray(cached.access.permissions)
+      ? cached.access as AccountingAccess : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedAccess(sessionToken: string, access: AccountingAccess | null) {
+  try {
+    if (access) window.localStorage.setItem(ACCESS_CACHE_KEY, JSON.stringify({ sessionToken, access }));
+    else window.localStorage.removeItem(ACCESS_CACHE_KEY);
+  } catch {
+    // Storage unavailable: fall back to waiting for /me.
+  }
+}
 
 export function useAccountingAccess() {
   return useContext(AccessContext);
@@ -34,15 +56,23 @@ export function AccountingAccessProvider({ children }: { children: React.ReactNo
       router.replace("/change-password");
       return;
     }
+    const cached = readCachedAccess(sessionToken);
+    if (cached) setResult(previous => previous?.sessionToken === sessionToken ? previous : { sessionToken, access: cached });
     let cancelled = false;
     let request = 0;
     const refresh = async () => {
       const currentRequest = ++request;
       try {
         const access = await AccountingAccessApi.me();
-        if (!cancelled && currentRequest === request) setResult({ sessionToken, access });
+        if (!cancelled && currentRequest === request) {
+          writeCachedAccess(sessionToken, access);
+          setResult({ sessionToken, access });
+        }
       } catch (error) {
-        if (!cancelled && currentRequest === request) setResult({ sessionToken, error: error instanceof Error ? error.message : "ตรวจสอบสิทธิ์ไม่สำเร็จ" });
+        if (!cancelled && currentRequest === request) {
+          writeCachedAccess(sessionToken, null);
+          setResult({ sessionToken, error: error instanceof Error ? error.message : "ตรวจสอบสิทธิ์ไม่สำเร็จ" });
+        }
       }
     };
     void refresh();

@@ -2,12 +2,19 @@ const jwt = require('jsonwebtoken');
 const prisma = require('../lib/prisma');
 const { normalizeRole } = require('../lib/roleAliases');
 
+// Accounting gates and nested routers authenticate the same request.
+const authenticatedRequests = new WeakMap();
+
 async function authenticate(req, res, next) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
     return res.status(401).json({ message: 'No token provided' });
   }
   const token = header.slice(7);
+  const authenticated = authenticatedRequests.get(req);
+  if (authenticated?.token === token && authenticated.user === req.user) {
+    return next();
+  }
   try {
     const payload = jwt.verify(token, process.env.JWT_SECRET);
     const user = await prisma.user.findUnique({
@@ -24,6 +31,7 @@ async function authenticate(req, res, next) {
       return res.status(401).json({ message: 'User not found or inactive' });
     }
     req.user = { ...user, role: normalizeRole(user.role) };
+    authenticatedRequests.set(req, { token, user: req.user });
     next();
   } catch {
     return res.status(401).json({ message: 'Invalid or expired token' });

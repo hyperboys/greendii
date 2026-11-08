@@ -127,22 +127,27 @@ export function PurchaseOrders({
     setLoading(true);
     setErrorMsg("");
     try {
+      const [supplierRows, detail, settings] = await Promise.all([
+        (mode === "new" && canCreate) || (mode === "edit" && canUpdate)
+          ? AccountingLookupApi.getSuppliers() : Promise.resolve(null),
+        recordId && (mode === "edit" || mode === "view")
+          ? ApApi.getPurchaseOrder(recordId) : Promise.resolve(null),
+        recordId && mode === "view"
+          ? AccountingSettingsApi.get() : Promise.resolve(null),
+      ]);
       if (mode === "list" && activeTab === "po") {
         const orders = await ApApi.getPurchaseOrders();
         setList(orders);
       }
-      if ((mode === "new" && canCreate) || (mode === "edit" && canUpdate)) {
-        setSuppliers(await AccountingLookupApi.getSuppliers());
-      }
-      if (recordId && (mode === "edit" || mode === "view")) {
-        const detail = await ApApi.getPurchaseOrder(recordId);
+      if (supplierRows) setSuppliers(supplierRows);
+      if (detail) {
         if (mode === "edit") {
           if (!["draft", "returned"].includes(detail.status)) throw new Error("แก้ไขได้เฉพาะใบสั่งซื้อสถานะ Draft / ส่งกลับ");
           setEditing(detail);
           setFormData(formFromDocument(detail));
           setSupplierFilter(detail.supplier ? `${detail.supplier.code} - ${detail.supplier.name}` : "");
         } else {
-          setCompany(await AccountingSettingsApi.get());
+          if (settings) setCompany(settings);
           setSelectedDocument(detail);
         }
       }

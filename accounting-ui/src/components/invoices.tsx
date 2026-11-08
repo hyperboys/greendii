@@ -61,6 +61,8 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const isForm = mode === "new" || mode === "edit";
   const linked = Boolean(form.provisionalDeliveryOrderId);
   const sourceEditable = isEditableArDocument(doc);
+  // Edit mode waits for the document; new mode must not refetch when loading flips.
+  const sourceReady = mode !== "edit" || (!loading && sourceEditable);
   const invoiceMonth = form.ivDate.slice(0, 7);
   const customer = customers.find(item => item.id === form.customerId);
   const totals = deliveryOrderAmounts(form.items, form.discount, form.vatConfig);
@@ -75,10 +77,13 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         if (current) setRows(Array.isArray(result) ? result : result.items);
         return;
       }
-      const document = recordId ? await ArApi.getInvoice(recordId) : null;
+      const [document, lookups] = await Promise.all([
+        recordId ? ArApi.getInvoice(recordId) : Promise.resolve(null),
+        isForm ? Promise.all([AccountingLookupApi.getCustomers(), AccountingLookupApi.getProducts()]) : Promise.resolve(null),
+      ]);
       if (isForm) {
-        const [cs, ps] = await Promise.all([AccountingLookupApi.getCustomers(), AccountingLookupApi.getProducts()]);
-        if (!current) return;
+        if (!current || !lookups) return;
+        const [cs, ps] = lookups;
         setCustomers(cs); setProducts(ps);
         setForm(document ? invoiceForm(document) : newInvoice());
         setWorkOrderLabel(document?.workOrder?.woNo || "ไม่อ้างอิง WO");
@@ -90,7 +95,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   }, [mode, recordId, isForm, canWrite, reload, query]);
 
   useEffect(() => {
-    if (!isForm || !canWrite || (mode === "edit" && (loading || !sourceEditable))) return;
+    if (!isForm || !canWrite || !sourceReady) return;
     let current = true;
     setSourceLoading(true); setSourceError("");
     const timer = setTimeout(() => {
@@ -99,10 +104,10 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         .finally(() => { if (current) setSourceLoading(false); });
     }, 300);
     return () => { current = false; clearTimeout(timer); };
-  }, [sourceQuery, mode, canWrite, isForm, recordId, loading, sourceEditable]);
+  }, [sourceQuery, mode, canWrite, isForm, recordId, sourceReady]);
 
   useEffect(() => {
-    if (!isForm || !canWrite || (mode === "edit" && (loading || !sourceEditable))) return;
+    if (!isForm || !canWrite || !sourceReady) return;
     let current = true;
     setWorkOrderLoading(true); setWorkOrderError("");
     const timer = setTimeout(() => {
@@ -111,7 +116,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         .finally(() => { if (current) setWorkOrderLoading(false); });
     }, 300);
     return () => { current = false; clearTimeout(timer); };
-  }, [workOrderQuery, mode, canWrite, isForm, loading, sourceEditable]);
+  }, [workOrderQuery, mode, canWrite, isForm, sourceReady]);
 
   useEffect(() => {
     if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {

@@ -34,7 +34,8 @@ router.get('/lookups/:kind', async (req, res, next) => {
     res.json(await prisma[lookup.model].findMany({
       where: { active: true },
       ...(req.params.kind === 'customers'
-        ? { include: CUSTOMER_INCLUDE }
+        // AR forms only need branch/address defaults; sales relations are master-page data.
+        ? { include: { branches: CUSTOMER_INCLUDE.branches } }
         : req.params.kind === 'suppliers'
           ? {
             select: {
