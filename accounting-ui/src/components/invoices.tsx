@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -15,7 +16,8 @@ import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
 import { DocumentItems } from "@/components/document-items";
-import { InvoiceDocument, InvoicePrintStyles } from "@/components/invoice-document";
+import { InvoiceInformation } from "@/components/ar-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 
 const base = "/ar/invoices";
 const control = "w-full min-w-0 rounded-md border border-[#dfe5de] bg-white px-3 py-2";
@@ -35,6 +37,8 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [products, setProducts] = useState<DeliveryOrderProduct[]>([]);
   const [sources, setSources] = useState<InvoiceSource[]>([]);
   const [reusableNumbers, setReusableNumbers] = useState<ReusableInvoiceNumber[]>([]);
+  const [nextInvoiceNo, setNextInvoiceNo] = useState("");
+  const [numberPreviewError, setNumberPreviewError] = useState("");
   const [reuseLoading, setReuseLoading] = useState(false);
   const [reuseError, setReuseError] = useState("");
   const [sourceLabel, setSourceLabel] = useState("");
@@ -52,7 +56,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
   const [query, setQuery] = useState({ q: "", status: "" });
   const [action, setAction] = useState<"confirm" | "cancel" | null>(null);
   const [reason, setReason] = useState("");
-  const [printReady, setPrintReady] = useState(false);
+  const print = useAccountingDocumentPrint(doc);
   const [workOrders, setWorkOrders] = useState<DeliveryOrderWorkOrder[]>([]);
   const [workOrderQuery, setWorkOrderQuery] = useState("");
   const [workOrderLabel, setWorkOrderLabel] = useState("ไม่อ้างอิง WO");
@@ -117,6 +121,21 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
     }, 300);
     return () => { current = false; clearTimeout(timer); };
   }, [workOrderQuery, mode, canWrite, isForm, sourceReady]);
+
+  useEffect(() => {
+    if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
+      setNextInvoiceNo("");
+      setNumberPreviewError("");
+      return;
+    }
+    let current = true;
+    setNextInvoiceNo("");
+    setNumberPreviewError("");
+    ArApi.getNextInvoiceNumber(invoiceMonth)
+      .then(result => { if (current) setNextInvoiceNo(result.ivNo); })
+      .catch(error => { if (current) setNumberPreviewError(message(error)); });
+    return () => { current = false; };
+  }, [invoiceMonth, mode, canWrite]);
 
   useEffect(() => {
     if (mode !== "new" || !canWrite || !/^\d{4}-(0[1-9]|1[0-2])$/.test(invoiceMonth)) {
@@ -191,18 +210,22 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
 
   if (isForm && !canWrite) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไข Invoice</p>;
   const editable = isEditableArDocument(doc);
+  const selectedReusableNumber = reusableNumbers.find(number => number.id === form.reuseInvoiceId)?.ivNo;
+  const displayedInvoiceNo = selectedReusableNumber || nextInvoiceNo;
   return <div className="iv-page mx-auto min-w-0 max-w-6xl">
-    <InvoicePrintStyles allowed={mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError} />
+    {print.error && <p role="alert" className="iv-no-print mb-4 rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="iv-no-print mb-5 flex flex-wrap items-start justify-between gap-3">
       <div><p className="text-xs font-bold text-blue-600">Accounts Receivable</p><h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบแจ้งหนี้ / ใบกำกับภาษี" : mode === "edit" ? "แก้ไข Invoice" : doc?.ivNo || "ใบแจ้งหนี้ / ใบกำกับภาษี"}</h1><p className="mt-1 text-sm text-gray-600">Draft ยังไม่ตั้งหนี้ · ยืนยันแล้วจึงตั้งหนี้ · ไม่ตัด Stock</p></div>
       <div className="flex flex-wrap gap-2">
         {mode !== "list" && <Link className={button} href={base}>กลับรายการ Invoice</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้าง Invoice</Link>}
         {mode === "view" && doc && !loading && !loadError && <>
-          <AccountingApprovalPanel docType="invoice" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
           {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันตั้งหนี้</button>}</>}
           {canWrite && doc.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิก Invoice</button>}
-          {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={!printReady} onClick={() => window.print()}>พิมพ์ข้อมูลลงแบบฟอร์ม</button>}
+          {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={print.printing || saving} onClick={() => void print.requestPrint(async onReady => {
+            const template = await import("@/components/invoice-document");
+            return <><template.InvoicePrintStyles allowed /><template.InvoiceDocument document={doc} onReady={onReady} /></>;
+          })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ข้อมูลลงแบบฟอร์ม"}</button>}
         </>}
       </div>
     </header>
@@ -217,8 +240,13 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead className="bg-gray-50"><tr>{["เลขที่", "วันที่", "ลูกค้า", "SO", "ยอดสุทธิ", "คงค้าง", "สถานะ"].map(title => <th className="p-3 text-left" key={title}>{title}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.ivNo}</Link></td><td className="p-3">{formatAccountingDate(row.ivDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{row.provisionalDeliveryOrder?.soNo || "-"}</td><td className="p-3">{money(row.netAmount)}</td><td className="p-3">{money(row.outstandingAmount)}</td><td className="p-3">{row.reissuedAs ? `${invoiceStatus(row)} · เลขถูกนำไปใช้ใหม่` : row.reissuedFrom ? `${invoiceStatus(row)} · ใช้เลขที่ยกเลิก` : invoiceStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5 text-center">ไม่มีรายการที่ตรงเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="iv-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="iv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
+        {mode === "new" && <p className="rounded border bg-white p-3 text-sm">
+          เลข Invoice ที่จะใช้: <strong>{displayedInvoiceNo || (numberPreviewError ? "ตรวจสอบเลขไม่สำเร็จ" : "กำลังตรวจสอบ...")}</strong>
+          {!selectedReusableNumber && <span className="ml-1 text-gray-600">(เลขตัวอย่าง อาจเปลี่ยนหากมีผู้สร้างเอกสารพร้อมกัน)</span>}
+          {numberPreviewError && <span role="alert" className="ml-2 text-red-700">{numberPreviewError}</span>}
+        </p>}
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่ Invoice<DateInput required className={control} value={form.ivDate} onChange={ivDate => setForm(previous => ({
             ...previous, ivDate, ...(previous.ivDate.slice(0, 7) !== ivDate.slice(0, 7) ? { reuseInvoiceId: null } : {}),
@@ -267,9 +295,10 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
         <label className="block">หมายเหตุ<textarea className={control} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
         <button className={primary} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && doc && !editable && <p role="alert">แก้ไขได้เฉพาะ Draft ในวงจรใหม่ เอกสาร Legacy/ยืนยัน/ยกเลิกแล้วเป็นแบบอ่านอย่างเดียว</p>}
     {mode === "view" && doc && !loading && !loadError && <>
+      <div className="iv-no-print mb-4 empty:hidden"><AccountingApprovalPanel docType="invoice" hideWhenEmpty document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
       <div className="iv-no-print mb-4 space-y-4">
         <section className="rounded-lg border bg-white p-4"><p>สถานะ: {invoiceStatus(doc)}</p><p>ยอดสุทธิ {money(doc.netAmount)} บาท · ค้างรับ {money(doc.outstandingAmount)} บาท</p><p>ครบกำหนด {formatAccountingDate(doc.dueDate)} · SO {doc.provisionalDeliveryOrder?.soNo || "-"}</p>
           {doc.reissuedFrom && <p>นำเลขกลับมาใช้จากบิลที่ยกเลิก: <Link className="text-blue-700 underline" href={`${base}/${doc.reissuedFrom.id}`}>{doc.reissuedFrom.ivNo}</Link></p>}
@@ -277,15 +306,16 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
           {doc.confirmedAt && <p>ยืนยันเมื่อ {formatAccountingDateTime(doc.confirmedAt)}</p>}
           {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy: คงยอดและสถานะเดิม ไม่แก้ไข/ยืนยัน/ยกเลิกผ่านวงจรใหม่โดยอัตโนมัติ ต้องตรวจข้อมูลก่อนย้าย</p>}
         </section>
-        {action && <form className="space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
+        {action && <ManualSubmitForm className="space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
           <p>{action === "confirm" ? `ยืนยันตั้งหนี้ ${money(doc.netAmount)} บาท? หลังยืนยันแก้ไขไม่ได้ และไม่ตัด Stock` : "ยกเลิกและล้างยอดค้างรับได้เฉพาะไม่มี BI/RV/CN ที่ยังไม่ยกเลิกอ้างอิง"}</p>
           {action === "cancel" && <label className="block">เหตุผลยกเลิก<textarea required className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           <div className="flex gap-2"><button className={primary} disabled={saving}>{saving ? "กำลังดำเนินการ..." : action === "confirm" ? "ยืนยันตั้งหนี้จริง" : "ยืนยันยกเลิก"}</button><button className={button} type="button" disabled={saving} onClick={() => setAction(null)}>กลับ</button></div>
-        </form>}
-        <p className="text-sm text-gray-600">ตัวอย่างด้านล่างเป็นข้อมูลสำหรับพิมพ์ทับกระดาษสำเร็จรูปตาม invoice.pdf ไม่พิมพ์โลโก้ เส้นตาราง หัวเอกสาร หรือช่องรับชำระซ้ำ · พิมพ์ได้เมื่อยืนยันแล้ว ตั้ง A4 ขนาดจริง 100% ปิดหัว/ท้ายกระดาษของเบราว์เซอร์ และทดลองกระดาษก่อนใช้จริง</p>
+        </ManualSubmitForm>}
+        <p className="text-sm text-gray-600">พิมพ์ข้อมูลลงกระดาษสำเร็จรูปได้เมื่อยืนยันแล้ว · ตั้ง A4 ขนาดจริง 100% ปิดหัว/ท้ายกระดาษของเบราว์เซอร์</p>
       </div>
-      <div className="iv-preview max-w-full overflow-x-auto rounded border"><InvoiceDocument document={doc} onReady={setPrintReady} /></div>
-      <section className="iv-no-print mt-4 rounded-lg border bg-white p-4"><h2 className="font-bold">ประวัติ</h2>{doc.history?.map(entry => <p key={entry.id}>{formatAccountingDateTime(entry.createdAt)} · {entry.action} · {entry.performedBy?.fullName || "-"} {entry.reason || ""}</p>)}</section>
+      <InvoiceInformation document={doc} />
+      {print.printContent}
+      <details className="iv-no-print mt-4 rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>{doc.history?.map(entry => <p className="mt-3 break-words text-sm" key={entry.id}>{formatAccountingDateTime(entry.createdAt)} · {entry.action} · {entry.performedBy?.fullName || "-"} {entry.reason || ""}</p>)}</details>
     </>}
   </div>;
 }

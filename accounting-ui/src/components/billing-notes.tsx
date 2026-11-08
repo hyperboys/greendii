@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -6,15 +7,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AccountingLookupApi, AccountingSettingsApi, ArApi } from "@/lib/api";
-import { branchDefaults, type AccountCustomer } from "@/lib/account-customers";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
+import { branchDefaults, invoiceDueDate, type AccountCustomer } from "@/lib/account-customers";
 import { billingForm, billingStatus, billingTotal, newBillingNote, type BillingInput, type BillingNote, type BillingSource } from "@/lib/billing-note";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
-import { BillingNoteDocument, BillingPrintStyles } from "@/components/billing-note-document";
+import { BillingInformation } from "@/components/ar-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 
 const base = "/ar/billing-notes";
 const control = "w-full min-w-0 rounded-md border border-[#dfe5de] bg-white px-3 py-2";
@@ -31,7 +32,6 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
   const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<BillingInput>(newBillingNote);
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
   const [sources, setSources] = useState<BillingSource[]>([]);
   const [sourceQuery, setSourceQuery] = useState("");
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -47,7 +47,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
   const [query, setQuery] = useState({ q: "", status: "" });
   const [action, setAction] = useState<"confirm" | "cancel" | null>(null);
   const [reason, setReason] = useState("");
-  const [printReady, setPrintReady] = useState(false);
+  const print = useAccountingDocumentPrint(doc);
   const isForm = mode === "new" || mode === "edit";
   const customer = customers.find(row => row.id === form.customerId);
   const editable = isEditableArDocument(doc);
@@ -55,7 +55,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
   useEffect(() => {
     if (isForm && !canWrite) return;
     let current = true;
-    setLoading(true); setLoadError(""); setError(""); setAction(null); setPrintReady(false);
+    setLoading(true); setLoadError(""); setError(""); setAction(null);
     async function load() {
       if (mode === "list") {
         const result = await ArApi.getBillingNotes(query);
@@ -67,9 +67,6 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         const cs = await AccountingLookupApi.getCustomers();
         if (!current) return;
         setCustomers(cs); setForm(document ? billingForm(document) : newBillingNote());
-      } else {
-        const settings = await AccountingSettingsApi.get();
-        if (current) setCompany(settings);
       }
       if (current) setDoc(document);
     }
@@ -97,6 +94,7 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
     const branch = selected.branches[0];
     setSources([]); setSourceQuery("");
     setForm(previous => ({ ...previous, customerId: id, ...branchDefaults(selected), taxId: selected.taxId || "",
+      expectedPaymentDate: invoiceDueDate(previous.billingDate, selected.creditTerm),
       contactPerson: branch?.contactPerson || selected.contactPerson || "", invoices: [] }));
   }
   function addInvoice(id: string) {
@@ -131,17 +129,19 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
 
   if (isForm && !canWrite) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไขใบวางบิล</p>;
   return <div className="bi-page mx-auto max-w-370">
-    <BillingPrintStyles allowed={mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError} />
+    {print.error && <p role="alert" className="bi-no-print mb-4 rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="bi-no-print mb-5 flex flex-wrap justify-between gap-3">
       <div><p className="text-xs font-bold text-blue-600">Accounts Receivable</p><h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบวางบิล" : mode === "edit" ? "แก้ไขใบวางบิล" : doc?.biNo || "ใบวางบิล"}</h1><p className="mt-1 text-sm text-gray-600">รวม Invoice ลูกค้าเดียวกัน · วางบิลบางส่วนได้ · ไม่เพิ่มหรือลดยอดหนี้</p></div>
       <div className="flex flex-wrap gap-2">
         {mode !== "list" && <Link className={button} href={base}>กลับรายการใบวางบิล</Link>}
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบวางบิล</Link>}
         {mode === "view" && doc && !loading && !loadError && <>
-          <AccountingApprovalPanel docType="bi" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
           {canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving} onClick={() => setAction("confirm")}>ยืนยันวางบิล</button>}</>}
           {canWrite && doc.lifecycleVersion === 1 && !doc.completedAt && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && <button className={`${button} text-red-700`} disabled={saving} onClick={() => setAction("cancel")}>ยกเลิกใบวางบิล</button>}
-          {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={!printReady} onClick={() => window.print()}>พิมพ์ใบวางบิล</button>}
+          {doc.lifecycleVersion === 1 && doc.status === "approved" && <button className={button} disabled={print.printing || saving} onClick={() => void print.requestPrint(async onReady => {
+            const [module, company] = await Promise.all([import("@/components/billing-note-document"), AccountingSettingsApi.get()]);
+            return <><module.BillingPrintStyles allowed /><module.BillingNoteDocument document={doc} company={company} onReady={onReady} /></>;
+          })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ใบวางบิล"}</button>}
         </>}
       </div>
     </header>
@@ -156,10 +156,11 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "นัดชำระ", "ยอดวางบิล", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr key={row.id} className="border-t"><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.biNo}</Link></td><td className="p-3">{formatAccountingDate(row.billingDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{formatAccountingDate(row.expectedPaymentDate)}</td><td className="p-3">{money(row.totalAmount)}</td><td className="p-3">{billingStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="bi-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="bi-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
-          <label>วันที่วางบิล<DateInput required className={control} value={form.billingDate} onChange={billingDate => setForm(previous => ({ ...previous, billingDate }))} /></label>
+          <label>วันที่วางบิล<DateInput required className={control} value={form.billingDate} onChange={billingDate => setForm(previous => ({ ...previous, billingDate,
+            expectedPaymentDate: customer ? invoiceDueDate(billingDate, customer.creditTerm) : previous.expectedPaymentDate }))} /></label>
           <label>วันที่นัดชำระ<DateInput className={control} value={form.expectedPaymentDate} onChange={expectedPaymentDate => setForm(previous => ({ ...previous, expectedPaymentDate }))} /></label>
           <SearchableSelect label="ลูกค้า" required value={customer ? form.customerId : ""} selectedLabel={customer ? `${customer.code || ""} — ${customer.name}` : ""} placeholder="เลือกลูกค้า" searchPlaceholder="พิมพ์รหัส / ชื่อ" options={customers.map(row => ({ value: row.id, label: `${row.code || ""} — ${row.name}` }))} onChange={chooseCustomer} />
           <label>สาขาลูกค้า<select className={control} value={form.customerBranchId || ""} onChange={event => { if (customer && event.target.value) {
@@ -186,22 +187,24 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         <label className="block">หมายเหตุ<textarea maxLength={1000} rows={3} className={control} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
         <button className={primary} disabled={!form.invoices.length || saving}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">แก้ไขได้เฉพาะใบวางบิล Draft ใหม่เท่านั้น</p>}
     {mode === "view" && doc && !loading && !loadError && <>
+      <div className="bi-no-print mb-4 empty:hidden"><AccountingApprovalPanel docType="bi" hideWhenEmpty document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
       <section className="bi-no-print mb-5 space-y-3 rounded-lg border bg-white p-4">
         <p className="font-bold">สถานะ: {billingStatus(doc)}</p>
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy: อ่านอย่างเดียว ไม่เปลี่ยนสถานะ/ยอดเก่าอัตโนมัติ และไม่พิมพ์เป็นเอกสารยืนยันใหม่</p>}
         <p>ลูกค้า: {doc.customerName || doc.customer?.name} · ยอดวางบิล {money(doc.totalAmount)} บาท</p>
         <p>ยอดวางบิลเป็นข้อมูล ณ บันทึก ไม่ใช่ยอดค้างรับปัจจุบัน และไม่ใช่หลักฐานรับเงิน</p>
-        {action && <form className="space-y-3 rounded border p-3" onSubmit={execute}>
+        {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={execute}>
           {action === "confirm" ? <p>ยืนยันวางบิลแล้วจะแก้ไขไม่ได้ และไม่เปลี่ยนยอดหนี้ Invoice ยืนยันดำเนินการต่อ</p> : <label className="block">เหตุผลยกเลิก<textarea required className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           <button className={primary} disabled={saving}>{action === "confirm" ? "ยืนยันวางบิลจริง" : "ยืนยันยกเลิก"}</button>{" "}
           <button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ไม่ดำเนินการ</button>
-        </form>}
-        <h2 className="font-bold">ประวัติ</h2>{doc.history?.map(row => <p className="break-words text-sm" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.action} · {row.performedBy?.fullName || "-"} {row.reason && `— ${row.reason}`}</p>)}
+        </ManualSubmitForm>}
+        <details><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>{doc.history?.map(row => <p className="mt-3 break-words text-sm" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.action} · {row.performedBy?.fullName || "-"} {row.reason && `— ${row.reason}`}</p>)}</details>
       </section>
-      <div className="bi-preview overflow-x-auto rounded-lg border bg-white"><BillingNoteDocument document={doc} company={company} onReady={setPrintReady} /></div>
+      <BillingInformation document={doc} />
+      {print.printContent}
     </>}
   </div>;
 }

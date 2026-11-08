@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { isEditableArDocument, legacyApprovalControlVisible } from "@/lib/accounting-approval";
 
@@ -7,14 +8,14 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { AccountingLookupApi, AccountingSettingsApi, ArApi } from "@/lib/api";
 import { branchDefaults, type AccountCustomer } from "@/lib/account-customers";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import { newReceipt, receiptBanks, receiptForm, receiptStatus, receiptTotals, type ReceiptInput, type ReceiptLine, type ReceiptSource, type ReceiptSources, type ReceiptVoucher } from "@/lib/receipt-voucher";
 import { formatAccountingDate, formatAccountingDateTime } from "@/lib/accounting-date";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canUseAccounting } from "@/lib/accounting-access";
 import { DateInput } from "@/components/date-input";
 import { SearchableSelect } from "@/components/searchable-select";
-import { ReceiptVoucherDocument, ReceiptPrintStyles } from "@/components/receipt-voucher-document";
+import { ReceiptInformation } from "@/components/ar-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { ReceivedChequeControls } from "@/components/received-cheques";
 
 const base = "/ar/receipts";
@@ -33,7 +34,6 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const [chainManaged, setChainManaged] = useState(false);
   const [form, setForm] = useState<ReceiptInput>(newReceipt);
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
   const [sources, setSources] = useState<ReceiptSources>(emptySources);
   const [sourceQuery, setSourceQuery] = useState("");
   const [sourceLoading, setSourceLoading] = useState(false);
@@ -50,27 +50,24 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
   const [action, setAction] = useState<"confirm" | "cancel" | null>(null);
   const [reason, setReason] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [printReady, setPrintReady] = useState(false);
+  const print = useAccountingDocumentPrint(doc);
   const fileInput = useRef<HTMLInputElement>(null);
   const isForm = mode === "new" || mode === "edit";
   const editable = isEditableArDocument(doc);
   const customer = customers.find(row => row.id === form.customerId);
   const totals = receiptTotals(form.allocations);
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && printReady && !loading && !loadError;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && doc.status === "approved" && !loading && !loadError;
 
   useEffect(() => {
     if (isForm && !canWrite) return;
     let current = true;
-    setLoading(true); setLoadError(""); setError(""); setAction(null); setPrintReady(false); setFiles([]);
+    setLoading(true); setLoadError(""); setError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") { const result = await ArApi.getReceiptVouchers(query); if (current) setRows(result); return; }
       const document = recordId ? await ArApi.getReceiptVoucher(recordId) : null;
       if (isForm) {
         const cs = await AccountingLookupApi.getCustomers();
         if (current) { setCustomers(cs); setForm(document ? receiptForm(document) : newReceipt()); }
-      } else {
-        const settings = await AccountingSettingsApi.get();
-        if (current) setCompany(settings);
       }
       if (current) setDoc(document);
     }
@@ -136,7 +133,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
 
   if (isForm && !canWrite) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไขใบสำคัญรับ</p>;
   return <div className="rv-page mx-auto max-w-370">
-    <ReceiptPrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="rv-no-print mb-4 rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="rv-no-print mb-5 flex flex-wrap justify-between gap-3">
       <div><p className="text-xs font-bold text-blue-600">Accounts Receivable</p><h1 className="text-2xl font-bold">{mode === "new" ? "สร้างใบสำคัญรับ" : mode === "edit" ? "แก้ไขใบสำคัญรับ" : doc?.rvNo || "รับชำระเงิน"}</h1><p className="mt-1 text-sm text-gray-600">ยอดลดหนี้ = เงินเข้าสุทธิ + WHT + ค่าธรรมเนียมที่บริษัทรับภาระ · ไม่รับเกินหนี้</p></div>
       <nav className="flex flex-wrap gap-2">
@@ -145,7 +142,13 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
         {mode === "list" && canWrite && <Link className={primary} href={`${base}/new`}>สร้างใบสำคัญรับ</Link>}
         {mode === "view" && doc && canWrite && editable && <><Link className={button} href={`${base}/${doc.id}/edit`}>แก้ไข Draft</Link>{legacyApprovalControlVisible("confirm", chainManaged) && <button className={primary} disabled={saving || loading} onClick={() => setAction("confirm")}>ยืนยันรับชำระ</button>}</>}
         {mode === "view" && doc?.lifecycleVersion === 1 && ["draft", "returned", "pending", "rejected", "approved"].includes(doc.status) && canWrite && <button className={`${button} text-red-700`} disabled={saving || loading} onClick={() => setAction("cancel")}>ยกเลิก RV</button>}
-        {mode === "view" && <button className={button} disabled={!printable || saving} onClick={() => { if (printable) window.print(); }}>พิมพ์ใบสำคัญรับ</button>}
+        {mode === "view" && <button className={button} disabled={!printable || saving || print.printing} onClick={() => {
+          if (!printable || !doc) return;
+          void print.requestPrint(async onReady => {
+            const [module, company] = await Promise.all([import("@/components/receipt-voucher-document"), AccountingSettingsApi.get()]);
+            return <><module.ReceiptPrintStyles allowed /><module.ReceiptVoucherDocument document={doc} company={company} onReady={onReady} /></>;
+          });
+        }}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ใบสำคัญรับ"}</button>}
       </nav>
     </header>
     {loadError && <p role="alert" className="rv-no-print mb-4 text-red-700">{loadError} <button className={button} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button></p>}
@@ -159,7 +162,7 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
       </form>
       {!loading && !loadError && <div className="overflow-x-auto rounded-lg border bg-white"><table className="w-full text-sm"><thead><tr>{["เลขที่", "วันที่", "ลูกค้า", "เงินเข้าสุทธิ", "WHT", "ค่าธรรมเนียม", "ยอดลดหนี้", "สถานะ"].map(label => <th className="p-3 text-left" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => <tr className="border-t" key={row.id}><td className="p-3"><Link className="text-blue-700 underline" href={`${base}/${row.id}`}>{row.rvNo}</Link></td><td className="p-3">{formatAccountingDate(row.receiptDate)}</td><td className="p-3">{row.customerName || row.customer?.name}</td><td className="p-3">{money(row.totalReceived)}</td><td className="p-3">{money(row.whtAmount)}</td><td className="p-3">{money(row.bankFee)}</td><td className="p-3">{money(receiptTotals(row.allocations).settled)}</td><td className="p-3">{receiptStatus(row)}</td></tr>)}</tbody></table>{!rows.length && <p className="p-5">ไม่มีรายการที่ตรงกับเงื่อนไข</p>}</div>}
     </div>}
-    {isForm && !loading && !loadError && (mode === "new" || editable) && <form onSubmit={save} className="rv-no-print space-y-5">
+    {isForm && !loading && !loadError && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="rv-no-print space-y-5">
       <fieldset disabled={saving} className="min-w-0 space-y-5">
         <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>วันที่รับชำระ<DateInput required className={control} value={form.receiptDate} onChange={receiptDate => setForm(previous => ({ ...previous, receiptDate }))} /></label>
@@ -209,32 +212,31 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
         <p className="text-sm">บันทึก Draft ก่อนแนบหลักฐานได้ที่หน้ารายละเอียด · Draft ยังไม่ลดหนี้</p>
         <button className={primary} disabled={saving || !form.allocations.length}>{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button>
       </fieldset>
-    </form>}
+    </ManualSubmitForm>}
     {mode === "edit" && !loading && !loadError && !editable && <p role="alert">เอกสารนี้แก้ไขไม่ได้ (ยืนยันแล้ว / ยกเลิก / Legacy)</p>}
     {mode === "view" && doc && !loading && !loadError && <>
-      <AccountingApprovalPanel docType="rv" document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} />
+      <div className="rv-no-print mb-4 empty:hidden"><AccountingApprovalPanel docType="rv" hideWhenEmpty document={doc} canSubmit={canWrite} onChanged={() => setReload(value => value + 1)} onModeChange={setChainManaged} /></div>
       <section className="rv-no-print mb-4 space-y-2 rounded border bg-white p-4">
         <p className="font-bold">{receiptStatus(doc)}</p>
-        <p>วันที่รับชำระ {formatAccountingDate(doc.receiptDate)} · {doc.customerName || doc.customer?.name}</p>
-        <p>วิธีรับเงิน: {doc.paymentMethod === "cash" ? "เงินสด" : doc.paymentMethod === "cheque" ? "เช็ค" : "โอนเงิน"}{doc.paymentMethod !== "cash" && ` · ${doc.bankName || "-"}`}</p>
         {doc.paymentMethod === "cheque" && <p>เลขที่เช็ค {doc.chequeNo || "-"} · วันที่บนเช็ค {formatAccountingDate(doc.chequeDate)} · ยืนยันรับเช็คจะลดหนี้ทันที ไม่ใช่การยืนยันว่าเช็คเคลียร์แล้ว</p>}
         <p>เงินเข้าสุทธิ {money(doc.totalReceived)} · WHT {money(doc.whtAmount)} · ค่าธรรมเนียม {money(doc.bankFee)} · ยอดลดหนี้ {money(receiptTotals(doc.allocations).settled)}</p>
         {doc.confirmedAt && <p>ยืนยันเมื่อ {formatAccountingDateTime(doc.confirmedAt)}</p>}
         {doc.lifecycleVersion !== 1 && <p className="text-amber-800">Legacy อ่านอย่างเดียว ไม่มีการเปลี่ยนยอดย้อนหลังหรือแปลงข้อมูลอัตโนมัติ</p>}
         <p>ยืนยันแล้วแก้ไม่ได้ · ยกเลิกจะคืนยอดลดหนี้ทั้งหมดและเปิด BI กลับ แต่ห้ามกลับยอดหากมี BI ใหม่หลังปิด BI เดิม</p>
       </section>
-      {action && <form className="rv-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
+      {action && <ManualSubmitForm className="rv-no-print mb-4 space-y-3 rounded border bg-amber-50 p-4" onSubmit={execute}>
         <h2 className="font-bold">{action === "confirm" ? "ยืนยันลดหนี้ตามยอดเงิน + WHT + ค่าธรรมเนียม?" : "ยกเลิก RV และคืนยอดหนี้ (ถ้ายืนยันแล้ว)?"}</h2>
         {action === "cancel" && <label className="block">เหตุผลยกเลิก<textarea required maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
         <div className="flex gap-2"><button className={primary} disabled={saving}>{saving ? "กำลังดำเนินการ..." : "ยืนยันดำเนินการ"}</button><button className={button} disabled={saving} type="button" onClick={() => setAction(null)}>กลับ</button></div>
-      </form>}
-      <section className="rv-no-print mb-4 space-y-3 rounded border bg-white p-4">
+      </ManualSubmitForm>}
+      <ReceiptInformation document={doc} />
+      <section className="rv-no-print my-5 space-y-3 rounded border bg-white p-4">
         <h2 className="font-bold">หลักฐานแนบ (ไม่บังคับ)</h2>
         <ul className="space-y-2">{doc.attachments.map(file => <li className="flex flex-wrap items-center gap-3" key={file.id}><a className="min-w-0 break-all text-blue-700 underline" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>{editable && canWrite && <button className={button} disabled={saving} onClick={() => void evidence(file.id)}>ลบหลักฐาน</button>}</li>)}</ul>
-        {editable && canWrite && <div className="flex flex-wrap gap-3"><input ref={fileInput} className="w-full min-w-0" type="file" multiple onChange={event => setFiles(Array.from(event.target.files || []))} /><button className={button} disabled={saving || !files.length || files.length > 10} onClick={() => void evidence()}>แนบหลักฐาน</button><p className="w-full text-sm">สูงสุด 10 ไฟล์ต่อครั้ง ขนาดตามการตั้งค่า API · ยืนยันแล้วเพิ่ม/ลบไม่ได้</p></div>}
+        {editable && canWrite && <details><summary className="cursor-pointer font-semibold text-blue-700">+ เพิ่มหลักฐานแนบ</summary><div className="mt-3 flex flex-wrap gap-3"><input ref={fileInput} className="w-full min-w-0" type="file" multiple onChange={event => setFiles(Array.from(event.target.files || []))} /><button className={button} disabled={saving || !files.length || files.length > 10} onClick={() => void evidence()}>แนบหลักฐาน</button><p className="w-full text-sm">สูงสุด 10 ไฟล์ต่อครั้ง ขนาดตามการตั้งค่า API · ยืนยันแล้วเพิ่ม/ลบไม่ได้</p></div></details>}
       </section>
-      {doc.lifecycleVersion === 1 && <div className="rv-preview overflow-x-auto rounded border bg-gray-100 p-3"><ReceiptVoucherDocument document={doc} company={company} onReady={setPrintReady} /></div>}
-      <section className="rv-no-print mt-5 rounded border bg-white p-4"><h2 className="font-bold">ประวัติ</h2>{doc.history?.map(entry => <p className="mt-2 break-words text-sm" key={entry.id}>{formatAccountingDateTime(entry.createdAt)} · {entry.action} · {entry.performedBy?.fullName || ""}{entry.reason ? ` · ${entry.reason}` : ""}</p>)}</section>
+      {print.printContent}
+      <details className="rv-no-print mt-5 rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>{doc.history?.map(entry => <p className="mt-3 break-words text-sm" key={entry.id}>{formatAccountingDateTime(entry.createdAt)} · {entry.action} · {entry.performedBy?.fullName || ""}{entry.reason ? ` · ${entry.reason}` : ""}</p>)}</details>
     </>}
   </div>;
 }

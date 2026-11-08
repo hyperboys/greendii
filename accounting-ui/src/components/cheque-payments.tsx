@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -9,8 +10,8 @@ import { useAccountingAccess } from "./accounting-access-provider";
 import { DateInput } from "./date-input";
 import { SearchableSelect } from "./searchable-select";
 import { formatAccountingDate as date, formatAccountingDateTime } from "@/lib/accounting-date";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
-import { ChequePaymentDocument, ChequePaymentPrintStyles } from "./cheque-payment-document";
+import { ChequePaymentInformation } from "@/components/ap-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { ChequePaymentsApi as api, chequeBase as base, chequeList, chequeStatuses, chequeActionLabels, chequeEvidenceLabels,
   newCheque, chequeForm, newChequeAction, chequeActions, chequeEvidence, exportCheques,
   type ChequePayment, type ChequeInput, type ChequeSource, type ChequeStatus, type ChequeCategory } from "@/lib/cheque-payment";
@@ -34,17 +35,17 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
   const [error, setError] = useState(""), [loadError, setLoadError] = useState(""), [saving, setSaving] = useState(false), [reload, setReload] = useState(0);
   const [action, setAction] = useState<Exclude<ChequeStatus, "Prepared"> | null>(null), [actionForm, setActionForm] = useState(newChequeAction);
   const [category, setCategory] = useState<ChequeCategory>("cq-document"), [files, setFiles] = useState<File[]>([]);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({}), [printReady, setPrintReady] = useState(false);
+  const print = useAccountingDocumentPrint(doc);
   const busy = useRef(false), requestKey = useRef(""), fileInput = useRef<HTMLInputElement>(null);
   const isForm = mode === "new" || mode === "edit", allowedForm = mode === "new" ? create : update;
   const editable = doc?.lifecycleVersion === 1 && doc.status === "Prepared";
   const actions = doc ? chequeActions(doc, can) : [];
   const categories = useMemo(() => doc ? chequeEvidence(doc, can) : [], [doc, can]);
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && printReady;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError;
   useEffect(() => {
     if (isForm && !allowedForm) return;
     let current = true;
-    setLoading(true); setLoadError(""); setError(""); setAction(null); setPrintReady(false); setFiles([]);
+    setLoading(true); setLoadError(""); setError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") {
         const result = await api.list(query);
@@ -54,7 +55,6 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
         if (!current) return;
         setDoc(result);
         if (isForm && result.lifecycleVersion === 1) setForm(chequeForm(result));
-        if (!isForm) { const settings = await AccountingSettingsApi.get(); if (current) setCompany(settings); }
       } else if (current) {
         requestKey.current = Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, "0")).join("");
         setDoc(null); setForm(newCheque());
@@ -113,7 +113,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
   if (isForm && !allowedForm) return <p role="alert">ไม่มีสิทธิ์สร้างหรือแก้ไขเช็คจ่าย</p>;
   const draft = <K extends keyof ChequeInput>(key: K, value: ChequeInput[K]) => setForm(previous => ({ ...previous, [key]: value }));
   return <div className="cq-page mx-auto max-w-[1480px]">
-    <ChequePaymentPrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="cq-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <header className="cq-no-print mb-5 flex flex-wrap justify-between gap-3"><div><p className="text-xs font-bold text-blue-600">Accounts Payable</p>
       <h1 className="text-2xl font-bold">{mode === "new" ? "สร้างเช็คจ่าย" : mode === "edit" ? "แก้ไขเช็คจ่าย" : doc?.cqNo || "การจ่ายเงิน / เช็คจ่าย (CQ)"}</h1>
       <p className="mt-1 text-sm text-gray-600">PV อนุมัติ วิธีเช็ค เต็มยอด · ส่งมอบ = PV จ่ายแล้ว · ไม่ลง GL</p></div>
@@ -121,7 +121,10 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
         {mode === "list" && create && <Link className={primary} href={`${base}/new`}>สร้างเช็คจ่าย</Link>}
         {mode === "view" && editable && update && <Link className={button} href={`${base}/${doc?.id}/edit`}>แก้ไข</Link>}
         {mode === "view" && actions.map(value => <button className={value === "Cancelled" ? `${button} text-red-700` : button} disabled={loading || saving} key={value} onClick={() => { setAction(value); setActionForm(newChequeAction()); }}>{chequeActionLabels[value]}</button>)}
-        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving} onClick={() => window.print()}>พิมพ์ใบรายละเอียด</button>}
+        {mode === "view" && doc?.lifecycleVersion === 1 && <button className={button} disabled={!printable || saving || print.printing} onClick={() => void print.requestPrint(async onReady => {
+          const [module, company] = await Promise.all([import("./cheque-payment-document"), AccountingSettingsApi.get()]);
+          return <><module.ChequePaymentPrintStyles allowed /><module.ChequePaymentDocument document={doc} company={company} onReady={onReady} /></>;
+        })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ใบรายละเอียด"}</button>}
         <button className={button} disabled={saving} onClick={() => setReload(value => value + 1)}>โหลดใหม่</button>
       </nav></header>
     {loading && <p className="cq-no-print" role="status">กำลังโหลด...</p>}
@@ -139,7 +142,7 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
       {!rows.length && <p>ไม่พบเช็คจ่าย</p>}
       <div className="flex flex-wrap items-center gap-3"><span>{total} รายการ · หน้า {query.page} / {Math.max(1, pages)}</span><button className={button} disabled={Number(query.page) <= 1} onClick={() => setQuery({ ...query, page: String(Number(query.page) - 1) })}>ก่อนหน้า</button><button className={button} disabled={Number(query.page) >= pages} onClick={() => setQuery({ ...query, page: String(Number(query.page) + 1) })}>ถัดไป</button></div>
     </section>}
-    {!loading && !loadError && isForm && (mode === "new" || editable) && <form onSubmit={save} className="cq-no-print space-y-4">
+    {!loading && !loadError && isForm && (mode === "new" || editable) && <ManualSubmitForm onSubmit={save} className="cq-no-print space-y-4">
       <fieldset disabled={saving} className="grid min-w-0 gap-4 rounded border bg-white p-4 md:grid-cols-2">
         <label>วันที่เอกสาร *<DateInput required disabled={mode === "edit"} className={control} value={form.docDate} onChange={value => draft("docDate", value)} /></label>
         {mode === "new" ? <SearchableSelect label="PV อนุมัติ วิธีเช็ค" required value={form.paymentVoucherId} selectedLabel={source ? `${source.pvNo} · ${source.supplierSnapshot?.name || ""}` : undefined}
@@ -157,18 +160,12 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
         <p className="text-sm text-gray-600 md:col-span-2">เลข CQ ออกตามเดือนวันที่เอกสาร · บัญชี/เลขเช็ค/PV/วันที่เอกสารเปลี่ยนไม่ได้หลังสร้าง ต้องยกเลิกแล้วออกใหม่ · เลขเช็คที่ยกเลิกแล้วห้ามใช้ซ้ำ · บัญชีนี้เป็นของบริษัท ไม่ใช่ Supplier</p>
         {sourceError && mode === "edit" && <p className="text-red-700 md:col-span-2" role="alert">{sourceError}</p>}
       </fieldset><button className={primary} disabled={saving || !source}>{saving ? "กำลังบันทึก..." : "บันทึกเตรียมเช็ค"}</button>
-    </form>}
+    </ManualSubmitForm>}
     {!loading && !loadError && mode === "edit" && !editable && <p role="alert">แก้ไขได้เฉพาะเช็คใหม่สถานะ Prepared</p>}
     {!loading && !loadError && mode === "view" && doc && <>
       <section className="cq-no-print mb-4 space-y-2 rounded border bg-white p-4">
-        <p>สถานะ: <strong>{chequeStatuses[doc.status] || doc.status}</strong> · วันที่เอกสาร {date(doc.docDate)}</p>
-        <p>PV: <Link className="text-blue-700 underline" href={`/ap/vouchers/pv/${doc.paymentVoucherId}`}>{doc.pvNo || doc.paymentVoucherId}</Link> · PS: {doc.voucherSnapshot?.sourceNo || "-"} · PO: {doc.voucherSnapshot?.poNo || "-"}</p>
-        <p className="break-words">ธนาคาร {doc.bankName || "-"} · สาขา {doc.bankBranch || "-"} · บัญชี {doc.bankAccountNo || doc.bankAccount}</p>
-        <p className="break-words">เลขเช็ค {doc.chequeNo} · วันที่บนเช็ค {date(doc.chequeDate)} · ผู้รับ {doc.payee} · <strong>{money(doc.amount)} บาท</strong></p>
-        <p>พิมพ์เช็ค {date(doc.printedAt)} · ลงนาม {date(doc.signedAt)} โดย {doc.signer || "-"} · ส่งมอบ {date(doc.releaseDate)} ให้ {doc.recipient || "-"}</p>
-        <p className="break-words">ตัดบัญชี {date(doc.clearedAt)} · อ้างอิง {doc.clearingReference || "-"}</p>
+        <p>สถานะ: <strong>{chequeStatuses[doc.status] || doc.status}</strong></p>
         {doc.cancelledAt && <p className="break-words text-red-700">ยกเลิก/กลับรายการ {date(doc.cancelledAt)} · {doc.cancellationReason} · อ้างอิง {doc.reversalReference || "-"}{doc.releaseDate ? " · PV ถูกยกเลิก/กลับรายการแล้ว ไม่เปิดจ่ายซ้ำ" : " · PV ยังรอจ่าย ออกเช็คเลขใหม่ได้"}</p>}
-        <p className="whitespace-pre-wrap break-words">หมายเหตุ: {doc.remark || "-"}</p>
         <p className="text-sm text-gray-600">พิมพ์ใบรายละเอียดไม่เปลี่ยนสถานะเช็ค · ไม่ใช่พิมพ์ลงเช็คธนาคารจริง · ส่งมอบจึงถือว่า PV จ่ายแล้ว</p>
         {doc.lifecycleVersion !== 1 && <p role="alert">Legacy อ่านอย่างเดียว ไม่เปลี่ยนยอด/สถานะ/เลขย้อนหลังอัตโนมัติ</p>}
       </section>
@@ -176,12 +173,12 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
         {doc.attachments.map(file => <div key={file.id} className="flex flex-wrap items-center gap-3"><a className="break-all text-blue-700 underline" href={file.fileUrl} target="_blank" rel="noreferrer">{chequeEvidenceLabels[file.category] || file.category}: {file.originalName}</a>
           {categories.includes(file.category) && <button className={button} disabled={saving} onClick={() => { if (window.confirm("ยืนยันลบหลักฐานนี้?")) void evidence(file.id); }}>ลบหลักฐาน</button>}</div>)}
         {!doc.attachments.length && <p>ยังไม่มีไฟล์แนบ</p>}
-        {categories.length > 0 && <div className="grid gap-3 md:grid-cols-2"><label>ประเภทหลักฐาน<select className={control} value={category} onChange={event => setCategory(event.target.value as ChequeCategory)}>{categories.map(value => <option key={value} value={value}>{chequeEvidenceLabels[value]}</option>)}</select></label>
+        {categories.length > 0 && <details><summary className="cursor-pointer font-semibold text-blue-700">+ เพิ่มหลักฐานเช็ค</summary><div className="mt-3 grid gap-3 md:grid-cols-2"><label>ประเภทหลักฐาน<select className={control} value={category} onChange={event => setCategory(event.target.value as ChequeCategory)}>{categories.map(value => <option key={value} value={value}>{chequeEvidenceLabels[value]}</option>)}</select></label>
           <label>เลือกไฟล์ PDF / JPG / PNG<input type="file" className={`${control} text-sm`} ref={fileInput} multiple accept=".pdf,.jpg,.jpeg,.png" onChange={event => setFiles(Array.from(event.target.files || []))} /></label>
-          <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐานเช็ค</button></div>}
+          <button className={`${button} justify-self-start`} disabled={saving || !files.length} onClick={() => void evidence()}>แนบหลักฐานเช็ค</button></div></details>}
         <p className="text-sm text-gray-600">แนบหลักฐานตามขั้นก่อนดำเนินการ; หลักฐานขั้นที่ผ่านแล้วแก้ไม่ได้ การกลับรายการต้องตรวจการคืนเช็ค/หยุดจ่าย/คืนเงินจริงภายนอกให้เสร็จก่อน</p>
       </section>
-      {action && <form onSubmit={execute} className="cq-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
+      {action && <ManualSubmitForm onSubmit={execute} className="cq-no-print mb-4 grid min-w-0 gap-3 rounded border border-amber-300 bg-amber-50 p-4 md:grid-cols-2">
         <h2 className="font-bold md:col-span-2">ยืนยัน{chequeActionLabels[action]} {doc.cqNo}</h2>
         <p className="text-sm md:col-span-2">บันทึกการดำเนินการที่ทำจริงภายนอก ระบบไม่สั่งพิมพ์เช็ค ลงนาม ส่งเงิน หรือหยุดจ่ายผ่านธนาคาร</p>
         {action === "Printed" && <label>วันที่พิมพ์เช็คจริง *<DateInput required className={control} value={actionForm.printedDate} onChange={value => setActionForm({ ...actionForm, printedDate: value })} /></label>}
@@ -198,9 +195,10 @@ export function ChequePayments({ mode = "list", recordId }: { mode?: "list" | "n
           <label className="md:col-span-2">เหตุผลยกเลิก *<textarea required maxLength={1000} className={control} value={actionForm.reason} onChange={event => setActionForm({ ...actionForm, reason: event.target.value })} /></label>
           <p className="text-sm md:col-span-2">{doc.releaseDate ? "ต้องแนบหลักฐานกลับรายการ · ยกเลิกเช็คและกลับรายการ/ยกเลิก PV พร้อมกัน ปลด PS ให้ทำ PV ใหม่ ไม่คืนวงเงิน PO" : "ก่อนส่งมอบ: ยกเลิกเช็คแล้ว PV ยังรอจ่าย ออกเช็คเลขใหม่ได้"} · เลขเช็คยกเลิกห้ามใช้ซ้ำ</p></>}
         <div className="flex flex-wrap gap-3 md:col-span-2"><button className={primary} disabled={saving}>ยืนยัน{chequeActionLabels[action]}</button><button type="button" className={button} disabled={saving} onClick={() => setAction(null)}>ปิด</button></div>
-      </form>}
-      <section className="cq-no-print mb-4 rounded border bg-white p-4"><h2 className="mb-3 font-bold">ประวัติเช็ค</h2><ol className="space-y-2 text-sm">{doc.history?.map(row => <li className="break-words border-b pb-2" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol></section>
-      {doc.lifecycleVersion === 1 && <div className="cq-preview overflow-x-auto rounded border bg-white"><ChequePaymentDocument document={doc} company={company} onReady={setPrintReady} /></div>}
+      </ManualSubmitForm>}
+      <ChequePaymentInformation document={doc} />
+      <details className="cq-no-print my-5 rounded-xl border bg-white p-5"><summary className="cursor-pointer font-bold">ประวัติเช็ค ({doc.history?.length || 0})</summary><ol className="mt-4 space-y-2 text-sm">{doc.history?.map(row => <li className="break-words border-b pb-2" key={row.id}>{formatAccountingDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}</li>)}</ol></details>
+      {print.printContent}
     </>}
   </div>;
 }

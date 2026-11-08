@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { InventoryControlsApi as api, transferActions, type Transfer, type TransferInput } from "@/lib/inventory-controls";
@@ -7,6 +8,7 @@ import { useAccountingAccess } from "./accounting-access-provider";
 import { getStoredUser } from "@/lib/auth";
 import { DateInput } from "./date-input";
 import { today } from "@/lib/goods-receipt";
+import { StockTransferInformation } from "./inventory-document-information";
 const input = "rounded border bg-white px-3 py-2";
 const button = "rounded border bg-white px-3 py-2 text-sm font-semibold disabled:opacity-40";
 const labels: Record<string, string> = { draft: "ร่าง", pending: "รออนุมัติ", returned: "ส่งกลับ", approved: "อนุมัติ", rejected: "ปฏิเสธ", cancelled: "ยกเลิก",
@@ -45,7 +47,7 @@ export function StockTransfers() {
       {can.create && <button className={button} disabled={busy} onClick={() => edit(null)}>สร้างใบโอน</button>}</div></header>
     <p className="rounded bg-amber-50 p-3 text-sm">ร่างไม่ลง Stock · ส่งอนุมัติจองคลังต้นทาง · ผู้สร้างรวม admin ห้ามอนุมัติเอง · อนุมัติลดต้นทางและเพิ่มปลายทางพร้อมกันโดยใช้ต้นทุนคลังต้นทาง ไม่ใช่ราคาหลัก หากต้นทุนเดิมไม่ทราบจะแสดงยังไม่ตีมูลค่า และไม่ผสมของไม่ทราบต้นทุนเข้าฐานที่ตีมูลค่าแล้ว</p>
     {loading && <p role="status">กำลังโหลด...</p>}{error && <p role="alert" className="text-red-700">{error} <button className={button} onClick={refresh}>โหลดใหม่</button></p>}
-    {editing && (doc ? can.update : can.create) && <form className="space-y-3 rounded border bg-white p-4" onSubmit={event => { event.preventDefault(); void run(async () => {
+    {editing && (doc ? can.update : can.create) && <ManualSubmitForm className="space-y-3 rounded border bg-white p-4" onSubmit={event => { event.preventDefault(); void run(async () => {
       const saved = doc ? await api.updateTransfer(doc, form) : await api.createTransfer({ ...form, requestKey: key.current });
       setDoc(await api.transfer(saved.id)); setEditing(false); refresh();
     }); }}><h2 className="font-bold">{doc ? `แก้ ${doc.transferNo}` : "สร้างใบโอนร่าง"}</h2><fieldset disabled={busy} className="space-y-3">
@@ -60,22 +62,22 @@ export function StockTransfers() {
       </div>)}
       <button type="button" className={button} disabled={form.items.length >= 200} onClick={() => setForm({ ...form, items: [...form.items, { productId: "", quantity: "" }] })}>เพิ่มสินค้า</button>
       <label className="block">หมายเหตุ<textarea maxLength={1000} className={input} value={form.remark || ""} onChange={event => setForm({ ...form, remark: event.target.value })} /></label>
-    </fieldset><div className="flex gap-2"><button className={button} disabled={busy}>บันทึกร่าง</button><button type="button" className={button} onClick={() => setEditing(false)}>ปิดการแก้ไข</button></div></form>}
+    </fieldset><div className="flex gap-2"><button className={button} disabled={busy}>บันทึกร่าง</button><button type="button" className={button} onClick={() => setEditing(false)}>ปิดการแก้ไข</button></div></ManualSubmitForm>}
     {doc && !editing && <section className="space-y-3 rounded border bg-white p-4">
-      <h2 className="font-bold">{doc.transferNo} · {labels[doc.status] || doc.status}</h2><p>{doc.snapshot.source.name} → {doc.snapshot.destination.name} · {doc.transferDate.slice(0, 10)}</p>
-      <ul>{doc.items.map(line => <li key={line.productId}>{line.productSnapshot?.code} {line.productSnapshot?.name} · {String(line.quantity)} {line.productSnapshot?.unit}</li>)}</ul><p>{doc.remark}</p>
+      <h2 className="text-lg font-bold">{doc.transferNo} · {labels[doc.status] || doc.status}</h2>
       <div className="flex flex-wrap gap-2">{can.update && ["draft", "returned"].includes(doc.status) && <button className={button} disabled={busy} onClick={() => edit(doc)}>แก้ไข</button>}
         {transferActions(doc, can, userId).map(value => <button key={value} className={button} disabled={busy} onClick={() => { setAction(value); setReason(""); setPhysical(false); setCancelDate(today()); }}>{labels[value]}</button>)}
         <button className={button} onClick={() => { setDoc(null); setAction(""); }}>ปิดรายละเอียด</button></div>
-      {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => {
+      {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => {
         await api.transferAction(doc, action, reason, cancelDate, physical); setDoc(await api.transfer(doc.id)); setAction(""); refresh();
       }); }}><h3 className="font-bold">ยืนยัน{labels[action]}</h3>
         {["return", "reject", "cancel"].includes(action) && <label className="block">เหตุผล *<textarea required maxLength={1000} className={input} value={reason} onChange={event => setReason(event.target.value)} /></label>}
         {action === "cancel" && doc.status === "approved" && <><label>วันที่โอนกลับ *<DateInput required className={input} value={cancelDate} onChange={setCancelDate} /></label>
           <label className="block"><input required type="checkbox" checked={physical} onChange={event => setPhysical(event.target.checked)} /> ยืนยันโอนสินค้ากลับจริง (ต้องไม่กระทบยอดจอง/ติดลบ; ต้นทุนที่มีรายการต่อแล้วกลับไม่ได้)</label></>}
-        <button className={button} disabled={busy}>ยืนยัน</button></form>}
-      <h3 className="font-bold">Movements / ต้นทุนที่บันทึกจริง</h3>{doc.movements?.map(row => <p className="text-sm" key={row.id}>{row.warehouseId} / {row.productId} รับ {String(row.qtyIn)} จ่าย {String(row.qtyOut)} · มูลค่ารับ {row.valueIn ?? "ไม่ทราบ"} จ่าย {row.valueOut ?? "ไม่ทราบ"} · {row.costStatus === "valued" ? "มีต้นทุน" : "ยังไม่ตีมูลค่า"}</p>)}
-      <h3 className="font-bold">ประวัติ</h3>{doc.history?.map(row => <p className="text-sm" key={row.id}>{row.createdAt} · {row.performedBy?.fullName} · {labels[row.action] || row.action} · {row.reason}</p>)}
+        <button className={button} disabled={busy}>ยืนยัน</button></ManualSubmitForm>}
+      <StockTransferInformation document={doc} />
+      <details><summary className="cursor-pointer font-bold">Movements / ต้นทุนที่บันทึกจริง ({doc.movements?.length || 0})</summary>{doc.movements?.map(row => <p className="break-words text-sm" key={row.id}>{row.warehouseId} / {row.productId} รับ {String(row.qtyIn)} จ่าย {String(row.qtyOut)} · มูลค่ารับ {row.valueIn ?? "ไม่ทราบ"} จ่าย {row.valueOut ?? "ไม่ทราบ"} · {row.costStatus === "valued" ? "มีต้นทุน" : "ยังไม่ตีมูลค่า"}</p>)}</details>
+      <details><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>{doc.history?.map(row => <p className="break-words text-sm" key={row.id}>{row.createdAt} · {row.performedBy?.fullName} · {labels[row.action] || row.action} · {row.reason}</p>)}</details>
     </section>}
     <form className="flex flex-wrap gap-3" onSubmit={event => { event.preventDefault(); setQuery({ ...query, q: search, page: "1" }); }}>
       <input aria-label="ค้นหาเลขใบโอน" className={input} value={search} onChange={event => setSearch(event.target.value)} />

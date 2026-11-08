@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -178,7 +179,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
     {mode !== "list" && !loading && !error && modal && <div>
       <div aria-labelledby="supplier-title" className="w-full rounded-lg border border-[#dfe5de] bg-white p-6 shadow-sm">
         <h2 id="supplier-title" className="text-lg font-bold">{modal.readOnly ? "ข้อมูลผู้จำหน่าย" : modal.supplier ? "แก้ไขผู้จำหน่าย" : "เพิ่มผู้จำหน่าย"}</h2>
-        <form onSubmit={save} className="mt-4 space-y-4">
+        <ManualSubmitForm onSubmit={save} className="mt-4 space-y-4">
           {formError && <p role="alert" className="text-sm text-red-700">{formError}</p>}
           {duplicateTax.length > 0 && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-800">Tax ID ซ้ำกับ: {duplicateTax.map(item => `${item.code} ${item.name}`).join(", ")} กรุณาตรวจสอบ (ไม่บล็อกการบันทึก)</p>}
           <fieldset disabled={modal.readOnly || !writable || saving} className="space-y-4">
@@ -215,7 +216,7 @@ export function SupplierMaster({ mode = "list", recordId }: { mode?: "list" | "n
             </button>}
           </div>
           {modal.supplier && <MasterRecordTools kind="suppliers" id={modal.supplier.id} updatedAt={modal.supplier.updatedAt} />}
-        </form>
+        </ManualSubmitForm>
       </div>
     </div>}
   </section>;

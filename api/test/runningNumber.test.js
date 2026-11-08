@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { getYYMM, DOC_PATTERNS } = require('../src/lib/runningNumber');
+const { getYYMM, getBEYYMM, DOC_PATTERNS } = require('../src/lib/runningNumber');
 
 test('Running Number - Pattern Metadata & Date Formatting', () => {
   const date = new Date('2026-09-13T10:00:00Z');
@@ -11,6 +11,7 @@ test('Running Number - Pattern Metadata & Date Formatting', () => {
   assert.equal(DOC_PATTERNS.so.padLen, 5);
   assert.equal(DOC_PATTERNS.iv.prefix, 'IV');
   assert.equal(DOC_PATTERNS.iv.padLen, 4);
+  assert.equal(getBEYYMM(new Date('2026-12-01T00:00:00Z')), '6912');
   assert.equal(DOC_PATTERNS.bi.prefix, 'BI');
   assert.equal(DOC_PATTERNS.cn.prefix, 'CN');
   assert.equal(DOC_PATTERNS.rv.prefix, 'RV');
@@ -20,6 +21,18 @@ test('Running Number - Pattern Metadata & Date Formatting', () => {
   assert.equal(DOC_PATTERNS.pv.prefix, 'PV');
   assert.equal(DOC_PATTERNS.pv.padLen, 4);
   assert.equal(DOC_PATTERNS.cq.prefix, 'CQ');
+});
+
+test('Invoice numbers use Buddhist year while other running numbers retain Gregorian year', async () => {
+  const { generateNextRunningNumber } = require('../src/lib/runningNumber');
+  const sequences = new Map();
+  const tx = { documentSequence: {
+    upsert: async ({ where }) => { if (!sequences.has(where.docType_periodKey_prefix.periodKey)) sequences.set(where.docType_periodKey_prefix.periodKey, 0); },
+    update: async ({ where }) => {
+      const key = where.docType_periodKey_prefix.periodKey, lastSeq = sequences.get(key) + 1; sequences.set(key, lastSeq); return { lastSeq };
+    },
+  } };
+  assert.equal(await generateNextRunningNumber('iv', { date: new Date('2026-12-01T00:00:00Z') }, tx), 'IV69120001');
 });
 
 for (const [type, prefix] of [['pv', 'PV'], ['cq', 'CQ']]) test(`${prefix} running number restarts monthly in Gregorian YYMM and never reuses issued sequence`, async () => {

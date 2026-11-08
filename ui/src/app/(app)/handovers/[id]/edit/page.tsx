@@ -38,6 +38,7 @@ export default function EditHandoverPage() {
   const params = useParams()
   const id = params.id as string
   const [quotations, setQuotations] = useState<Quotation[]>([])
+  const [linkedQuotations, setLinkedQuotations] = useState<Array<{ id: string; quoNo: string }>>([])
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -52,6 +53,11 @@ export default function EditHandoverPage() {
     QuotationsAPI.list({ status: 'approved' }).then(setQuotations)
     UnitsAPI.list().then(setUnits).catch(() => {})
     HandoversAPI.get(id).then(doc => {
+      const linked = doc.quotationLinks?.map(link => link.quotation) ?? []
+      if (doc.quotation && !linked.some(q => q.id === doc.quotation?.id)) {
+        linked.unshift({ id: doc.quotation.id, quoNo: doc.quotation.quoNo })
+      }
+      setLinkedQuotations(linked)
       setForm({
         quotationId: doc.quotationId ?? doc.workOrder?.quotation?.id ?? '',
         quotationIds: doc.quotationIds?.length ? doc.quotationIds : (doc.quotationId ? [doc.quotationId] : []),
@@ -77,6 +83,18 @@ export default function EditHandoverPage() {
       router.back()
     })
   }, [id])
+
+  const quotationOptions = quotations.map(q => ({
+    value: q.id,
+    label: `${q.quoNo} — ${q.customerName}`,
+    shortLabel: q.quoNo,
+    description: q.project || undefined,
+  }))
+  for (const q of linkedQuotations) {
+    if (!quotationOptions.some(option => option.value === q.id)) {
+      quotationOptions.push({ value: q.id, label: q.quoNo, shortLabel: q.quoNo, description: undefined })
+    }
+  }
 
   // Items mirror every selected QO, concatenated in selection order.
   const mergeQuotationItems = (ids: string[]) => {
@@ -131,7 +149,7 @@ export default function EditHandoverPage() {
       <div className="card p-5 grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="md:col-span-2">          <label className="form-label">อ้างอิงใบเสนอราคา</label>
           <QuotationCheckboxSelect
-            options={quotations.map(q => ({ value: q.id, label: `${q.quoNo} — ${q.customerName}`, shortLabel: q.quoNo, description: q.project || undefined }))}
+            options={quotationOptions}
             selected={form.quotationIds}
             onChange={handleQuotations}
           />

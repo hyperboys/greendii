@@ -2,7 +2,7 @@ const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
 const { getAccountingAccess, hasAccountingPermission } = require('../lib/accountingAccess');
-const { generateNextRunningNumber, getYYMM } = require('../lib/runningNumber');
+const { generateNextRunningNumber, previewNextRunningNumber, getYYMM } = require('../lib/runningNumber');
 const { recordAuditLog } = require('../lib/auditTrail');
 const { getPagination, paginated } = require('../lib/pagination');
 const { invalid, text } = require('../lib/deliveryOrder');
@@ -56,6 +56,18 @@ router.get('/sources', canWrite, async (req, res, next) => {
   } catch (error) { next(error); }
 });
 
+router.get('/next-number', canWrite, async (req, res, next) => {
+  try {
+    const month = typeof req.query.month === 'string' ? req.query.month.trim() : '';
+    const match = /^(\d{4})-(\d{2})$/.exec(month);
+    if (!match || Number(match[1]) < 1900 || Number(match[2]) < 1 || Number(match[2]) > 12) {
+      invalid('กรุณาระบุเดือน Invoice ในรูปแบบ YYYY-MM');
+    }
+    const date = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, 15));
+    res.json({ ivNo: await previewNextRunningNumber('iv', { date }) });
+  } catch (error) { next(error); }
+});
+
 router.get('/reusable-numbers', canWrite, async (req, res, next) => {
   try {
     const month = typeof req.query.month === 'string' ? req.query.month.trim() : '';
@@ -69,7 +81,7 @@ router.get('/reusable-numbers', canWrite, async (req, res, next) => {
     const end = new Date(Date.UTC(year, monthIndex + 1, 1) - 7 * 60 * 60 * 1000);
     const cancelled = await prisma.invoice.findMany({
       where: {
-        status: 'cancelled', lifecycleVersion: 1, reissuedAs: null,
+        status: 'cancelled', reissuedAs: null,
         ivDate: { gte: start, lt: end },
       },
       select: { id: true, ivNo: true, ivDate: true, customerName: true, customerCode: true },
@@ -114,8 +126,8 @@ router.post('/', canWrite, async (req, res, next) => {
       let reissuedFromId = null;
       if (reuseInvoiceId) {
         const cancelledInvoice = await lockInvoice(tx, reuseInvoiceId);
-        if (cancelledInvoice.status !== 'cancelled' || cancelledInvoice.lifecycleVersion !== 1) {
-          invalid('เลือกใช้เลขได้เฉพาะ Invoice ที่ยกเลิกแล้วในวงจรใหม่', 409);
+        if (cancelledInvoice.status !== 'cancelled') {
+          invalid('เลือกใช้เลขได้เฉพาะ Invoice ที่ยกเลิกแล้ว', 409);
         }
         if (cancelledInvoice.reissuedAs || getYYMM(cancelledInvoice.ivDate) !== getYYMM(data.ivDate)) {
           invalid('เลข Invoice นี้ถูกใช้ไปแล้วหรืออยู่คนละเดือนกับวันที่เอกสาร', 409);

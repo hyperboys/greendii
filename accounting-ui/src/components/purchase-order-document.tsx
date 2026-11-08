@@ -50,12 +50,13 @@ export function PurchaseOrderDocumentView({
   const signature = document.createdBy?.signatureUrl;
   const supplier = document.supplierSnapshot ?? document.supplier;
   const approval = document.history?.find(row => row.action === "approve");
+  const emptyPrintRows = Math.max(0, 18 - document.items.length);
 
   return (
     <article id="po-print-doc" className="mx-auto min-w-[720px] max-w-[210mm] bg-white p-5 text-[11px] leading-5 text-black sm:p-6">
       <header className="relative text-center">
         <div className="absolute left-0 top-0 flex h-16 w-[82px] items-center justify-center border border-gray-300 p-1">
-          {company.logoUrl ? <Image unoptimized width={160} height={56} src={fileHref(company.logoUrl)} alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" /> : <strong className="text-green-700">GREEN Dii</strong>}
+          <Image unoptimized width={160} height={56} src="/logo.jpg" alt="โลโก้บริษัท" className="max-h-14 max-w-full object-contain" />
         </div>
         <div>
           <h1 className="text-base font-bold">{company.companyName || "บริษัท กรีนดี จำกัด"}</h1>
@@ -97,7 +98,7 @@ export function PurchaseOrderDocumentView({
         </div>
       </section>
 
-      <section className="mt-2 border border-blue-700">
+      <section className="po-print-items mt-2 border border-blue-700">
         {references.length > 0 && (
           <div className="border-b border-blue-700 px-2 py-1">
             <strong>อ้างอิง PR:</strong> {references.map(reference => reference.prNo).join(", ")}
@@ -125,6 +126,13 @@ export function PurchaseOrderDocumentView({
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.unitPrice)}</td>
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.discount)}</td>
                 <td className="border-x border-blue-700 p-1 text-right">{formatMoney(item.amount)}</td>
+              </tr>
+            ))}
+            {Array.from({ length: emptyPrintRows }, (_, index) => (
+              <tr key={`empty-print-row-${index}`} className="po-print-empty-row">
+                {Array.from({ length: 7 }, (_, cellIndex) => (
+                  <td key={cellIndex} className="border-x border-blue-700 p-1">&nbsp;</td>
+                ))}
               </tr>
             ))}
           </tbody>
@@ -179,12 +187,12 @@ export function PurchaseOrderDocumentView({
       </section>
 
       {(prAttachments.length > 0 || (document.attachments || []).length > 0) && (
-        <section className="mt-2 grid grid-cols-2 border border-blue-700 text-[10px]">
+        <section className="po-no-print mt-2 grid grid-cols-2 border border-blue-700 text-[10px]">
           {prAttachments.length > 0 && <div className="border-r border-blue-700 p-1"><strong>เอกสารแนบจาก PR</strong><div><AttachmentList attachments={prAttachments} /></div></div>}
           {(document.attachments || []).length > 0 && <div className="p-1"><strong>เอกสารแนบประกอบ PO</strong><div><AttachmentList attachments={document.attachments || []} /></div></div>}
         </section>
       )}
-      <p className="mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ลายเซ็นจะแสดงเมื่ออนุมัติจริงเท่านั้น</p>
+      <p className="po-no-print mt-1 text-center text-[10px]">เอกสารสถานะ {poStatusLabels[document.status] || document.status} · ลายเซ็นจะแสดงเมื่ออนุมัติจริงเท่านั้น</p>
     </article>
   );
 }
@@ -192,13 +200,24 @@ export function PurchaseOrderDocumentView({
 export function PurchaseOrderPrintStyles() {
   return (
     <style jsx global>{`
-      #po-print-doc { font-family: var(--font-noto-thai), Tahoma, sans-serif; }
+      #po-print-doc {
+        display: flex;
+        flex-direction: column;
+        min-height: 281mm;
+        font-family: var(--font-noto-thai), Tahoma, sans-serif;
+      }
+      #po-print-doc > * { flex-shrink: 0; }
+      #po-print-doc .po-print-items { display: flex; flex-direction: column; flex-grow: 1; }
+      #po-print-doc .po-print-items > table { flex-grow: 1; }
+      #po-print-doc tbody tr { height: 5mm; }
+      #po-print-doc tbody td { border-top: 0; border-bottom: 0; }
       @page { size: A4; margin: 8mm; }
       @media print {
         html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
+        .accounting-shell > aside, .accounting-shell > div > header { display: none !important; }
         .accounting-shell, .accounting-shell > div, .accounting-shell main, .po-document-preview {
           display: block !important;
-          width: 210mm !important;
+          width: 100% !important;
           min-width: 0 !important;
           min-height: 0 !important;
           max-width: none !important;
@@ -213,14 +232,23 @@ export function PurchaseOrderPrintStyles() {
           width: 100% !important;
           min-width: 0 !important;
           max-width: none !important;
+          min-height: 265mm !important;
           margin: 0 !important;
           padding: 0 !important;
-          font-size: 8.5pt !important;
+          font-size: 11pt !important;
           line-height: 1.25 !important;
           break-inside: auto;
         }
+        #po-print-doc * { font-size: 11pt !important; }
+        #po-print-doc header h1, #po-print-doc h2 { font-size: 17pt !important; }
         #po-print-doc table { width: 100% !important; min-width: 0 !important; }
-        #po-print-doc th, #po-print-doc td { padding: 2px !important; }
+        #po-print-doc th, #po-print-doc td { padding: 2px !important; font-size: 12pt !important; }
+        #po-print-doc .po-print-empty-row { height: 0; }
+        #po-print-doc .po-print-empty-row td {
+          padding: 0 !important;
+          font-size: 0 !important;
+          line-height: 0;
+        }
         #po-print-doc header, #po-print-doc .po-print-keep, #po-print-doc tbody tr {
           break-inside: avoid;
           page-break-inside: avoid;

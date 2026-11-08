@@ -9,17 +9,17 @@ function wrapText(value: string, width: number) {
   });
 }
 
-export function deliveryOrderPrintPages(items: DeliveryOrderLine[]) {
+export function deliveryOrderPrintPages(items: DeliveryOrderLine[], charsPerLine = 27, lineHeight = 17) {
   const pages: { item: DeliveryOrderLine; height: number; continuation: boolean }[][] = [[]];
   let used = 0;
   for (const item of items) {
-    const description = wrapText(`${item.desc}${item.remark ? `\n${item.remark}` : ""}`, 27);
+    const description = wrapText(`${item.desc}${item.remark ? `\n${item.remark}` : ""}`, charsPerLine);
     const code = wrapText(item.partNo || item.product?.code || "", 12);
     const unit = wrapText(item.unit || "", 6);
     const lines = Math.max(description.length, code.length, unit.length);
     // Split oversized descriptions without repeating quantities or monetary amounts.
     for (let offset = 0; offset < lines; offset += 20) {
-      const height = Math.max(24, Math.min(20, lines - offset) * 17 + 6);
+      const height = Math.max(24, Math.min(20, lines - offset) * lineHeight + 6);
       if (used + height > 430 && pages[pages.length - 1].length) { pages.push([]); used = 0; }
       pages[pages.length - 1].push({
         item: { ...item, desc: description.slice(offset, offset + 20).join("\n"), remark: "", partNo: code.slice(offset, offset + 20).join("\n"), unit: unit.slice(offset, offset + 20).join("\n"), product: null },

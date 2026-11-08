@@ -77,7 +77,6 @@ body {
 /* Match Sale document typography without changing the Accounting screen UI. */
 #po-print-doc,
 #so-print-doc,
-#iv-print-doc,
 #bi-print-doc,
 #rv-print-doc,
 #cn-print-doc,
@@ -89,6 +88,10 @@ body {
 .opening-print,
 .stock-card-print-only {
   font-family: var(--font-body) !important;
+}
+
+#iv-print-doc {
+  font-family: Calibri, Tahoma, var(--font-noto-thai), sans-serif !important;
 }
 
 @media print {

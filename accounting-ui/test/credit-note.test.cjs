@@ -3,6 +3,8 @@ const fs = require("node:fs"), path = require("node:path"), vm = require("node:v
 const test = require("node:test"), ts = require("typescript"), React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false,
     isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft", ...(imports["@/lib/accounting-approval"] || {}) };
@@ -51,6 +53,22 @@ test("CN form is full-page, read-only users cannot edit, and quantity steps are 
   write = false; assert.match(render(), /ไม่มีสิทธิ์สร้างหรือแก้ไขใบลดหนี้/); assert.doesNotMatch(render(), /<form/);
   const source = fs.readFileSync(path.join(__dirname, "..", "src", "components", "credit-notes.tsx"), "utf8");
   assert.match(source, /step="1"/); assert.match(source, /lg:grid-cols-4/);
+});
+test("CN copies Invoice item details without treating original prices as credit amounts", () => {
+  const source = { items: [
+    { desc: "Original item\nFull detail", partNo: "PART-01", unit: "set", qty: "2", unitPrice: "40000", amount: "80000" },
+    { desc: "Service", partNo: null, unit: null, qty: 1, unitPrice: 500 },
+  ] };
+  const original = JSON.stringify(source);
+  const lines = model.creditLinesFromSource(source);
+  assert.deepEqual(JSON.parse(JSON.stringify(lines)), [
+    { desc: "Original item\nFull detail", partNo: "PART-01", unit: "set", qty: "2", unitPrice: 0 },
+    { desc: "Service", partNo: "", unit: "", qty: 1, unitPrice: 0 },
+  ]);
+  lines[0].desc = "Credit detail edited";
+  assert.equal(JSON.stringify(source), original);
+  assert.equal(model.creditAmounts(lines, "VAT7%").net, 0);
+  assert.equal(model.creditLinesFromSource({ items: [] }).length, 1);
 });
 test("CN sample-based print paginates each line once and final totals once without delivery/ownership assertions", () => {
   const { CreditNoteDocument, creditPrintPages } = load(["components", "credit-note-document.tsx"], { "@/lib/accounting-date": dates });

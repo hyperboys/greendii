@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -12,9 +13,9 @@ import {
   deliveryOrderStatus, newDeliveryOrder, deliveryOrderAmounts,
   type DeliveryOrder, type DeliveryOrderInput, type DeliveryOrderProduct, type DeliveryOrderWorkOrder,
 } from "@/lib/delivery-order";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import { DateInput } from "@/components/date-input";
-import { DeliveryOrderDocument, DeliveryOrderPrintStyles } from "@/components/delivery-order-document";
+import { DeliveryOrderInformation } from "@/components/ar-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { SearchableSelect } from "@/components/searchable-select";
 import { DocumentItems } from "@/components/document-items";
 
@@ -34,7 +35,7 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
   const [customers, setCustomers] = useState<AccountCustomer[]>([]);
   const [products, setProducts] = useState<DeliveryOrderProduct[]>([]);
   const [workOrders, setWorkOrders] = useState<DeliveryOrderWorkOrder[]>([]);
-  const [company, setCompany] = useState<PurchaseOrderCompanySettings>({});
+  const print = useAccountingDocumentPrint(document);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState("");
   const [error, setError] = useState("");
@@ -86,9 +87,6 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
           creditTerm: doc.creditTerm, vatConfig: doc.vatConfig, discount: doc.discount,
           items: doc.items.map(item => ({ ...item, productId: item.productId || null, partNo: item.partNo || item.product?.code || "", unit: item.unit || "", remark: item.remark || "" })),
         } : newDeliveryOrder());
-      } else {
-        const settings = await AccountingSettingsApi.get();
-        if (current) setCompany(settings);
       }
       if (current) setDocument(doc);
       if (current) setSelectedWorkOrder(doc?.workOrder ?? null);
@@ -155,7 +153,7 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
 
   return (
     <div className="mx-auto min-w-0 max-w-6xl">
-      <DeliveryOrderPrintStyles />
+      {print.error && <p role="alert" className="so-no-print mb-4 rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
       <header className="so-no-print mb-5 flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold uppercase text-blue-600">Accounts Receivable</p>
@@ -170,7 +168,11 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
               <Link className={button} href={`${listHref}/${document.id}/edit`}>แก้ไข</Link>
               <button className={`${button} text-red-700`} type="button" disabled={saving} onClick={() => { setCancelOpen(true); setError(""); }}>ยกเลิกเอกสาร</button>
             </>}
-            <button className={button} type="button" onClick={() => window.print()}>พิมพ์ / บันทึก PDF</button>
+            <button className={button} type="button" disabled={saving || print.printing} onClick={() => void print.requestPrint(async onReady => {
+              const [module, company] = await Promise.all([import("@/components/delivery-order-document"), AccountingSettingsApi.get()]);
+              onReady(true);
+              return <><module.DeliveryOrderPrintStyles /><module.DeliveryOrderDocument document={document} company={company} /></>;
+            })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ / บันทึก PDF"}</button>
           </>}
         </div>
       </header>
@@ -200,7 +202,7 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
       </>}
       {isForm && !loadError && (mode === "new" || document) && (
         document && document.status !== "draft" ? <p role="alert">แก้ไขได้เฉพาะสถานะ Draft <Link href={`${listHref}/${document.id}`} className="underline">ดูเอกสาร</Link></p> :
-        <form onSubmit={save} className="so-no-print space-y-5">
+        <ManualSubmitForm onSubmit={save} className="so-no-print space-y-5">
           <fieldset disabled={loading || saving} className="min-w-0 space-y-5">
             <section className="grid min-w-0 gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
               <label>วันที่เอกสาร<DateInput required className={control} value={form.docDate} onChange={docDate => setForm(previous => ({ ...previous, docDate }))} /></label>
@@ -266,22 +268,23 @@ export function DeliveryOrders({ mode = "list", recordId }: { mode?: "list" | "n
             <label className="block">หมายเหตุเอกสาร<textarea className={control} rows={3} value={form.remark} onChange={event => setForm(previous => ({ ...previous, remark: event.target.value }))} /></label>
             <div className="flex flex-wrap gap-2"><button className={primary} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก Draft"}</button><Link className={button} href={document ? `${listHref}/${document.id}` : listHref}>กลับโดยไม่บันทึก</Link></div>
           </fieldset>
-        </form>
+        </ManualSubmitForm>
       )}
       {mode === "view" && document && !loading && !loadError && <>
-        {cancelOpen && canWrite && <form onSubmit={cancel} className="so-no-print mb-5 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
+        {cancelOpen && canWrite && <ManualSubmitForm onSubmit={cancel} className="so-no-print mb-5 space-y-3 rounded-lg border border-red-200 bg-red-50 p-4">
           <p>ยกเลิกได้เมื่อไม่มี Invoice ที่ยังไม่ยกเลิกอ้างอิง และไม่สามารถแก้ไขเอกสารหลังยกเลิก</p>
           <label className="block">เหตุผลยกเลิก<textarea required className={control} value={cancelReason} onChange={event => setCancelReason(event.target.value)} /></label>
           <div className="flex flex-wrap gap-2"><button className={`${button} text-red-700`} disabled={saving || !cancelReason.trim()}>{saving ? "กำลังยกเลิก..." : "ยืนยันยกเลิกเอกสาร"}</button><button type="button" className={button} disabled={saving} onClick={() => setCancelOpen(false)}>กลับ</button></div>
-        </form>}
-        <div className="so-preview max-w-full overflow-x-auto rounded-lg border"><DeliveryOrderDocument document={document} company={company} /></div>
-        <section className="so-no-print mt-5 rounded-lg border bg-white p-4">
-          <h2 className="font-bold">ประวัติเอกสาร</h2>
+        </ManualSubmitForm>}
+        <DeliveryOrderInformation document={document} />
+        {print.printContent}
+        <details className="so-no-print mt-5 rounded-xl border bg-white p-5">
+          <summary className="cursor-pointer font-bold">ประวัติเอกสาร ({document.history?.length || 0})</summary>
           <ul className="mt-2 space-y-2 text-sm">{document.history?.map((log, index) => <li key={log.id || index} className="break-words">
             {formatAccountingDateTime(log.createdAt)} — {({ create: "สร้าง", update: "แก้ไข", cancel: "ยกเลิก" }[log.action] || log.action)}
             {log.performedById && <span> / ผู้ทำ: {log.performedBy?.fullName || log.performedById}</span>}{log.reason && <p className="whitespace-pre-wrap">เหตุผล: {log.reason}</p>}
           </li>)}</ul>
-        </section>
+        </details>
       </>}
     </div>
   );

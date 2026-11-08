@@ -7,6 +7,8 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false,
     isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft", ...(imports["@/lib/accounting-approval"] || {}) };

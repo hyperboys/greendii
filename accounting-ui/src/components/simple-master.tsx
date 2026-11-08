@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -97,7 +98,7 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
         </tr>)}</tbody></table></div>}
       <MasterPagination total={filtered.length} page={currentPage} onPage={setPage} />
     </> : loading ? <p>กำลังโหลด...</p> : !error || record || mode === "new" ? <>
-      <form onSubmit={save} className="space-y-4 rounded-lg border bg-white p-5">
+      <ManualSubmitForm onSubmit={save} className="space-y-4 rounded-lg border bg-white p-5">
         <p className="text-sm">{mode === "view" ? "ดูข้อมูล" : record ? "แก้ไข" : "เพิ่มใหม่"} · {kind === "sales" ? "แยกจากผู้ใช้และ Sale ระบบ Sales" : "ไม่เปลี่ยนยอด Stock และไม่ลง GL"}</p>
         <fieldset disabled={!writable || saving} className="grid min-w-0 gap-4 sm:grid-cols-2">
           {field("code", "รหัส *", false, true)}{field("name", "ชื่อ *", false, true)}
@@ -115,7 +116,7 @@ export function SimpleMaster({ kind, mode = "list", recordId }: { kind: Kind; mo
         </fieldset>
         {mode === "view" && canUseAccounting(access, "master", "update") && record && <Link className={button} href={`/master/${kind}/${encodeURIComponent(record.id)}/edit`}>แก้ไข</Link>}
         {mode !== "view" && <button className={`${button} bg-blue-600 text-white`} disabled={!writable || saving} type="submit">{saving ? "กำลังบันทึก..." : "บันทึก"}</button>}
-      </form>
+      </ManualSubmitForm>
       {record && <MasterRecordTools kind={kind} id={record.id} updatedAt={record.updatedAt} />}
     </> : null}
   </section>;

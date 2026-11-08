@@ -26,13 +26,61 @@ The theme retains Accounting's existing dimensions and control typography.
 
 ## Date entry
 
+### Document viewing and printing
+
+AR, AP and inventory document views use read-only information cards, scrollable
+item tables and saved totals instead of mounting printable stationery or disabled
+entry forms. This includes SO, Invoice, BI, RV, CN, PO, PS, PV, CQ, supplier bills,
+GR, IS, SR, opening balances and transfer details. Existing create/edit forms,
+permissions, approval/payment/stock actions and print eligibility are unchanged.
+History and stock movements expand on demand; attachment links remain accessible
+and upload controls can be expanded when permitted.
+
+Printable templates and company print settings load on the print action only
+(documents without print support do not gain it). Printing waits for layout
+readiness, local fonts and document images, reports preparation errors, and
+removes the temporary print content afterwards. Invoice remains data-only for
+preprinted stationery. Screen content is excluded from print pagination.
+
+### Credit note source details
+
+When creating a credit note, selecting an Invoice loads its original item details
+and copies descriptions, product codes, quantities and units into editable credit
+lines. Original prices/amounts remain visible in a read-only source table; credit
+prices start at zero and must be entered explicitly to avoid crediting the entire
+Invoice unintentionally. Switching Invoice replaces the copied lines; loading an
+existing credit-note draft or refreshing its source does not overwrite saved edits.
+
+### Purchase Order layout
+
+The view page is read-only: supplier and delivery information appear in cards,
+items in a scrollable table, and saved totals in a separate summary. Status,
+edit/approval actions and printing appear above the information. File uploads
+and history expand on demand; data-entry controls appear only on create/edit.
+Editing remains available through the existing edit permission and
+Draft/Returned status checks. The print template,
+company print settings and document images load only when Print / Save PDF is
+selected. Approval actions, attachments and history remain on the view page.
+
+PO previews and A4 printouts provide at least 18 item rows without horizontal
+rules between items or blank rows. The item area expands to keep totals, terms
+and signatures near the bottom of the page, with 16mm of spare space inside
+the print area to avoid pushing the footer onto a new page. Longer orders retain every item
+and may continue onto additional pages. Blank rows shrink in print so they do
+not push signatures to another page. Print on A4 at 100% scale with browser
+headers and footers disabled.
+
 ### Printed document fonts
 
 Accounting uses the same local font assets as Sale: Cordia New regular/bold
 for document/report text, Century Gothic for the English font variable,
 Broadway for the display variable and Brush Script MT for approval signatures.
-Assets are served from `public/fonts` and do not depend on fonts installed on
-the user's computer. Document previews and printed output share the same font;
+These assets are served from `public/fonts` and do not depend on fonts installed on
+the user's computer. Invoice alone uses installed **Calibri**, with **Tahoma**
+as the Thai/missing-Calibri fallback and the app's Noto Sans Thai as the next fallback,
+instead of mixing Century Gothic English with Cordia New Thai. Calibri/Tahoma
+are not bundled; appearance can vary with the installed fonts.
+Document previews and printed output share the same font;
 the normal Accounting screen UI retains Public Sans/Noto Sans Thai.
 Existing font sizes, page dimensions and preprinted Invoice coordinates are
 unchanged. Recalibrate on the actual printer at 100% scale after changing fonts;
@@ -1020,6 +1068,9 @@ Open **ลูกหนี้ / รับชำระเงิน → ใบว�
 - Choose one customer and multiple confirmed new-lifecycle invoices with positive
   outstanding balances. Each billing amount can be partial, strictly positive and
   at most the current outstanding balance. The API recomputes the total in satang.
+- Selecting a customer or changing the billing date fills the expected payment
+  date with billing date + customer credit days (calendar days, including holidays).
+  The date remains manually editable. Opening a saved Draft preserves its saved date.
 - A given Invoice can be reserved by only one non-cancelled, not-completed BI,
   including Draft and existing legacy BI records. RV completion releases the
   remaining debt for rebilling; partial payment alone does not. Source checks run
@@ -1040,8 +1091,10 @@ Open **ลูกหนี้ / รับชำระเงิน → ใบว�
 - Printing recreates the full form on **plain paper** from
   [ใบวางบิล.pdf](../Doc/accounting/ใบวางบิล.pdf), unlike Invoice data-only printing.
   It includes company Settings, customer/document boxes, seven columns, final-page
-  total, remarks and blank billing-party/recipient signature areas. A4 portrait,
-  17 invoices per page; headers/page numbers repeat, rows do not. Print is enabled
+  total, remarks and blank billing-party/recipient signature areas.
+  The final-page total includes Thai amount words in the adjacent merged cell:
+  whole baht ends in "บาทถ้วน"; fractional amounts use baht and satang.
+  A4 portrait, 17 invoices per page; headers/page numbers repeat, rows do not. Print is enabled
   only for confirmed new records after text-fit validation. Use actual size 100%
   with browser headers/footers off and run physical-printer UAT.
 - Run the reviewed additive

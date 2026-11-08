@@ -65,7 +65,7 @@ test("Original print signatures render approved actors compactly and never rende
 
   const layouts = ["purchase-order-document.tsx", "goods-receipt-document.tsx", "stock-issue-document.tsx",
     "stock-return-document.tsx", "contractor-payment-document.tsx", "payment-voucher-document.tsx",
-    "stock-opening-balances.tsx", "billing-note-document.tsx", "receipt-voucher-document.tsx", "credit-note-document.tsx"];
+    "stock-opening-document.tsx", "billing-note-document.tsx", "receipt-voucher-document.tsx", "credit-note-document.tsx"];
   for (const filename of layouts) {
     const layout = fs.readFileSync(path.join(__dirname, "..", "src", "components", filename), "utf8");
     assert.ok(layout.includes("AccountingApprovalSignatures"), `${filename} must render approval signatures`);
@@ -182,4 +182,21 @@ test("Approval panel shows only eligible review actions, offers configured submi
   assert.ok(render(false, true, "draft").includes("ส่งตามสายอนุมัติ"));
   assert.equal(render(false, false, "draft").includes("ส่งตามสายอนุมัติ"), false);
   assert.ok(render(true, true).includes("display:none!important"));
+});
+
+test("PO can hide an empty approval panel without hiding errors or changing other callers", () => {
+  const render = (hideWhenEmpty, error = "") => {
+    let index = 0;
+    const state = [null, false, error, false, ""];
+    const Panel = load(["components", "accounting-approval-panel.tsx"], {
+      react: { ...React, useState: initial => [state[index++] ?? initial, () => {}], useEffect: () => {} },
+      "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+      "@/lib/accounting-approval": approval, "./accounting-approval-history": { AccountingApprovalHistory: () => null },
+    }).AccountingApprovalPanel;
+    return renderToStaticMarkup(React.createElement(Panel, { docType: "po", hideWhenEmpty,
+      document: { id: "po", status: "draft", updatedAt: "revision" }, canSubmit: false, onChanged() {} }));
+  };
+  assert.equal(render(true), "");
+  assert.match(render(false), /accounting-approval-panel/);
+  assert.match(render(true, "Approval request failed"), /role="alert"[^>]*>Approval request failed/);
 });

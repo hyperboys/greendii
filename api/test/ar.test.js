@@ -186,6 +186,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   require.cache[require.resolve('../src/lib/prisma')] = { exports: prisma, loaded: true };
   require.cache[require.resolve('../src/lib/runningNumber')] = { exports: {
     generateNextRunningNumber: async () => `IV-${++sequence}`,
+    previewNextRunningNumber: async () => 'IV69120001',
     getYYMM: value => {
       const date = new Date(value);
       return `${String(date.getUTCFullYear()).slice(-2)}${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
@@ -218,6 +219,7 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   assert.equal((await request('/invoices/sources', 'GET', undefined, 'viewer')).status, 403);
   assert.equal((await request('/invoices/reusable-numbers?month=invalid')).status, 400);
   assert.equal((await request('/invoices/reusable-numbers?month=2026-10', 'GET', undefined, 'viewer')).status, 403);
+  assert.deepEqual((await request('/invoices/next-number?month=2026-12')).data, { ivNo: 'IV69120001' });
   assert.equal((await request('/invoices')).status, 200);
   for (const patch of [{ ivDate: '2026-02-31' }, { items: [] }, { items: {} }, { items: [null] }, { discount: 71 }, { creditTerm: 2147483647 },
     { items: [{ desc: 'Bad', qty: 1.5, unit: 'pcs' }] }, { items: [{ desc: 'Bad', qty: 1, unit: 'pcs', unitPrice: -1 }] }]) {
@@ -282,9 +284,21 @@ test('Invoice HTTP lifecycle: authoritative money/SO, debt only on confirm, lock
   doc = (await request(`/invoices/${id}/cancel`, 'POST', { updatedAt: doc.updatedAt, reason: 'Cancelled' })).data;
   assert.equal(doc.outstandingAmount, 0);
   assert.equal(doc.status, 'cancelled');
+
+  const legacyCancelled = {
+    id: 'legacy-cancelled', ivNo: 'IV26100009', ivDate: '2026-10-20T00:00:00.000Z',
+    customerId: 'c', customerName: 'Customer', customerCode: 'C001', status: 'cancelled',
+    lifecycleVersion: 0, reissuedFromId: null, createdAt: '2026-10-20T00:00:00.000Z',
+  };
+  state.invoices.push(legacyCancelled);
   const availableNumbers = await request('/invoices/reusable-numbers?month=2026-10');
   assert.equal(availableNumbers.status, 200);
   assert.ok(availableNumbers.data.some(row => row.id === id && row.ivNo === doc.ivNo));
+  assert.ok(availableNumbers.data.some(row => row.id === legacyCancelled.id && row.ivNo === legacyCancelled.ivNo));
+  const reusedLegacy = await request('/invoices', 'POST', { ...payload, reuseInvoiceId: legacyCancelled.id });
+  assert.equal(reusedLegacy.status, 201);
+  assert.equal(reusedLegacy.data.ivNo, legacyCancelled.ivNo);
+  assert.equal(reusedLegacy.data.reissuedFrom.id, legacyCancelled.id);
   const reused = await request('/invoices', 'POST', { ...payload, reuseInvoiceId: id });
   assert.equal(reused.status, 201);
   assert.equal(reused.data.ivNo, doc.ivNo);

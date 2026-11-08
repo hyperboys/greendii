@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import { AccountingApprovalPanel } from "@/components/accounting-approval-panel";
 import { legacyApprovalControlVisible } from "@/lib/accounting-approval";
 import Link from "next/link";
@@ -11,8 +12,8 @@ import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { SearchableSelect } from "@/components/searchable-select";
 import { DateInput } from "@/components/date-input";
 import { formatAccountingDate as date, formatAccountingDateTime as time } from "@/lib/accounting-date";
-import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
-import { StockReturnDocument, StockReturnPrintStyles } from "@/components/stock-return-document";
+import { StockReturnInformation } from "@/components/inventory-document-information";
+import { useAccountingDocumentPrint } from "@/components/use-accounting-document-print";
 import { StockReturnsApi as api, returnBase as base, returnList as list, returnStatuses, returnActions, returnHistory, availableReturnActions,
   newReturn, returnForm, exportReturns, returnToday as today, type StockReturn, type ReturnInput, type ReturnAction, type ReturnSource, type ReturnSourceOption } from "@/lib/stock-return";
 const control = "w-full min-w-0 rounded border bg-white px-3 py-2", button = "rounded border bg-white px-4 py-2 text-sm font-semibold disabled:opacity-40";
@@ -33,13 +34,14 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
   const [reload, setReload] = useState(0), [sourceReload, setSourceReload] = useState(0), [files, setFiles] = useState<File[]>([]);
   const [action, setAction] = useState<ReturnAction | null>(null), [reason, setReason] = useState(""), [cancelDate, setCancelDate] = useState(today), [confirmed, setConfirmed] = useState(false);
   const [chainManaged, setChainManaged] = useState(false);
-  const [userId, setUserId] = useState<string>(), [company, setCompany] = useState<PurchaseOrderCompanySettings>({}), [printReady, setPrintReady] = useState(false);
+  const [userId, setUserId] = useState<string>();
+  const print = useAccountingDocumentPrint(doc);
   const guard = useRef(false), requestKey = useRef("");
   const editable = doc?.lifecycleVersion === 1 && ["draft", "returned"].includes(doc.status);
   useEffect(() => { setUserId(getStoredUser()?.id); }, []);
   useEffect(() => {
     if (isForm && !allowedForm) return;
-    let current = true; setLoading(true); setLoadError(""); setPrintReady(false); setAction(null); setFiles([]);
+    let current = true; setLoading(true); setLoadError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") {
         const result = await api.list(query);
@@ -47,7 +49,6 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
       } else if (recordId) {
         const result = await api.get(recordId); if (!current) return; setDoc(result);
         if (isForm) setForm(returnForm(result));
-        else { const settings = await AccountingSettingsApi.get(); if (current) setCompany(settings); }
       } else { requestKey.current = crypto.randomUUID(); if (current) { setDoc(null); setForm(newReturn()); } }
     }
     void load().catch(error => { if (current) setLoadError(message(error)); }).finally(() => { if (current) setLoading(false); });
@@ -78,13 +79,13 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
   const refresh = () => setReload(value => value + 1);
   const actions = doc ? availableReturnActions(doc, can, userId) : [];
   const visibleActions = actions.filter(value => legacyApprovalControlVisible(value, chainManaged));
-  const printable = mode === "view" && doc?.lifecycleVersion === 1 && printReady && !loading && !loadError;
+  const printable = mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError;
   function changeLine(index: number, patch: Partial<ReturnInput["items"][number]>) {
     setForm({ ...form, items: form.items.map((item, i) => i === index ? { ...item, ...patch } : item) });
   }
   if (isForm && !allowedForm) return <p role="alert">ไม่มีสิทธิ์สร้าง/แก้ใบคืน <Link href={list}>กลับทะเบียน</Link></p>;
   return <>
-    <StockReturnPrintStyles allowed={Boolean(printable)} />
+    {print.error && <p role="alert" className="is-no-print rounded bg-red-50 p-3 text-red-700">{print.error}</p>}
     <div className="is-no-print mx-auto max-w-6xl space-y-4">
       <header className="flex flex-wrap items-center justify-between gap-3"><div><h1 className="text-2xl font-bold">คืนสินค้า (Stock Return)</h1>
         <p className="text-sm text-gray-600">อ้าง IS ที่จ่ายจริง · ของดีเข้าคลังเดิม · รออนุมัติกันยอดคืน ไม่เพิ่ม Stock จนอนุมัติ</p></div>
@@ -109,7 +110,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
             onClick={() => setQuery({ ...query, page: String(Number(query.page) + step) })}>{step < 0 ? "ก่อนหน้า" : "ถัดไป"}</button>)}</div></>}
       </>}
       {isForm && !loading && !loadError && (mode === "edit" && !editable ? <p role="alert">ใบคืนนี้อ่านอย่างเดียว แก้ได้เฉพาะ Draft / ส่งกลับรุ่นใหม่</p> :
-        <form className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
+        <ManualSubmitForm className="space-y-4 rounded border bg-white p-4" onSubmit={event => {
           event.preventDefault(); void run(async () => {
             const saved = doc ? await api.update(doc.id, { ...form, updatedAt: doc.updatedAt }) : await api.create({ ...form, requestKey: requestKey.current });
             router.push(`${base}/${encodeURIComponent(saved.id)}`);
@@ -152,7 +153,7 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
           <label className="block">หมายเหตุ<textarea maxLength={1000} rows={3} className={control} value={form.remark} onChange={event => setForm({ ...form, remark: event.target.value })} /></label>
           <p className="text-sm">บันทึก Draft ยังไม่รับ Stock; หลักฐาน PDF/JPG/PNG ไม่บังคับ แนบเพิ่มบนหน้าเอกสาร</p></fieldset>
           <button disabled={busy || sourceLoading || !source || Boolean(sourceError) || !form.items.length} className={primary}>{busy ? "กำลังบันทึก..." : "บันทึกใบคืน"}</button>
-        </form>)}
+        </ManualSubmitForm>)}
       {mode === "view" && doc && !loading && !loadError && <section className="space-y-3 rounded border bg-white p-4">
         <h2 className="text-lg font-bold">{doc.returnNo} · {returnStatuses[doc.status] || doc.status}</h2>
         <p className="break-words">IS {doc.issueSnapshot?.issueNo || "-"} · คลังเดิม {doc.warehouseSnapshot?.name || doc.warehouseId || "-"} · ผู้ส่งคืน {doc.sender || "-"} · ผู้รับคืน {doc.receiver || "-"}</p>
@@ -160,8 +161,11 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
         {doc.lifecycleVersion !== 1 && <p role="alert" className="text-amber-800">ใบคืน Legacy อ่านอย่างเดียว ไม่ปรับ Stock เก่า ต้องตรวจย้ายข้อมูลแยก</p>}
         <div className="flex flex-wrap gap-2">{editable && can.update && <Link className={button} href={`${base}/${encodeURIComponent(doc.id)}/edit`}>แก้ไขใบคืน</Link>}
           {visibleActions.map(value => <button disabled={busy} key={value} className={button} onClick={() => { setAction(value); setReason(""); setCancelDate(today()); setConfirmed(false); }}>{returnActions[value]}</button>)}
-          {doc.lifecycleVersion === 1 && <button disabled={busy || !printable} className={button} onClick={() => window.print()}>พิมพ์ / PDF</button>}</div>
-        {action && <form className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
+          {doc.lifecycleVersion === 1 && <button disabled={busy || !printable || print.printing} className={button} onClick={() => void print.requestPrint(async onReady => {
+            const [module, company] = await Promise.all([import("@/components/stock-return-document"), AccountingSettingsApi.get()]);
+            return <><module.StockReturnPrintStyles allowed /><module.StockReturnDocument document={doc} company={company} onReady={onReady} /></>;
+          })}>{print.printing ? "กำลังเตรียมเอกสาร..." : "พิมพ์ / PDF"}</button>}</div>
+        {action && <ManualSubmitForm className="space-y-3 rounded border p-3" onSubmit={event => { event.preventDefault(); void run(async () => { await api.action(doc, action, reason, cancelDate, confirmed); refresh(); }); }}>
           <h3 className="font-bold">ยืนยัน{returnActions[action]}</h3>
           {["return", "reject", "cancel"].includes(action) && <label className="block">เหตุผล *<textarea required disabled={busy} maxLength={1000} className={control} value={reason} onChange={event => setReason(event.target.value)} /></label>}
           {action === "cancel" && <><label className="block">วันที่ยกเลิก *<DateInput required className={control} value={cancelDate} onChange={setCancelDate} /></label>
@@ -169,24 +173,22 @@ export function StockReturns({ mode = "list", recordId }: { mode?: "list" | "new
             <p className="text-sm">ต้องมี Available พอ ไม่กินยอดจอง วันที่ไม่ก่อน Movement ล่าสุด; ยกเลิกแล้วปล่อยสิทธิ์คืนให้ IS</p></>}
           {action === "approve" && <p className="text-amber-800">อนุมัติคือยืนยันรับของดีจริงเข้าคลังเดิมและเพิ่ม Stock ตามจำนวนใบนี้</p>}
           <div className="flex gap-2"><button disabled={busy} className={primary}>ยืนยัน</button><button type="button" disabled={busy} className={button} onClick={() => setAction(null)}>ปิด</button></div>
-        </form>}
+        </ManualSubmitForm>}
         <h3 className="font-bold">หลักฐาน (ไม่บังคับ)</h3>
         {doc.attachments.map(file => <div key={file.id} className="flex flex-wrap items-center gap-2"><a className="min-w-0 break-all text-blue-700" href={file.fileUrl} target="_blank" rel="noreferrer">{file.originalName}</a>
           {editable && (can.create || can.update) && <button disabled={busy} className={button} onClick={() => void run(async () => { await api.deleteFile(doc, file.id); refresh(); })}>ลบหลักฐาน</button>}</div>)}
-        {editable && (can.create || can.update) && <div className="space-y-2"><input key={doc.updatedAt} aria-label="หลักฐานใบคืน" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" disabled={busy} className="block max-w-full" onChange={event => setFiles(Array.from(event.target.files || []))} />
-          <button disabled={busy || !files.length} className={button} onClick={() => void run(async () => { await api.upload(doc, files); refresh(); })}>แนบหลักฐานใบคืน</button></div>}
-        <h3 className="font-bold">รายการตามเอกสาร · ของดี{["draft", "pending", "returned"].includes(doc.status) ? " (ยังไม่เพิ่ม Stock)" : ""}</h3>
-        {doc.items.map(item => <div key={item.id} className="min-w-0 rounded border p-3 text-sm"><p className="break-words font-semibold">{item.seq + 1}. {item.productSnapshot?.code} · {item.productSnapshot?.name || item.productId}</p>
-          <p>จ่ายจริง IS {number(item.issuedQty)} · <strong>คืนตามใบนี้ {number(item.returnedQty)}</strong> · คืนแล้ว {number(item.previouslyReturnedQty)} · รออนุมัติอื่น {number(item.pendingQty)} · เหลือคืน ณ บันทึก {number(item.remainingQty)} {item.productSnapshot?.unit}</p></div>)}
-        <p className="whitespace-pre-wrap break-words">เหตุผลคืน: {doc.returnReason || "-"} · หมายเหตุ: {doc.remark || "-"}</p>
-        {doc.cancelledAt && <p className="break-words text-red-700">ยกเลิก {date(doc.cancelledAt)} · {doc.cancellationReason}</p>}
-        <h3 className="font-bold">Stock Movement อ้างใบนี้</h3>
+        {editable && (can.create || can.update) && <details><summary className="cursor-pointer font-semibold text-blue-700">+ เพิ่มหลักฐานใบคืน</summary><div className="mt-3 space-y-2"><input key={doc.updatedAt} aria-label="หลักฐานใบคืน" type="file" multiple accept=".pdf,.jpg,.jpeg,.png" disabled={busy} className="block max-w-full" onChange={event => setFiles(Array.from(event.target.files || []))} />
+          <button disabled={busy || !files.length} className={button} onClick={() => void run(async () => { await api.upload(doc, files); refresh(); })}>แนบหลักฐานใบคืน</button></div></details>}
+        <StockReturnInformation document={doc} />
+        <details><summary className="cursor-pointer font-bold">Stock Movement อ้างใบนี้ ({doc.movements?.length || 0})</summary>
         {doc.movements?.map(row => <p key={row.id} className="break-words text-sm">{date(row.transactionDate)} · {doc.items.find(item => item.productId === row.productId)?.productSnapshot?.name || row.productId} · เข้า {number(row.qtyIn)} / ออก {number(row.qtyOut)}{row.reversalRefId ? ` · กลับ ${row.reversalRefId}` : ""}</p>)}
-        <h3 className="font-bold">ประวัติ</h3>
+        </details>
+        <details><summary className="cursor-pointer font-bold">ประวัติ ({doc.history?.length || 0})</summary>
         {doc.history?.map(row => <p key={row.id} className="break-words border-t pt-2 text-sm">{time(row.createdAt)} · {returnHistory[row.action] || row.action} · {row.performedBy?.fullName || "-"}{row.reason ? ` · ${row.reason}` : ""}</p>)}
+        </details>
       </section>}
     </div>
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <AccountingApprovalPanel docType="sr" document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} />}
-    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-preview mt-5 w-full overflow-x-auto"><StockReturnDocument document={doc} company={company} onReady={setPrintReady} /></div>}
+    {mode === "view" && doc?.lifecycleVersion === 1 && !loading && !loadError && <div className="is-no-print mt-4 empty:hidden"><AccountingApprovalPanel docType="sr" hideWhenEmpty document={doc} canSubmit={can.create} onChanged={refresh} onModeChange={setChainManaged} /></div>}
+    {print.printContent}
   </>;
 }

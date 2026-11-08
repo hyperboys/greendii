@@ -1,4 +1,5 @@
 "use client";
+import { ManualSubmitForm } from "@/components/manual-submit-form";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { useAccountingAccess } from "./accounting-access-provider";
@@ -51,16 +52,16 @@ export function InventoryControls() {
     <section className="space-y-3 rounded border bg-white p-4"><h2 className="font-bold">เลือกสินค้าและคลัง</h2><div className="flex flex-wrap gap-3">
       <label>คลัง <select className={input} value={warehouseId} onChange={event => setWarehouse(event.target.value)}><option value="">เลือกคลัง</option>{options.warehouses.map(row => <option key={row.id} value={row.id}>{row.code} {row.name}</option>)}</select></label>
       <label>สินค้า <select className={input} value={productId} onChange={event => setProduct(event.target.value)}><option value="">เลือกสินค้า</option>{options.products.filter(row => row.productType !== "service").map(row => <option key={row.id} value={row.id}>{row.code} {row.name}</option>)}</select></label></div>
-      {canUpdate && <form className="flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); void run(() => api.threshold({ warehouseId, productId, lowStockThreshold: threshold || null, updatedAt: selected?.updatedAt })); }}>
+      {canUpdate && <ManualSubmitForm className="flex flex-wrap items-end gap-3" onSubmit={event => { event.preventDefault(); void run(() => api.threshold({ warehouseId, productId, lowStockThreshold: threshold || null, updatedAt: selected?.updatedAt })); }}>
         <label>จุดเตือน (ว่าง = ปิด)<input type="number" min="0" step="0.001" className={input} value={threshold} onChange={event => setThreshold(event.target.value)} /></label>
-        <button className={button} disabled={busy || !warehouseId || !productId}>บันทึกจุดเตือน</button></form>}
-      {canCreate && selected && selected.valuationStatus === "unvalued" && <form className="grid gap-3 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void run(() => api.initialize({ requestKey: key.current, warehouseId, productId, quantity, totalValue, evidence, asOf, updatedAt: selected.updatedAt })); }}>
+        <button className={button} disabled={busy || !warehouseId || !productId}>บันทึกจุดเตือน</button></ManualSubmitForm>}
+      {canCreate && selected && selected.valuationStatus === "unvalued" && <ManualSubmitForm className="grid gap-3 sm:grid-cols-2" onSubmit={event => { event.preventDefault(); void run(() => api.initialize({ requestKey: key.current, warehouseId, productId, quantity, totalValue, evidence, asOf, updatedAt: selected.updatedAt })); }}>
         <h3 className="font-bold sm:col-span-2">ขอตั้งต้นทุนยอดปัจจุบัน (ไม่เปลี่ยนจำนวน)</h3>
         <label>จำนวนปัจจุบันที่ตรวจสอบ *<input required className={input} type="number" min="0" step="0.001" value={quantity} onChange={event => setQuantity(event.target.value)} /></label>
         <label>มูลค่ารวมที่บัญชียืนยัน *<input required className={input} inputMode="decimal" pattern="(0|[1-9][0-9]*)(\.[0-9]{1,12})?" value={totalValue} onChange={event => setValue(event.target.value)} /></label>
         <label>วันที่ฐานต้นทุน (ไม่ก่อน Movement ล่าสุด) *<DateInput required className={input} value={asOf} onChange={setAsOf} /></label>
         <label>เอกสาร/วิธีตรวจสอบมูลค่า *<textarea required maxLength={1000} className={input} value={evidence} onChange={event => setEvidence(event.target.value)} /></label>
-        <button className={button} disabled={busy}>ส่งคำขอต้นทุนให้ผู้อนุมัติคนอื่น</button></form>}
+        <button className={button} disabled={busy}>ส่งคำขอต้นทุนให้ผู้อนุมัติคนอื่น</button></ManualSubmitForm>}
     </section>
     <section className="space-y-3 rounded border bg-white p-4"><h2 className="font-bold">คำขอต้นทุน / หลักฐาน</h2>
       <label>เหตุผลปฏิเสธ/ยกเลิก <input maxLength={1000} className={input} value={reason} onChange={event => setReason(event.target.value)} /></label>

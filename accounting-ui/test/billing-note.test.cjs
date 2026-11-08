@@ -7,6 +7,8 @@ const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
 function load(parts, imports = {}) {
+  Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
+  imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = { hasApprovedActors: () => false,
     isEditableArDocument: doc => doc?.lifecycleVersion === 1 && doc.status === "draft", ...(imports["@/lib/accounting-approval"] || {}) };
@@ -21,6 +23,20 @@ function load(parts, imports = {}) {
 }
 const model = load(["lib", "billing-note.ts"]);
 const dates = load(["lib", "accounting-date.ts"]);
+test("BI Thai amount words use baht thuan for whole amounts and standard satang for fractions", () => {
+  for (const [amount, expected] of [
+    [0, "ศูนย์บาทถ้วน"], [1, "หนึ่งบาทถ้วน"], [11, "สิบเอ็ดบาทถ้วน"],
+    [21, "ยี่สิบเอ็ดบาทถ้วน"], [101, "หนึ่งร้อยเอ็ดบาทถ้วน"],
+    [1000, "หนึ่งพันบาทถ้วน"], ["85600.00", "แปดหมื่นห้าพันหกร้อยบาทถ้วน"],
+    ["1000.50", "หนึ่งพันบาทห้าสิบสตางค์"], ["0.01", "ศูนย์บาทหนึ่งสตางค์"],
+    ["0.21", "ศูนย์บาทยี่สิบเอ็ดสตางค์"], ["999.999", "หนึ่งพันบาทถ้วน"],
+    [1000000, "หนึ่งล้านบาทถ้วน"], [1000001, "หนึ่งล้านเอ็ดบาทถ้วน"],
+    [1000000000000, "หนึ่งล้านล้านบาทถ้วน"],
+  ]) assert.equal(model.billingAmountText(amount), expected, String(amount));
+  for (const invalid of ["", "abc", -1, Infinity, NaN, Number.MAX_SAFE_INTEGER]) {
+    assert.throws(() => model.billingAmountText(invalid), /จำนวนเงินไม่ถูกต้อง/);
+  }
+});
 test("BI routes and old billingNotes tab use full-page create/view/edit", () => {
   const BI = () => null;
   const Page = load(["app", "ar", "billing-notes", "[...record]", "page.tsx"], {
@@ -62,8 +78,96 @@ test("BI create is full-page and viewers cannot open an editable form", () => {
   assert.match(render(), /ไม่มีสิทธิ์สร้างหรือแก้ไขใบวางบิล/);
   assert.doesNotMatch(render(), /<form/);
 });
+test("BI payment date follows customer credit and billing date, remains editable and saves overrides", async () => {
+  const customers = [
+    { id: "c30", name: "Credit 30", creditTerm: 30, branches: [] },
+    { id: "c0", name: "Cash", creditTerm: 0, branches: [] },
+    { id: "c15", name: "Credit 15", creditTerm: 15, branches: [] },
+  ];
+  const DateField = () => null;
+  const Select = () => null;
+  let form = { ...model.newBillingNote(), billingDate: "2026-11-04" };
+  let cursor = 0;
+  let saved;
+  let destination;
+  let document = null;
+  const { BillingNotes } = load(["components", "billing-notes.tsx"], {
+    react: { ...React, useEffect() {}, useRef: value => ({ current: value }), useState: initial => {
+      const index = cursor++;
+      if (index === 3) return [form, update => { form = typeof update === "function" ? update(form) : update; }];
+      if (index === 1) return [document, () => {}];
+      if (index === 4) return [customers, () => {}];
+      if (index === 9) return [false, () => {}];
+      return [typeof initial === "function" ? initial() : initial, () => {}];
+    } },
+    "next/link": { default: () => null },
+    "next/navigation": { useRouter: () => ({ push: value => { destination = value; } }) },
+    "@/lib/api": { ArApi: {
+      createBillingNote: async input => { saved = input; return { id: "created" }; },
+      updateBillingNote: async (id, input) => { saved = input; return { id }; },
+    } },
+    "@/lib/account-customers": load(["lib", "account-customers.ts"]),
+    "@/lib/billing-note": model, "@/lib/accounting-date": dates,
+    "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
+    "@/lib/accounting-access": { canUseAccounting: () => true },
+    "@/components/date-input": { DateInput: DateField },
+    "@/components/searchable-select": { SearchableSelect: Select },
+  });
+  function elements(node) {
+    if (!React.isValidElement(node)) return [];
+    return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
+  }
+  function render(mode = "new") {
+    cursor = 0;
+    return elements(BillingNotes({ mode, recordId: mode === "edit" ? "existing" : undefined }));
+  }
+  function choose(id) {
+    render().find(node => node.type === Select && node.props.label === "ลูกค้า").props.onChange(id);
+  }
+  function changeBillingDate(value) {
+    render().find(node => node.type === DateField && node.props.required).props.onChange(value);
+  }
+  function paymentField(mode) {
+    return render(mode).find(node => node.type === DateField && !node.props.required);
+  }
+  assert.equal(paymentField().props.value, "");
+  choose("c30");
+  assert.equal(paymentField().props.value, "2026-12-04");
+  changeBillingDate("2026-10-29");
+  assert.equal(paymentField().props.value, "2026-11-28", "Saturday is not moved to a working day");
+  changeBillingDate("2026-12-02");
+  assert.equal(paymentField().props.value, "2027-01-01", "New Year's Day is not skipped");
+  choose("c0");
+  assert.equal(paymentField().props.value, "2026-12-02", "Zero credit means same-day payment");
+  choose("c15");
+  assert.equal(paymentField().props.value, "2026-12-17");
+  changeBillingDate("2028-02-20");
+  assert.equal(paymentField().props.value, "2028-03-06", "Leap day counts as a calendar day");
+  changeBillingDate("");
+  assert.equal(paymentField().props.value, "");
+  changeBillingDate("2026-11-04");
+  const manual = paymentField();
+  assert.ok(!manual.props.disabled && !manual.props.readOnly);
+  manual.props.onChange("2026-12-10");
+  assert.equal(paymentField().props.value, "2026-12-10");
+  form = { ...form, invoices: [{ invoiceId: "i1", billingAmount: 100 }] };
+  await render().find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  assert.equal(saved.expectedPaymentDate, "2026-12-10");
+  assert.equal(destination, "/ar/billing-notes/created");
+
+  document = { ...form, id: "existing", lifecycleVersion: 1, status: "draft", updatedAt: "revision" };
+  form = model.billingForm(document);
+  assert.equal(paymentField("edit").props.value, "2026-12-10", "Saved manual dates are not recalculated on edit");
+  paymentField("edit").props.onChange("");
+  assert.equal(paymentField("edit").props.value, "", "The optional date can still be cleared");
+  paymentField("edit").props.onChange("2026-12-20");
+  await render("edit").find(node => node.type === "form").props.onSubmit({ preventDefault() {} });
+  assert.equal(saved.expectedPaymentDate, "2026-12-20");
+  assert.equal(saved.updatedAt, "revision");
+  assert.equal(destination, "/ar/billing-notes/existing");
+});
 test("BI print recreates sample grid and two signature boxes; all rows print once and total only on final page", () => {
-  const { BillingNoteDocument, billingPrintPages } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates });
+  const { BillingNoteDocument, billingPrintPages } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates, "@/lib/billing-note": model });
   const doc = { ...model.newBillingNote(), billingDate: "2026-10-25", biNo: "BI-TEST", status: "approved", lifecycleVersion: 1,
     customerName: "Snapshot customer", customerCode: "C1", address: "Saved address", taxId: "0123456789012", totalAmount: "12345.67",
     invoices: Array.from({ length: 40 }, (_, i) => ({ invoiceId: `i${i}`, invoiceNo: `UNIQUE-${i}-END`,
@@ -75,6 +179,9 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   for (const text of ["ใบวางบิล", "วันที่นัดชำระ", "เงื่อนไขการจ่ายชำระ", "ลำดับที่", "เลขที่เอกสาร", "วันที่เอกสาร", "ประเภทรายการ", "วันครบกำหนด", "จำนวนเงินตามใบกำกับ", "จำนวนเงินวางบิล", "ผู้วางบิล", "ผู้รับวางบิล"]) assert.match(html, new RegExp(text));
   assert.equal((html.match(/class="bi-paper"/g) || []).length, 3);
   assert.equal((html.match(/12,345\.67/g) || []).length, 1);
+  assert.equal((html.match(/หนึ่งหมื่นสองพันสามร้อยสี่สิบห้าบาทหกสิบเจ็ดสตางค์/g) || []).length, 1);
+  assert.match(html, /<td colSpan="3"><div data-bi-fit="true">หนึ่งหมื่นสองพันสามร้อยสี่สิบห้าบาทหกสิบเจ็ดสตางค์<\/div><\/td>/);
+  assert.equal((html.match(/ยอดรวมแสดงหน้าสุดท้าย/g) || []).length, 2);
   for (let i = 0; i < 40; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, "g")) || []).length, 1);
   assert.match(html, /25\/10\/2026/);
   assert.match(html, /Snapshot customer/);
@@ -84,11 +191,20 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   assert.doesNotMatch(html, /ผู้รับเงิน|RECEIPT|<img/);
 });
 test("BI customer tax ID uses the saved document value and explicitly shows missing values", () => {
-  const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates });
+  const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates, "@/lib/billing-note": model });
   const render = taxId => renderToStaticMarkup(React.createElement(BillingNoteDocument, {
     document: { ...model.newBillingNote(), taxId, invoices: [], totalAmount: 0 },
     company: { taxId: "9999999999999" },
   }));
   assert.match(render("0123456789012"), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　0123456789012<\/p>/);
   assert.match(render(null), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　-<\/p>/);
+});
+test("BI print shows whole-baht Thai words beside the final numeric total", () => {
+  const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], {
+    "@/lib/accounting-date": dates, "@/lib/billing-note": model,
+  });
+  const html = renderToStaticMarkup(React.createElement(BillingNoteDocument, {
+    document: { ...model.newBillingNote(), invoices: [], totalAmount: "85600.00" }, company: {},
+  }));
+  assert.match(html, /<td colSpan="3"><div data-bi-fit="true">แปดหมื่นห้าพันหกร้อยบาทถ้วน<\/div><\/td><td class="bi-money"><div data-bi-fit="true">85,600\.00<\/div><\/td>/);
 });

@@ -1,4 +1,4 @@
-const assert = require("node:assert/strict");
+﻿const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const test = require("node:test");
@@ -7,6 +7,14 @@ const ts = require("typescript");
 const React = require("react");
 
 const flush = () => new Promise(setImmediate);
+const resolveSource = base => fs.existsSync(`${base}.ts`) ? `${base}.ts` : `${base}.tsx`;
+// Index of the `loading` useState slot, derived from source order so new state fields don't break the harness.
+const loadingIndex = file => {
+  const declarations = fs.readFileSync(path.join(__dirname, "..", "src", "components", file), "utf8").match(/const \[\w+, set\w+\] = useState/g);
+  return declarations.findIndex(line => line.startsWith("const [loading,"));
+};
+const INVOICE_LOADING = loadingIndex("invoices.tsx");
+const PO_LOADING = loadingIndex("purchase-orders.tsx");
 
 function mount(component, props, api) {
   const states = [], effects = [];
@@ -40,6 +48,9 @@ function mount(component, props, api) {
     "@/components/date-input": { DateInput: emptyComponent },
     "@/components/searchable-select": { SearchableSelect: emptyComponent },
     "@/components/document-items": { DocumentItems: emptyComponent },
+    ...require("./helpers/document-ui-mocks.cjs"),
+    "@/components/manual-submit-form": { ManualSubmitForm: emptyComponent },
+    "@/components/purchase-order-information": { PurchaseOrderInformation: emptyComponent },
   };
   function load(filename) {
     const module = { exports: {} };
@@ -51,8 +62,8 @@ function mount(component, props, api) {
       module, exports: module.exports, Error,
       require(name) {
         if (Object.hasOwn(imports, name)) return imports[name];
-        if (name.startsWith("@/")) return load(path.join(__dirname, "..", "src", `${name.slice(2)}.ts`));
-        if (name.startsWith(".")) return load(path.join(path.dirname(filename), `${name}.ts`));
+        if (name.startsWith("@/")) return load(resolveSource(path.join(__dirname, "..", "src", name.slice(2))));
+        if (name.startsWith(".")) return load(resolveSource(path.join(path.dirname(filename), name)));
         return require(name);
       },
     }, { filename });
@@ -84,21 +95,28 @@ function requests() {
   };
 }
 
-test("PO edit/view start independent requests before any response and wait for all required data", async () => {
-  for (const mode of ["edit", "view"]) {
+test("PO edit starts supplier/document requests together and waits for both; view loads only the document", async () => {
+  {
     const { calls, pending, api } = requests();
-    const { states } = mount("PurchaseOrders", { mode, recordId: "po-1" }, api);
-    assert.deepEqual(calls, mode === "edit" ? ["suppliers", "po"] : ["po", "settings"]);
+    const { states } = mount("PurchaseOrders", { mode: "edit", recordId: "po-1" }, api);
+    assert.deepEqual(calls, ["suppliers", "po"]);
     const doc = { id: "po-1", status: "draft", items: [], poDate: "2026-11-08" };
     pending.po.resolve(doc);
     await flush();
     assert.equal(states.includes(doc), false, "partial data must not be applied");
-    if (mode === "edit") pending.suppliers.resolve([]);
-    else pending.settings.resolve({ companyName: "Test Company" });
+    pending.suppliers.resolve([]);
     await flush();
     assert.equal(states.includes(doc), true);
-    assert.equal(states[1], false, "loading completes after both responses");
+    assert.equal(states[PO_LOADING], false, "loading completes after both responses");
   }
+  const { calls, pending, api } = requests();
+  const { states } = mount("PurchaseOrders", { mode: "view", recordId: "po-1" }, api);
+  assert.deepEqual(calls, ["po"], "view has no print template, so company settings are not fetched");
+  const doc = { id: "po-1", status: "approved", items: [], poDate: "2026-11-08" };
+  pending.po.resolve(doc);
+  await flush();
+  assert.equal(states.includes(doc), true);
+  assert.equal(states[PO_LOADING], false);
 });
 
 test("Invoice edit starts document/customers/products together and ignores results after unmount", async () => {
@@ -115,7 +133,7 @@ test("Invoice edit starts document/customers/products together and ignores resul
     pending.products.resolve([]);
     await flush();
     assert.equal(states.includes(doc), !cancelled);
-    assert.equal(states[14], cancelled, "only mounted pages finish their loading state");
+    assert.equal(states[INVOICE_LOADING], cancelled, "only mounted pages finish their loading state");
   }
 });
 
@@ -130,7 +148,7 @@ test("Parallel document loads still report failed requests and PO edit rejects n
     }
     await flush();
     assert.ok(states.includes("Document unavailable"));
-    assert.equal(states[component === "PurchaseOrders" ? 1 : 14], false);
+    assert.equal(states[component === "PurchaseOrders" ? PO_LOADING : INVOICE_LOADING], false);
   }
   const { pending, api } = requests();
   const { states } = mount("PurchaseOrders", { mode: "edit", recordId: "po-1" }, api);
@@ -167,7 +185,7 @@ test("Invoice form loads SO/WO sources once instead of refetching when the page 
       ArApi: {
         getInvoice: () => call("invoice", { id: "iv-1", status: "draft", items: [], ivDate: "2026-11-08" }),
         getInvoiceSources: () => call("sources", []), getDeliveryWorkOrders: () => call("workOrders", []),
-        getReusableInvoiceNumbers: () => call("reusable", []),
+        getReusableInvoiceNumbers: () => call("reusable", []), getNextInvoiceNumber: () => call("next", { ivNo: "" }),
       },
       AccountingLookupApi: { getCustomers: () => call("customers", []), getProducts: () => call("products", []) },
     };
@@ -197,6 +215,7 @@ test("Invoice form loads SO/WO sources once instead of refetching when the page 
       "@/components/invoice-document": { InvoicePrintStyles: () => null },
       "@/components/date-input": { DateInput: () => null }, "@/components/searchable-select": { SearchableSelect: () => null },
       "@/components/document-items": { DocumentItems: () => null },
+      ...require("./helpers/document-ui-mocks.cjs"), "@/components/manual-submit-form": { ManualSubmitForm: () => null },
     };
     const load = filename => {
       const module = { exports: {} };
@@ -208,8 +227,8 @@ test("Invoice form loads SO/WO sources once instead of refetching when the page 
         setTimeout: callback => { timers.push(callback); return timers.length; }, clearTimeout: id => { timers[id - 1] = null; },
         require(name) {
           if (Object.hasOwn(imports, name)) return imports[name];
-          if (name.startsWith("@/")) return load(path.join(__dirname, "..", "src", `${name.slice(2)}.ts`));
-          if (name.startsWith(".")) return load(path.join(path.dirname(filename), `${name}.ts`));
+          if (name.startsWith("@/")) return load(resolveSource(path.join(__dirname, "..", "src", name.slice(2))));
+          if (name.startsWith(".")) return load(resolveSource(path.join(path.dirname(filename), name)));
           return require(name);
         },
       }, { filename });

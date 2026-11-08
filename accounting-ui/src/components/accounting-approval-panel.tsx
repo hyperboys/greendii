@@ -5,12 +5,13 @@ import { useEffect, useState } from "react";
 import { AccountingApprovalApi, type ApprovalDetail, type ApprovalDocumentFields, type ApprovalDocumentType } from "@/lib/accounting-approval";
 import { AccountingApprovalHistory } from "./accounting-approval-history";
 
-export function AccountingApprovalPanel({ docType, document, canSubmit, onChanged, onModeChange }: {
+export function AccountingApprovalPanel({ docType, document, canSubmit, onChanged, onModeChange, hideWhenEmpty = false }: {
   docType: ApprovalDocumentType;
   document: ApprovalDocumentFields & { id: string; status: string; updatedAt: string };
   canSubmit: boolean;
   onChanged: () => void;
   onModeChange?: (managed: boolean) => void;
+  hideWhenEmpty?: boolean;
 }) {
   const [detail, setDetail] = useState<ApprovalDetail | null>(null);
   const [enabled, setEnabled] = useState(false);
@@ -59,6 +60,7 @@ export function AccountingApprovalPanel({ docType, document, canSubmit, onChange
   };
   const managed = Boolean(cycle && cycle.state !== "legacy" ||
     enabled && ["draft", "returned"].includes(document.status));
+  if (hideWhenEmpty && !error && !managed && !(detail || document).accountingApproval) return null;
   return <section className="accounting-approval-panel rounded border bg-white p-3">
     <style>{`@media print { .accounting-approval-panel { display:none!important; } }`}</style>
     {error && <p role="alert" className="text-red-700">{error}</p>}
