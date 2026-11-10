@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import type { BillingLine, BillingNote } from "@/lib/billing-note";
@@ -8,6 +9,8 @@ import { billingAmountText } from "@/lib/billing-note";
 import { hasApprovedActors } from "@/lib/accounting-approval";
 import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
+const BILLING_COMPANY_ADDRESS = "98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120";
+const BILLING_COMPANY_TEL = "02-1507694-5";
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function billingPrintPages(items: BillingLine[]) {
   const pages: BillingLine[][] = [];
@@ -30,7 +33,8 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
       let overflow = false;
       for (const field of fields) {
         field.style.fontSize = "";
-        for (let size = 10; size >= 7; size -= 0.5) {
+        const preferredSize = parseFloat(getComputedStyle(field).fontSize) * 72 / 96;
+        for (let size = preferredSize; size >= 9; size -= 0.5) {
           field.style.fontSize = `${size}pt`;
           if (field.scrollHeight <= field.clientHeight + 1 && field.scrollWidth <= field.clientWidth + 1) break;
         }
@@ -48,9 +52,10 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
       {pages.map((rows, page) => <article className="bi-paper" key={page}>
         <p className="bi-page-number">หน้า {page + 1} / {pages.length}</p>
         <header className="bi-company">
+          <Image unoptimized loading="eager" width={160} height={90} src="/logo.jpg" alt="โลโก้บริษัท" className="bi-company-logo" />
           <h1 data-bi-fit>{company.companyName || ""}</h1>
-          <p className="bi-company-address" data-bi-fit>{company.address || ""}</p>
-          <p data-bi-fit>โทร. {company.tel || ""}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || ""}</p>
+          <p className="bi-company-address" data-bi-fit>{BILLING_COMPANY_ADDRESS}</p>
+          <p data-bi-fit>โทร. {BILLING_COMPANY_TEL}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || ""}</p>
           <h2>ใบวางบิล</h2>
         </header>
         <p className="bi-code" data-bi-fit>รหัสลูกค้า　{doc.customerCode || doc.customer?.code || ""}</p>
@@ -97,14 +102,15 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
 }
 export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
   return <style jsx global>{`
-    #bi-print-doc { width: 210mm; margin: 0 auto; color: #000; background: #fff; font-family: Tahoma, Arial, sans-serif; font-size: 10pt; line-height: 1.35; }
+    #bi-print-doc { width: 210mm; margin: 0 auto; color: #000; background: #fff; font-family: Tahoma, Arial, sans-serif; font-size: 12pt; line-height: 1.2; }
     #bi-print-doc * { box-sizing: border-box; }
     .bi-paper { width: 210mm; height: 296mm; padding: 9mm; position: relative; background: #fff; }
-    .bi-page-number { text-align: right; height: 5mm; font-size: 9pt; }
-    .bi-company { text-align: center; height: 30mm; }
-    .bi-company h1 { height: 8mm; font-size: 16pt !important; font-weight: bold; }
+    .bi-page-number { text-align: right; height: 5mm; font-size: 11pt; }
+    .bi-company { text-align: center; height: 30mm; padding: 0 40mm; }
+    .bi-company-logo { position: absolute; left: 9mm; top: 14mm; width: 38mm; height: 24mm; object-fit: contain; }
+    .bi-company h1 { height: 8mm; font-size: 18pt; font-weight: bold; }
     .bi-company p { height: 6mm; white-space: pre-wrap; overflow-wrap: anywhere; }
-    .bi-company h2 { font-size: 16pt; font-weight: bold; margin-top: 2mm; }
+    .bi-company h2 { font-size: 18pt; font-weight: bold; margin-top: 2mm; }
     .bi-code { height: 6mm; margin-top: 2mm; }
     .bi-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm; height: 40mm; }
     .bi-info > div { border: 1px solid #000; border-radius: 2mm; padding: 2mm; min-width: 0; }
@@ -115,12 +121,16 @@ export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
     .bi-customer > p:last-child { height: 5mm; }
     .bi-terms > p { height: 6mm; }
     .bi-terms .bi-payment-terms { height: 11mm; }
-    .bi-ack { height: 7mm; padding-top: 1mm; font-size: 9pt; }
-    .accounting-shell table.bi-lines { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 9pt; }
+    .bi-ack { height: 7mm; padding-top: 1mm; font-size: 11pt; }
+    .accounting-shell table.bi-lines { width: 100%; min-width: 0; table-layout: fixed; border-collapse: collapse; font-size: 12pt; }
     .bi-lines th, .bi-lines td { border-left: 1px solid #000; border-right: 1px solid #000; padding: 1mm; overflow-wrap: anywhere; vertical-align: top; }
     .bi-lines thead th { border-top: 1px solid #000; border-bottom: 1px solid #000; text-align: center; height: 10mm; font-weight: normal; vertical-align: middle; }
     .bi-lines tbody tr:not(.bi-filler) { height: 7mm; }
     .bi-lines tbody td > div { height: 5mm; }
+    .bi-lines tbody td:nth-child(2),
+    .bi-lines tbody td:nth-child(3),
+    .bi-lines tbody td:nth-child(5),
+    .bi-lines tfoot td:not(.bi-money) { text-align: center; }
     .bi-lines tfoot td { border-top: 1px solid #000; border-bottom: 1px solid #000; height: 8mm; vertical-align: middle; }
     .bi-lines tfoot td > div { height: 5mm; }
     .bi-money { text-align: right; }
@@ -128,7 +138,7 @@ export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
     .bi-signatures { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm; height: 31mm; }
     .bi-signatures > div { border: 1px solid #000; border-radius: 2mm; padding: 2mm; }
     .bi-signatures p:not(:first-child) { text-align: center; }
-    .bi-signatures p:first-child { height: 8mm; overflow-wrap: anywhere; font-size: 9pt; }
+    .bi-signatures p:first-child { height: 8mm; overflow-wrap: anywhere; font-size: 12pt; }
     .bi-signatures span { display: block; border-bottom: 1px solid #000; margin: 4mm 10mm 1mm; }
     @media print {
       @page { size: A4 portrait; margin: 0; }

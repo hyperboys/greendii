@@ -108,6 +108,48 @@ test('Customer and Sale HTTP flows persist edits, enforce permissions and snapsh
     active: true, code: 'C002', updatedAt: deactivated.updatedAt,
   })).status, 200);
   assert.equal((await (await request(`/account-customers/${customer2.id}`)).json()).active, true);
+
+  const automatic = { name: 'Auto customer', branches: [{ code: '00000', name: 'Main', addresses: [] }] };
+  const createAuto = async body => {
+    const response = await request('/account-customers', 'POST', body);
+    assert.equal(response.status, 201);
+    return response.json();
+  };
+  assert.equal((await createAuto(automatic)).code, 'C0003');
+  assert.equal((await createAuto({ ...automatic, code: '   ' })).code, 'C0004');
+  assert.equal((await createAuto({ ...automatic, code: 'B008' })).code, 'B008');
+  await createAuto({ ...automatic, code: 'C0099', active: false });
+  assert.equal((await createAuto({ ...automatic, code: '' })).code, 'C0100');
+  await createAuto({ ...automatic, code: 'OTHER', branches: [{ code: 'C0105', name: 'Historical code', addresses: [] }] });
+  assert.equal((await createAuto(automatic)).code, 'C0106');
+  fixture.failAudit(true);
+  assert.equal((await request('/account-customers', 'POST', automatic)).status, 500);
+  fixture.failAudit(false);
+  assert.equal((await createAuto(automatic)).code, 'C0107', 'Failed transactions do not consume a customer number');
+  assert.equal((await request(`/account-customers/${customer.id}`, 'PUT', { code: '' })).status, 400);
+  assert.equal((await request('/account-customers', 'POST', { ...automatic, code: 123 })).status, 400);
+  assert.equal((await request('/account-customers', 'POST', automatic, 'viewer')).status, 403);
+  const transaction = fixture.prisma.$transaction;
+  let attempts = 0;
+  fixture.prisma.$transaction = async (callback, options) => {
+    attempts++;
+    assert.equal(options.isolationLevel, 'Serializable');
+    if (attempts === 1) throw Object.assign(new Error('Concurrent create'), { code: 'P2034' });
+    return transaction(callback, options);
+  };
+  try {
+    assert.equal((await createAuto(automatic)).code, 'C0108');
+    assert.equal(attempts, 2);
+    attempts = 0;
+    fixture.prisma.$transaction = async () => {
+      attempts++;
+      throw Object.assign(new Error('Concurrent create'), { code: 'P2034' });
+    };
+    assert.equal((await request('/account-customers', 'POST', automatic)).status, 409);
+    assert.equal(attempts, 3, 'Concurrent write retries are bounded');
+  } finally {
+    fixture.prisma.$transaction = transaction;
+  }
 });
 
 test('Customer edits keep fax, branch contacts and secondary Sales; inactive Sales cannot be newly added', async t => {
@@ -153,4 +195,15 @@ test('Customer edits keep fax, branch contacts and secondary Sales; inactive Sal
   assert.deepEqual((await noAddress.json()).branches[0].addresses, []);
   const created2 = await request('/account-customers', 'POST', { code: 'C101', name: 'No address', branches: [{ code: 'C101', name: 'สำนักงานใหญ่', addresses: [] }] });
   assert.equal(created2.status, 201);
+});
+
+test('Automatic customer numbering starts at C0001, skips historical codes and grows beyond four digits', async () => {
+  const { generateCustomerCode } = require('../src/lib/accountCustomers');
+  const fixture = createCustomerApp();
+  assert.equal(await generateCustomerCode(fixture.prisma), 'C0001');
+  assert.equal(await generateCustomerCode(fixture.prisma), 'C0002');
+  fixture.state().customers.push({ code: 'A99999', branches: [{ code: 'c9999' }] });
+  assert.equal(await generateCustomerCode(fixture.prisma), 'C10000');
+  fixture.state().customers.push({ code: 'C2147483647' });
+  await assert.rejects(() => generateCustomerCode(fixture.prisma), /เกินช่วง/);
 });

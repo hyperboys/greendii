@@ -47,10 +47,6 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
             </header>
             <div className="so-title-row">
               <div className="so-title"><h2>ใบส่งของชั่วคราว</h2><strong>TEMPORARY INVOICE</strong></div>
-              <table className="so-number"><tbody>
-                <tr><th>เลขที่</th><td>{doc.soNo}</td></tr>
-                <tr><th>วันที่</th><td>{formatAccountingDate(doc.docDate)}</td></tr>
-              </tbody></table>
             </div>
             <p className="so-customer-code">รหัสลูกค้า　{doc.customer?.code || ""}</p>
             <section className="so-info">
@@ -59,11 +55,11 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
                 <p className="so-address"><strong>ที่อยู่</strong>　{doc.shippingAddress || ""}</p>
                 <div className="so-contact"><span>โทร.　{doc.customerTel || ""}</span><span>โทรสาร　{doc.customerFax || ""}</span></div>
               </div>
-              <div className="so-terms">
-                <div className="so-reservation"><span>ใบสั่งจอง</span><span>ลงวันที่</span></div>
-                <p>วันที่กำหนดส่ง　{doc.deliveryDate ? formatAccountingDate(doc.deliveryDate) : ""}</p>
-                <p>จำนวนวันเครดิต　{doc.creditTerm} วัน</p>
-                <p>เงื่อนไขการวางบิล</p>
+              <div className="so-document-info">
+                <table className="so-number"><tbody>
+                  <tr><th>เลขที่</th><td>{doc.soNo}</td></tr>
+                  <tr><th>วันที่</th><td>{formatAccountingDate(doc.docDate)}</td></tr>
+                </tbody></table>
               </div>
             </section>
             <table className="so-lines">
@@ -116,15 +112,15 @@ export function DeliveryOrderPrintStyles() {
     #so-print-doc h2 { font-size: 23px; font-weight: 700; margin-bottom: 2mm; }
     #so-print-doc .so-title strong { font-size: 13px; }
     #so-print-doc table { border-collapse: collapse; table-layout: fixed; min-width: 0; }
-    #so-print-doc .so-number { width: 28%; font-size: 11px; }
+    #so-print-doc .so-number { width: 100%; font-size: 11px; }
     #so-print-doc .so-number th, #so-print-doc .so-number td { border: 1px solid black; padding: 3px; overflow-wrap: anywhere; }
     #so-print-doc .so-number th { width: 26%; font-weight: 500; }
     #so-print-doc .so-customer-code { margin: 2mm 0 1mm; }
     #so-print-doc .so-info { display: grid; grid-template-columns: 56% 44%; gap: 1mm; margin-bottom: 1mm; padding-right: 1mm; }
-    #so-print-doc .so-customer, #so-print-doc .so-terms { border: 1px solid black; border-radius: 4px; padding: 5px; min-height: 26mm; overflow-wrap: anywhere; }
+    #so-print-doc .so-customer, #so-print-doc .so-document-info { border: 1px solid black; border-radius: 4px; padding: 5px; min-height: 26mm; overflow-wrap: anywhere; }
+    #so-print-doc .so-document-info { display: flex; align-items: center; }
     #so-print-doc .so-address { min-height: 12mm; white-space: pre-wrap; }
-    #so-print-doc .so-contact, #so-print-doc .so-reservation { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
-    #so-print-doc .so-terms p { margin-top: 3px; }
+    #so-print-doc .so-contact { display: grid; grid-template-columns: 1fr 1fr; gap: 3px; }
     #so-print-doc .so-lines { width: 100%; border: 1px solid black; }
     #so-print-doc .so-lines th { border: 1px solid black; padding: 5px 2px; font-weight: 600; text-align: center; }
     #so-print-doc .so-lines td { border-left: 1px solid black; border-right: 1px solid black; padding: 3px 4px; vertical-align: top; overflow-wrap: anywhere; white-space: pre-wrap; }

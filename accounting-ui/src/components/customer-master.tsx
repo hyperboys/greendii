@@ -126,7 +126,9 @@ export function CustomerMaster({ mode = "list", recordId }: { mode?: "list" | "n
           {duplicateTax.length > 0 && <p role="alert" className="rounded bg-amber-50 p-3 text-sm text-amber-800">Tax ID ตรงกับลูกค้า: {duplicateTax.map(c => `${c.code || "-"} ${c.name}`).join(", ")} กรุณาตรวจสอบข้อมูลซ้ำก่อนบันทึก</p>}
           <fieldset disabled={!writable || saving} className="space-y-4">
             <div className="grid gap-3 sm:grid-cols-2">
-              <Field label="รหัสลูกค้า *"><input required className={inputClass} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} /></Field>
+              <Field label={modal.customer ? "รหัสลูกค้า *" : "รหัสลูกค้า (อัตโนมัติ)"}><input required={Boolean(modal.customer)} className={inputClass} placeholder={modal.customer ? undefined : "เว้นว่างเพื่อรันรหัสอัตโนมัติ เช่น C0001"} value={form.code} onChange={e => setForm({ ...form, code: e.target.value })} />
+                {!modal.customer && <span className="mt-1 block font-normal">ระบบออกเลขตอนบันทึก ต่อจากรหัส C เดิม หรือกรอกรหัสเองได้</span>}
+              </Field>
               <Field label="ชื่อลูกค้า *"><input required className={inputClass} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} /></Field>
               <Field label="Tax ID"><input pattern="[0-9]{13}" className={inputClass} value={form.taxId} onChange={e => setForm({ ...form, taxId: e.target.value })} /></Field>
               <Field label="ประเภทลูกค้า"><select className={inputClass} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })}><option>นิติบุคคล</option><option>บุคคลธรรมดา</option></select></Field>

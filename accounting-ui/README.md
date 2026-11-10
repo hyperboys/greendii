@@ -928,9 +928,17 @@ Open **ผังบัญชี & ข้อมูลหลัก** (`/master`):
 
 - **ลูกค้า (Customer)** supports create, detail view, edit, search, active/inactive
   filtering, contact information, VAT and credit terms (including zero days).
-  Customer code and name are required; code uniqueness is enforced by the database.
+  Customer name is required. Leave the code blank when creating to assign
+  `C0001`, `C0002`, ... at save time, or enter a manual code.
+  The counter continues above existing C-number customer codes (including inactive
+  records and historical branch codes), does not reset by year, and rolls back
+  with failed saves. A transactional counter, unique constraint and bounded
+  retries protect concurrent creates. Editing still requires a code and does not
+  renumber existing customers. No database migration is needed; the existing
+  document sequence table holds the counter.
+  Code uniqueness is enforced by the database.
   Duplicate Tax IDs produce a visible warning, not a new tax-identity uniqueness
-  rule. No Tax ID format or automatic customer-code numbering is assumed.
+  rule.
 - Each customer has multiple branches identified by a code unique within that
   customer. Each branch has multiple labelled billing, shipping, or combined
   addresses. The first branch is the default; a dedicated billing/shipping
@@ -1117,13 +1125,23 @@ Open **ลูกหนี้ / รับชำระเงิน → ใบว�
   During Draft editing the form shows the linked invoices' current outstanding.
 - Printing recreates the full form on **plain paper** from
   [ใบวางบิล.pdf](../Doc/accounting/ใบวางบิล.pdf), unlike Invoice data-only printing.
-  It includes company Settings, customer/document boxes, seven columns, final-page
+  It includes the configured company name/tax ID, customer/document boxes, seven columns, final-page
   total, remarks and blank billing-party/recipient signature areas.
+  The company header uses the Sale Thai address
+  "98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120" and telephone
+  "02-1507694-5" on every page, without changing customer address snapshots
+  or company Settings used by other documents.
   The final-page total includes Thai amount words in the adjacent merged cell:
   whole baht ends in "บาทถ้วน"; fractional amounts use baht and satang.
   A4 portrait, 17 invoices per page; headers/page numbers repeat, rows do not. Print is enabled
   only for confirmed new records after text-fit validation. Use actual size 100%
   with browser headers/footers off and run physical-printer UAT.
+  Body and invoice rows use 12 pt, company/document headings 18 pt; fitted fields
+  shrink only when needed, down to 9 pt, and block printing if text still overflows.
+  Invoice numbers, invoice/due dates and footer summary text are centered;
+  numeric amounts remain right-aligned in preview and print.
+  The company logo (`public/logo.jpg`, also used on Purchase Orders) appears
+  at the upper left on every page, with reserved space beside the centered header.
 - Run the reviewed additive
   [accounting-billing-notes.sql](../api/scripts/sql/accounting-billing-notes.sql)
   after backup and the SO/Invoice prerequisites. Generate Prisma, restart the API
@@ -1262,6 +1280,9 @@ are full pages at `/ar/invoices/new`, `/ar/invoices/:id` and
   description/remark, prices excluding VAT, line/document discounts in baht and
   VAT 7% / No VAT. The server recomputes amounts in satang, ignoring client totals.
   The compact item editor is shared with SO.
+  Invoice forms replace the editable item-code field with the multiline description
+  directly below the product selector. Existing and selected product codes are retained;
+  SO forms and printed Invoice columns are unchanged.
   Create/edit summaries show the amount before VAT after subtracting the document
   discount, followed by VAT and the net total.
 - Optional SO selection initializes lines, shipping, credit, VAT and discounts
@@ -1354,15 +1375,17 @@ also opens it directly. New, detail/print and edit pages are
 - The A4 print layout follows
   [ใบส่งของชั่วคราว.pdf](../Doc/accounting/ใบส่งของชั่วคราว.pdf):
   **TEMPORARY INVOICE**, company header from Settings (no added logo), number/date
-  box, customer address/phone/fax, delivery date, credit days, four delivery columns
+  box beside the customer address/phone/fax, four delivery columns
   (code, description, quantity and unit) and three signature boxes. Preview,
   print and Save PDF omit unit prices, discounts, line amounts, VAT amounts and
   document totals entirely; monetary fields remain saved/editable for Invoice use.
   The creator's name appears under
   the sender; recipient and authorized-person signatures remain blank. Status
   and the no-Stock notice appear in remarks, not as an approval claim.
-  Reservation number/date and billing conditions deliberately remain blank per
-  the user's decision, not substituted with WO. Existing optional WO/receiver
+  The number/date box replaces the former right-hand reservation/delivery/credit/
+  billing-conditions block and no longer appears beside the title. Delivery date
+  and credit days remain saved/editable in the form but are not printed.
+  Existing optional WO/receiver
   information is retained in remarks. Print/Save PDF uses the browser dialog.
   Standard multi-page documents repeat the header and show page numbers, without
   monetary values on any page.

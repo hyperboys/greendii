@@ -73,6 +73,31 @@ test("Shared item editor keeps description below the numeric row and supports ex
   assert.doesNotMatch(render(true), /เพิ่มรายการ|aria-label="ลบรายการ/);
 });
 
+test("Invoice places editable description under product selection and preserves saved codes", () => {
+  const item = { ...delivery.newDeliveryOrderLine(), partNo: "SAVED-CODE", desc: "Saved description" };
+  let changed;
+  const props = { items: [item], products: [], descriptionInProductCell: true, onChange: value => { changed = value; } };
+  const html = renderToStaticMarkup(React.createElement(documentItems.DocumentItems, props));
+  const firstRow = html.match(/<tbody[^>]*><tr[^>]*>([\s\S]*?)<\/tr>/)[1];
+  assert.match(firstRow, /<\/select><\/label><label[^>]*><span>รายละเอียด รายการ 1<\/span><textarea[^>]*required/);
+  assert.equal((html.match(/<textarea/g) || []).length, 1);
+  assert.doesNotMatch(html, /รหัสสินค้าบนเอกสาร/);
+  assert.match(html, /หมายเหตุรายการ 1/);
+  const standard = renderToStaticMarkup(React.createElement(documentItems.DocumentItems, { ...props, descriptionInProductCell: false }));
+  assert.match(standard, /รหัสสินค้าบนเอกสาร/);
+  assert.match(standard, /SAVED-CODE/);
+  const editor = load(["components", "document-items.tsx"], {
+    "@/lib/delivery-order": delivery, react: { ...React, useState: initial => [initial, () => {}] },
+  });
+  const tree = editor.DocumentItems(props);
+  const elements = node => React.isValidElement(node)
+    ? [node, ...React.Children.toArray(node.props.children).flatMap(elements)] : [];
+  elements(tree).find(node => node.type === "textarea").props.onChange({ target: { value: "Changed description" } });
+  assert.equal(changed[0].desc, "Changed description");
+  assert.equal(changed[0].partNo, "SAVED-CODE");
+  assert.equal(item.desc, "Saved description");
+});
+
 test("SO-linked Invoice Drafts allow editing copied fields, customer and saved SO", () => {
   const saved = {
     ...invoices.newInvoice(), id: "iv", provisionalDeliveryOrderId: "so", customerId: "customer",
@@ -122,6 +147,8 @@ test("SO-linked Invoice Drafts allow editing copied fields, customer and saved S
     assert.match(html, /บันทึก Draft/);
     assert.match(html, /เพิ่มรายการ/);
     assert.match(html, /Edited line/);
+    assert.match(html, /สินค้า \/ รายละเอียด/);
+    assert.doesNotMatch(html, /รหัสสินค้าบนเอกสาร/);
     assert.match(html, /Edited billing/);
     assert.match(html, /Edited shipping/);
     assert.match(html, /<dt>ยอดก่อน VAT<\/dt><dd>98\.50<\/dd>/);

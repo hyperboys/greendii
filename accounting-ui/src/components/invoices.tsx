@@ -287,7 +287,7 @@ export function Invoices({ mode = "list", recordId }: { mode?: "list" | "new" | 
           <label>จำนวนวันเครดิต<input required className={control} type="number" min="0" max="36500" step="1" value={form.creditTerm} onChange={event => setForm(previous => ({ ...previous, creditTerm: event.target.value }))} /><span className="text-sm">ครบกำหนด {formatAccountingDate(invoiceDueDate(form.ivDate, Number(form.creditTerm)))}</span></label>
           <label>VAT<select className={control} value={form.vatConfig} onChange={event => setForm(previous => ({ ...previous, vatConfig: event.target.value === "NO_VAT" ? "NO_VAT" : "VAT7%" }))}><option value="VAT7%">VAT 7%</option><option value="NO_VAT">No VAT</option></select></label>
         </section>
-        <DocumentItems title="รายการ Invoice" items={form.items} products={products} onChange={items => setForm(previous => ({ ...previous, items }))} />
+        <DocumentItems title="รายการ Invoice" descriptionInProductCell items={form.items} products={products} onChange={items => setForm(previous => ({ ...previous, items }))} />
         <section className="grid gap-4 rounded-lg border bg-white p-4 md:grid-cols-2">
           <label>ส่วนลดท้ายเอกสาร (บาท)<input required className={control} type="number" min="0" max={Math.max(0, totals.subTotal)} step="0.01" value={form.discount} onChange={event => setForm(previous => ({ ...previous, discount: event.target.value }))} /></label>
           <dl className="space-y-2">{[["รวมเงิน", totals.subTotal], ["ส่วนลดท้ายเอกสาร", form.discount], ["ยอดก่อน VAT", totals.taxableAmount], ["VAT", totals.vat], ["ยอดสุทธิ", totals.netAmount]].map(([label, amount]) => <div key={label} className="flex justify-between gap-2 border-b"><dt>{label}</dt><dd>{money(amount)}</dd></div>)}</dl>

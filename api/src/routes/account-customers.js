@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const prisma = require('../lib/prisma');
 const { authenticate } = require('../middleware/auth');
-const { CUSTOMER_INCLUDE, validateCustomer } = require('../lib/accountCustomers');
+const { CUSTOMER_INCLUDE, validateCustomer, generateCustomerCode } = require('../lib/accountCustomers');
 const { addMasterReads, addMasterDeletes, conflict, lockMaster, audit } = require('../lib/accountingMaster');
 
 router.use(authenticate);
@@ -12,7 +12,8 @@ addMasterDeletes(router, masterConfig, prisma);
 
 async function saveCustomer(req, res, next) {
   try {
-    const item = await prisma.$transaction(async tx => {
+    const autoCode = !req.params.id && (req.body.code == null || (typeof req.body.code === 'string' && !req.body.code.trim()));
+    const persist = async tx => {
       if (req.params.id) await lockMaster(tx, 'accountCustomer', req.params.id);
       const previous = req.params.id ? await tx.accountCustomer.findUniqueOrThrow({
         where: { id: req.params.id }, include: CUSTOMER_INCLUDE,
@@ -20,7 +21,8 @@ async function saveCustomer(req, res, next) {
       if (previous && req.body.updatedAt && new Date(req.body.updatedAt).getTime() !== previous.updatedAt.getTime()) {
         throw Object.assign(new Error('ข้อมูลลูกค้าถูกแก้ไขแล้ว กรุณาโหลดข้อมูลใหม่'), { status: 409 });
       }
-      const { branches, secondarySaleIds, ...data } = validateCustomer(req.body, previous);
+      const code = autoCode ? await generateCustomerCode(tx) : req.body.code;
+      const { branches, secondarySaleIds, ...data } = validateCustomer({ ...req.body, ...(autoCode ? { code } : {}) }, previous);
       const assignedSaleIds = new Set([previous?.responsibleSaleId, ...(previous?.secondarySales || []).map(s => s.saleId)]);
       for (const saleId of [data.responsibleSaleId, ...(secondarySaleIds || [])].filter(Boolean)) {
         const sale = await tx.accountSale.findUnique({ where: { id: saleId } });
@@ -55,7 +57,18 @@ async function saveCustomer(req, res, next) {
       }) : await tx.accountCustomer.create({ data, include: CUSTOMER_INCLUDE });
       await audit(tx, req, 'account_customer', previous, saved, previous ? 'update' : 'create');
       return saved;
-    }, { isolationLevel: 'Serializable' });
+    };
+    let item;
+    for (let attempt = 0; ; attempt++) {
+      try {
+        item = await prisma.$transaction(persist, { isolationLevel: 'Serializable' });
+        break;
+      } catch (e) {
+        const codeConflict = e.code === 'P2002' && Array.isArray(e.meta?.target)
+          && (e.meta.target.includes('code') || e.meta.target.includes('docType'));
+        if (!autoCode || attempt >= 2 || (e.code !== 'P2034' && !codeConflict)) throw e;
+      }
+    }
     res.status(req.params.id ? 200 : 201).json(item);
   } catch (e) {
     if (e.code === 'P2034') Object.assign(e, { status: 409, message: 'ข้อมูลถูกแก้ไขพร้อมกัน กรุณาโหลดข้อมูลใหม่แล้วลองอีกครั้ง' });

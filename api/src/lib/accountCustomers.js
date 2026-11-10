@@ -4,6 +4,37 @@ const CUSTOMER_INCLUDE = {
   branches: { orderBy: { position: 'asc' }, include: { addresses: { orderBy: { position: 'asc' } } } },
 };
 const VAT_CONFIGS = ['VAT7%', 'NO_VAT'];
+async function generateCustomerCode(tx) {
+  const customers = await tx.accountCustomer.findMany({
+    select: { code: true, branches: { select: { code: true } } },
+  });
+  let floor = 0;
+  for (const customer of customers) {
+    for (const code of [customer.code, ...(customer.branches || []).map(branch => branch.code)]) {
+      const match = /^C(\d+)$/i.exec(code || '');
+      if (match) {
+        const number = Number(match[1]);
+        if (!Number.isSafeInteger(number) || number >= 2147483647) {
+          invalid('รหัสลูกค้าเกินช่วงเลขที่ระบบรองรับ กรุณาตรวจสอบรหัสเดิม');
+        }
+        floor = Math.max(floor, number);
+      }
+    }
+  }
+  const key = { docType: 'account_customer', periodKey: 'GLOBAL', prefix: 'C' };
+  await tx.documentSequence.upsert({
+    where: { docType_periodKey_prefix: key },
+    create: { ...key, lastSeq: floor }, update: {},
+  });
+  await tx.documentSequence.updateMany({
+    where: { ...key, lastSeq: { lt: floor } }, data: { lastSeq: floor },
+  });
+  const sequence = await tx.documentSequence.update({
+    where: { docType_periodKey_prefix: key },
+    data: { lastSeq: { increment: 1 } }, select: { lastSeq: true },
+  });
+  return `C${String(sequence.lastSeq).padStart(4, '0')}`;
+}
 function invalid(message, status = 400) {
   throw Object.assign(new Error(message), { status });
 }
@@ -139,4 +170,4 @@ function invoiceCustomerDefaults(customer, body) {
   };
 }
 
-module.exports = { CUSTOMER_INCLUDE, validateCustomer, validateSale, invoiceCustomerDefaults, email, taxId };
+module.exports = { generateCustomerCode, CUSTOMER_INCLUDE, validateCustomer, validateSale, invoiceCustomerDefaults, email, taxId };

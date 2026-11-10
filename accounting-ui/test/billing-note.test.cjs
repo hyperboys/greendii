@@ -6,7 +6,8 @@ const vm = require("node:vm");
 const ts = require("typescript");
 const React = require("react");
 const { renderToStaticMarkup } = require("react-dom/server");
-function load(parts, imports = {}) {
+function load(parts, imports = {}, globals = {}) {
+  imports["next/image"] = { default: ({ unoptimized, ...props }) => React.createElement("img", props) };
   Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
@@ -18,7 +19,7 @@ function load(parts, imports = {}) {
     compilerOptions: { module: ts.ModuleKind.CommonJS, jsx: ts.JsxEmit.ReactJSX }, fileName: filename,
   }).outputText;
   const module = { exports: {} };
-  vm.runInNewContext(source, { module, exports: module.exports, require: name => Object.hasOwn(imports, name) ? imports[name] : require(name) }, { filename });
+  vm.runInNewContext(source, { module, exports: module.exports, require: name => Object.hasOwn(imports, name) ? imports[name] : require(name), ...globals }, { filename });
   return module.exports;
 }
 const model = load(["lib", "billing-note.ts"]);
@@ -188,7 +189,9 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   assert.equal((html.match(/class="bi-tax-id" data-bi-fit="true"/g) || []).length, 3);
   assert.equal((html.match(/0123456789012/g) || []).length, 3);
   assert.match(html, /เลขประจำตัวผู้เสียภาษี/);
-  assert.doesNotMatch(html, /ผู้รับเงิน|RECEIPT|<img/);
+  assert.doesNotMatch(html, /ผู้รับเงิน|RECEIPT/);
+  assert.equal((html.match(/alt="โลโก้บริษัท"/g) || []).length, pages.length);
+  assert.equal((html.match(/src="\/logo.jpg"/g) || []).length, pages.length);
 });
 test("BI customer tax ID uses the saved document value and explicitly shows missing values", () => {
   const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], { "@/lib/accounting-date": dates, "@/lib/billing-note": model });
@@ -207,4 +210,78 @@ test("BI print shows whole-baht Thai words beside the final numeric total", () =
     document: { ...model.newBillingNote(), invoices: [], totalAmount: "85600.00" }, company: {},
   }));
   assert.match(html, /<td colSpan="3"><div data-bi-fit="true">แปดหมื่นห้าพันหกร้อยบาทถ้วน<\/div><\/td><td class="bi-money"><div data-bi-fit="true">85,600\.00<\/div><\/td>/);
+});
+
+test("BI fit starts at the displayed font size, shrinks only long fields and blocks overflow", async () => {
+  const field = (preferred, maximum) => ({
+    preferred, style: { fontSize: "" }, clientHeight: 20, clientWidth: 100,
+    get scrollHeight() { return parseFloat(this.style.fontSize) > maximum ? 40 : 20; },
+    scrollWidth: 100,
+  });
+  for (const overflow of [false, true]) {
+    const fields = [field(18, 18), field(12, 12), field(12, 10), field(12, overflow ? 8 : 9)];
+    let effect;
+    let error;
+    const ready = [];
+    const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], {
+      "@/lib/accounting-date": dates, "@/lib/billing-note": model,
+      react: { ...React, useEffect: callback => { effect = callback; },
+        useRef: () => ({ current: { querySelectorAll: () => fields } }),
+        useState: () => ["", value => { error = value; }] },
+    }, { document: { fonts: { ready: Promise.resolve() } },
+      getComputedStyle: element => ({ fontSize: `${element.preferred * 96 / 72}px` }) });
+    BillingNoteDocument({ document: { ...model.newBillingNote(), invoices: [], totalAmount: 0 }, company: {}, onReady: value => ready.push(value) });
+    effect();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(fields.map(item => item.style.fontSize), ["18pt", "12pt", "10pt", "9pt"]);
+    assert.deepEqual(ready, [false, !overflow]);
+    assert.equal(Boolean(error), overflow);
+  }
+});
+
+test("BI print enlarges text while keeping the A4 page and 17-row layout", () => {
+  const { BillingPrintStyles } = load(["components", "billing-note-document.tsx"], {
+    "@/lib/accounting-date": dates, "@/lib/billing-note": model,
+  });
+  const css = BillingPrintStyles({ allowed: true }).props.children;
+  assert.match(css, /#bi-print-doc \{[^}]*font-size: 12pt; line-height: 1\.2;/);
+  assert.match(css, /table\.bi-lines \{[^}]*font-size: 12pt;/);
+  assert.match(css, /\.bi-company h1 \{[^}]*font-size: 18pt;/);
+  assert.doesNotMatch(css, /font-size: 18pt !important/);
+  assert.match(css, /\.bi-paper \{ width: 210mm; height: 296mm;/);
+  assert.match(css, /\.bi-company \{[^}]*padding: 0 40mm;/);
+  assert.match(css, /\.bi-company-logo \{ position: absolute; left: 9mm; top: 14mm; width: 38mm; height: 24mm; object-fit: contain;/);
+});
+
+test("BI centers invoice numbers, dates and footer text while amounts stay right-aligned", () => {
+  const { BillingPrintStyles } = load(["components", "billing-note-document.tsx"], {
+    "@/lib/accounting-date": dates, "@/lib/billing-note": model,
+  });
+  for (const allowed of [false, true]) {
+    const css = BillingPrintStyles({ allowed }).props.children;
+    const centerRule = css.match(/([^{}]+)\{\s*text-align: center;\s*\}/g)
+      .find(rule => rule.includes("tbody td:nth-child(2)"));
+    assert.ok(centerRule);
+    for (const column of [2, 3, 5]) assert.ok(centerRule.includes(`.bi-lines tbody td:nth-child(${column})`));
+    for (const column of [1, 4, 6, 7]) assert.ok(!centerRule.includes(`tbody td:nth-child(${column})`));
+    assert.ok(centerRule.includes(".bi-lines tfoot td:not(.bi-money)"));
+    assert.match(css, /\.bi-money \{ text-align: right; \}/);
+  }
+});
+
+test("BI repeats the Sale Thai company address and requested phone without changing customer snapshots", () => {
+  const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], {
+    "@/lib/accounting-date": dates, "@/lib/billing-note": model,
+  });
+  const html = renderToStaticMarkup(React.createElement(BillingNoteDocument, {
+    document: { ...model.newBillingNote(), address: "Saved customer address", totalAmount: 0,
+      invoices: Array.from({ length: 18 }, (_, i) => ({ invoiceId: `i${i}`, billingAmount: 0 })) },
+    company: { companyName: "Configured company", address: "English company address", tel: "Old phone", taxId: "0135549009942" },
+  }));
+  assert.equal((html.match(/98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120/g) || []).length, 2);
+  assert.equal((html.match(/โทร\. 02-1507694-5/g) || []).length, 2);
+  assert.equal((html.match(/Saved customer address/g) || []).length, 2);
+  assert.equal((html.match(/เลขประจำตัวผู้เสียภาษีอากร 0135549009942/g) || []).length, 2);
+  assert.match(html, /Configured company/);
+  assert.doesNotMatch(html, /English company address|Old phone/);
 });

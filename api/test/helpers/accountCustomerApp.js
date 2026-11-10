@@ -2,7 +2,7 @@ const express = require('express');
 const jwt = require('jsonwebtoken');
 
 function createCustomerApp() {
-  let state = { customers: [], sales: [], invoices: [], audits: [] };
+  let state = { customers: [], sales: [], invoices: [], audits: [], customerSequence: null };
   let sequence = 0;
   let failAudit = false;
   const missing = () => { throw Object.assign(new Error('Not found'), { code: 'P2025' }); };
@@ -32,6 +32,20 @@ function createCustomerApp() {
   });
   const prisma = {
     $queryRawUnsafe: async () => [],
+    documentSequence: {
+      upsert: async ({ create }) => {
+        if (!state.customerSequence) state.customerSequence = structuredClone(create);
+        return structuredClone(state.customerSequence);
+      },
+      updateMany: async ({ where, data }) => {
+        if (state.customerSequence.lastSeq < where.lastSeq.lt) Object.assign(state.customerSequence, data);
+        return { count: 1 };
+      },
+      update: async () => {
+        state.customerSequence.lastSeq++;
+        return structuredClone(state.customerSequence);
+      },
+    },
     user: { findUnique: async ({ where }) => ({ id: where.id, role: where.id === 'admin' ? 'admin' : 'sales', active: true }) },
     accountingUserRole: { findUnique: async ({ where }) => ({
       role: { id: 'role', name: 'Test', permissions: where.userId === 'viewer' ? ['master.view'] : ['ar.view', 'ar.create'] },

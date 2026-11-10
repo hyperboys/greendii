@@ -65,6 +65,36 @@ test("Invoice defaults reset on customer/branch switch and use selected branch a
   assert.equal(shippingOnly.address, "");
 });
 
+test("New customer code is optional for automatic numbering while existing customer code stays required", () => {
+  let existing = false;
+  let cursor = 0;
+  const { CustomerMaster } = load(["components", "customer-master.tsx"], {
+    react: { ...React, useEffect() {}, useCallback: callback => callback, useRef: value => ({ current: value }),
+      useState: initial => {
+        const states = [[], [], false, "", "", "all", { customer: existing ? customer : undefined, readOnly: false },
+          model.customerForm(existing ? customer : undefined)];
+        return [cursor < states.length ? states[cursor++] : typeof initial === "function" ? initial() : initial, () => {}];
+      } },
+    "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+    "next/navigation": { useRouter: () => ({ push() {} }) },
+    "@/lib/api": {}, "@/lib/account-customers": model, "@/lib/master-data": {},
+    "@/components/master-record-tools": { MasterRecordTools: () => null, MasterPagination: () => null },
+    "@/components/accounting-access-provider": { useAccountingAccess: () => ({}) },
+    "@/lib/accounting-access": { canUseAccounting: () => true },
+  });
+  const render = () => {
+    cursor = 0;
+    return renderToStaticMarkup(React.createElement(CustomerMaster, { mode: existing ? "edit" : "new" }));
+  };
+  const html = render();
+  assert.match(html, /รหัสลูกค้า \(อัตโนมัติ\)<input(?! required)/);
+  assert.match(html, /เว้นว่างเพื่อรันรหัสอัตโนมัติ เช่น C0001/);
+  assert.match(html, /หรือกรอกรหัสเองได้/);
+  existing = true;
+  assert.match(render(), /รหัสลูกค้า \*<input required=""/);
+  assert.doesNotMatch(render(), /เว้นว่างเพื่อรันรหัสอัตโนมัติ/);
+});
+
 test("Invoice VAT and due date respect no-VAT and immediate payment including month boundaries", () => {
   const noVat = model.invoiceAmounts([{ qty: 2, unitPrice: 100 }], "NO_VAT");
   assert.equal(noVat.vat, 0);
