@@ -153,6 +153,29 @@ test('PR Type viewers have per-person, read-only access across the approval flow
     assert.equal((await request('/pr', 'inactive')).status, 401);
   });
 
+  await t.test('creator filter combines with access, search, status and pagination', async () => {
+    fixture.docs.push(
+      { ...fixture.docs[0], id: 'other-creator', salesId: 'other' },
+      { ...fixture.docs[0], id: 'hidden-creator', salesId: 'admin', prTypeId: 'type-b' },
+    );
+    try {
+      for (const user of ['viewer', 'admin']) {
+        const page = await json(await request('/pr?salesId=owner&status=pending&q=Type%20A&page=2&pageSize=1', user));
+        assert.equal(page.total, 2);
+        assert.equal(page.totalPages, 2);
+        assert.deepEqual(page.data.map(doc => doc.id), ['later-stage']);
+        const filtered = await json(await request('/pr?salesId=other', user));
+        assert.deepEqual(filtered.map(doc => doc.id), ['other-creator']);
+        assert.deepEqual(await json(await request('/pr?salesId=missing', user)), []);
+      }
+      assert.deepEqual(await json(await request('/pr?salesId=admin', 'viewer')), []);
+      assert.deepEqual(await json(await request('/pr?salesId=other', 'owner')), []);
+      assert.deepEqual((await json(await request('/pr?salesId=admin', 'admin'))).map(doc => doc.id), ['hidden-creator']);
+    } finally {
+      fixture.docs.splice(-2);
+    }
+  });
+
   await t.test('detail and PDF allow the named viewer only, not another user with the same role', async () => {
     for (const id of ['draft', 'pending', 'approved', 'rejected', 'cancelled', 'later-stage', 'old-revision']) {
       assert.equal((await request(`/pr/${id}`)).status, 200);

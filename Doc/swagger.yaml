@@ -540,6 +540,11 @@ paths:
     get:
       tags: [PurchaseRequest]
       summary: List purchase requests
+      parameters:
+        - in: query
+          name: salesId
+          description: Filter by creator user ID within the current user's accessible purchase requests.
+          schema: { type: string }
       responses:
         "200": { description: List }
     post:

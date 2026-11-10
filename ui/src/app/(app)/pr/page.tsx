@@ -13,7 +13,7 @@ import ListPager from '@/components/ListPager'
 import { armPersistentListState, usePersistentListState } from '@/lib/persistentListState'
 
 const PAGE_LIMIT = 20
-const PR_LIST_DEFAULTS = { filters: { search: '', statusFilter: '' }, pagination: { page: 1, pageSize: PAGE_LIMIT }, sorting: {}, selectedTab: null, scrollPosition: 0, shouldRestore: true }
+const PR_LIST_DEFAULTS = { filters: { search: '', statusFilter: '', salesFilter: '' }, pagination: { page: 1, pageSize: PAGE_LIMIT }, sorting: {}, selectedTab: null, scrollPosition: 0, shouldRestore: true }
 
 const STATUS_COLORS: Record<DocStatus, string> = {
   draft: 'badge-draft', pending: 'badge-pending', approved: 'badge-approved',
@@ -40,16 +40,20 @@ export default function PRPage() {
   const { state: listState, setState: setListState, hydrated, clear: clearListState } = usePersistentListState('purchase-requests', PR_LIST_DEFAULTS)
   const search = listState.filters.search
   const statusFilter = listState.filters.statusFilter
+  const salesFilter = listState.filters.salesFilter ?? ''
   const page = listState.pagination.page
   const setSearch = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, search: value } }))
   const setStatusFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, statusFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const setSalesFilter = (value: string) => setListState(prev => ({ ...prev, filters: { ...prev.filters, salesFilter: value }, pagination: { ...prev.pagination, page: 1 } }))
+  const [creatorOptions, setCreatorOptions] = useState<Array<{ id: string; name: string }>>([])
   const [totalPages, setTotalPages] = useState(1)
 
-  const load = (nextPage = 1, filters = { search, statusFilter }) => {
+  const load = (nextPage = 1, filters = { search, statusFilter, salesFilter }) => {
     setLoading(true)
     const params: Record<string, string> = {}
     if (filters.search) params.q = filters.search
     if (filters.statusFilter) params.status = filters.statusFilter
+    if (filters.salesFilter) params.salesId = filters.salesFilter
     params.page = String(nextPage)
     params.pageSize = String(PAGE_LIMIT)
     PRAPI.listPage(params)
@@ -62,7 +66,25 @@ export default function PRPage() {
       .finally(() => setLoading(false))
   }
 
-  useEffect(() => { if (hydrated) load(listState.pagination.page) }, [hydrated, statusFilter])
+  useEffect(() => {
+    if (!user?.id) return
+    let cancelled = false
+    setCreatorOptions([])
+    PRAPI.list()
+      .then(data => {
+        if (cancelled) return
+        const creators = new Map<string, string>()
+        for (const row of data) {
+          creators.set(row.salesId, row.sales?.fullName || row.salesId)
+        }
+        setCreatorOptions(Array.from(creators, ([id, name]) => ({ id, name }))
+          .sort((a, b) => a.name.localeCompare(b.name, 'th')))
+      })
+      .catch(() => { if (!cancelled) toast.error('โหลดรายชื่อผู้สร้าง PR ไม่สำเร็จ') })
+    return () => { cancelled = true }
+  }, [user?.id])
+
+  useEffect(() => { if (hydrated) load(listState.pagination.page) }, [hydrated, statusFilter, salesFilter])
 
   const canCreate = hasPerm('pr_create', user?.role ?? '')
 
@@ -90,8 +112,12 @@ export default function PRPage() {
           <option value="">ทุกสถานะ</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        <select className="form-input w-auto py-1.5" aria-label="ผู้สร้าง PR" value={salesFilter} onChange={e => setSalesFilter(e.target.value)}>
+          <option value="">ผู้สร้างทั้งหมด</option>
+          {creatorOptions.map(creator => <option key={creator.id} value={creator.id}>{creator.name}</option>)}
+        </select>
         <button className="btn-outline btn-sm" onClick={() => load(1)}><RefreshCw size={14} /> ค้นหา</button>
-        <button className="btn-outline btn-sm" onClick={() => { clearListState(); load(1, { search: '', statusFilter: '' }) }}>ล้าง</button>
+        <button className="btn-outline btn-sm" onClick={() => { clearListState(); load(1, { search: '', statusFilter: '', salesFilter: '' }) }}>ล้าง</button>
       </div>
 
       <div className="card overflow-x-auto">

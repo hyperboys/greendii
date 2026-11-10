@@ -308,7 +308,7 @@ async function assertPrCurrentApprover(req, pr) {
 // GET /api/pr
 router.get('/', authenticate, async (req, res, next) => {
   try {
-    const { status, q, active } = req.query;
+    const { status, q, active, salesId } = req.query;
     const canBypass = await canBypassDocApproval('pr', req.user.role);
     const { stepRole } = canBypass ? { stepRole: null } : await getStepRoleMapping();
     const approverSteps = stepRole
@@ -319,6 +319,7 @@ router.get('/', authenticate, async (req, res, next) => {
       : [];
     const andWhere = [buildPrAccessWhere(req.user, canBypass, approverSteps)];
     if (status) andWhere.push({ status });
+    if (salesId) andWhere.push({ salesId });
     if (active !== undefined) andWhere.push({ active: active === 'true' });
     else andWhere.push({ active: true });
     if (q) {
