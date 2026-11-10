@@ -16,6 +16,7 @@ import type {
 } from "./accounting-purchase-orders";
 
 const TOKEN_KEY = "gd_token";
+const pendingReads = new Map<string, Promise<unknown>>();
 
 export function getAuthHeaders(): HeadersInit {
   const token = typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
@@ -26,10 +27,31 @@ export function getAuthHeaders(): HeadersInit {
 }
 
 export async function apiFetch<T = any>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const headers = getAuthHeaders();
+  // Share only identical default reads in flight, never settled data or custom requests.
+  const shared = typeof window !== "undefined" && Object.keys(options).length === 0;
+  const key = JSON.stringify([endpoint, headers]);
+  if (shared) {
+    const pending = pendingReads.get(key);
+    if (pending) return pending as Promise<T>;
+  }
+  const writing = !["GET", "HEAD"].includes((options.method || "GET").toUpperCase());
+  if (writing) pendingReads.clear();
+  const request = fetchApi<T>(endpoint, options, headers);
+  if (shared) pendingReads.set(key, request);
+  const cleanup = () => {
+    if (writing) pendingReads.clear();
+    else if (shared && pendingReads.get(key) === request) pendingReads.delete(key);
+  };
+  void request.then(cleanup, cleanup);
+  return request;
+}
+
+async function fetchApi<T>(endpoint: string, options: RequestInit, headers: HeadersInit): Promise<T> {
   const res = await fetch(endpoint, {
     ...options,
     headers: {
-      ...getAuthHeaders(),
+      ...headers,
       ...(options.headers || {}),
     },
   });

@@ -62,13 +62,15 @@ export function BillingNotes({ mode = "list", recordId }: { mode?: "list" | "new
         if (current) setRows(result);
         return;
       }
-      const document = recordId ? await ArApi.getBillingNote(recordId) : null;
+      const [document, cs] = await Promise.all([
+        recordId ? ArApi.getBillingNote(recordId) : Promise.resolve(null),
+        isForm ? AccountingLookupApi.getCustomers() : Promise.resolve([]),
+      ]);
+      if (!current) return;
       if (isForm) {
-        const cs = await AccountingLookupApi.getCustomers();
-        if (!current) return;
         setCustomers(cs); setForm(document ? billingForm(document) : newBillingNote());
       }
-      if (current) setDoc(document);
+      setDoc(document);
     }
     load().catch(error => { if (current) setLoadError(message(error)); }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };

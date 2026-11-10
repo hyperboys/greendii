@@ -64,12 +64,15 @@ export function ReceiptVouchers({ mode = "list", recordId }: { mode?: "list" | "
     setLoading(true); setLoadError(""); setError(""); setAction(null); setFiles([]);
     async function load() {
       if (mode === "list") { const result = await ArApi.getReceiptVouchers(query); if (current) setRows(result); return; }
-      const document = recordId ? await ArApi.getReceiptVoucher(recordId) : null;
+      const [document, cs] = await Promise.all([
+        recordId ? ArApi.getReceiptVoucher(recordId) : Promise.resolve(null),
+        isForm ? AccountingLookupApi.getCustomers() : Promise.resolve([]),
+      ]);
+      if (!current) return;
       if (isForm) {
-        const cs = await AccountingLookupApi.getCustomers();
-        if (current) { setCustomers(cs); setForm(document ? receiptForm(document) : newReceipt()); }
+        setCustomers(cs); setForm(document ? receiptForm(document) : newReceipt());
       }
-      if (current) setDoc(document);
+      setDoc(document);
     }
     load().catch(error => { if (current) setLoadError(message(error)); }).finally(() => { if (current) setLoading(false); });
     return () => { current = false; };

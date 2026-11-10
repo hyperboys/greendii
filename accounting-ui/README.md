@@ -24,6 +24,19 @@ separate from the production `.next` output, matching the Sales UI's approach.
 Tailwind 3 uses `tailwind.config.ts` and the Tailwind/PostCSS/autoprefixer plugins.
 The theme retains Accounting's existing dimensions and control typography.
 
+## Data loading
+
+The browser API client shares identical default GET requests only while they are
+in flight, scoped to the endpoint (including query parameters) and authentication
+headers. Responses are not cached after completion; later navigation or refresh
+fetches fresh data. Custom requests (including abort signals) remain independent.
+Writes are never shared and clear pending read entries on start and completion,
+including failures, so reloads do not join reads started before a save.
+
+Billing note and receipt voucher forms load the document and customer choices
+concurrently. View/list pages do not load these form-only choices, and failed or
+cancelled loads do not apply partially loaded document data.
+
 ## Date entry
 
 ### Document viewing and printing

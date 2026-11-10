@@ -69,7 +69,8 @@ function mount(component, props, api) {
     }, { filename });
     return module.exports;
   }
-  const filename = component === "PurchaseOrders" ? "purchase-orders.tsx" : "invoices.tsx";
+  const filename = { PurchaseOrders: "purchase-orders.tsx", Invoices: "invoices.tsx",
+    BillingNotes: "billing-notes.tsx", ReceiptVouchers: "receipt-vouchers.tsx" }[component];
   load(path.join(__dirname, "..", "src", "components", filename))[component](props);
   const cleanup = effects[0]();
   return { states, cleanup };
@@ -85,7 +86,9 @@ function requests() {
     calls, pending,
     api: {
       ApApi: { getPurchaseOrder: () => request("po"), getPurchaseOrders: () => request("po-list") },
-      ArApi: { getInvoice: () => request("invoice"), getInvoices: () => request("invoice-list") },
+      ArApi: { getInvoice: () => request("invoice"), getInvoices: () => request("invoice-list"),
+        getBillingNote: () => request("billing"), getBillingNotes: () => request("billing-list"),
+        getReceiptVoucher: () => request("receipt"), getReceiptVouchers: () => request("receipt-list") },
       AccountingLookupApi: {
         getSuppliers: () => request("suppliers"), getCustomers: () => request("customers"),
         getProducts: () => request("products"),
@@ -134,6 +137,46 @@ test("Invoice edit starts document/customers/products together and ignores resul
     await flush();
     assert.equal(states.includes(doc), !cancelled);
     assert.equal(states[INVOICE_LOADING], cancelled, "only mounted pages finish their loading state");
+  }
+});
+
+test("BI/RV edit loads document and customers concurrently without applying partial or unmounted data", async () => {
+  for (const [component, requestName] of [["BillingNotes", "billing"], ["ReceiptVouchers", "receipt"]]) {
+    for (const cancelled of [false, true]) {
+      const { calls, pending, api } = requests();
+      const { states, cleanup } = mount(component, { mode: "edit", recordId: "doc-1" }, api);
+      assert.deepEqual(calls, [requestName, "customers"]);
+      const doc = { id: "doc-1", status: "draft", invoices: [], allocations: [],
+        billingDate: "2026-11-10", receiptDate: "2026-11-10" };
+      pending[requestName].resolve(doc);
+      await flush();
+      assert.equal(states.includes(doc), false);
+      if (cancelled) cleanup();
+      pending.customers.resolve([]);
+      await flush();
+      assert.equal(states.includes(doc), !cancelled);
+    }
+    const { calls, pending, api } = requests();
+    const { states } = mount(component, { mode: "view", recordId: "doc-1" }, api);
+    assert.deepEqual(calls, [requestName]);
+    pending[requestName].reject(new Error("Document unavailable"));
+    await flush();
+    assert.ok(states.includes("Document unavailable"));
+    for (const mode of ["new", "list"]) {
+      const { calls, pending, api } = requests();
+      mount(component, { mode }, api);
+      assert.deepEqual(calls, mode === "new" ? ["customers"] : [`${requestName}-list`]);
+      Object.values(pending).forEach(request => request.resolve([]));
+      await flush();
+    }
+    {
+      const { pending, api } = requests();
+      const { states } = mount(component, { mode: "edit", recordId: "doc-1" }, api);
+      pending.customers.reject(new Error("Customers unavailable"));
+      pending[requestName].resolve({});
+      await flush();
+      assert.ok(states.includes("Customers unavailable"));
+    }
   }
 });
 
