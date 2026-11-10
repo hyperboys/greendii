@@ -92,6 +92,12 @@ export const createEmptyWorkOrderItem = (seq: number): WorkOrderItem => ({
   images: [],
 })
 
+export function insertWorkOrderItem(items: WorkOrderItem[], index: number): WorkOrderItem[] {
+  const nextItems = [...items]
+  nextItems.splice(index, 0, createEmptyWorkOrderItem(index))
+  return nextItems.map((item, seq) => ({ ...item, seq }))
+}
+
 function normalizeDetailRows(
   rows?: WorkOrderDetailRow[] | null,
   options?: { keepEmpty?: boolean; trimText?: boolean },

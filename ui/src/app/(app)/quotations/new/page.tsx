@@ -299,6 +299,21 @@ export default function NewQuotationPage() {
     setActiveItemIdx(form.items.length)
   }
 
+  const insertItemAfter = (idx: number) => {
+    const insertIdx = idx + 1
+    setForm(f => {
+      const items = [...f.items]
+      items.splice(insertIdx, 0, emptyItem())
+      return { ...f, items }
+    })
+    setItemUi(prev => [
+      ...prev.slice(0, insertIdx),
+      { showNote: false, showDetails: false, sectionOrder: [] },
+      ...prev.slice(insertIdx),
+    ])
+    setActiveItemIdx(insertIdx)
+  }
+
   const removeItem = (idx: number) => {
     setForm(f => ({ ...f, items: f.items.filter((_, i) => i !== idx) }))
     setItemUi(prev => prev.filter((_, i) => i !== idx))
@@ -626,7 +641,20 @@ export default function NewQuotationPage() {
                   return (
                   <Fragment key={i}>
                     <tr className={`border-t align-top ${activeItemIdx === i ? 'border-green-400 bg-green-50/40' : 'border-gray-100'}`}>
-                      <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">{i + 1}</td>
+                      <td className="py-2.5 px-2 text-gray-400 text-xs pt-3.5">
+                        <div className="flex flex-col items-center gap-1">
+                          <span>{i + 1}</span>
+                          <button
+                            type="button"
+                            className="p-0.5 text-gray-400 transition-colors hover:text-green-700"
+                            onClick={() => insertItemAfter(i)}
+                            title={`แทรกรายการถัดจากรายการที่ ${i + 1}`}
+                            aria-label={`แทรกรายการถัดจากรายการที่ ${i + 1}`}
+                          >
+                            <Plus size={13} />
+                          </button>
+                        </div>
+                      </td>
                       <td className="py-2 px-2">
                         <div className="flex items-start gap-2">
                           <input className="form-input py-1 w-full" value={parseColoredLine(item.desc).text} required
@@ -1277,5 +1305,4 @@ export default function NewQuotationPage() {
     </form>
   )
 }
-
 

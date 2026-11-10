@@ -8,6 +8,7 @@ import { parseColoredLine, stringifyColoredLine } from '@/lib/coloredText'
 import type { Unit, WorkOrderItem } from '@/types'
 import {
   createEmptyWorkOrderItem,
+  insertWorkOrderItem,
   parseWorkOrderColoredNoteBlocks,
   parseWorkOrderDetailBeforeNote,
   parseWorkOrderNoteBlocks,
@@ -209,6 +210,12 @@ export default function WorkOrderItemsEditor({
 
   const addItem = () => {
     onChange([...items, createEmptyWorkOrderItem(items.length)])
+  }
+
+  const insertItemAfter = (index: number) => {
+    const insertIndex = index + 1
+    onChange(insertWorkOrderItem(items, insertIndex))
+    setActiveItemIdx(insertIndex)
   }
 
   const removeItem = (index: number) => {
@@ -593,6 +600,15 @@ export default function WorkOrderItemsEditor({
                             title="ย้ายรายการนี้ลง"
                           >
                             <ChevronDown size={13} />
+                          </button>
+                          <button
+                            type="button"
+                            className="p-0.5 text-gray-400 transition-colors hover:text-green-700"
+                            onClick={() => insertItemAfter(index)}
+                            title={`แทรกรายการถัดจากรายการที่ ${index + 1}`}
+                            aria-label={`แทรกรายการถัดจากรายการที่ ${index + 1}`}
+                          >
+                            <Plus size={13} />
                           </button>
                         </div>
                       </div>

@@ -151,3 +151,26 @@ test('legacy items without metadata retain their detail lines', () => {
   assert.deepEqual(previewRows, ['Detail one', 'Detail two'])
   assert.equal(items.parseWorkOrderDetailBeforeNote(saved.note), false)
 })
+
+test('inserting a work order item keeps the selected position and resequences saved items', () => {
+  const original = Array.from({ length: 20 }, (_, index) => ({
+    ...items.createEmptyWorkOrderItem(index),
+    desc: `Item ${index + 1}`,
+  }))
+
+  const inserted = items.insertWorkOrderItem(original, 16)
+  inserted[16] = { ...inserted[16], desc: 'Inserted item' }
+
+  assert.equal(inserted[16].desc, 'Inserted item')
+  assert.equal(inserted[17].desc, 'Item 17')
+  assert.equal(inserted[20].desc, 'Item 20')
+  assert.equal(original.length, 20)
+
+  const saved = items.normalizeWorkOrderItems(inserted)
+  assert.equal(saved[16].desc, 'Inserted item')
+  assert.equal(saved[16].seq, 16)
+  assert.equal(saved[17].desc, 'Item 17')
+  assert.equal(saved[17].seq, 17)
+  assert.equal(saved[20].desc, 'Item 20')
+  assert.equal(saved[20].seq, 20)
+})
