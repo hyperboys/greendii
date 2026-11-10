@@ -44,5 +44,5 @@ test("Invoice uses Calibri with comparable Thai fallbacks without changing other
   assert.ok(invoice.includes("text-[12pt]"));
   assert.ok(invoice.includes("document.fonts.ready"));
   assert.ok(invoice.includes("let size = 12;"));
-  assert.ok(invoice.includes('top: "46mm"'));
+  assert.ok(invoice.includes('top: "30mm"'));
 });

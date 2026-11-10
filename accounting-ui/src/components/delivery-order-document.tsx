@@ -9,8 +9,9 @@ function wrapText(value: string, width: number) {
   });
 }
 
-export function deliveryOrderPrintPages(items: DeliveryOrderLine[], charsPerLine = 27, lineHeight = 17) {
+export function deliveryOrderPrintPages(items: DeliveryOrderLine[], charsPerLine = 27, lineHeight = 17, pageHeight = 430) {
   const pages: { item: DeliveryOrderLine; height: number; continuation: boolean }[][] = [[]];
+  const linesPerChunk = Math.min(20, Math.floor((pageHeight - 6) / lineHeight));
   let used = 0;
   for (const item of items) {
     const description = wrapText(`${item.desc}${item.remark ? `\n${item.remark}` : ""}`, charsPerLine);
@@ -18,11 +19,11 @@ export function deliveryOrderPrintPages(items: DeliveryOrderLine[], charsPerLine
     const unit = wrapText(item.unit || "", 6);
     const lines = Math.max(description.length, code.length, unit.length);
     // Split oversized descriptions without repeating quantities or monetary amounts.
-    for (let offset = 0; offset < lines; offset += 20) {
-      const height = Math.max(24, Math.min(20, lines - offset) * lineHeight + 6);
-      if (used + height > 430 && pages[pages.length - 1].length) { pages.push([]); used = 0; }
+    for (let offset = 0; offset < lines; offset += linesPerChunk) {
+      const height = Math.max(24, Math.min(linesPerChunk, lines - offset) * lineHeight + 6);
+      if (used + height > pageHeight && pages[pages.length - 1].length) { pages.push([]); used = 0; }
       pages[pages.length - 1].push({
-        item: { ...item, desc: description.slice(offset, offset + 20).join("\n"), remark: "", partNo: code.slice(offset, offset + 20).join("\n"), unit: unit.slice(offset, offset + 20).join("\n"), product: null },
+        item: { ...item, desc: description.slice(offset, offset + linesPerChunk).join("\n"), remark: "", partNo: code.slice(offset, offset + linesPerChunk).join("\n"), unit: unit.slice(offset, offset + linesPerChunk).join("\n"), product: null },
         height, continuation: offset > 0,
       });
       used += height;

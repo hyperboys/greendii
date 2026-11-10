@@ -25,6 +25,12 @@ const delivery = load(["lib", "delivery-order.ts"]);
 const dates = load(["lib", "accounting-date.ts"]);
 const invoices = load(["lib", "invoice.ts"], { "./delivery-order": delivery });
 const documentItems = load(["components", "document-items.tsx"], { "@/lib/delivery-order": delivery });
+const deliveryPrint = load(["components", "delivery-order-document.tsx"], { "@/lib/accounting-date": dates, "@/lib/delivery-order": delivery });
+const invoicePrint = load(["components", "invoice-document.tsx"], {
+  "@/lib/accounting-date": dates, "@/lib/invoice": invoices,
+  "@/lib/billing-note": load(["lib", "billing-note.ts"]),
+  "@/components/delivery-order-document": deliveryPrint,
+});
 
 test("Invoice routes support full-page new/view/edit and reject invalid URLs", () => {
   const Page = load(["app", "ar", "invoices", "[...record]", "page.tsx"], {
@@ -174,10 +180,7 @@ test("Invoice hydration preserves snapshots, line discounts and Legacy nullable 
 });
 
 test("Invoice overlay prints data only, omits preprinted labels/payment/signatures and paginates without repeating totals", () => {
-  const { InvoiceDocument } = load(["components", "invoice-document.tsx"], {
-    "@/lib/accounting-date": dates, "@/lib/invoice": invoices,
-    "@/components/delivery-order-document": load(["components", "delivery-order-document.tsx"], { "@/lib/accounting-date": dates, "@/lib/delivery-order": delivery }),
-  });
+  const { InvoiceDocument } = invoicePrint;
   const doc = {
     ...invoices.newInvoice(), id: "iv", ivNo: "IV-TEST", status: "approved", lifecycleVersion: 1,
     customerName: "Snapshot Customer", customerCode: "C001", address: "Snapshot Billing", taxId: "123",
@@ -190,11 +193,72 @@ test("Invoice overlay prints data only, omits preprinted labels/payment/signatur
   assert.match(html, /Snapshot Customer/);
   assert.match(html, /IV-TEST/);
   assert.match(html, /TAX ID: 123/);
-  assert.match(html, /เครดิต 0 วัน/);
-  assert.match(html, /grid-cols-\[18mm_84mm_24mm_24mm_18mm_22mm\]/);
+  assert.match(html, /0　วัน/);
+  assert.match(html, /class="iv-items"/);
   assert.match(html, /text-\[12pt\]/);
-  assert.match(html, /class="iv-value text-center"/);
   assert.match(html, /TAX ID: 123/);
   assert.doesNotMatch(html, /<table|<img|<svg|RECEIPT|ผู้รับเงิน|Paid by|<h1|ใบเสร็จ/);
-  assert.match(html, /top-\[82mm\]/);
+  assert.match(html, /หนึ่งร้อยสามสิบสองบาทเก้าสตางค์/);
+  assert.equal((html.match(/7%/g) || []).length, 1);
+  assert.equal((html.match(/>pcs<\/div>/g) || []).length, 80);
+  assert.doesNotMatch(html, /\(pcs\)/);
+});
+
+test("Invoice data-only coordinates follow the reference PDF header, seven item columns and final totals", () => {
+  const doc = {
+    ...invoices.newInvoice(), ivDate: "2026-11-10", ivNo: "IV-REFERENCE",
+    customerCode: "T027", customerName: "Reference Customer", customerBranch: "สำนักงานใหญ่",
+    taxId: "1234567890123", address: "Address line one\nAddress line two", customerPoNo: "PO-REFERENCE",
+    responsibleSaleName: "Salesperson", creditTerm: 30, dueDate: "2026-12-10",
+    subTotal: 54500, vat: 3815, netAmount: 58315,
+    items: [
+      { partNo: "P-002", desc: "Certify cleanroom performance\nParticle count test\nAirflow velocity test\nTemperature test\nRelative test\nDifferential pressure test\nScan leak test hepa", qty: 1, unit: "Lot", unitPrice: 49000, lineDiscount: 0, amount: 49000 },
+      { partNo: "P-002", desc: "Before Certification, Cleanroom system\nshould be operating for about 12-24 hrs.", qty: 1, unit: "Lot", unitPrice: 5500, lineDiscount: 0, amount: 5500 },
+    ],
+  };
+  const html = renderToStaticMarkup(React.createElement(invoicePrint.InvoiceDocument, { document: doc }));
+  for (const [left, top, value] of [
+    ["27.5", "24.5", "T027"], ["27.5", "30", "Reference Customer"],
+    ["58.5", "24.5", "TAX ID: 1234567890123"], ["98.5", "24.5", "สาขา สำนักงานใหญ่"],
+    ["29.5", "48", "PO-REFERENCE"], ["153", "24.5", "10/11/2026"],
+    ["153", "30", "IV-REFERENCE"], ["153", "35.5", "Salesperson"],
+    ["153", "41", "30　วัน"], ["153", "46.5", "10/12/2026"],
+    ["170.5", "201", "54,500.00"], ["160.5", "208.5", "7%"],
+    ["170.5", "208.5", "3,815.00"], ["170.5", "219", "58,315.00"],
+  ]) {
+    assert.ok(html.includes(`style="left:${left}mm;top:${top}mm;`) && html.includes(`>${value}</div>`), `${value} at ${left},${top}mm`);
+    assert.ok(new RegExp(`style="left:${left}mm;top:${top}mm;[^"]*">${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</div>`).test(html));
+  }
+  assert.equal((html.match(/class="iv-overlay/g) || []).length, 1);
+  assert.equal((html.match(/>1\.00<\/div>/g) || []).length, 2);
+  assert.equal((html.match(/>Lot<\/div>/g) || []).length, 2);
+  assert.match(html, /ห้าหมื่นแปดพันสามร้อยสิบห้าบาทถ้วน/);
+  assert.doesNotMatch(html, /Reference Customer สำนักงานใหญ่|\(Lot\)|>0\.00<\/div>|1\/1/);
+  const styles = invoicePrint.InvoicePrintStyles({ allowed: true }).props.children;
+  assert.match(styles, /left: 8\.5mm; top: 68\.5mm; width: 185mm/);
+  assert.match(styles, /grid-template-columns: 22mm 74\.5mm 7mm 11\.5mm 25mm 22mm 23mm/);
+  assert.match(styles, /\.iv-number \{ white-space: nowrap; \}/);
+  assert.match(styles, /\.iv-unit \{ padding-left: 3\.5mm; \}/);
+  assert.match(styles, /@page \{ size: A4 portrait; margin: 0; \}/);
+});
+
+test("Invoice pagination reserves footer space and prints long descriptions, units and amounts once", () => {
+  const desc = Array.from({ length: 60 }, (_, i) => `Description ${i + 1}`).join("\n");
+  const items = [{ ...delivery.newDeliveryOrderLine(), partNo: "LONG", desc, unit: "Lot", qty: 1, unitPrice: 1234.56, discount: 0, amount: 1234.56 }];
+  const pages = deliveryPrint.deliveryOrderPrintPages(items, 40, 24, 450);
+  assert.ok(pages.length > 1);
+  for (const page of pages) assert.ok(page.reduce((sum, row) => sum + row.height, 0) <= 450);
+  assert.equal(pages.flat().map(row => row.item.desc).join("\n"), desc);
+  assert.equal(pages.flat().filter(row => !row.continuation).length, 1);
+  const doc = {
+    ...invoices.newInvoice(), ivNo: "IV-LONG", dueDate: "2026-11-10",
+    subTotal: 1234.56, discount: 34.56, vatConfig: "NO_VAT", vat: 0, netAmount: 1200,
+    items: items.map(item => ({ ...item, lineDiscount: item.discount })),
+  };
+  const html = renderToStaticMarkup(React.createElement(invoicePrint.InvoiceDocument, { document: doc }));
+  assert.equal((html.match(/1,234\.56/g) || []).length, 2, "one unit price and one amount, not repeated on continuation pages");
+  assert.equal((html.match(/>Lot<\/div>/g) || []).length, 1);
+  assert.equal((html.match(/ส่วนลดท้ายเอกสาร 34\.56 บาท/g) || []).length, 1);
+  assert.equal((html.match(/>1,200\.00<\/div>/g) || []).length, 2, "final subtotal and net only");
+  assert.doesNotMatch(html, />7%<\/div>/);
 });

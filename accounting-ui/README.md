@@ -70,6 +70,22 @@ and may continue onto additional pages. Blank rows shrink in print so they do
 not push signatures to another page. Print on A4 at 100% scale with browser
 headers and footers disabled.
 
+### Invoice preprinted layout
+
+Invoice prints data only on A4, with coordinates aligned to the supplied
+`20261109160056176.pdf` reference. Customer details start at 27.5mm from the
+left and 24.5mm from the top; document details start at 153mm from the left.
+Customer branch is separate from the name, beside the tax ID. Item rows start
+at 68.5mm with separate code, description, quantity, unit, price, discount and
+amount columns. Zero line discounts are blank. Descriptions continue onto
+additional pages without repeating quantities or amounts; totals, VAT rate
+and Thai amount text appear only on the final page.
+
+Print at 100% scale with browser headers/footers disabled and no additional
+margins. No stationery background, borders, titles or signatures are added.
+Existing date formatting (Gregorian years), installed Calibri/Thai fallback
+fonts, approval rules and saved amounts are unchanged.
+
 ### Printed document fonts
 
 Accounting uses the same local font assets as Sale: Cordia New regular/bold
@@ -82,8 +98,8 @@ instead of mixing Century Gothic English with Cordia New Thai. Calibri/Tahoma
 are not bundled; appearance can vary with the installed fonts.
 Document previews and printed output share the same font;
 the normal Accounting screen UI retains Public Sans/Noto Sans Thai.
-Existing font sizes, page dimensions and preprinted Invoice coordinates are
-unchanged. Recalibrate on the actual printer at 100% scale after changing fonts;
+Font sizes and page dimensions are unchanged; Invoice coordinates follow the
+reference described above. Recalibrate on the actual printer at 100% scale after changing fonts;
 Invoice remains data-only, without added signatures or form labels.
 
 Editable dates across AR, AP and Stock use the shared calendar picker. Focus the

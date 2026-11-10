@@ -1,12 +1,13 @@
 import { formatAccountingDate } from "@/lib/accounting-date";
 import { invoiceForm, type Invoice } from "@/lib/invoice";
+import { billingAmountText } from "@/lib/billing-note";
 import { deliveryOrderPrintPages } from "@/components/delivery-order-document";
 import { useEffect, useRef, useState } from "react";
 
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
 export function InvoiceDocument({ document: doc, onReady }: { document: Invoice; onReady?: (ready: boolean) => void }) {
-  const pages = deliveryOrderPrintPages(invoiceForm(doc).items.map(item => ({ ...item, desc: `${item.desc}${item.unit ? `\n(${item.unit})` : ""}`, unit: "" })), 27, 20);
+  const pages = deliveryOrderPrintPages(invoiceForm(doc).items, 40, 24, 450);
   const root = useRef<HTMLDivElement>(null);
   const [fitError, setFitError] = useState(false);
   useEffect(() => {
@@ -29,35 +30,39 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
     });
     return () => { current = false; };
   }, [doc, onReady]);
-  return <><p className={`iv-no-print rounded bg-red-50 p-3 text-red-700 ${fitError ? "" : "hidden"}`} role={fitError ? "alert" : undefined}>ข้อมูลหัวเอกสารยาวเกินพื้นที่แบบฟอร์ม กรุณาปรับข้อมูลก่อนพิมพ์ ไม่มีการตัดข้อความเพื่อซ่อนข้อมูล</p><div ref={root} id="iv-print-doc" className="mx-auto w-[210mm] text-black">
+  return <><p className={`iv-no-print rounded bg-red-50 p-3 text-red-700 ${fitError ? "" : "hidden"}`} role={fitError ? "alert" : undefined}>ข้อมูลยาวเกินพื้นที่แบบฟอร์ม กรุณาปรับข้อมูลก่อนพิมพ์ ไม่มีการตัดข้อความเพื่อซ่อนข้อมูล</p><div ref={root} id="iv-print-doc" className="mx-auto w-[210mm] text-black">
     {pages.map((rows, pageIndex) => <article key={pageIndex} className="iv-overlay relative h-[297mm] w-[210mm] bg-white text-[12pt] leading-tight">
-      <div data-print-fit className="iv-value" style={{ left: "32mm", top: "41mm", width: "94mm", height: "4mm" }}>{doc.customerCode || doc.customer?.code}</div>
-      <div data-print-fit className="iv-value" style={{ left: "32mm", top: "46mm", width: "94mm", height: "4mm" }}>{doc.customerName || doc.customer?.name} {doc.customerBranch ? `(${doc.customerBranch})` : ""}</div>
-      <div data-print-fit className="iv-value" style={{ left: "23mm", top: "51mm", width: "103mm", height: "10mm" }}>{doc.address}</div>
-      <div data-print-fit className="iv-value text-center" style={{ left: "73mm", top: "41mm", width: "53mm", height: "4mm" }}>{doc.taxId ? `TAX ID: ${doc.taxId}` : ""}</div>
-      <div data-print-fit className="iv-value" style={{ left: "29mm", top: "62mm", width: "97mm", height: "4mm" }}>{doc.remark}</div>
-      <div data-print-fit className="iv-value" style={{ left: "31mm", top: "67mm", width: "95mm", height: "4mm" }}>{doc.customerPoNo}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "40mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.ivDate)}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "45mm", width: "45mm", height: "4mm" }}>{doc.ivNo}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "50mm", width: "45mm", height: "4mm" }}>{doc.responsibleSaleName}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "60mm", width: "45mm", height: "4mm" }}>{formatAccountingDate(doc.dueDate)}</div>
-      <div data-print-fit className="iv-value" style={{ left: "155mm", top: "65mm", width: "45mm", height: "4mm" }}>เครดิต {doc.creditTerm} วัน</div>
-      <div className="absolute left-[11mm] top-[82mm] w-[190mm]">
-        {rows.map(({ item, height, continuation }, index) => <div key={index} className="grid grid-cols-[18mm_84mm_24mm_24mm_18mm_22mm]" style={{ height: `${height * 25.4 / 96}mm` }}>
-          <div className="break-words px-1 whitespace-pre-wrap">{item.partNo}</div>
-          <div className="break-words px-1 whitespace-pre-wrap">{item.desc}</div>
-          <div data-print-fit className="h-[6mm] px-1 text-right">{continuation ? "" : Number(item.qty).toLocaleString("en-US")}</div>
-          <div data-print-fit className="h-[6mm] px-1 text-right">{continuation ? "" : money(item.unitPrice)}</div>
-          <div data-print-fit className="h-[6mm] px-1 text-right">{continuation ? "" : money(item.discount)}</div>
-          <div data-print-fit className="h-[6mm] px-1 text-right">{continuation ? "" : money(item.amount ?? 0)}</div>
+      <div data-print-fit className="iv-value" style={{ left: "27.5mm", top: "24.5mm", width: "25mm", height: "5.5mm" }}>{doc.customerCode || doc.customer?.code}</div>
+      <div data-print-fit className="iv-value" style={{ left: "27.5mm", top: "30mm", width: "115mm", height: "5.5mm" }}>{doc.customerName || doc.customer?.name}</div>
+      <div data-print-fit className="iv-value" style={{ left: "27.5mm", top: "35.5mm", width: "115mm", height: "12mm" }}>{doc.address}</div>
+      <div data-print-fit className="iv-value" style={{ left: "58.5mm", top: "24.5mm", width: "39mm", height: "5.5mm" }}>{doc.taxId ? `TAX ID: ${doc.taxId}` : ""}</div>
+      <div data-print-fit className="iv-value" style={{ left: "98.5mm", top: "24.5mm", width: "44mm", height: "5.5mm" }}>{doc.customerBranch ? `สาขา ${doc.customerBranch}` : ""}</div>
+      <div data-print-fit className="iv-value" style={{ left: "29.5mm", top: "48mm", width: "113mm", height: "5.5mm" }}>{doc.customerPoNo}</div>
+      <div data-print-fit className="iv-value" style={{ left: "27.5mm", top: "54mm", width: "115mm", height: "11mm" }}>{doc.remark}</div>
+      <div data-print-fit className="iv-value" style={{ left: "153mm", top: "24.5mm", width: "45mm", height: "5.5mm" }}>{formatAccountingDate(doc.ivDate)}</div>
+      <div data-print-fit className="iv-value" style={{ left: "153mm", top: "30mm", width: "45mm", height: "5.5mm" }}>{doc.ivNo}</div>
+      <div data-print-fit className="iv-value" style={{ left: "153mm", top: "35.5mm", width: "45mm", height: "5.5mm" }}>{doc.responsibleSaleName}</div>
+      <div data-print-fit className="iv-value" style={{ left: "153mm", top: "41mm", width: "45mm", height: "5.5mm" }}>{doc.creditTerm}　วัน</div>
+      <div data-print-fit className="iv-value" style={{ left: "153mm", top: "46.5mm", width: "45mm", height: "5.5mm" }}>{formatAccountingDate(doc.dueDate)}</div>
+      <div className="iv-items">
+        {rows.map(({ item, height, continuation }, index) => <div key={index} className="iv-item" style={{ height: `${height * 25.4 / 96}mm` }}>
+          <div data-print-fit>{item.partNo}</div>
+          <div data-print-fit>{item.desc}</div>
+          <div data-print-fit className="iv-number text-right">{continuation ? "" : Number(item.qty).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 3 })}</div>
+          <div data-print-fit className="iv-unit">{item.unit}</div>
+          <div data-print-fit className="iv-number text-right">{continuation ? "" : money(item.unitPrice)}</div>
+          <div data-print-fit className="iv-number text-right">{continuation || !Number(item.discount) ? "" : money(item.discount)}</div>
+          <div data-print-fit className="iv-number text-right">{continuation ? "" : money(item.amount ?? 0)}</div>
         </div>)}
       </div>
-      <div className="iv-value text-[8pt]" style={{ left: "12mm", top: "208mm", width: "115mm" }}>{doc.provisionalDeliveryOrder?.soNo || ""} {pageIndex + 1}/{pages.length}</div>
+      <div className="iv-value text-[8pt]" style={{ left: "8.5mm", top: "188.5mm", width: "125mm" }}>{doc.provisionalDeliveryOrder?.soNo || ""} {pages.length > 1 ? `${pageIndex + 1}/${pages.length}` : ""}</div>
       {pageIndex === pages.length - 1 && <>
-        <div className="iv-value" style={{ left: "12mm", top: "216mm", width: "115mm" }}>{Number(doc.discount) ? `ส่วนลดท้ายเอกสาร ${money(doc.discount)} บาท` : ""}</div>
-        <div className="iv-value text-right" style={{ left: "177mm", top: "218mm", width: "23mm" }}>{money(Number(doc.subTotal) - Number(doc.discount))}</div>
-        <div className="iv-value text-right" style={{ left: "177mm", top: "225mm", width: "23mm" }}>{money(doc.vat)}</div>
-        <div className="iv-value text-right" style={{ left: "177mm", top: "236mm", width: "23mm" }}>{money(doc.netAmount)}</div>
+        <div data-print-fit className="iv-value" style={{ left: "8.5mm", top: "193.5mm", width: "125mm", height: "5.5mm" }}>{Number(doc.discount) ? `ส่วนลดท้ายเอกสาร ${money(doc.discount)} บาท` : ""}</div>
+        <div data-print-fit className="iv-value" style={{ left: "37mm", top: "199mm", width: "110mm", height: "6mm" }}>({billingAmountText(doc.netAmount)})</div>
+        <div data-print-fit className="iv-value text-right" style={{ left: "170.5mm", top: "201mm", width: "23mm", height: "5.5mm" }}>{money(Number(doc.subTotal) - Number(doc.discount))}</div>
+        <div data-print-fit className="iv-value" style={{ left: "160.5mm", top: "208.5mm", width: "10mm", height: "5.5mm" }}>{doc.vatConfig === "VAT7%" ? "7%" : ""}</div>
+        <div data-print-fit className="iv-value text-right" style={{ left: "170.5mm", top: "208.5mm", width: "23mm", height: "5.5mm" }}>{money(doc.vat)}</div>
+        <div data-print-fit className="iv-value text-right" style={{ left: "170.5mm", top: "219mm", width: "23mm", height: "5.5mm" }}>{money(doc.netAmount)}</div>
       </>}
     </article>)}
   </div></>;
@@ -66,6 +71,11 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
 export function InvoicePrintStyles({ allowed = false }: { allowed?: boolean }) {
   return <style jsx global>{`
     #iv-print-doc .iv-value { position: absolute; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #iv-print-doc .iv-items { position: absolute; left: 8.5mm; top: 68.5mm; width: 185mm; }
+    #iv-print-doc .iv-item { display: grid; grid-template-columns: 22mm 74.5mm 7mm 11.5mm 25mm 22mm 23mm; line-height: 1.5; }
+    #iv-print-doc .iv-item > div { height: 100%; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+    #iv-print-doc .iv-item > .iv-number { white-space: nowrap; }
+    #iv-print-doc .iv-item > .iv-unit { padding-left: 3.5mm; }
     @media print {
       @page { size: A4 portrait; margin: 0; }
       html, body { margin: 0 !important; padding: 0 !important; background: white !important; }
