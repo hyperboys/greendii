@@ -1,4 +1,4 @@
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatAccountingDate } from "@/lib/accounting-date";
 import { invoiceForm, type Invoice } from "@/lib/invoice";
 import { billingAmountText } from "@/lib/billing-note";
 import { deliveryOrderPrintPages } from "@/components/delivery-order-document";

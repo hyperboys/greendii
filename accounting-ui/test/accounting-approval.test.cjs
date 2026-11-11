@@ -32,6 +32,8 @@ test("Accounting signatures display only actual actors from the latest submitted
   assert.ok(html.includes("Somchai Example"));
   assert.equal(html.includes("ลายเซ็น Final approver"), false);
   assert.ok(html.includes("ยังไม่อนุมัติ"));
+  assert.ok(html.includes("01/10/2026"));
+  assert.equal(html.includes("01/10/2569"), false);
   const next = { ...cycle, cycle: 2, approvals: [] };
   const resubmitted = render({ accountingApproval: { version: 1, cycles: [cycle, next] } });
   assert.equal(resubmitted.includes("Somchai Example"), false);
@@ -58,6 +60,8 @@ test("Original print signatures render approved actors compactly and never rende
   const html = renderToStaticMarkup(React.createElement(signatureModule.AccountingApprovalSignatures, { document: source, compact: true }));
   assert.ok(html.includes(`src="${image}"`));
   assert.ok(html.includes("Somchai Example"));
+  assert.ok(html.includes("01/10/2569"));
+  assert.equal(html.includes("01/10/2026"), false);
   assert.equal(html.includes("Final approver"), false);
   assert.equal(renderToStaticMarkup(React.createElement(signatureModule.AccountingApprovalSignatures, {
     document: { accountingApproval: { version: 1, cycles: [{ ...cycle, approvals: [] }] } }, compact: true,

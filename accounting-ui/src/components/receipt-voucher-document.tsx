@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import { receiptTotals, type ReceiptLine, type ReceiptVoucher } from "@/lib/receipt-voucher";
 import { hasApprovedActors } from "@/lib/accounting-approval";

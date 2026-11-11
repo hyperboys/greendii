@@ -76,6 +76,6 @@ test('PV reference print includes exact rows once, balanced gross totals, tax/re
   assert.equal((html.match(/class="pv-paper"/g) || []).length, 3);
   for (let i = 0; i < 20; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, 'g')) || []).length, 1);
   assert.equal((html.match(/1,070\.00/g) || []).length, 2); assert.equal((html.match(/990\.00/g) || []).length, 2);
-  for (const text of ['PV26100001', 'PS2610001-R1', 'Saved contractor', 'Saved address', '26/10/2026', 'เงินประกันผลงาน', 'อนุมัติแล้วรอจ่าย', 'ไม่ลง GL', 'Prepared by', 'Posted by']) assert.ok(html.includes(text), text);
+  for (const text of ['PV26100001', 'PS2610001-R1', 'Saved contractor', 'Saved address', '26/10/2569', 'เงินประกันผลงาน', 'อนุมัติแล้วรอจ่าย', 'ไม่ลง GL', 'Prepared by', 'Posted by']) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /<img|คงเหลือจ่าย/);
 });

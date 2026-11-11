@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatAccountingDate } from "@/lib/accounting-date";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 import type { BillingLine, BillingNote } from "@/lib/billing-note";
 import { billingAmountText } from "@/lib/billing-note";

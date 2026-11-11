@@ -81,7 +81,7 @@ test("CN sample-based print paginates each line once and final totals once witho
   assert.equal((html.match(/class="cn-paper"/g) || []).length, 3);
   for (let i = 0; i < 25; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, "g")) || []).length, 1);
   assert.equal((html.match(/13,209\.87/g) || []).length, 1);
-  for (const text of ["เลขที่ใบกำกับเดิม", "มูลค่าตามเอกสารเดิม", "มูลค่าที่ถูกต้อง", "ภาษีมูลค่าเพิ่ม 7%", "ผู้มีอำนาจลงนาม", "Snapshot customer", "25/10/2026"]) assert.ok(html.includes(text), text);
+  for (const text of ["เลขที่ใบกำกับเดิม", "มูลค่าตามเอกสารเดิม", "มูลค่าที่ถูกต้อง", "ภาษีมูลค่าเพิ่ม 7%", "ผู้มีอำนาจลงนาม", "Snapshot customer", "25/10/2569"]) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /ยังคงเป็นทรัพย์สินของผู้ขาย|ได้รับสินค้าตามรายการ|ผู้จ่ายของ|<img/);
   const centsDoc = { ...doc, originalBeforeVat: 100000, correctedBeforeVat: 99799.90, amountBeforeVat: 200.10 };
   const centsHtml = renderToStaticMarkup(React.createElement(CreditNoteDocument, { document: centsDoc, company: {} }));

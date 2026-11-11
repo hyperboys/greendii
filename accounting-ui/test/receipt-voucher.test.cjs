@@ -73,7 +73,7 @@ test("RV print matches journal grid without fabricated account codes, balances d
   assert.equal((html.match(/class="rv-paper"/g) || []).length, 3);
   for (let i = 0; i < 14; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, "g")) || []).length, 1);
   assert.equal((html.match(/14,000\.00/g) || []).length, 3, "credit line plus final debit/credit totals, not repeated on previous pages");
-  assert.match(html, /25\/10\/2026/); assert.match(html, /Snapshot customer/);
+  assert.match(html, /25\/10\/2569/); assert.match(html, /Snapshot customer/);
   assert.doesNotMatch(html, /11130-02|11600-05|11300-01|<img/);
 });
 test("RV cheque hydration and print retain bank, leading-zero cheque number and cheque date", () => {
@@ -91,7 +91,7 @@ test("RV cheque hydration and print retain bank, leading-zero cheque number and 
   const html = renderToStaticMarkup(React.createElement(ReceiptVoucherDocument, { document: doc, company: {} }));
   assert.match(html, /เช็ครับ ธนาคารกรุงเทพ/);
   assert.match(html, /000123/);
-  assert.match(html, /02\/11\/2026/);
+  assert.match(html, /02\/11\/2569/);
   assert.doesNotMatch(html, /เงินฝากธนาคาร/);
   assert.equal(new Set(model.receiptBanks).size, model.receiptBanks.length);
   for (const bank of ["ธนาคารกรุงเทพ", "ธนาคารกสิกรไทย", "ธนาคารออมสิน", "ธนาคารซิตี้แบงก์"]) {

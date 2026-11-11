@@ -1,7 +1,7 @@
 import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 import { hasApprovedActors } from "@/lib/accounting-approval";
 import { openingStatuses, type StockOpeningBalance } from "@/lib/stock-opening-balance";
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatAccountingDate, formatAccountingDocumentDateTime } from "@/lib/accounting-date";
 
 const qty = (value: string | number) => Number(value).toLocaleString("en-US", { maximumFractionDigits: 3 });
 export function StockOpeningDocument({ document: doc }: { document: StockOpeningBalance }) {
@@ -25,7 +25,7 @@ export function StockOpeningDocument({ document: doc }: { document: StockOpening
       {row.sourceDocType === "stock_opening_balance_reversal" ? "กลับรายการ" : "ปรับยอด"} · เข้า {qty(row.qtyIn)} · ออก {qty(row.qtyOut)} · {formatAccountingDate(row.transactionDate)}
     </p>)}</div>}
     {!!doc.history?.length && <div><h2 className="font-bold">ประวัติการดำเนินการ</h2>{doc.history.map(row => <p key={row.id} className="text-sm">
-      {row.createdAt.slice(0, 16).replace("T", " ")} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}
+      {formatAccountingDocumentDateTime(row.createdAt)} · {row.performedBy?.fullName || "-"} · {row.action}{row.reason ? ` · ${row.reason}` : ""}
     </p>)}</div>}
     <style>{`@media print {
       @page { size: A4; margin: 8mm; }

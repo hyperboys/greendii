@@ -26,6 +26,7 @@ import { AuthGuard } from "@/components/auth-guard";
 import { getStoredUser, logout } from "@/lib/auth";
 import { useAccountingAccess } from "@/components/accounting-access-provider";
 import { canOpenAccountingPath } from "@/lib/accounting-access";
+import { formatAccountingPeriod } from "@/lib/accounting-date";
 import {
   invoiceTabs, payableTabs, inventoryTabs, masterTabs, reportTabs,
   selectedTab, isPublicAccountingPath,
@@ -53,10 +54,22 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [collapsed, setCollapsed] = useState(false);
+  const [currentPeriod, setCurrentPeriod] = useState("");
   const sidebarRef = useRef<HTMLElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const user = getStoredUser();
   const access = useAccountingAccess();
+
+  useEffect(() => {
+    const updatePeriod = () => setCurrentPeriod(formatAccountingPeriod(new Date()));
+    updatePeriod();
+    const timer = window.setInterval(updatePeriod, 60_000);
+    window.addEventListener("focus", updatePeriod);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", updatePeriod);
+    };
+  }, []);
 
   useEffect(() => {
     const activeGroup = navigation.find(item => (item.children || item.tabs) &&
@@ -235,7 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </button>
             <div className="hidden items-center gap-2 text-xs text-[#657069] lg:flex">
               <BadgeDollarSign size={17} className="text-[#0866ff]" />
-              รอบบัญชีปัจจุบัน: กันยายน 2569
+              รอบบัญชีปัจจุบัน: {currentPeriod || "-"}
             </div>
             <div className="ml-auto flex items-center gap-3">
               <div className="hidden text-right sm:block">

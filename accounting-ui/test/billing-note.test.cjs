@@ -184,7 +184,9 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   assert.match(html, /<td colSpan="3"><div data-bi-fit="true">หนึ่งหมื่นสองพันสามร้อยสี่สิบห้าบาทหกสิบเจ็ดสตางค์<\/div><\/td>/);
   assert.equal((html.match(/ยอดรวมแสดงหน้าสุดท้าย/g) || []).length, 2);
   for (let i = 0; i < 40; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, "g")) || []).length, 1);
-  assert.match(html, /25\/10\/2026/);
+  assert.match(html, /25\/10\/2569/);
+  assert.match(html, /01\/10\/2569/);
+  assert.match(html, /31\/10\/2569/);
   assert.match(html, /Snapshot customer/);
   assert.equal((html.match(/class="bi-tax-id" data-bi-fit="true"/g) || []).length, 3);
   assert.equal((html.match(/0123456789012/g) || []).length, 3);

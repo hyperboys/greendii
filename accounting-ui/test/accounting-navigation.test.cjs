@@ -21,6 +21,7 @@ function load(relativePath, imports = {}, globals = {}) {
 }
 
 const navigation = load(["lib", "accounting-navigation.ts"]);
+const dates = load(["lib", "accounting-date.ts"]);
 const policy = load(["lib", "accounting-access.ts"], { "./api": {} });
 const fullAccess = {
   allowed: true, isAdmin: true, role: { id: "test", name: "Test" },
@@ -36,6 +37,53 @@ test("Every sidebar tab supports direct URLs and defaults to the first section",
   }
 });
 
+test("Header period initializes after mount, follows the clock and cleans up refresh listeners", () => {
+  const states = [], effects = [], listeners = new Map();
+  let cursor = 0, tick, cleared;
+  let now = new Date("2026-11-30T16:59:59Z");
+  const { AppShell } = load(["components", "app-shell.tsx"], {
+    react: {
+      ...React,
+      useRef: () => ({ current: null }),
+      useState(initial) {
+        const index = cursor++;
+        if (!(index in states)) states[index] = initial;
+        return [states[index], value => { states[index] = value; }];
+      },
+      useEffect: callback => effects.push(callback),
+    },
+    "next/navigation": { usePathname: () => "/dashboard", useSearchParams: () => new URLSearchParams(), useRouter: () => ({}) },
+    "next/link": { default: ({ children, ...props }) => React.createElement("a", props, children) },
+    "next/image": { default: props => React.createElement("img", props) },
+    "@/components/auth-guard": { AuthGuard: ({ children }) => children },
+    "@/lib/auth": { getStoredUser: () => ({ username: "Test" }) },
+    "@/components/accounting-access-provider": { useAccountingAccess: () => fullAccess },
+    "@/lib/accounting-access": policy,
+    "@/lib/accounting-navigation": navigation,
+    "@/lib/accounting-date": { formatAccountingPeriod: () => dates.formatAccountingPeriod(now) },
+  }, {
+    window: {
+      setInterval(callback, delay) { tick = callback; assert.equal(delay, 60_000); return 42; },
+      clearInterval: id => { cleared = id; },
+      addEventListener: (name, callback) => listeners.set(name, callback),
+      removeEventListener(name, callback) { assert.equal(listeners.get(name), callback); listeners.delete(name); },
+    },
+  });
+  const render = () => { cursor = 0; return renderToStaticMarkup(AppShell({ children: "Page" })); };
+  assert.doesNotMatch(render(), /กันยายน 2569|พฤศจิกายน 2569/);
+  const cleanup = effects[0]();
+  assert.match(render(), /พฤศจิกายน 2569/);
+  now = new Date("2026-11-30T17:00:00Z");
+  tick();
+  assert.match(render(), /ธันวาคม 2569/);
+  now = new Date("2026-12-31T17:00:00Z");
+  listeners.get("focus")();
+  assert.match(render(), /มกราคม 2570/);
+  cleanup();
+  assert.equal(cleared, 42);
+  assert.equal(listeners.size, 0);
+});
+
 test("Sidebar groups are accessible, highlight query/detail routes and respect permissions", () => {
   let pathname = "/master";
   let query = "tab=suppliers";
@@ -49,6 +97,7 @@ test("Sidebar groups are accessible, highlight query/detail routes and respect p
     "@/components/accounting-access-provider": { useAccountingAccess: () => access },
     "@/lib/accounting-access": policy,
     "@/lib/accounting-navigation": navigation,
+    "@/lib/accounting-date": dates,
   });
   const render = () => renderToStaticMarkup(React.createElement(AppShell, null, "Page content"));
   let html = render();
@@ -118,6 +167,7 @@ test("Desktop sidebar toggles an icon rail, reopens parent groups, and restores 
     "@/components/accounting-access-provider": { useAccountingAccess: () => fullAccess },
     "@/lib/accounting-access": policy,
     "@/lib/accounting-navigation": navigation,
+    "@/lib/accounting-date": dates,
   });
   function render() { cursor = 0; return AppShell({ children: "Page content" }); }
   function find(tree, label) {

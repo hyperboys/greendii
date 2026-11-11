@@ -67,7 +67,7 @@ test('CQ A4 details not bank overprint include saved identity stages cancellatio
     signedAt: '2026-10-26', releaseDate: '2026-10-26', clearedAt: '2026-11-01', cancelledAt: '2026-11-02', cancellationReason: 'Funds returned', reversalReference: 'RET',
     voucherSnapshot: { sourceNo: 'PS1', poNo: 'PO1', supplier: { name: 'Saved supplier' } } };
   const html = renderToStaticMarkup(React.createElement(ChequePaymentDocument, { document: doc, company: { companyName: 'Company' } }));
-  for (const text of ['CQ26100001', 'PV26100001', 'Saved payee', 'Saved supplier', '26/10/2026', '01/11/2026', 'Funds returned', 'RET', 'ไม่ใช่เช็คธนาคาร', 'ไม่ลง GL', 'ผู้รับเช็ค']) assert.ok(html.includes(text), text);
+  for (const text of ['CQ26100001', 'PV26100001', 'Saved payee', 'Saved supplier', '26/10/2569', '01/11/2569', 'Funds returned', 'RET', 'ไม่ใช่เช็คธนาคาร', 'ไม่ลง GL', 'ผู้รับเช็ค']) assert.ok(html.includes(text), text);
   assert.equal((html.match(/990\.01/g) || []).length, 1); assert.doesNotMatch(html, /<img/);
   model.exportCheques([{ ...doc, payee: '=DANGER', remark: '@formula' }]);
   const output = csv.masterCsv(csvExports.at(-1)[1]);

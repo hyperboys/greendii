@@ -41,6 +41,11 @@ cancelled loads do not apply partially loaded document data.
 
 ### Document viewing and printing
 
+Dates on printed documents and browser-saved PDFs use Buddhist years in
+`dd/mm/yyyy` format (for example, `11/11/2569`), including reference, due,
+payment and printed approval dates. Screen cards, entry forms, document numbers
+and stored/API dates remain unchanged (Gregorian years).
+
 AR, AP and inventory document views use read-only information cards, scrollable
 item tables and saved totals instead of mounting printable stationery or disabled
 entry forms. This includes SO, Invoice, BI, RV, CN, PO, PS, PV, CQ, supplier bills,
@@ -96,8 +101,8 @@ and Thai amount text appear only on the final page.
 
 Print at 100% scale with browser headers/footers disabled and no additional
 margins. No stationery background, borders, titles or signatures are added.
-Existing date formatting (Gregorian years), installed Calibri/Thai fallback
-fonts, approval rules and saved amounts are unchanged.
+Dates use Buddhist years, matching other printed documents. Installed Calibri/Thai
+fallback fonts, approval rules and saved amounts are unchanged.
 
 ### Printed document fonts
 
@@ -122,6 +127,11 @@ and are sent to the API as `yyyy-mm-dd`. Manual entry remains supported with
 calendar-date validation. Disabled/read-only dates cannot be changed.
 
 ## Navigation
+
+The header's current accounting period follows the current calendar month in
+`Asia/Bangkok`, displayed as a Thai month and Buddhist year. It refreshes every
+minute and when the window regains focus. This label does not control posting
+periods or accounting period closing.
 
 ### Accounting multistep approval staging (not enabled)
 

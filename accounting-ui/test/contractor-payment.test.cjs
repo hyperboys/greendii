@@ -71,7 +71,7 @@ test('PS plain-paper print includes saved identity, all rows once, final totals 
   assert.equal((html.match(/class="ps-paper"/g) || []).length, 3);
   for (let i = 0; i < 20; i++) assert.equal((html.match(new RegExp(`UNIQUE-${i}-END`, 'g')) || []).length, 1);
   assert.equal((html.match(/990\.01/g) || []).length, 1);
-  for (const text of ['Saved contractor', 'Saved address', 'PO2610001', '26/10/2026', 'หัก ณ ที่จ่าย', 'ประกันรวมถึงใบนี้', 'ผู้อนุมัติ']) assert.ok(html.includes(text), text);
+  for (const text of ['Saved contractor', 'Saved address', 'PO2610001', '26/10/2569', 'หัก ณ ที่จ่าย', 'ประกันรวมถึงใบนี้', 'ผู้อนุมัติ']) assert.ok(html.includes(text), text);
   assert.doesNotMatch(html, /<img|ยังใช้จ่ายเงินไม่ได้/);
   const draft = renderToStaticMarkup(React.createElement(ContractorPaymentDocument, { document: { ...doc, status: 'draft' }, company: {} }));
   assert.match(draft, /ยังใช้จ่ายเงินไม่ได้/);

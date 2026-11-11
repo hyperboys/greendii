@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { formatAccountingDate as formatDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatDate } from "@/lib/accounting-date";
 import { poStatusLabels } from "@/lib/accounting-purchase-orders";
 import { hasApprovedActors } from "@/lib/accounting-approval";
 import { AccountingApprovalSignatures } from "./accounting-approval-signatures";

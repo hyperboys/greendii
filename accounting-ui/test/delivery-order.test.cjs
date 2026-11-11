@@ -115,9 +115,9 @@ test("SO preview/print shows four delivery columns without prices or totals, pre
       items: [{ partNo: "P001", desc: "First", qty: 3, unit: "pcs", unitPrice: "10.25", discount: "0.75", amount: 30 }, { desc: "Second", qty: 2, unit: "set", unitPrice: 20, discount: 0, amount: 40 }],
     }, company: { companyName: "Company" },
   }));
-  for (const text of ["First", "Second", "25/10/2026", "Draft", "WO-001", "Company", "TEMPORARY INVOICE", "Sender Name"]) assert.ok(html.includes(text), text);
-  assert.doesNotMatch(html, /ใบสั่งจอง|ลงวันที่|วันที่กำหนดส่ง|จำนวนวันเครดิต|เงื่อนไขการวางบิล|30\/10\/2026/);
-  assert.match(html, /<div class="so-document-info"><table class="so-number"><tbody><tr><th>เลขที่<\/th><td>SO2610-00001<\/td><\/tr><tr><th>วันที่<\/th><td>25\/10\/2026<\/td>/);
+  for (const text of ["First", "Second", "25/10/2569", "Draft", "WO-001", "Company", "TEMPORARY INVOICE", "Sender Name"]) assert.ok(html.includes(text), text);
+  assert.doesNotMatch(html, /ใบสั่งจอง|ลงวันที่|วันที่กำหนดส่ง|จำนวนวันเครดิต|เงื่อนไขการวางบิล|30\/10\/2569/);
+  assert.match(html, /<div class="so-document-info"><table class="so-number"><tbody><tr><th>เลขที่<\/th><td>SO2610-00001<\/td><\/tr><tr><th>วันที่<\/th><td>25\/10\/2569<\/td>/);
   assert.equal((html.match(/class="so-number"/g) || []).length, 1);
   assert.doesNotMatch(html.match(/<div class="so-title-row">([\s\S]*?)<p class="so-customer-code">/)[1], /so-number/);
   assert.equal((html.match(/<th>/g) || []).length, 6);

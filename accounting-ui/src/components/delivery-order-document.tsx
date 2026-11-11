@@ -1,4 +1,4 @@
-import { formatAccountingDate } from "@/lib/accounting-date";
+import { formatAccountingDocumentDate as formatAccountingDate } from "@/lib/accounting-date";
 import { deliveryOrderStatus, type DeliveryOrder, type DeliveryOrderLine } from "@/lib/delivery-order";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
 
