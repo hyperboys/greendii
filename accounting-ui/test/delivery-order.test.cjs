@@ -9,6 +9,7 @@ const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(relativePath, imports = {}) {
   Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
+  imports["next/image"] = { default: ({ unoptimized, ...props }) => React.createElement("img", props) };
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   const filename = path.join(__dirname, "..", "src", ...relativePath);
   const source = ts.transpileModule(fs.readFileSync(filename, "utf8"), {
@@ -102,7 +103,6 @@ test("SO is a full-page Draft form with integer quantities and PDF monetary fiel
 
 test("SO preview/print shows four delivery columns without prices or totals, preserving headers and signatures", () => {
   const { DeliveryOrderDocument } = load(["components", "delivery-order-document.tsx"], {
-    "next/image": { default: props => React.createElement("img", props) },
     "@/lib/accounting-date": load(["lib", "accounting-date.ts"]),
     "@/lib/delivery-order": load(["lib", "delivery-order.ts"]),
   });
@@ -130,7 +130,8 @@ test("SO preview/print shows four delivery columns without prices or totals, pre
   assert.match(html, /<th>รหัสสินค้า<\/th><th>รายการ<\/th><th>จำนวน<\/th><th>หน่วย<\/th>/);
   assert.doesNotMatch(html, /ราคา\/หน่วย|ส่วนลด|จำนวนเงิน|รวมเงิน|ภาษีมูลค่าเพิ่ม|so-totals|10\.25|0\.75|69\.55|4\.55|30\.00|40\.00/);
   for (const role of ["ผู้รับสินค้า", "ผู้ส่งสินค้า", "ผู้มีอำนาจ"]) assert.ok(html.includes(role));
-  assert.doesNotMatch(html, /PROVISIONAL DELIVERY ORDER|โลโก้บริษัท/);
+  assert.doesNotMatch(html, /PROVISIONAL DELIVERY ORDER/);
+  assert.match(html, /<img[^>]*src="\/logo\.jpg"[^>]*alt="โลโก้บริษัท"[^>]*class="so-company-logo"/);
   assert.match(html, /หน้า 1 \/ 1/);
 });
 
@@ -166,6 +167,7 @@ test("SO PDF pages preserve every row and omit monetary values on every page", (
   assert.ok(html.includes(`หน้า ${pages.length} / ${pages.length}`));
   assert.equal((html.match(/class="so-document-info"/g) || []).length, pages.length);
   assert.equal((html.match(/class="so-number"/g) || []).length, pages.length);
+  assert.equal((html.match(/class="so-company-logo"/g) || []).length, pages.length);
   const longItem = { ...items[0], desc: "LongDescription".repeat(200), remark: "Note" };
   const continued = print.deliveryOrderPrintPages([longItem], 27, 21, 430, 8, 5).flat();
   assert.ok(continued.length > 1);
@@ -181,6 +183,8 @@ test("SO print uses readable text, aligned customer details and a border around 
   });
   const css = DeliveryOrderPrintStyles().props.children;
   assert.match(css, /#so-print-doc \{[^}]*font-size: 14px; line-height: 1\.4;/);
+  assert.match(css, /\.so-company \{ position: relative;[^}]*padding: 0 40mm; min-height: 24mm;/);
+  assert.match(css, /\.so-company-logo \{ position: absolute; left: 0; top: 0; width: 38mm; height: 24mm; object-fit: contain;/);
   assert.match(css, /\.so-customer-row \{ display: grid; grid-template-columns: 18mm minmax\(0, 1fr\); gap: 1mm;/);
   assert.match(css, /\.so-number > div \{ display: grid; grid-template-columns: 20mm minmax\(0, 1fr\); gap: 2mm;/);
   assert.doesNotMatch(css, /\.so-number (?:th|td)/);

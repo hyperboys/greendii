@@ -9,6 +9,7 @@ const { renderToStaticMarkup } = require("react-dom/server");
 
 function load(parts, imports = {}, globals = {}) {
   Object.assign(imports, require("./helpers/document-ui-mocks.cjs"));
+  imports["next/image"] = { default: ({ unoptimized, ...props }) => React.createElement("img", props) };
   imports["@/components/manual-submit-form"] = { ManualSubmitForm: "form" };
   imports["@/components/accounting-approval-panel"] = { AccountingApprovalPanel: () => null };
   imports["@/lib/accounting-approval"] = {

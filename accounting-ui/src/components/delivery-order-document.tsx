@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { formatAccountingDocumentDate as formatAccountingDate } from "@/lib/accounting-date";
 import { deliveryOrderStatus, type DeliveryOrder, type DeliveryOrderLine } from "@/lib/delivery-order";
 import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-orders";
@@ -45,6 +46,7 @@ export function DeliveryOrderDocument({ document: doc, company }: { document: De
           <article className="so-paper" key={pageIndex}>
             <p className="so-page-number">หน้า {pageIndex + 1} / {pages.length}</p>
             <header className="so-company">
+              <Image unoptimized loading="eager" width={160} height={90} src="/logo.jpg" alt="โลโก้บริษัท" className="so-company-logo" />
               <h1>{company.companyName || "-"}</h1>
               <p className="so-company-address">{COMPANY_THAI_ADDRESS}</p>
               <p>โทร. {COMPANY_PRINT_TEL}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || "-"}</p>
@@ -108,7 +110,8 @@ export function DeliveryOrderPrintStyles() {
     #so-print-doc { font-family: var(--font-noto-thai), Tahoma, sans-serif; font-size: 14px; line-height: 1.4; }
     #so-print-doc .so-paper { position: relative; padding: 9mm 8mm 8mm; }
     #so-print-doc .so-page-number { text-align: right; font-size: 12px; margin-bottom: 2mm; }
-    #so-print-doc .so-company { text-align: center; margin-bottom: 5mm; }
+    #so-print-doc .so-company { position: relative; text-align: center; margin-bottom: 5mm; padding: 0 40mm; min-height: 24mm; }
+    #so-print-doc .so-company-logo { position: absolute; left: 0; top: 0; width: 38mm; height: 24mm; object-fit: contain; }
     #so-print-doc h1 { font-size: 20px; font-weight: 700; }
     #so-print-doc .so-company-address { font-size: 14px; font-weight: 600; white-space: pre-wrap; }
     #so-print-doc .so-title-row { position: relative; min-height: 16mm; display: flex; align-items: center; justify-content: flex-end; }
