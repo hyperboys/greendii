@@ -84,6 +84,7 @@ test("SO/Invoice units accept suggestions, custom text and legacy spelling witho
   const { DocumentItems } = load(["components", "document-items.tsx"], {
     react: { ...React, useState: initial => [initial, () => {}] },
     "@/lib/delivery-order": model,
+    "@/lib/invoice-description": load(["lib", "invoice-description.ts"]),
   });
   let items = [{ ...model.newDeliveryOrderLine(), unit: "PCS", desc: "Saved", unitPrice: 12 }];
   const render = readOnly => DocumentItems({ items, products: [], readOnly, onChange: value => { items = value; } });

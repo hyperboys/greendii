@@ -188,7 +188,13 @@ test("BI print recreates sample grid and two signature boxes; all rows print onc
   assert.match(html, /01\/10\/2569/);
   assert.match(html, /31\/10\/2569/);
   assert.match(html, /Snapshot customer/);
-  assert.equal((html.match(/class="bi-tax-id" data-bi-fit="true"/g) || []).length, 3);
+  assert.match(html, /class="bi-name bi-info-row" data-bi-fit="true"><strong>ชื่อลูกค้า<\/strong><span>Snapshot customer<\/span>/);
+  assert.match(html, /class="bi-address bi-info-row" data-bi-fit="true"><strong>ที่อยู่<\/strong><span>Saved address<\/span>/);
+  assert.match(html, /class="bi-info-row" data-bi-fit="true"><span>เลขที่<\/span><span>BI-TEST<\/span>/);
+  assert.match(html, /class="bi-info-row" data-bi-fit="true"><span>วันที่<\/span><span>25\/10\/2569<\/span>/);
+  assert.match(html, /class="bi-info-row" data-bi-fit="true"><span>วันที่นัดชำระ<\/span><span>/);
+  assert.match(html, /class="bi-payment-terms bi-info-row" data-bi-fit="true"><span>เงื่อนไขการจ่ายชำระ<\/span><span>/);
+  assert.equal((html.match(/class="bi-tax-id bi-info-row" data-bi-fit="true"/g) || []).length, 3);
   assert.equal((html.match(/0123456789012/g) || []).length, 3);
   assert.match(html, /เลขประจำตัวผู้เสียภาษี/);
   assert.doesNotMatch(html, /ผู้รับเงิน|RECEIPT/);
@@ -201,8 +207,8 @@ test("BI customer tax ID uses the saved document value and explicitly shows miss
     document: { ...model.newBillingNote(), taxId, invoices: [], totalAmount: 0 },
     company: { taxId: "9999999999999" },
   }));
-  assert.match(render("0123456789012"), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　0123456789012<\/p>/);
-  assert.match(render(null), /class="bi-tax-id" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong>　-<\/p>/);
+  assert.match(render("0123456789012"), /class="bi-tax-id bi-info-row" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong><span>0123456789012<\/span><\/p>/);
+  assert.match(render(null), /class="bi-tax-id bi-info-row" data-bi-fit="true"><strong>เลขประจำตัวผู้เสียภาษี<\/strong><span>-<\/span><\/p>/);
 });
 test("BI print shows whole-baht Thai words beside the final numeric total", () => {
   const { BillingNoteDocument } = load(["components", "billing-note-document.tsx"], {
@@ -255,7 +261,7 @@ test("BI print enlarges text while keeping the A4 page and 17-row layout", () =>
   assert.match(css, /\.bi-company-logo \{ position: absolute; left: 9mm; top: 14mm; width: 38mm; height: 24mm; object-fit: contain;/);
 });
 
-test("BI centers invoice numbers, dates and footer text while amounts stay right-aligned", () => {
+test("BI aligns header values and centers row numbers, invoice numbers, dates and footer text", () => {
   const { BillingPrintStyles } = load(["components", "billing-note-document.tsx"], {
     "@/lib/accounting-date": dates, "@/lib/billing-note": model,
   });
@@ -264,10 +270,16 @@ test("BI centers invoice numbers, dates and footer text while amounts stay right
     const centerRule = css.match(/([^{}]+)\{\s*text-align: center;\s*\}/g)
       .find(rule => rule.includes("tbody td:nth-child(2)"));
     assert.ok(centerRule);
-    for (const column of [2, 3, 5]) assert.ok(centerRule.includes(`.bi-lines tbody td:nth-child(${column})`));
-    for (const column of [1, 4, 6, 7]) assert.ok(!centerRule.includes(`tbody td:nth-child(${column})`));
+    for (const column of [1, 2, 3, 5]) assert.ok(centerRule.includes(`.bi-lines tbody td:nth-child(${column})`));
+    for (const column of [4, 6, 7]) assert.ok(!centerRule.includes(`tbody td:nth-child(${column})`));
     assert.ok(centerRule.includes(".bi-lines tfoot td:not(.bi-money)"));
     assert.match(css, /\.bi-money \{ text-align: right; \}/);
+    assert.match(css, /\.bi-customer \{ --bi-label-width: 17mm; \}/);
+    assert.match(css, /\.bi-customer \.bi-tax-id \{ --bi-label-width: 44mm; \}/);
+    assert.match(css, /\.bi-terms \{ --bi-label-width: 24mm; \}/);
+    assert.match(css, /\.bi-terms \.bi-payment-terms \{ --bi-label-width: 36mm; \}/);
+    assert.match(css, /\.bi-info \.bi-info-row \{ display: grid; grid-template-columns: var\(--bi-label-width\) minmax\(0, 1fr\); column-gap: 2mm; \}/);
+    assert.match(css, /\.bi-customer \.bi-info-row:not\(\.bi-tax-id\) \{ column-gap: 1mm; \}/);
   }
 });
 

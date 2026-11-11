@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { deliveryOrderAmounts, newDeliveryOrderLine, type DeliveryOrderLine, type DeliveryOrderProduct } from "@/lib/delivery-order";
+import { invoiceDescriptionLines } from "@/lib/invoice-description";
 
 const control = "w-full min-w-0 rounded-md border border-[#dfe5de] bg-white px-2 py-2";
 const button = "rounded-md border border-[#dfe5de] bg-white px-4 py-2 text-sm font-semibold disabled:opacity-40";
@@ -27,9 +28,11 @@ export function DocumentItems({ items, products, onChange, readOnly = false, tit
       <div role="region" aria-labelledby="so-items-heading" aria-describedby="so-items-help" className="relative max-w-full rounded-md border">
         <table aria-label={`${title} แก้ไขข้อมูลแต่ละรายการในตาราง`} className="so-items-table block w-full table-fixed text-sm md:table">
           <colgroup className="hidden md:table-column-group"><col className="w-[5%]" /><col className="w-[24%]" /><col className="w-[9%]" /><col className="w-[9%]" /><col className="w-[13%]" /><col className="w-[13%]" /><col className="w-[19%]" /><col className="w-[8%]" /></colgroup>
-          <thead className="hidden bg-gray-50 text-left md:table-header-group"><tr>{["ลำดับ", descriptionInProductCell ? "สินค้า / รายละเอียด" : "สินค้า / รหัสสินค้า", "จำนวน", "หน่วย", "ราคา/หน่วย", "ส่วนลดรายการ (บาท)", "จำนวนเงิน (บาท)", "จัดการ"].map((title, index) => <th key={title} scope="col" className={`break-words border-b px-1.5 py-3 ${[2, 4, 5, 6].includes(index) ? "text-right" : ""}`}>{title}</th>)}</tr></thead>
+          <thead className="hidden bg-gray-50 text-left md:table-header-group"><tr>{["ลำดับ", descriptionInProductCell ? "สินค้า / รายละเอียด" : "สินค้า", "จำนวน", "หน่วย", "ราคา/หน่วย", "ส่วนลดรายการ (บาท)", "จำนวนเงิน (บาท)", "จัดการ"].map((title, index) => <th key={title} scope="col" className={`break-words border-b px-1.5 py-3 ${[2, 4, 5, 6].includes(index) ? "text-right" : ""}`}>{title}</th>)}</tr></thead>
           {items.map((item, index) => {
-            const description = <label className="block text-xs text-gray-600"><span>รายละเอียด รายการ {index + 1}</span><textarea required rows={2} className={`${control} mt-1 text-sm text-[#17211b]`} placeholder="รายละเอียดสินค้า / งาน" value={item.desc} onChange={event => patch(index, { desc: event.target.value })} /></label>;
+            const description = <div><label className="block text-xs text-gray-600"><span>รายละเอียด รายการ {index + 1}</span><textarea required rows={2} className={`${control} mt-1 text-sm text-[#17211b]`} placeholder="รายละเอียดสินค้า / งาน" value={item.desc} onChange={event => patch(index, { desc: event.target.value })} /></label>
+              {descriptionInProductCell && <div className="mt-2 text-xs text-gray-600"><span>ตัวอย่างบรรทัดเมื่อพิมพ์ (ขนาดตัวอักษรอาจปรับให้พอดี)</span><div className="max-w-full overflow-x-auto"><div aria-label={`ตัวอย่างรายละเอียดรายการ ${index + 1}`} style={{ width: "74.5mm", fontFamily: "Calibri, Tahoma, var(--font-noto-thai), sans-serif", fontSize: "12pt", lineHeight: 1.5, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }} className="mt-1 min-h-6 border border-gray-300 bg-white text-black">{invoiceDescriptionLines(`${item.desc}${item.remark ? `\n${item.remark}` : ""}`).join("\n")}</div></div></div>}
+            </div>;
             return <tbody key={index} data-so-item={index + 1} className="block border-b last:border-b-0 focus-within:bg-blue-50/40 md:table-row-group">
             <tr className="grid grid-cols-2 items-start align-top md:table-row">
               <th scope="row" className="col-span-2 block px-1.5 py-3 text-left font-medium md:table-cell md:text-center"><span className="md:sr-only">รายการ </span>{index + 1}</th>
@@ -42,7 +45,7 @@ export function DocumentItems({ items, products, onChange, readOnly = false, tit
                   {item.productId && !products.some(product => product.id === item.productId) && <option value={item.productId}>{item.partNo || item.product?.code || "สินค้าเดิม"}{!readOnly && " (ปิดใช้งาน กรุณาเลือกใหม่)"}</option>}
                   {products.filter(product => product.id === item.productId || `${product.code} ${product.name}`.toLowerCase().includes(search.toLowerCase())).map(product => <option key={product.id} value={product.id}>{product.code} — {product.name}</option>)}
                 </select></label>
-                {descriptionInProductCell ? description : <label className="block"><span className="sr-only">รหัสสินค้าบนเอกสาร รายการ {index + 1}</span><input className={control} placeholder="รหัสสินค้าบนเอกสาร" value={item.partNo} onChange={event => patch(index, { partNo: event.target.value })} /></label>}
+                {descriptionInProductCell && description}
               </td>
               <td className="block min-w-0 p-1.5 md:table-cell"><label><span className="block text-xs md:sr-only">จำนวน รายการ {index + 1}</span><input required className={`${control} text-right`} type="number" min="1" max="999999999" step="1" value={item.qty} onChange={event => patch(index, { qty: event.target.value })} /></label></td>
               <td className="block min-w-0 p-1.5 md:table-cell"><label><span className="block text-xs md:sr-only">หน่วย รายการ {index + 1}</span><input required list="accounting-unit-options" className={control} value={item.unit} onChange={event => patch(index, { unit: event.target.value })} /></label></td>

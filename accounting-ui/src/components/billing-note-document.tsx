@@ -7,10 +7,9 @@ import type { PurchaseOrderCompanySettings } from "@/lib/accounting-purchase-ord
 import type { BillingLine, BillingNote } from "@/lib/billing-note";
 import { billingAmountText } from "@/lib/billing-note";
 import { hasApprovedActors } from "@/lib/accounting-approval";
+import { COMPANY_PRINT_TEL, COMPANY_THAI_ADDRESS } from "@/lib/company-print-details";
 import { AccountingApprovalSignatures } from "./accounting-approval-signatures";
 
-const BILLING_COMPANY_ADDRESS = "98 หมู่ที่ 6 ต.คลองสี่ อ.คลองหลวง จ.ปทุมธานี 12120";
-const BILLING_COMPANY_TEL = "02-1507694-5";
 const money = (value: number | string) => Number(value).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 export function billingPrintPages(items: BillingLine[]) {
   const pages: BillingLine[][] = [];
@@ -54,23 +53,23 @@ export function BillingNoteDocument({ document: doc, company, onReady }: {
         <header className="bi-company">
           <Image unoptimized loading="eager" width={160} height={90} src="/logo.jpg" alt="โลโก้บริษัท" className="bi-company-logo" />
           <h1 data-bi-fit>{company.companyName || ""}</h1>
-          <p className="bi-company-address" data-bi-fit>{BILLING_COMPANY_ADDRESS}</p>
-          <p data-bi-fit>โทร. {BILLING_COMPANY_TEL}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || ""}</p>
+          <p className="bi-company-address" data-bi-fit>{COMPANY_THAI_ADDRESS}</p>
+          <p data-bi-fit>โทร. {COMPANY_PRINT_TEL}　เลขประจำตัวผู้เสียภาษีอากร {company.taxId || ""}</p>
           <h2>ใบวางบิล</h2>
         </header>
         <p className="bi-code" data-bi-fit>รหัสลูกค้า　{doc.customerCode || doc.customer?.code || ""}</p>
         <section className="bi-info">
           <div className="bi-customer">
-            <p className="bi-name" data-bi-fit><strong>ชื่อลูกค้า</strong>　{doc.customerName || doc.customer?.name || ""} {doc.customerBranch && `(${doc.customerBranch})`}</p>
-            <p className="bi-address" data-bi-fit><strong>ที่อยู่</strong>　{doc.address || ""}</p>
-            <p className="bi-tax-id" data-bi-fit><strong>เลขประจำตัวผู้เสียภาษี</strong>　{doc.taxId || "-"}</p>
+            <p className="bi-name bi-info-row" data-bi-fit><strong>ชื่อลูกค้า</strong><span>{doc.customerName || doc.customer?.name || ""}{doc.customerBranch && ` (${doc.customerBranch})`}</span></p>
+            <p className="bi-address bi-info-row" data-bi-fit><strong>ที่อยู่</strong><span>{doc.address || ""}</span></p>
+            <p className="bi-tax-id bi-info-row" data-bi-fit><strong>เลขประจำตัวผู้เสียภาษี</strong><span>{doc.taxId || "-"}</span></p>
             <p data-bi-fit>{doc.contactPerson ? `ผู้ติดต่อ ${doc.contactPerson}` : ""}</p>
           </div>
           <div className="bi-terms">
-            <p data-bi-fit>เลขที่　{doc.biNo}</p>
-            <p>วันที่　{formatAccountingDate(doc.billingDate)}</p>
-            <p>วันที่นัดชำระ　{formatAccountingDate(doc.expectedPaymentDate)}</p>
-            <p className="bi-payment-terms" data-bi-fit>เงื่อนไขการจ่ายชำระ　{doc.paymentTerms}</p>
+            <p className="bi-info-row" data-bi-fit><span>เลขที่</span><span>{doc.biNo}</span></p>
+            <p className="bi-info-row" data-bi-fit><span>วันที่</span><span>{formatAccountingDate(doc.billingDate)}</span></p>
+            <p className="bi-info-row" data-bi-fit><span>วันที่นัดชำระ</span><span>{formatAccountingDate(doc.expectedPaymentDate)}</span></p>
+            <p className="bi-payment-terms bi-info-row" data-bi-fit><span>เงื่อนไขการจ่ายชำระ</span><span>{doc.paymentTerms}</span></p>
           </div>
         </section>
         <p className="bi-ack">รับบิลไว้ตรวจสอบตามรายการข้างล่างนี้ถูกต้องแล้ว{doc.status !== "approved" || doc.lifecycleVersion !== 1 ? " — ตัวอย่าง / ไม่ใช่ใบวางบิลยืนยัน" : ""}</p>
@@ -115,6 +114,12 @@ export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
     .bi-info { display: grid; grid-template-columns: 1fr 1fr; gap: 1mm; height: 40mm; }
     .bi-info > div { border: 1px solid #000; border-radius: 2mm; padding: 2mm; min-width: 0; }
     .bi-info p { overflow-wrap: anywhere; white-space: pre-wrap; }
+    .bi-customer { --bi-label-width: 17mm; }
+    .bi-customer .bi-tax-id { --bi-label-width: 44mm; }
+    .bi-terms { --bi-label-width: 24mm; }
+    .bi-terms .bi-payment-terms { --bi-label-width: 36mm; }
+    .bi-info .bi-info-row { display: grid; grid-template-columns: var(--bi-label-width) minmax(0, 1fr); column-gap: 2mm; }
+    .bi-customer .bi-info-row:not(.bi-tax-id) { column-gap: 1mm; }
     .bi-name { height: 9mm; }
     .bi-address { height: 15mm; }
     .bi-tax-id { height: 5mm; }
@@ -127,6 +132,7 @@ export function BillingPrintStyles({ allowed }: { allowed: boolean }) {
     .bi-lines thead th { border-top: 1px solid #000; border-bottom: 1px solid #000; text-align: center; height: 10mm; font-weight: normal; vertical-align: middle; }
     .bi-lines tbody tr:not(.bi-filler) { height: 7mm; }
     .bi-lines tbody td > div { height: 5mm; }
+    .bi-lines tbody td:nth-child(1),
     .bi-lines tbody td:nth-child(2),
     .bi-lines tbody td:nth-child(3),
     .bi-lines tbody td:nth-child(5),
