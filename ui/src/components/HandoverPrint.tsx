@@ -7,7 +7,7 @@ import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 25
-const FRAGMENT_CAP = PACK_CAP_LAST
+const FRAGMENT_CAP = 20
 
 const MIN_SCALE = 0.82
 const SCALE_STEP = 0.04
@@ -216,7 +216,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const tailMeasRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
   const readyRef = useRef(false)
-  const fallbackRef = useRef<PageChunk[] | null>(null)
+  const bestLayoutRef = useRef<{ scale: number; pages: PageChunk[] } | null>(null)
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
@@ -237,6 +237,17 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const serviceDateStr = doc.serviceDate
     ? new Date(doc.serviceDate).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' })
     : '-'
+  const quotationNumbers: string[] = []
+  const quotationReferences = [
+    doc.quotation?.quoNo,
+    ...(doc.quotationLinks?.map(({ quotation }) => quotation.quoNo) ?? []),
+    doc.workOrder?.quotation?.quoNo,
+  ]
+  quotationReferences.forEach(value => {
+    const normalized = value?.trim()
+    if (normalized && quotationNumbers.indexOf(normalized) === -1) quotationNumbers.push(normalized)
+  })
+  const quotationNo = quotationNumbers.join(', ') || '-'
 
   const productLines = useMemo(
     () => (doc.product || '').split('\n').map(v => v.trim()).filter(Boolean),
@@ -260,7 +271,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     setPages(null)
     setScale(1)
     rowRefs.current = []
-    fallbackRef.current = null
+    bestLayoutRef.current = null
     readyRef.current = false
   }, [doc])
 
@@ -302,17 +313,22 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         }
 
         const chunks = packByHeight(renderItems, heights, availNonLast, Math.max(availLast, 20))
-        if (scale >= 1 - 1e-9) fallbackRef.current = chunks
-        const last = chunks[chunks.length - 1]
-        const tailOnly = chunks.length > 1 && last.items.length === 0 && last.tail
-
-        if (!tailOnly) {
+        if (chunks.length === 1) {
           setPages(chunks)
-        } else if (scale > MIN_SCALE + 1e-9) {
+          return
+        }
+
+        const bestLayout = bestLayoutRef.current
+        if (!bestLayout || chunks.length < bestLayout.pages.length) {
+          bestLayoutRef.current = { scale, pages: chunks }
+        }
+
+        if (scale > MIN_SCALE + 1e-9) {
           setScale(s => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(3)))
         } else {
-          if (scale < 1 - 1e-9) setScale(1)
-          setPages(fallbackRef.current ?? chunks)
+          const best = bestLayoutRef.current ?? { scale, pages: chunks }
+          setScale(best.scale)
+          setPages(best.pages)
         }
       } catch {
         if (!cancelled) setPages(paginateItems(renderItems))
@@ -405,7 +421,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     </div>
   )
 
-  function renderHeader(currentPage: number) {
+  function renderHeader() {
     return (
       <>
         <div style={{ marginBottom: 0 }}>
@@ -486,7 +502,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
                     {[
                       ['Hand Over Job NO.', doc.hoNo],
                       ['Responsibility', doc.responsibility || ''],
-                      ['Quotation No.', doc.quotation?.quoNo || doc.workOrder?.quotation?.quoNo || '-'],
+                      ['Quotation No.', quotationNo],
                       ['Work order No.', doc.workOrder?.woNo || '-'],
                       ['Sales', doc.sales?.fullName || ''],
                       ['Date of service', serviceDateStr],
@@ -626,7 +642,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         }}
       >
         <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
-        <div ref={headerMeasRef}>{renderHeader(1)}</div>
+        <div ref={headerMeasRef}>{renderHeader()}</div>
         <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border }}>
           <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
           <tbody>
@@ -654,7 +670,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             position: 'relative',
           }}
         >
-          {renderHeader(index + 1)}
+          {renderHeader()}
           {renderItemsTable(page)}
           {page.tail && renderTail()}
           {!page.tail && (
