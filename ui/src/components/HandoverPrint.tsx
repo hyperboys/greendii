@@ -26,7 +26,7 @@ interface Props {
 interface HandoverItemFragment {
   key: string
   desc: string
-  noteLines: string[]
+  detailRows: Array<{ desc: string; qty: number | null; unit: string }>
   images: string[]
   qty?: number
   unit?: string
@@ -46,51 +46,59 @@ function splitDescriptionLines(note?: string): string[] {
   return lines
 }
 
-function noteLinesWeight(lines: string[]): number {
-  const nonEmptyNoteLines = lines.filter(Boolean).length
-  const blankNoteLines = lines.length - nonEmptyNoteLines
-  return nonEmptyNoteLines + blankNoteLines * 0.35
+function detailRowsWeight(rows: HandoverItemFragment['detailRows']): number {
+  const nonEmptyRows = rows.filter(row => row.desc || row.qty != null || row.unit).length
+  const blankRows = rows.length - nonEmptyRows
+  return nonEmptyRows + blankRows * 0.35
 }
 
 function itemWeight(fragment: HandoverItemFragment): number {
-  return 1 + noteLinesWeight(fragment.noteLines) + fragment.images.length * 3
+  return 1 + detailRowsWeight(fragment.detailRows) + fragment.images.length * 3
 }
 
 type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'detailRows' | 'remark' | 'qty' | 'unit' | 'images'>
 
 function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
-  const detailLines = parseHandOverDetailRows(item).map(row => row.desc).filter(Boolean)
+  const detailRows = parseHandOverDetailRows(item)
+    .filter(row => row.desc)
+    .map(row => ({
+      desc: row.desc,
+      qty: row.qty == null || !Number.isFinite(Number(row.qty)) ? null : Number(row.qty),
+      unit: String(row.unit ?? ''),
+    }))
   const metaNoteBlocks = parseHandOverColoredNoteBlocks(item.note)
   const legacyRemark = String(item.remark ?? '').trim()
   const noteBlockTexts = metaNoteBlocks.length > 0
     ? metaNoteBlocks.map(block => block.text)
     : (legacyRemark ? [legacyRemark] : [])
-  const noteLines = noteBlockTexts.flatMap(text => splitDescriptionLines(text))
+  const noteRows = noteBlockTexts
+    .flatMap(text => splitDescriptionLines(text))
+    .map(desc => ({ desc, qty: null, unit: '' }))
   // Legacy items (no note-block meta) always rendered detail lines before the single remark.
   const detailBeforeNote = metaNoteBlocks.length > 0 ? parseHandOverDetailBeforeNote(item.note) : true
-  const orderedLines = detailBeforeNote ? [...detailLines, ...noteLines] : [...noteLines, ...detailLines]
-  const remainingLines = [...orderedLines]
+  const orderedRows = detailBeforeNote ? [...detailRows, ...noteRows] : [...noteRows, ...detailRows]
+  const remainingRows = [...orderedRows]
   const remainingImages = Array.isArray(item.images) ? [...item.images] : []
   const fragments: HandoverItemFragment[] = []
   const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
   let fragmentIndex = 0
 
-  while (fragmentIndex === 0 || remainingLines.length > 0 || remainingImages.length > 0) {
-    const noteChunk: string[] = []
+  while (fragmentIndex === 0 || remainingRows.length > 0 || remainingImages.length > 0) {
+    const detailRowChunk: HandoverItemFragment['detailRows'] = []
     const imageChunk: string[] = []
     let weight = 1
 
-    while (remainingLines.length > 0) {
-      const nextLine = remainingLines[0]
-      const nextWeight = nextLine ? 1 : 0.35
-      if (weight + nextWeight > FRAGMENT_CAP && noteChunk.length > 0) break
-      noteChunk.push(remainingLines.shift() as string)
+    while (remainingRows.length > 0) {
+      const nextRow = remainingRows[0]
+      const nextWeight = nextRow.desc || nextRow.qty != null || nextRow.unit ? 1 : 0.35
+      if (weight + nextWeight > FRAGMENT_CAP && detailRowChunk.length > 0) break
+      detailRowChunk.push(remainingRows.shift() as HandoverItemFragment['detailRows'][number])
       weight += nextWeight
     }
 
     while (remainingImages.length > 0) {
       const nextWeight = 3
-      if (weight + nextWeight > FRAGMENT_CAP && (noteChunk.length > 0 || imageChunk.length > 0)) break
+      if (weight + nextWeight > FRAGMENT_CAP && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
       imageChunk.push(remainingImages.shift() as string)
       weight += nextWeight
     }
@@ -98,7 +106,7 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverIt
     fragments.push({
       key: `${item.seq ?? itemIndex}-${fragmentIndex}`,
       desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
-      noteLines: noteChunk,
+      detailRows: detailRowChunk,
       images: imageChunk,
       qty: fragmentIndex === 0 ? item.qty : undefined,
       unit: fragmentIndex === 0 ? item.unit : undefined,
@@ -119,7 +127,7 @@ function buildFallbackItems(lines: string[]): HandoverItemFragment[] {
   return lines.map((line, index) => ({
     key: `fallback-${index}`,
     desc: line,
-    noteLines: [],
+    detailRows: [],
     images: [],
     displaySeq: index + 1,
   }))
@@ -539,9 +547,9 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <td style={itemCellS}>{item.displaySeq ?? ''}</td>
         <td style={{ ...itemCellS, textAlign: 'left' }}>
           {item.desc}
-          {item.noteLines.map((line, index) => (
+          {item.detailRows.map((row, index) => (
             <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
-              {line || '\u00A0'}
+              {row.desc || '\u00A0'}
             </span>
           ))}
           {item.images.length > 0 && (
@@ -553,8 +561,22 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </div>
           )}
         </td>
-        <td style={itemCellS}>{item.qty != null && item.qty !== 0 ? item.qty : '\u00A0'}</td>
-        <td style={itemCellS}>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</td>
+        <td style={itemCellS}>
+          <div>{item.qty != null && item.qty !== 0 ? item.qty : '\u00A0'}</div>
+          {item.detailRows.map((row, index) => (
+            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
+              {row.qty != null && row.qty !== 0 ? row.qty : '\u00A0'}
+            </span>
+          ))}
+        </td>
+        <td style={itemCellS}>
+          <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</div>
+          {item.detailRows.map((row, index) => (
+            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
+              {row.unit || '\u00A0'}
+            </span>
+          ))}
+        </td>
       </tr>
     )
   }
