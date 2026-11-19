@@ -7,13 +7,6 @@ import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 25
-const FIRST_FRAGMENT_CAP = 8
-const CONTINUATION_FRAGMENT_CAP = 9
-const MAX_DETAIL_ROWS_FIRST_FRAGMENT = 1
-const MAX_DETAIL_ROWS_CONTINUATION = 1
-
-const MIN_SCALE = 0.82
-const SCALE_STEP = 0.04
 
 const HEADER_GAP = 1
 const SAFETY = 10
@@ -28,12 +21,13 @@ interface Props {
 interface HandoverItemFragment {
   key: string
   desc: string
-  detailRows: Array<{ desc: string; qty: number | null; unit: string }>
   images: string[]
   continuation: boolean
+  forcePageBreakBefore?: boolean
   qty?: number
   unit?: string
   displaySeq?: number
+  continuationNo?: number
 }
 
 interface PageChunk {
@@ -44,7 +38,7 @@ interface PageChunk {
 
 function splitDescriptionLines(note?: string): string[] {
   if (note == null) return []
-  const lines = note.split('\n').map(v => v.trim())
+  const lines = note.split('\n')
   if (lines.length === 1 && lines[0] === '') return []
   return lines
 }
@@ -75,8 +69,7 @@ function splitTextByMeasuredHeight(
       }
     }
 
-    const minWordBoundary = start + Math.floor((end - start) * 0.65)
-    for (let index = end - 1; index >= minWordBoundary; index -= 1) {
+    for (let index = end - 1; index > start; index -= 1) {
       if (/\s/.test(characters[index])) {
         end = index + 1
         break
@@ -128,171 +121,148 @@ function measureTextChunks(text: string, source: HTMLElement | null, maxHeight: 
   }
 }
 
-function detailRowsWeight(rows: HandoverItemFragment['detailRows']): number {
-  const nonEmptyRows = rows.filter(row => row.desc || row.qty != null || row.unit).length
-  const blankRows = rows.length - nonEmptyRows
-  return nonEmptyRows + blankRows * 0.35
-}
-
 function itemWeight(fragment: HandoverItemFragment): number {
-  return 1 + detailRowsWeight(fragment.detailRows) + fragment.images.length * 3
+  return 1 + Math.ceil(Array.from(fragment.desc).length / 100) + fragment.images.length * 3
 }
 
 type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'detailRows' | 'remark' | 'qty' | 'unit' | 'images'>
 
-function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverItemFragment[] {
+function buildItemDescription(item: ItemSource): string {
   const detailRows = parseHandOverDetailRows(item)
-    .filter(row => row.desc)
     .map(row => ({
       desc: row.desc,
       qty: row.qty == null || !Number.isFinite(Number(row.qty)) ? null : Number(row.qty),
       unit: String(row.unit ?? ''),
     }))
   const metaNoteBlocks = parseHandOverColoredNoteBlocks(item.note)
-  const legacyRemark = String(item.remark ?? '').trim()
+  const legacyRemark = String(item.remark ?? '')
   const noteBlockTexts = metaNoteBlocks.length > 0
     ? metaNoteBlocks.map(block => block.text)
-    : (legacyRemark ? [legacyRemark] : [])
+    : (legacyRemark.trim() ? [legacyRemark] : [])
   const noteRows = noteBlockTexts
     .flatMap(text => splitDescriptionLines(text))
     .map(desc => ({ desc, qty: null, unit: '' }))
-  // Legacy items (no note-block meta) always rendered detail lines before the single remark.
   const detailBeforeNote = metaNoteBlocks.length > 0 ? parseHandOverDetailBeforeNote(item.note) : true
   const orderedRows = detailBeforeNote ? [...detailRows, ...noteRows] : [...noteRows, ...detailRows]
-  const remainingRows = [...orderedRows]
-  const remainingImages = Array.isArray(item.images) ? [...item.images] : []
-  const fragments: HandoverItemFragment[] = []
-  const displaySeq = item.seq !== undefined ? item.seq + 1 : itemIndex + 1
-  let fragmentIndex = 0
-
-  while (fragmentIndex === 0 || remainingRows.length > 0 || remainingImages.length > 0) {
-    const detailRowChunk: HandoverItemFragment['detailRows'] = []
-    const imageChunk: string[] = []
-    let weight = 1
-    const fragmentCap = fragmentIndex === 0 ? FIRST_FRAGMENT_CAP : CONTINUATION_FRAGMENT_CAP
-    const maxDetailRows = fragmentIndex === 0 ? MAX_DETAIL_ROWS_FIRST_FRAGMENT : MAX_DETAIL_ROWS_CONTINUATION
-
-    while (remainingRows.length > 0) {
-      const nextRow = remainingRows[0]
-      const nextWeight = nextRow.desc || nextRow.qty != null || nextRow.unit ? 1 : 0.35
-      if (detailRowChunk.length >= maxDetailRows) break
-      if (weight + nextWeight > fragmentCap && detailRowChunk.length > 0) break
-      detailRowChunk.push(remainingRows.shift() as HandoverItemFragment['detailRows'][number])
-      weight += nextWeight
-    }
-
-    while (remainingImages.length > 0) {
-      const nextWeight = 3
-      if (weight + nextWeight > fragmentCap && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
-      imageChunk.push(remainingImages.shift() as string)
-      weight += nextWeight
-    }
-
-    fragments.push({
-      key: `${item.seq ?? itemIndex}-${fragmentIndex}`,
-      desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
-      detailRows: detailRowChunk,
-      images: imageChunk,
-      continuation: fragmentIndex > 0,
-      qty: fragmentIndex === 0 ? item.qty : undefined,
-      unit: fragmentIndex === 0 ? item.unit : undefined,
-      displaySeq: fragmentIndex === 0 ? displaySeq : undefined,
-    })
-
-    fragmentIndex += 1
-  }
-
-  return fragments
+  const detailLines = orderedRows.map(row => [
+    row.desc,
+    row.qty == null ? '' : String(row.qty),
+    row.unit,
+  ].filter(Boolean).join(' '))
+  const compactDetailLines = detailLines.reduce<string[]>((lines, line) => {
+    if (line || lines[lines.length - 1] !== '') lines.push(line)
+    return lines
+  }, [])
+  while (compactDetailLines[0] === '') compactDetailLines.shift()
+  while (compactDetailLines[compactDetailLines.length - 1] === '') compactDetailLines.pop()
+  const detailText = compactDetailLines.join('\n')
+  return [item.desc ?? '', detailText].filter(Boolean).join('\n')
 }
 
 function buildRenderableItems(items: ItemSource[]): HandoverItemFragment[] {
-  return items.flatMap((item, itemIndex) => splitItemIntoFragments(item, itemIndex))
+  return items.map((item, itemIndex) => ({
+    key: `${item.seq ?? itemIndex}`,
+    desc: buildItemDescription(item),
+    images: Array.isArray(item.images) ? [...item.images] : [],
+    continuation: false,
+    qty: item.qty,
+    unit: item.unit,
+    displaySeq: item.seq !== undefined ? item.seq + 1 : itemIndex + 1,
+  }))
 }
 
 function buildFallbackItems(lines: string[]): HandoverItemFragment[] {
   return lines.map((line, index) => ({
     key: `fallback-${index}`,
     desc: line,
-    detailRows: [],
     images: [],
     continuation: false,
     displaySeq: index + 1,
   }))
 }
 
-function reflowOversizedItems(
-  items: HandoverItemFragment[],
-  rowElements: Array<HTMLTableRowElement | null>,
+function splitItemForHeight(
+  item: HandoverItemFragment,
+  row: HTMLTableRowElement | null,
   maxHeight: number,
 ): HandoverItemFragment[] | null {
-  let changed = false
-  const reflowed: HandoverItemFragment[] = []
+  if (!row) return null
 
-  items.forEach((item, index) => {
-    const row = rowElements[index]
-    if (!row || row.getBoundingClientRect().height <= maxHeight) {
-      reflowed.push(item)
-      return
+  const source = row.querySelector<HTMLElement>('[data-handover-text="item-description"]')
+  if (source) {
+    const lineHeight = Number.parseFloat(window.getComputedStyle(source).lineHeight)
+    if (Number.isFinite(lineHeight) && maxHeight < lineHeight * 2) return null
+  }
+
+  const maxTextHeight = maxHeight
+  if (maxTextHeight <= 0) return null
+
+  const pieces: Array<{
+    desc?: string
+    images?: string[]
+  }> = []
+
+  if (item.desc) {
+    pieces.push(...measureTextChunks(item.desc, source, maxTextHeight).map(desc => ({ desc })))
+  }
+
+  item.images.forEach(image => pieces.push({ images: [image] }))
+
+  if (pieces.length <= 1) return null
+
+  return pieces.map((piece, pieceIndex) => {
+    const firstPiece = pieceIndex === 0
+    return {
+      key: `${item.key}-split-${pieceIndex}`,
+      desc: piece.desc ?? '',
+      images: piece.images ?? [],
+      continuation: item.continuation || !firstPiece,
+      forcePageBreakBefore: firstPiece ? item.forcePageBreakBefore : pieceIndex === 1,
+      qty: firstPiece ? item.qty : undefined,
+      unit: firstPiece ? item.unit : undefined,
+      displaySeq: firstPiece ? item.displaySeq : undefined,
+      continuationNo: item.continuationNo ?? item.displaySeq,
     }
-
-    const fixedColumnHeight = Math.max(...[0, 2, 3].map(cellIndex => {
-      const cell = row.cells[cellIndex]
-      if (!cell) return 0
-      const childrenHeight = Array.from(cell.children).reduce(
-        (sum, child) => sum + child.getBoundingClientRect().height,
-        0,
-      )
-      const lineHeight = Number.parseFloat(window.getComputedStyle(cell).lineHeight)
-      return Math.max(childrenHeight, Number.isFinite(lineHeight) ? lineHeight : 0)
-    }))
-    const maxTextHeight = Math.max(1, maxHeight - fixedColumnHeight)
-    const pieces: Array<{
-      desc?: string
-      detailRows?: HandoverItemFragment['detailRows']
-      images?: string[]
-    }> = []
-
-    if (item.desc) {
-      const source = row.querySelector<HTMLElement>('[data-handover-text="item-description"]')
-      pieces.push(...measureTextChunks(item.desc, source, maxTextHeight).map(desc => ({ desc })))
-    }
-
-    item.detailRows.forEach((detail, detailIndex) => {
-      const source = row.querySelector<HTMLElement>(`[data-handover-detail-index="${detailIndex}"]`)
-      const chunks = measureTextChunks(detail.desc, source, maxTextHeight)
-      pieces.push(...chunks.map((desc, chunkIndex) => ({
-        detailRows: [{
-          desc,
-          qty: chunkIndex === 0 ? detail.qty : null,
-          unit: chunkIndex === 0 ? detail.unit : '',
-        }],
-      })))
-    })
-
-    item.images.forEach(image => pieces.push({ images: [image] }))
-
-    if (pieces.length <= 1) {
-      reflowed.push(item)
-      return
-    }
-
-    changed = true
-    pieces.forEach((piece, pieceIndex) => {
-      const firstPiece = pieceIndex === 0
-      reflowed.push({
-        key: `${item.key}-overflow-${pieceIndex}`,
-        desc: piece.desc ?? '',
-        detailRows: piece.detailRows ?? [],
-        images: piece.images ?? [],
-        continuation: item.continuation || !firstPiece,
-        qty: firstPiece ? item.qty : undefined,
-        unit: firstPiece ? item.unit : undefined,
-        displaySeq: firstPiece ? item.displaySeq : undefined,
-      })
-    })
   })
+}
 
-  return changed ? reflowed : null
+function reflowItemsToPageSpace(
+  items: HandoverItemFragment[],
+  rowElements: Array<HTMLTableRowElement | null>,
+  heights: number[],
+  maxPageHeight: number,
+): HandoverItemFragment[] | null {
+  let used = 0
+
+  for (let index = 0; index < items.length; index += 1) {
+    const item = items[index]
+    const height = heights[index] ?? 0
+    if (item.forcePageBreakBefore) used = 0
+
+    const remaining = maxPageHeight - used
+    if (height <= remaining) {
+      used += height
+      continue
+    }
+
+    const remainingPageItems = used > 0
+      ? splitItemForHeight(item, rowElements[index], remaining)
+      : null
+    if (remainingPageItems) {
+      return [...items.slice(0, index), ...remainingPageItems, ...items.slice(index + 1)]
+    }
+
+    used = 0
+    if (height > maxPageHeight) {
+      const fullPageItems = splitItemForHeight(item, rowElements[index], maxPageHeight)
+      if (fullPageItems) {
+        return [...items.slice(0, index), ...fullPageItems, ...items.slice(index + 1)]
+      }
+    }
+    used = height
+  }
+
+  return null
 }
 
 function takeTrailingItems<T>(
@@ -327,7 +297,7 @@ function paginateItems(items: HandoverItemFragment[]): PageChunk[] {
 
   for (const item of items) {
     const weight = itemWeight(item)
-    if (currentWeight + weight > PACK_CAP_NON_LAST && current.length > 0) {
+    if (current.length > 0 && (item.forcePageBreakBefore || currentWeight + weight > PACK_CAP_NON_LAST)) {
       rawPages.push(current)
       current = [item]
       currentWeight = weight
@@ -377,7 +347,7 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
   let used = 0
 
   for (const entry of entries) {
-    if (current.length > 0 && used + entry.height > availNonLast) {
+    if (current.length > 0 && (entry.item.forcePageBreakBefore || used + entry.height > availNonLast)) {
       rawPages.push(current)
       current = [entry]
       used = entry.height
@@ -424,7 +394,6 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
 export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
   const [layoutItems, setLayoutItems] = useState<HandoverItemFragment[] | null>(null)
-  const [scale, setScale] = useState(1)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
   const headerMeasRef = useRef<HTMLDivElement>(null)
@@ -432,7 +401,6 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const tailMeasRef = useRef<HTMLDivElement>(null)
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([])
   const readyRef = useRef(false)
-  const bestLayoutRef = useRef<{ scale: number; pages: PageChunk[] } | null>(null)
 
   const companyName = settings?.companyName || 'บริษัท กรีนส์ดี จำกัด'
   const companyNameEn = settings?.companyNameEn || 'GREENdii CO., LTD'
@@ -487,9 +455,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   useEffect(() => {
     setPages(null)
     setLayoutItems(null)
-    setScale(1)
     rowRefs.current = []
-    bestLayoutRef.current = null
     readyRef.current = false
   }, [doc])
 
@@ -530,30 +496,19 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           return
         }
 
-        const oversizedItems = reflowOversizedItems(measuredItems, rowRefs.current, availNonLast)
-        if (oversizedItems) {
-          setLayoutItems(oversizedItems)
+        const pageSpacedItems = reflowItemsToPageSpace(
+          measuredItems,
+          rowRefs.current,
+          heights,
+          availNonLast,
+        )
+        if (pageSpacedItems) {
+          setLayoutItems(pageSpacedItems)
           return
         }
 
         const chunks = packByHeight(measuredItems, heights, availNonLast, Math.max(availLast, 20))
-        if (chunks.length === 1) {
-          setPages(chunks)
-          return
-        }
-
-        const bestLayout = bestLayoutRef.current
-        if (!bestLayout || chunks.length < bestLayout.pages.length) {
-          bestLayoutRef.current = { scale, pages: chunks }
-        }
-
-        if (scale > MIN_SCALE + 1e-9) {
-          setScale(s => Math.max(MIN_SCALE, +(s - SCALE_STEP).toFixed(3)))
-        } else {
-          const best = bestLayoutRef.current ?? { scale, pages: chunks }
-          setScale(best.scale)
-          setPages(best.pages)
-        }
+        setPages(chunks)
       } catch {
         if (!cancelled) setPages(paginateItems(measuredItems))
       }
@@ -561,7 +516,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
     void run()
     return () => { cancelled = true }
-  }, [pages, measuredItems, scale])
+  }, [pages, measuredItems])
 
   useEffect(() => {
     if (pages === null || readyRef.current) return
@@ -569,9 +524,14 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     requestAnimationFrame(() => { onReady?.() })
   }, [pages, onReady])
 
-  const fpt = (n: number) => `${+(n * scale).toFixed(3)}pt`
-  const fpx = (n: number) => `${+(n * scale).toFixed(3)}px`
-  const fmm = (n: number) => `${+(n * scale).toFixed(3)}mm`
+  const fpt = (n: number) => `${n}pt`
+  const fpx = (n: number) => `${n}px`
+  const fmm = (n: number) => `${n}mm`
+  const printTextStyle: React.CSSProperties = {
+    fontFamily: 'var(--font-body)',
+    color: '#000',
+    fontSize: '10pt',
+  }
 
   const thS: React.CSSProperties = {
     border: borderTh,
@@ -595,8 +555,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     borderLeft: border,
     borderRight: border,
     padding: `0 ${fpx(6)}`,
-    fontSize: fpt(11),
-    lineHeight: 1.0,
+    fontSize: fpt(12),
+    lineHeight: 1.1,
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -772,26 +732,20 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   function renderItemRow(
     item: HandoverItemFragment,
     rowRef?: (element: HTMLTableRowElement | null) => void,
-    showContinuation = false,
   ) {
     return (
       <tr key={item.key} ref={rowRef} style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
-        <td style={itemCellS}>{item.displaySeq ?? (showContinuation ? '(ต่อ)' : '')}</td>
+        <td style={itemCellS}>
+          {item.displaySeq ?? (item.continuation && item.continuationNo != null
+            ? `${item.continuationNo} (ต่อ)`
+            : '')}
+        </td>
         <td style={{ ...itemCellS, textAlign: 'left', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {item.desc && (
-            <span data-handover-text="item-description" style={{ display: 'block' }}>
+            <span data-handover-text="item-description" style={{ display: 'block', lineHeight: 1.1 }}>
               {item.desc}
             </span>
           )}
-          {item.detailRows.map((row, index) => (
-            <span
-              key={index}
-              data-handover-detail-index={index}
-              style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}
-            >
-              {row.desc || '\u00A0'}
-            </span>
-          ))}
           {item.images.length > 0 && (
             <div style={{ marginTop: fmm(1), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
               {item.images.map((url, index) => (
@@ -803,19 +757,9 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         </td>
         <td style={itemCellS}>
           <div>{item.qty != null && item.qty !== 0 ? item.qty : '\u00A0'}</div>
-          {item.detailRows.map((row, index) => (
-            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
-              {row.qty != null && row.qty !== 0 ? row.qty : '\u00A0'}
-            </span>
-          ))}
         </td>
         <td style={itemCellS}>
           <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</div>
-          {item.detailRows.map((row, index) => (
-            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
-              {row.unit || '\u00A0'}
-            </span>
-          ))}
         </td>
       </tr>
     )
@@ -828,7 +772,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         <table
           style={{
             width: '100%',
-            ...(chunk.tail ? {} : { flex: '1 1 0', minHeight: 0 }),
+            flex: '1 1 0',
+            minHeight: 0,
             borderCollapse: 'collapse',
             tableLayout: 'fixed',
             marginBottom: 0,
@@ -838,15 +783,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           {itemsColGroup()}
           <thead>{itemsHeadRow()}</thead>
           <tbody>
-            {chunk.items.map((item, index) => renderItemRow(item, undefined, index === 0 && item.continuation))}
-            {!chunk.tail && (
-              <tr className="handover-flex-filler" style={{ height: '100%' }}>
-                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-              </tr>
-            )}
+            {chunk.items.map(item => renderItemRow(item))}
+            <tr className="handover-flex-filler" aria-hidden="true" style={{ height: '100%' }}>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+            </tr>
           </tbody>
         </table>
       </>
@@ -857,7 +800,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     return (
       <div
         className="handover-tail"
-        style={{ breakInside: 'avoid', pageBreakInside: 'avoid', flex: '0 0 auto' }}
+        style={{ breakInside: 'avoid', pageBreakInside: 'avoid', flex: '0 0 auto', marginTop: 'auto' }}
       >
         <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: `${fpx(1)} ${fpx(8)}`, marginTop: 0, marginBottom: 0 }}>
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: fpt(11.6), marginBottom: 0 }}>
@@ -879,8 +822,11 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
         <div style={{ borderLeft: border, borderRight: border, padding: `${fpx(2)} ${fpx(8)} ${fpx(5)}`, marginBottom: 0 }}>
           <div style={{ fontWeight: 'bold', fontSize: fpt(8.8), marginBottom: 0 }}>COMMENT</div>
-          <div style={{ borderBottom: '1px dotted #555', minHeight: fpx(16), fontSize: fpt(14) }}>&nbsp;</div>
-          <div style={{ borderBottom: '1px dotted #555', marginTop: fpx(16), height: fpx(14) }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: fpx(6), marginTop: fpx(4) }}>
+            {[0, 1, 2].map(line => (
+              <div key={line} style={{ borderBottom: '1px dotted #555', height: fpx(14) }} />
+            ))}
+          </div>
         </div>
 
         <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 0, marginBottom: 0 }}>
@@ -909,10 +855,12 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         ref={measureRef}
         aria-hidden
         style={{
+          ...printTextStyle,
           position: 'absolute',
           top: 0,
           left: 0,
-          width: '100%',
+          width: '190mm',
+          maxWidth: '190mm',
           visibility: 'hidden',
           pointerEvents: 'none',
           zIndex: -1,
@@ -933,38 +881,41 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   }
 
   return (
-    <div className="print-sheet handover-print" style={{ fontFamily: 'var(--font-body)', color: '#000', fontSize: '10pt', position: 'relative' }}>
+    <>
       {pages === null && renderMeasureLayer()}
-      {(pages ?? []).map((page, index) => (
-        <div
-          key={index}
-          className="handover-page"
-          style={{
-            pageBreakAfter: index < totalPages - 1 ? 'always' : 'auto',
-            breakAfter: index < totalPages - 1 ? 'page' : 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            height: '281mm',
-            boxSizing: 'border-box',
-            position: 'relative',
-          }}
-        >
-          {renderHeader()}
-          {renderItemsTable(page)}
-          {page.tail && renderTail()}
-          {!page.tail && (
-            <div
-              style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: 0,
-                borderTop: border,
-              }}
-            />
-          )}
-        </div>
-      ))}
-    </div>
+      <div className="print-sheet handover-print" style={{ ...printTextStyle, position: 'relative' }}>
+        {(pages ?? []).map((page, index) => (
+          <div
+            key={index}
+            className="handover-page"
+            style={{
+              pageBreakAfter: index < totalPages - 1 ? 'always' : 'auto',
+              breakAfter: index < totalPages - 1 ? 'page' : 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              height: '281mm',
+              overflow: index < totalPages - 1 ? 'hidden' : 'visible',
+              boxSizing: 'border-box',
+              position: 'relative',
+            }}
+          >
+            {renderHeader()}
+            {renderItemsTable(page)}
+            {page.tail && renderTail()}
+            {!page.tail && (
+              <div
+                style={{
+                  position: 'absolute',
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  borderTop: border,
+                }}
+              />
+            )}
+          </div>
+        ))}
+      </div>
+    </>
   )
 }

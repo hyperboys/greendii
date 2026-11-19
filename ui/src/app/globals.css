@@ -299,7 +299,7 @@
 
   .print-sheet.handover-print .handover-page:last-child {
     height: 281mm !important;
-    overflow: hidden !important;
+    overflow: visible !important;
   }
 
   /* PR: use static flow in print (not the generic fixed single-page rule above).
@@ -357,6 +357,12 @@
 
 /* On screen only: visual separator between manual work-order pages. */
 @media screen {
+  .print-sheet.handover-print {
+    width: 190mm !important;
+    max-width: 190mm !important;
+    margin: 0 auto !important;
+  }
+
   .print-sheet.workorder-print .workorder-page + .workorder-page {
     margin-top: 10mm;
     border-top: 2px dashed #ccc;
@@ -374,8 +380,6 @@
 
   .print-sheet.handover-print .handover-page + .handover-page {
     margin-top: 10mm;
-    border-top: 2px dashed #ccc;
-    padding-top: 10mm;
   }
 
   .quotation-preview-modal .print-sheet.quotation-print {
