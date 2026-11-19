@@ -281,11 +281,22 @@
   .print-sheet.handover-print .handover-page {
     box-sizing: border-box !important;
     width: 100% !important;
-    height: 281mm;
-    overflow: hidden;
+    height: 281mm !important;
+    overflow: hidden !important;
     display: flex !important;
     flex-direction: column !important;
   }
+
+  .print-sheet.handover-print thead {
+    display: table-header-group !important;
+  }
+
+  .print-sheet.handover-print tr,
+  .print-sheet.handover-print .handover-tail {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
   .print-sheet.handover-print .handover-page:last-child {
     height: 281mm !important;
     overflow: hidden !important;

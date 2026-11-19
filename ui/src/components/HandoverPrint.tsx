@@ -7,7 +7,10 @@ import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
 const PACK_CAP_NON_LAST = 26
 const PACK_CAP_LAST = 25
-const FRAGMENT_CAP = 20
+const FIRST_FRAGMENT_CAP = 8
+const CONTINUATION_FRAGMENT_CAP = 9
+const MAX_DETAIL_ROWS_FIRST_FRAGMENT = 1
+const MAX_DETAIL_ROWS_CONTINUATION = 1
 
 const MIN_SCALE = 0.82
 const SCALE_STEP = 0.04
@@ -15,7 +18,6 @@ const SCALE_STEP = 0.04
 const HEADER_GAP = 1
 const SAFETY = 10
 const TAIL_GAP = 0
-const LAST_PAGE_FIT_TOLERANCE_PX = 80
 
 interface Props {
   doc: HandOverJob
@@ -28,6 +30,7 @@ interface HandoverItemFragment {
   desc: string
   detailRows: Array<{ desc: string; qty: number | null; unit: string }>
   images: string[]
+  continuation: boolean
   qty?: number
   unit?: string
   displaySeq?: number
@@ -44,6 +47,85 @@ function splitDescriptionLines(note?: string): string[] {
   const lines = note.split('\n').map(v => v.trim())
   if (lines.length === 1 && lines[0] === '') return []
   return lines
+}
+
+function splitTextByMeasuredHeight(
+  text: string,
+  maxHeight: number,
+  measureHeight: (value: string) => number,
+): string[] {
+  const characters = Array.from(text)
+  if (characters.length === 0 || measureHeight(text) <= maxHeight) return [text]
+
+  const chunks: string[] = []
+  let start = 0
+  while (start < characters.length) {
+    let low = start + 1
+    let high = characters.length
+    let end = low
+
+    while (low <= high) {
+      const middle = Math.floor((low + high) / 2)
+      const height = measureHeight(characters.slice(start, middle).join(''))
+      if (height <= maxHeight) {
+        end = middle
+        low = middle + 1
+      } else {
+        high = middle - 1
+      }
+    }
+
+    const minWordBoundary = start + Math.floor((end - start) * 0.65)
+    for (let index = end - 1; index >= minWordBoundary; index -= 1) {
+      if (/\s/.test(characters[index])) {
+        end = index + 1
+        break
+      }
+    }
+
+    chunks.push(characters.slice(start, end).join(''))
+    start = end
+  }
+
+  return chunks
+}
+
+function measureTextChunks(text: string, source: HTMLElement | null, maxHeight: number): string[] {
+  if (!source || typeof window === 'undefined' || typeof document === 'undefined') return [text]
+
+  const rect = source.getBoundingClientRect()
+  const computed = window.getComputedStyle(source)
+  const probe = document.createElement('div')
+  Object.assign(probe.style, {
+    position: 'absolute',
+    left: '-100000px',
+    top: '0',
+    width: `${rect.width}px`,
+    boxSizing: 'border-box',
+    padding: '0',
+    margin: '0',
+    border: '0',
+    fontFamily: computed.fontFamily,
+    fontSize: computed.fontSize,
+    fontWeight: computed.fontWeight,
+    fontStyle: computed.fontStyle,
+    lineHeight: computed.lineHeight,
+    letterSpacing: computed.letterSpacing,
+    wordSpacing: computed.wordSpacing,
+    whiteSpace: computed.whiteSpace,
+    overflowWrap: computed.overflowWrap,
+    wordBreak: computed.wordBreak,
+  })
+
+  document.body.appendChild(probe)
+  try {
+    return splitTextByMeasuredHeight(text, maxHeight, value => {
+      probe.textContent = value
+      return probe.getBoundingClientRect().height
+    })
+  } finally {
+    probe.remove()
+  }
 }
 
 function detailRowsWeight(rows: HandoverItemFragment['detailRows']): number {
@@ -87,18 +169,21 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverIt
     const detailRowChunk: HandoverItemFragment['detailRows'] = []
     const imageChunk: string[] = []
     let weight = 1
+    const fragmentCap = fragmentIndex === 0 ? FIRST_FRAGMENT_CAP : CONTINUATION_FRAGMENT_CAP
+    const maxDetailRows = fragmentIndex === 0 ? MAX_DETAIL_ROWS_FIRST_FRAGMENT : MAX_DETAIL_ROWS_CONTINUATION
 
     while (remainingRows.length > 0) {
       const nextRow = remainingRows[0]
       const nextWeight = nextRow.desc || nextRow.qty != null || nextRow.unit ? 1 : 0.35
-      if (weight + nextWeight > FRAGMENT_CAP && detailRowChunk.length > 0) break
+      if (detailRowChunk.length >= maxDetailRows) break
+      if (weight + nextWeight > fragmentCap && detailRowChunk.length > 0) break
       detailRowChunk.push(remainingRows.shift() as HandoverItemFragment['detailRows'][number])
       weight += nextWeight
     }
 
     while (remainingImages.length > 0) {
       const nextWeight = 3
-      if (weight + nextWeight > FRAGMENT_CAP && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
+      if (weight + nextWeight > fragmentCap && (detailRowChunk.length > 0 || imageChunk.length > 0)) break
       imageChunk.push(remainingImages.shift() as string)
       weight += nextWeight
     }
@@ -108,6 +193,7 @@ function splitItemIntoFragments(item: ItemSource, itemIndex: number): HandoverIt
       desc: fragmentIndex === 0 ? (item.desc ?? '') : '',
       detailRows: detailRowChunk,
       images: imageChunk,
+      continuation: fragmentIndex > 0,
       qty: fragmentIndex === 0 ? item.qty : undefined,
       unit: fragmentIndex === 0 ? item.unit : undefined,
       displaySeq: fragmentIndex === 0 ? displaySeq : undefined,
@@ -129,8 +215,105 @@ function buildFallbackItems(lines: string[]): HandoverItemFragment[] {
     desc: line,
     detailRows: [],
     images: [],
+    continuation: false,
     displaySeq: index + 1,
   }))
+}
+
+function reflowOversizedItems(
+  items: HandoverItemFragment[],
+  rowElements: Array<HTMLTableRowElement | null>,
+  maxHeight: number,
+): HandoverItemFragment[] | null {
+  let changed = false
+  const reflowed: HandoverItemFragment[] = []
+
+  items.forEach((item, index) => {
+    const row = rowElements[index]
+    if (!row || row.getBoundingClientRect().height <= maxHeight) {
+      reflowed.push(item)
+      return
+    }
+
+    const fixedColumnHeight = Math.max(...[0, 2, 3].map(cellIndex => {
+      const cell = row.cells[cellIndex]
+      if (!cell) return 0
+      const childrenHeight = Array.from(cell.children).reduce(
+        (sum, child) => sum + child.getBoundingClientRect().height,
+        0,
+      )
+      const lineHeight = Number.parseFloat(window.getComputedStyle(cell).lineHeight)
+      return Math.max(childrenHeight, Number.isFinite(lineHeight) ? lineHeight : 0)
+    }))
+    const maxTextHeight = Math.max(1, maxHeight - fixedColumnHeight)
+    const pieces: Array<{
+      desc?: string
+      detailRows?: HandoverItemFragment['detailRows']
+      images?: string[]
+    }> = []
+
+    if (item.desc) {
+      const source = row.querySelector<HTMLElement>('[data-handover-text="item-description"]')
+      pieces.push(...measureTextChunks(item.desc, source, maxTextHeight).map(desc => ({ desc })))
+    }
+
+    item.detailRows.forEach((detail, detailIndex) => {
+      const source = row.querySelector<HTMLElement>(`[data-handover-detail-index="${detailIndex}"]`)
+      const chunks = measureTextChunks(detail.desc, source, maxTextHeight)
+      pieces.push(...chunks.map((desc, chunkIndex) => ({
+        detailRows: [{
+          desc,
+          qty: chunkIndex === 0 ? detail.qty : null,
+          unit: chunkIndex === 0 ? detail.unit : '',
+        }],
+      })))
+    })
+
+    item.images.forEach(image => pieces.push({ images: [image] }))
+
+    if (pieces.length <= 1) {
+      reflowed.push(item)
+      return
+    }
+
+    changed = true
+    pieces.forEach((piece, pieceIndex) => {
+      const firstPiece = pieceIndex === 0
+      reflowed.push({
+        key: `${item.key}-overflow-${pieceIndex}`,
+        desc: piece.desc ?? '',
+        detailRows: piece.detailRows ?? [],
+        images: piece.images ?? [],
+        continuation: item.continuation || !firstPiece,
+        qty: firstPiece ? item.qty : undefined,
+        unit: firstPiece ? item.unit : undefined,
+        displaySeq: firstPiece ? item.displaySeq : undefined,
+      })
+    })
+  })
+
+  return changed ? reflowed : null
+}
+
+function takeTrailingItems<T>(
+  pages: T[][],
+  canFit: (tailItems: T[], candidate: T) => boolean,
+): { pages: T[][]; tailItems: T[] } {
+  const lastPage = pages[pages.length - 1]
+  const tailItems: T[] = []
+  if (!lastPage) return { pages, tailItems }
+
+  while (lastPage.length > 0) {
+    const candidate = lastPage[lastPage.length - 1]
+    if (!canFit(tailItems, candidate)) break
+    const moved = lastPage.pop()
+    if (moved !== undefined) tailItems.unshift(moved)
+  }
+
+  return {
+    pages: lastPage.length > 0 ? pages : pages.slice(0, -1),
+    tailItems,
+  }
 }
 
 function paginateItems(items: HandoverItemFragment[]): PageChunk[] {
@@ -167,7 +350,17 @@ function paginateItems(items: HandoverItemFragment[]): PageChunk[] {
     lastPage.isLast = true
     lastPage.tail = true
   } else {
-    pages.push({ items: [], isLast: true, tail: true })
+    const { pages: contentPages, tailItems } = takeTrailingItems(
+      rawPages,
+      (movedItems, candidate) => movedItems.reduce((sum, item) => sum + itemWeight(item), itemWeight(candidate)) <= PACK_CAP_LAST,
+    )
+    const contentChunks = contentPages.map(pageItems => ({
+      items: pageItems,
+      isLast: false,
+      tail: false,
+    }))
+    contentChunks.push({ items: tailItems, isLast: true, tail: true })
+    return contentChunks
   }
 
   return pages
@@ -203,12 +396,26 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
 
   const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
   // Allow a small measurement tolerance to avoid unnecessary tail-only pages.
-  if (lastPageHeight <= availLast + LAST_PAGE_FIT_TOLERANCE_PX) {
+  if (lastPageHeight <= availLast) {
     const lastPage = pages[pages.length - 1]
     lastPage.isLast = true
     lastPage.tail = true
   } else {
-    pages.push({ items: [], isLast: true, tail: true })
+    const { pages: contentPages, tailItems } = takeTrailingItems(
+      rawPages,
+      (movedEntries, candidate) => movedEntries.reduce((sum, entry) => sum + entry.height, candidate.height) <= availLast,
+    )
+    const contentChunks = contentPages.map(pageItems => ({
+      items: pageItems.map(entry => entry.item),
+      isLast: false,
+      tail: false,
+    }))
+    contentChunks.push({
+      items: tailItems.map(entry => entry.item),
+      isLast: true,
+      tail: true,
+    })
+    return contentChunks
   }
 
   return pages
@@ -216,6 +423,7 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
 
 export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const [pages, setPages] = useState<PageChunk[] | null>(null)
+  const [layoutItems, setLayoutItems] = useState<HandoverItemFragment[] | null>(null)
   const [scale, setScale] = useState(1)
   const measureRef = useRef<HTMLDivElement>(null)
   const probeRef = useRef<HTMLDivElement>(null)
@@ -273,10 +481,12 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     () => quotationItems.length > 0 ? buildRenderableItems(quotationItems) : buildFallbackItems(productLines),
     [quotationItems, productLines],
   )
+  const measuredItems = layoutItems ?? renderItems
   const totalPages = pages?.length ?? 1
 
   useEffect(() => {
     setPages(null)
+    setLayoutItems(null)
     setScale(1)
     rowRefs.current = []
     bestLayoutRef.current = null
@@ -311,16 +521,22 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
         const headerHeight = headerMeasRef.current?.getBoundingClientRect().height ?? 0
         const theadHeight = theadMeasRef.current?.getBoundingClientRect().height ?? 0
         const tailHeight = tailMeasRef.current?.getBoundingClientRect().height ?? 0
-        const heights = renderItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
+        const heights = measuredItems.map((_, index) => rowRefs.current[index]?.getBoundingClientRect().height ?? 0)
         const availNonLast = pagePx - headerHeight - HEADER_GAP - theadHeight - SAFETY
         const availLast = availNonLast - tailHeight - TAIL_GAP
 
-        if (!pagePx || availNonLast < 20 || (renderItems.length > 0 && heights.every(height => height <= 0))) {
-          setPages(paginateItems(renderItems))
+        if (!pagePx || availNonLast < 20 || (measuredItems.length > 0 && heights.every(height => height <= 0))) {
+          setPages(paginateItems(measuredItems))
           return
         }
 
-        const chunks = packByHeight(renderItems, heights, availNonLast, Math.max(availLast, 20))
+        const oversizedItems = reflowOversizedItems(measuredItems, rowRefs.current, availNonLast)
+        if (oversizedItems) {
+          setLayoutItems(oversizedItems)
+          return
+        }
+
+        const chunks = packByHeight(measuredItems, heights, availNonLast, Math.max(availLast, 20))
         if (chunks.length === 1) {
           setPages(chunks)
           return
@@ -339,13 +555,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           setPages(best.pages)
         }
       } catch {
-        if (!cancelled) setPages(paginateItems(renderItems))
+        if (!cancelled) setPages(paginateItems(measuredItems))
       }
     }
 
     void run()
     return () => { cancelled = true }
-  }, [pages, renderItems, scale])
+  }, [pages, measuredItems, scale])
 
   useEffect(() => {
     if (pages === null || readyRef.current) return
@@ -378,8 +594,9 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   const itemCellS: React.CSSProperties = {
     borderLeft: border,
     borderRight: border,
-    padding: `${fpx(4)} ${fpx(6)}`,
+    padding: `0 ${fpx(6)}`,
     fontSize: fpt(11),
+    lineHeight: 1.0,
     verticalAlign: 'top',
     textAlign: 'center',
   }
@@ -530,10 +747,21 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     )
   }
 
+  function itemsColGroup() {
+    return (
+      <colgroup>
+        <col style={{ width: fpx(42) }} />
+        <col />
+        <col style={{ width: fpx(50) }} />
+        <col style={{ width: fpx(50) }} />
+      </colgroup>
+    )
+  }
+
   function itemsHeadRow() {
     return (
       <tr>
-        <th style={{ ...thS, width: '32px' }}>No.</th>
+        <th style={{ ...thS, width: '42px' }}>No.</th>
         <th style={{ ...thS, textAlign: 'center' }}>Description / รายละเอียด</th>
         <th style={{ ...thS, width: '50px' }}>Qty</th>
         <th style={{ ...thS, width: '50px' }}>Unit</th>
@@ -541,14 +769,26 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     )
   }
 
-  function renderItemRow(item: HandoverItemFragment, rowRef?: (element: HTMLTableRowElement | null) => void) {
+  function renderItemRow(
+    item: HandoverItemFragment,
+    rowRef?: (element: HTMLTableRowElement | null) => void,
+    showContinuation = false,
+  ) {
     return (
-      <tr key={item.key} ref={rowRef}>
-        <td style={itemCellS}>{item.displaySeq ?? ''}</td>
-        <td style={{ ...itemCellS, textAlign: 'left' }}>
-          {item.desc}
+      <tr key={item.key} ref={rowRef} style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+        <td style={itemCellS}>{item.displaySeq ?? (showContinuation ? '(ต่อ)' : '')}</td>
+        <td style={{ ...itemCellS, textAlign: 'left', whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+          {item.desc && (
+            <span data-handover-text="item-description" style={{ display: 'block' }}>
+              {item.desc}
+            </span>
+          )}
           {item.detailRows.map((row, index) => (
-            <span key={index} style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}>
+            <span
+              key={index}
+              data-handover-detail-index={index}
+              style={{ color: '#555', fontSize: fpt(12), lineHeight: 1.0, display: 'block' }}
+            >
               {row.desc || '\u00A0'}
             </span>
           ))}
@@ -585,16 +825,28 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     return (
       <>
         
-        <table style={{ width: '100%', flex: '1 1 0', minHeight: 0, borderCollapse: 'collapse', marginBottom: 0, border }}>
+        <table
+          style={{
+            width: '100%',
+            ...(chunk.tail ? {} : { flex: '1 1 0', minHeight: 0 }),
+            borderCollapse: 'collapse',
+            tableLayout: 'fixed',
+            marginBottom: 0,
+            border,
+          }}
+        >
+          {itemsColGroup()}
           <thead>{itemsHeadRow()}</thead>
           <tbody>
-            {chunk.items.map(item => renderItemRow(item))}
-            <tr style={{ height: '100%' }}>
-              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-              <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
-            </tr>
+            {chunk.items.map((item, index) => renderItemRow(item, undefined, index === 0 && item.continuation))}
+            {!chunk.tail && (
+              <tr className="handover-flex-filler" style={{ height: '100%' }}>
+                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+                <td style={{ ...itemCellS, lineHeight: 0, fontSize: 0, padding: 0 }}>&nbsp;</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </>
@@ -603,7 +855,10 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
 
   function renderTail() {
     return (
-      <>
+      <div
+        className="handover-tail"
+        style={{ breakInside: 'avoid', pageBreakInside: 'avoid', flex: '0 0 auto' }}
+      >
         <div style={{ borderLeft: border, borderRight: border, borderBottom: border, padding: `${fpx(1)} ${fpx(8)}`, marginTop: 0, marginBottom: 0 }}>
           <div style={{ textAlign: 'center', fontWeight: 'bold', fontSize: fpt(11.6), marginBottom: 0 }}>
             ประเมินคุณภาพและข้อเสนอแนะ
@@ -644,7 +899,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </tr>
           </tbody>
         </table>
-      </>
+      </div>
     )
   }
 
@@ -665,10 +920,11 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
       >
         <div ref={probeRef} style={{ height: '281mm', width: '1px' }} />
         <div ref={headerMeasRef}>{renderHeader()}</div>
-        <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 0, border }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed', marginBottom: 0, border }}>
+          {itemsColGroup()}
           <thead ref={theadMeasRef}>{itemsHeadRow()}</thead>
           <tbody>
-            {renderItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
+            {measuredItems.map((item, index) => renderItemRow(item, (element) => { rowRefs.current[index] = element }))}
           </tbody>
         </table>
         <div ref={tailMeasRef}>{renderTail()}</div>
@@ -688,7 +944,8 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             breakAfter: index < totalPages - 1 ? 'page' : 'auto',
             display: 'flex',
             flexDirection: 'column',
-            minHeight: '281mm',
+            height: '281mm',
+            boxSizing: 'border-box',
             position: 'relative',
           }}
         >
