@@ -52,6 +52,13 @@ Greendii/
 
 ## Quick Start
 
+### Inserting Sale notes and detail lines
+
+Quotation create/edit and Work Order forms have a **+** button beside each note
+and detail line. It inserts a blank entry immediately after that entry, keeping
+the following entries, their colors, and section order intact. Existing
+**เพิ่มหมายเหตุ** and **เพิ่มบรรทัด** buttons still append to the end of their section.
+
 ### PR Type viewers
 
 In **PR Types**, create or edit a type and select individual users under

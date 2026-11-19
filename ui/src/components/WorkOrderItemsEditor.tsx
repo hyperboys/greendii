@@ -11,7 +11,6 @@ import {
   insertWorkOrderItem,
   parseWorkOrderColoredNoteBlocks,
   parseWorkOrderDetailBeforeNote,
-  parseWorkOrderNoteBlocks,
   parseWorkOrderDetailRows,
   stringifyWorkOrderDetailRows,
 } from '@/lib/workOrderItems'
@@ -76,7 +75,7 @@ export default function WorkOrderItemsEditor({
   const setDescriptionLine = (itemIdx: number, lineIdx: number, key: 'desc' | 'qty' | 'unit', value: string | number | null) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     rows[lineIdx] = { ...rows[lineIdx], [key]: value }
@@ -87,7 +86,7 @@ export default function WorkOrderItemsEditor({
   const setDescriptionLineText = (itemIdx: number, lineIdx: number, value: string) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     const prev = parseColoredLine(rows[lineIdx]?.desc)
@@ -99,7 +98,7 @@ export default function WorkOrderItemsEditor({
   const setDescriptionLineColor = (itemIdx: number, lineIdx: number, color: string) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     while (rows.length <= lineIdx) rows.push({ desc: '', qty: null, unit: '' })
     const prev = parseColoredLine(rows[lineIdx]?.desc)
@@ -108,12 +107,12 @@ export default function WorkOrderItemsEditor({
     onChange(nextItems)
   }
 
-  const addDescriptionLine = (itemIdx: number) => {
+  const addDescriptionLine = (itemIdx: number, afterIndex?: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
-    rows.push({ desc: '', qty: null, unit: '' })
+    rows.splice(afterIndex === undefined ? rows.length : afterIndex + 1, 0, { desc: '', qty: null, unit: '' })
     nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
@@ -121,7 +120,7 @@ export default function WorkOrderItemsEditor({
   const removeDescriptionLine = (itemIdx: number, lineIdx: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-    const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+    const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
     if (rows.length <= 1) {
       nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows([], { noteBlocks, detailBeforeNote }) }
@@ -156,12 +155,13 @@ export default function WorkOrderItemsEditor({
     onChange(nextItems)
   }
 
-  const addNoteBlock = (itemIdx: number) => {
+  const addNoteBlock = (itemIdx: number, afterIndex?: number) => {
     const nextItems = [...items]
     const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
     const blocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
     const detailBeforeNote = Boolean(detailBeforeNoteByItem[itemIdx])
-    const nextBlocks = [...blocks, { text: '' }]
+    const nextBlocks = [...blocks]
+    nextBlocks.splice(afterIndex === undefined ? blocks.length : afterIndex + 1, 0, { text: '' })
     nextItems[itemIdx] = { ...nextItems[itemIdx], ...stringifyWorkOrderDetailRows(rows, { noteBlocks: nextBlocks, detailBeforeNote }) }
     onChange(nextItems)
   }
@@ -255,7 +255,7 @@ export default function WorkOrderItemsEditor({
 
       const nextItems = [...items]
       const rows = parseWorkOrderDetailRows(nextItems[itemIdx])
-      const noteBlocks = parseWorkOrderNoteBlocks(nextItems[itemIdx]?.note)
+      const noteBlocks = parseWorkOrderColoredNoteBlocks(nextItems[itemIdx]?.note)
       nextItems[itemIdx] = {
         ...nextItems[itemIdx],
         ...stringifyWorkOrderDetailRows(rows, {
@@ -391,6 +391,15 @@ export default function WorkOrderItemsEditor({
                         <td className="px-2 py-0.5 text-right">
                           <button
                             type="button"
+                            className="p-1 text-gray-400 transition-colors hover:text-green-700"
+                            onClick={() => addDescriptionLine(index, lineIdx)}
+                            title={`แทรกบรรทัดถัดจากบรรทัดที่ ${lineIdx + 1}`}
+                            aria-label={`แทรกบรรทัดถัดจากบรรทัดที่ ${lineIdx + 1}`}
+                          >
+                            <Plus size={13} />
+                          </button>
+                          <button
+                            type="button"
                             className="p-1 text-red-400 transition-colors hover:text-red-600"
                             onClick={() => removeDescriptionLine(index, lineIdx)}
                             title="ลบบรรทัด"
@@ -463,6 +472,15 @@ export default function WorkOrderItemsEditor({
                                     </div>
                                   ) : null}
                                 </div>
+                                <button
+                                  type="button"
+                                  className="mt-1 p-1 text-gray-400 transition-colors hover:text-green-700"
+                                  onClick={() => addNoteBlock(index, blockIdx)}
+                                  title={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${blockIdx + 1}`}
+                                  aria-label={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${blockIdx + 1}`}
+                                >
+                                  <Plus size={13} />
+                                </button>
                                 <button
                                   type="button"
                                   className="mt-1 p-1 text-red-400 transition-colors hover:text-red-600"

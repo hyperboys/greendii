@@ -300,11 +300,12 @@ export default function QuotationFormPage() {
     })
   }
 
-  const addNoteBlock = (itemIdx: number) => {
+  const addNoteBlock = (itemIdx: number, afterIndex?: number) => {
     setForm(f => {
       const items = [...f.items]
       const blocks = parseNoteBlocks(items[itemIdx].note)
-      const nextBlocks = [...blocks, { text: '' }]
+      const nextBlocks = [...blocks]
+      nextBlocks.splice(afterIndex === undefined ? blocks.length : afterIndex + 1, 0, { text: '' })
       items[itemIdx] = normalizeItem({ ...items[itemIdx], note: stringifyNoteBlocks(nextBlocks) })
       return { ...f, items }
     })
@@ -330,10 +331,11 @@ export default function QuotationFormPage() {
     })
   }
 
-  const addDetailRow = (itemIdx: number) => {
+  const addDetailRow = (itemIdx: number, afterIndex?: number) => {
     setForm(f => {
       const items = [...f.items]
-      const detailRows = [...(items[itemIdx].detailRows || []), normalizeDetailRow({ qty: 1, materialPrice: 0, labourPrice: 0, unit: '' })]
+      const detailRows = [...(items[itemIdx].detailRows || [])]
+      detailRows.splice(afterIndex === undefined ? detailRows.length : afterIndex + 1, 0, normalizeDetailRow({ qty: 1, materialPrice: 0, labourPrice: 0, unit: '' }))
       items[itemIdx] = normalizeItem({ ...items[itemIdx], detailRows })
       return { ...f, items }
     })
@@ -867,6 +869,15 @@ export default function QuotationFormPage() {
                                     </div>
                                     <button
                                       type="button"
+                                      className="mt-1 p-1 text-gray-400 hover:text-green-700"
+                                      onClick={() => addNoteBlock(i, noteIdx)}
+                                      title={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${noteIdx + 1}`}
+                                      aria-label={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${noteIdx + 1}`}
+                                    >
+                                      <Plus size={13} />
+                                    </button>
+                                    <button
+                                      type="button"
                                       className="mt-1 p-1 text-red-400 hover:text-red-600"
                                       onClick={() => removeNoteBlock(i, noteIdx)}
                                       title="ลบหมายเหตุ"
@@ -1138,6 +1149,15 @@ export default function QuotationFormPage() {
                         <td className="py-1.5 px-2 text-right">
                           <button
                             type="button"
+                            className="p-1 text-gray-400 hover:text-green-700 transition-colors"
+                            onClick={() => addDetailRow(i, detailIdx)}
+                            title={`แทรกบรรทัดถัดจากบรรทัดที่ ${detailIdx + 1}`}
+                            aria-label={`แทรกบรรทัดถัดจากบรรทัดที่ ${detailIdx + 1}`}
+                          >
+                            <Plus size={13} />
+                          </button>
+                          <button
+                            type="button"
                             className="p-1 text-red-400 hover:text-red-600 transition-colors"
                             onClick={() => removeDetailRow(i, detailIdx)}
                             title="ลบรายละเอียด"
@@ -1246,6 +1266,15 @@ export default function QuotationFormPage() {
                                         </div>
                                       ) : null}
                                     </div>
+                                    <button
+                                      type="button"
+                                      className="mt-1 p-1 text-gray-400 hover:text-green-700"
+                                      onClick={() => addNoteBlock(i, noteIdx)}
+                                      title={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${noteIdx + 1}`}
+                                      aria-label={`แทรกหมายเหตุถัดจากหมายเหตุที่ ${noteIdx + 1}`}
+                                    >
+                                      <Plus size={13} />
+                                    </button>
                                     <button
                                       type="button"
                                       className="mt-1 p-1 text-red-400 hover:text-red-600"
