@@ -163,8 +163,11 @@ export default function HandoverDetailPage() {
                   {detailRows.map((row, rowIndex) => {
                     const parsed = parseColoredLine(row.desc)
                     return (
-                      <div key={`${idx}-detail-${rowIndex}`} className="whitespace-pre-line" style={{ color: parsed.color || '#9ca3af' }}>
-                        {parsed.text}
+                      <div key={`${idx}-detail-${rowIndex}`} className="flex items-start gap-2 whitespace-pre-line" style={{ color: parsed.color || '#9ca3af' }}>
+                        <span className="flex-1">{parsed.text}</span>
+                        <span className="shrink-0 text-right text-gray-600">
+                          {row.qty != null ? `${row.qty}${row.unit ? ` ${row.unit}` : ''}` : (row.unit || '')}
+                        </span>
                       </div>
                     )
                   })}

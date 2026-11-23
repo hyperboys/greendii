@@ -78,8 +78,11 @@ test('each handover item begins as one row regardless of detail count', () => {
 
   assert.equal(item.displaySeq, 5)
   assert.equal(item.continuation, false)
-  assert.equal(item.desc.split('\n').length, 24)
-  assert.ok(item.desc.includes('Detail 24 24 Set'))
+  assert.equal(item.desc, 'Long item')
+  assert.equal(item.detailRows.length, 24)
+  assert.equal(item.detailRows[23].desc, 'Detail 24')
+  assert.equal(item.detailRows[23].qty, 24)
+  assert.equal(item.detailRows[23].unit, 'Set')
 })
 
 test('a description taller than one page is split by measured height without losing text', () => {
@@ -118,7 +121,8 @@ test('item six remains a separate numbered row after a long item five block', ()
       { displaySeq: 6, continuation: false },
     ],
   )
-  assert.ok(itemFive.desc.includes('Continued detail 2 Set'))
+  assert.ok(itemFive.detailRows.some(row => row.desc === 'Continued detail'))
+  assert.ok(itemFive.detailRows.some(row => row.qty === 2 && row.unit === 'Set'))
   assert.equal(itemSix.desc, 'Item six')
 })
 

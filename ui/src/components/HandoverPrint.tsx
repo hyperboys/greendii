@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { resolveFileUrl } from '@/lib/api'
+import { parseColoredLine } from '@/lib/coloredText'
 import { parseHandOverColoredNoteBlocks, parseHandOverDetailBeforeNote, parseHandOverDetailRows } from '@/lib/handOverItems'
 import type { HandOverItem, HandOverJob, Settings } from '@/types'
 
@@ -21,6 +22,7 @@ interface Props {
 interface HandoverItemFragment {
   key: string
   desc: string
+  detailRows: Array<{ desc: string; qty: number | null; unit: string; color?: string }>
   images: string[]
   continuation: boolean
   forcePageBreakBefore?: boolean
@@ -122,7 +124,7 @@ function measureTextChunks(text: string, source: HTMLElement | null, maxHeight: 
 }
 
 function itemWeight(fragment: HandoverItemFragment): number {
-  return 1 + Math.ceil(Array.from(fragment.desc).length / 100) + fragment.images.length * 3
+  return 1 + (fragment.detailRows?.length ?? 0) + Math.ceil(Array.from(fragment.desc).length / 100) + fragment.images.length * 3
 }
 
 type ItemSource = Pick<HandOverItem, 'seq' | 'desc' | 'note' | 'detailRows' | 'remark' | 'qty' | 'unit' | 'images'>
@@ -160,21 +162,48 @@ function buildItemDescription(item: ItemSource): string {
 }
 
 function buildRenderableItems(items: ItemSource[]): HandoverItemFragment[] {
-  return items.map((item, itemIndex) => ({
-    key: `${item.seq ?? itemIndex}`,
-    desc: buildItemDescription(item),
-    images: Array.isArray(item.images) ? [...item.images] : [],
-    continuation: false,
-    qty: item.qty,
-    unit: item.unit,
-    displaySeq: item.seq !== undefined ? item.seq + 1 : itemIndex + 1,
-  }))
+  return items.map((item, itemIndex) => {
+    const detailRows = parseHandOverDetailRows(item).map(row => {
+      const parsed = parseColoredLine(String(row.desc ?? '').trim())
+      return {
+        desc: parsed.text,
+        qty: row.qty == null ? null : (Number.isFinite(Number(row.qty)) ? Number(row.qty) : null),
+        unit: String(row.unit ?? '').trim(),
+        color: parsed.color,
+      }
+    })
+    const metaNoteBlocks = parseHandOverColoredNoteBlocks(item.note)
+    const noteRows = metaNoteBlocks.length > 0
+      ? metaNoteBlocks.flatMap(block => splitDescriptionLines(block.text).map(text => ({
+          desc: text,
+          qty: null,
+          unit: '',
+          color: block.color,
+        })))
+      : (String(item.remark ?? '').trim()
+          ? splitDescriptionLines(String(item.remark)).map(text => ({ desc: text, qty: null, unit: '', color: undefined }))
+          : [])
+    const detailBeforeNote = metaNoteBlocks.length > 0 ? parseHandOverDetailBeforeNote(item.note) : true
+    const orderedRows = detailBeforeNote ? [...detailRows, ...noteRows] : [...noteRows, ...detailRows]
+    const parsedDesc = parseColoredLine(String(item.desc ?? '').trim())
+    return {
+      key: `${item.seq ?? itemIndex}`,
+      desc: parsedDesc.text,
+      detailRows: orderedRows,
+      images: Array.isArray(item.images) ? [...item.images] : [],
+      continuation: false,
+      qty: item.qty,
+      unit: item.unit,
+      displaySeq: item.seq !== undefined ? item.seq + 1 : itemIndex + 1,
+    }
+  })
 }
 
 function buildFallbackItems(lines: string[]): HandoverItemFragment[] {
   return lines.map((line, index) => ({
     key: `fallback-${index}`,
     desc: line,
+    detailRows: [],
     images: [],
     continuation: false,
     displaySeq: index + 1,
@@ -215,6 +244,7 @@ function splitItemForHeight(
     return {
       key: `${item.key}-split-${pieceIndex}`,
       desc: piece.desc ?? '',
+      detailRows: firstPiece ? item.detailRows : [],
       images: piece.images ?? [],
       continuation: item.continuation || !firstPiece,
       forcePageBreakBefore: firstPiece ? item.forcePageBreakBefore : pieceIndex === 1,
@@ -733,6 +763,13 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
     item: HandoverItemFragment,
     rowRef?: (element: HTMLTableRowElement | null) => void,
   ) {
+    const formatQty = (value: number | null | undefined): string => {
+      if (value == null) return ''
+      const numeric = Number(value)
+      if (!Number.isFinite(numeric) || numeric === 0) return ''
+      return `${numeric}`
+    }
+
     return (
       <tr key={item.key} ref={rowRef} style={{ breakInside: 'avoid', pageBreakInside: 'avoid' }}>
         <td style={itemCellS}>
@@ -746,6 +783,20 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
               {item.desc}
             </span>
           )}
+          {item.detailRows.map((row, index) => (
+            <span
+              key={index}
+              style={{
+                color: row.color || '#444',
+                fontSize: fpt(10),
+                lineHeight: 1.1,
+                whiteSpace: 'pre-wrap',
+                display: 'block',
+              }}
+            >
+              {row.desc || '\u00A0'}
+            </span>
+          ))}
           {item.images.length > 0 && (
             <div style={{ marginTop: fmm(1), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
               {item.images.map((url, index) => (
@@ -756,10 +807,20 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           )}
         </td>
         <td style={itemCellS}>
-          <div>{item.qty != null && item.qty !== 0 ? item.qty : '\u00A0'}</div>
+          <div>{formatQty(item.qty) || '\u00A0'}</div>
+          {item.detailRows.map((row, index) => (
+            <span key={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
+              {formatQty(row.qty) || '\u00A0'}
+            </span>
+          ))}
         </td>
         <td style={itemCellS}>
           <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</div>
+          {item.detailRows.map((row, index) => (
+            <span key={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
+              {row.unit || '\u00A0'}
+            </span>
+          ))}
         </td>
       </tr>
     )
