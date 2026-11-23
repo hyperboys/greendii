@@ -296,7 +296,7 @@ export default function PRDetailPage() {
         <div className="col-span-2 md:col-span-3"><span className="form-label">Remarks</span><p className="whitespace-pre-line">{doc.remarks?.trim() || '-'}</p></div>
       </div>
 
-      {doc.revisionNo && doc.revisionNo > 0 && doc.previousPurchaseRequest && (
+      {(doc.revisionNo ?? 0) > 0 && doc.previousPurchaseRequest && (
         <PRRevisionSummary doc={doc} previous={doc.previousPurchaseRequest} />
       )}
 
