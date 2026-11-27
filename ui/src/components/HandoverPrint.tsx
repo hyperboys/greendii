@@ -12,6 +12,7 @@ const PACK_CAP_LAST = 25
 const HEADER_GAP = 1
 const SAFETY = 10
 const TAIL_GAP = 0
+const COMBINING_MARK = new RegExp('\\p{M}', 'u')
 
 interface Props {
   doc: HandOverJob
@@ -217,6 +218,84 @@ function splitItemForHeight(
 ): HandoverItemFragment[] | null {
   if (!row) return null
 
+  if (item.detailRows.length > 0 && row.parentElement) {
+    const probe = row.cloneNode(true) as HTMLTableRowElement
+    probe.querySelector('[data-handover-images]')?.remove()
+    row.parentElement.appendChild(probe)
+    try {
+      const details = Array.from(probe.querySelectorAll<HTMLElement>('[data-handover-detail]'))
+      const setDetailCount = (count: number) => {
+        details.forEach(element => {
+          element.style.display = Number(element.dataset.handoverDetail) < count ? 'block' : 'none'
+        })
+      }
+
+      let count = 0
+      setDetailCount(0)
+      if (probe.getBoundingClientRect().height <= maxHeight) {
+        while (count < item.detailRows.length) {
+          setDetailCount(count + 1)
+          if (probe.getBoundingClientRect().height > maxHeight) break
+          count += 1
+        }
+
+        const firstRows = item.detailRows.slice(0, count)
+        const remainingRows = item.detailRows.slice(count)
+        if (remainingRows.length > 0) {
+          const text = Array.from(remainingRows[0].desc)
+          const detailText = probe.querySelector<HTMLElement>(`td:nth-child(2) [data-handover-detail="${count}"]`)
+          if (detailText && text.length > 1) {
+            setDetailCount(count + 1)
+            let low = 1
+            let high = text.length - 1
+            let end = 0
+            while (low <= high) {
+              const middle = Math.floor((low + high) / 2)
+              detailText.textContent = text.slice(0, middle).join('')
+              if (probe.getBoundingClientRect().height <= maxHeight) {
+                end = middle
+                low = middle + 1
+              } else {
+                high = middle - 1
+              }
+            }
+            while (end > 0 && COMBINING_MARK.test(text[end])) end -= 1
+            for (let index = end - 1; index > Math.max(0, end - 20); index -= 1) {
+              if (/\s/.test(text[index])) {
+                end = index + 1
+                break
+              }
+            }
+            if (end > 0) {
+              firstRows.push({ ...remainingRows[0], desc: text.slice(0, end).join('') })
+              remainingRows[0] = { ...remainingRows[0], desc: text.slice(end).join(''), qty: null, unit: '' }
+            }
+          }
+        }
+
+        if ((item.desc || firstRows.length > 0) && (remainingRows.length > 0 || item.images.length > 0)) {
+          return [
+            { ...item, key: `${item.key}-first`, detailRows: firstRows, images: [] },
+            {
+              ...item,
+              key: `${item.key}-continued`,
+              desc: '',
+              detailRows: remainingRows,
+              continuation: true,
+              forcePageBreakBefore: true,
+              qty: undefined,
+              unit: undefined,
+              displaySeq: undefined,
+              continuationNo: item.continuationNo ?? item.displaySeq,
+            },
+          ]
+        }
+      }
+    } finally {
+      probe.remove()
+    }
+  }
+
   const source = row.querySelector<HTMLElement>('[data-handover-text="item-description"]')
   if (source) {
     const lineHeight = Number.parseFloat(window.getComputedStyle(source).lineHeight)
@@ -244,7 +323,7 @@ function splitItemForHeight(
     return {
       key: `${item.key}-split-${pieceIndex}`,
       desc: piece.desc ?? '',
-      detailRows: firstPiece ? item.detailRows : [],
+      detailRows: pieceIndex === pieces.filter(piece => piece.desc !== undefined).length - 1 ? item.detailRows : [],
       images: piece.images ?? [],
       continuation: item.continuation || !firstPiece,
       forcePageBreakBefore: firstPiece ? item.forcePageBreakBefore : pieceIndex === 1,
@@ -295,24 +374,19 @@ function reflowItemsToPageSpace(
   return null
 }
 
-function takeTrailingItems<T>(
+function takeTrailingItem<T>(
   pages: T[][],
-  canFit: (tailItems: T[], candidate: T) => boolean,
+  canFit: (candidate: T) => boolean,
 ): { pages: T[][]; tailItems: T[] } {
   const lastPage = pages[pages.length - 1]
-  const tailItems: T[] = []
-  if (!lastPage) return { pages, tailItems }
+  if (!lastPage || lastPage.length === 0) return { pages, tailItems: [] }
+  const candidate = lastPage[lastPage.length - 1]
+  if (!canFit(candidate)) return { pages, tailItems: [] }
 
-  while (lastPage.length > 0) {
-    const candidate = lastPage[lastPage.length - 1]
-    if (!canFit(tailItems, candidate)) break
-    const moved = lastPage.pop()
-    if (moved !== undefined) tailItems.unshift(moved)
-  }
-
+  lastPage.pop()
   return {
     pages: lastPage.length > 0 ? pages : pages.slice(0, -1),
-    tailItems,
+    tailItems: [candidate],
   }
 }
 
@@ -350,9 +424,9 @@ function paginateItems(items: HandoverItemFragment[]): PageChunk[] {
     lastPage.isLast = true
     lastPage.tail = true
   } else {
-    const { pages: contentPages, tailItems } = takeTrailingItems(
+    const { pages: contentPages, tailItems } = takeTrailingItem(
       rawPages,
-      (movedItems, candidate) => movedItems.reduce((sum, item) => sum + itemWeight(item), itemWeight(candidate)) <= PACK_CAP_LAST,
+      candidate => itemWeight(candidate) <= PACK_CAP_LAST,
     )
     const contentChunks = contentPages.map(pageItems => ({
       items: pageItems,
@@ -395,15 +469,14 @@ function packByHeight(items: HandoverItemFragment[], heights: number[], availNon
   }))
 
   const lastPageHeight = rawPages[rawPages.length - 1].reduce((sum, entry) => sum + entry.height, 0)
-  // Allow a small measurement tolerance to avoid unnecessary tail-only pages.
   if (lastPageHeight <= availLast) {
     const lastPage = pages[pages.length - 1]
     lastPage.isLast = true
     lastPage.tail = true
   } else {
-    const { pages: contentPages, tailItems } = takeTrailingItems(
+    const { pages: contentPages, tailItems } = takeTrailingItem(
       rawPages,
-      (movedEntries, candidate) => movedEntries.reduce((sum, entry) => sum + entry.height, candidate.height) <= availLast,
+      candidate => candidate.height <= availLast,
     )
     const contentChunks = contentPages.map(pageItems => ({
       items: pageItems.map(entry => entry.item),
@@ -485,7 +558,6 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
   useEffect(() => {
     setPages(null)
     setLayoutItems(null)
-    rowRefs.current = []
     readyRef.current = false
   }, [doc])
 
@@ -786,6 +858,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           {item.detailRows.map((row, index) => (
             <span
               key={index}
+              data-handover-detail={index}
               style={{
                 color: row.color || '#444',
                 fontSize: fpt(10),
@@ -798,7 +871,7 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
             </span>
           ))}
           {item.images.length > 0 && (
-            <div style={{ marginTop: fmm(1), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
+            <div data-handover-images style={{ marginTop: fmm(1), display: 'flex', flexDirection: 'column', gap: fmm(2) }}>
               {item.images.map((url, index) => (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img key={index} src={resolveFileUrl(url)} alt="" style={{ width: fmm(30), height: 'auto', objectFit: 'contain', display: 'block' }} />
@@ -807,17 +880,17 @@ export default function HandoverPrint({ doc, settings, onReady }: Props) {
           )}
         </td>
         <td style={itemCellS}>
-          <div>{formatQty(item.qty) || '\u00A0'}</div>
+          {(!item.continuation || item.desc) && <div>{formatQty(item.qty) || '\u00A0'}</div>}
           {item.detailRows.map((row, index) => (
-            <span key={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
+            <span key={index} data-handover-detail={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
               {formatQty(row.qty) || '\u00A0'}
             </span>
           ))}
         </td>
         <td style={itemCellS}>
-          <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</div>
+          {(!item.continuation || item.desc) && <div>{Number(item.qty ?? 0) === 0 ? '\u00A0' : (item.unit ?? '\u00A0')}</div>}
           {item.detailRows.map((row, index) => (
-            <span key={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
+            <span key={index} data-handover-detail={index} style={{ color: '#444', fontSize: fpt(10), lineHeight: 1.1, display: 'block' }}>
               {row.unit || '\u00A0'}
             </span>
           ))}

@@ -18,7 +18,7 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
       if (!current || !root.current) return;
       let valid = true;
       for (const element of root.current.querySelectorAll<HTMLElement>("[data-print-fit]")) {
-        let size = element.dataset.printSize ? Number(element.dataset.printSize) : 12;
+        let size = element.dataset.printSize ? Number(element.dataset.printSize) : 10;
         element.style.fontSize = `${size}pt`;
         while (size > 6 && (element.scrollHeight > element.clientHeight + 1 || element.scrollWidth > element.clientWidth + 1)) {
           size -= 0.5;
@@ -32,12 +32,12 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
     return () => { current = false; };
   }, [doc, onReady]);
   return <><p className={`iv-no-print rounded bg-red-50 p-3 text-red-700 ${fitError ? "" : "hidden"}`} role={fitError ? "alert" : undefined}>ข้อมูลยาวเกินพื้นที่แบบฟอร์ม กรุณาปรับข้อมูลก่อนพิมพ์ ไม่มีการตัดข้อความเพื่อซ่อนข้อมูล</p><div ref={root} id="iv-print-doc" className="mx-auto w-[210mm] text-black">
-    {pages.map((rows, pageIndex) => <article key={pageIndex} className="iv-overlay relative h-[297mm] w-[210mm] bg-white text-[12pt] leading-tight">
+    {pages.map((rows, pageIndex) => <article key={pageIndex} className="iv-overlay relative h-[297mm] w-[210mm] bg-white text-[10pt] leading-tight">
       <div data-print-fit className="iv-value iv-single-line" style={{ left: "27.5mm", top: "24.5mm", width: "24mm", height: "5.5mm" }}>{doc.customerCode || doc.customer?.code}</div>
-      <div data-print-fit data-print-size="10.5" className="iv-value iv-single-line" style={{ left: "27.5mm", top: "30mm", width: "105mm", height: "5.5mm", fontSize: "10.5pt" }}>{doc.customerName || doc.customer?.name}</div>
-      <div data-print-fit data-print-size="10.5" className="iv-value" style={{ left: "27.5mm", top: "35.5mm", width: "105mm", height: "12mm", fontSize: "10.5pt" }}>{doc.address}</div>
-      <div data-print-fit data-print-size="10.5" className="iv-value iv-single-line" style={{ left: "53mm", top: "24.5mm", width: "39mm", height: "5.5mm", fontSize: "10.5pt" }}>{doc.taxId ? `TAX ID: ${doc.taxId}` : ""}</div>
-      <div data-print-fit data-print-size="10.5" className="iv-value iv-single-line" style={{ left: "93mm", top: "24.5mm", width: "39.5mm", height: "5.5mm", fontSize: "10.5pt" }}>{doc.customerBranch ? `สาขา ${doc.customerBranch}` : ""}</div>
+      <div data-print-fit data-print-size="10" className="iv-value iv-single-line" style={{ left: "27.5mm", top: "30mm", width: "105mm", height: "5.5mm", fontSize: "10pt" }}>{doc.customerName || doc.customer?.name}</div>
+      <div data-print-fit data-print-size="10" className="iv-value" style={{ left: "27.5mm", top: "35.5mm", width: "105mm", height: "12mm", fontSize: "10pt" }}>{doc.address}</div>
+      <div data-print-fit data-print-size="10" className="iv-value iv-single-line" style={{ left: "53mm", top: "24.5mm", width: "39mm", height: "5.5mm", fontSize: "10pt" }}>{doc.taxId ? `TAX ID: ${doc.taxId}` : ""}</div>
+      <div data-print-fit data-print-size="10" className="iv-value iv-single-line" style={{ left: "93mm", top: "24.5mm", width: "39.5mm", height: "5.5mm", fontSize: "10pt" }}>{doc.customerBranch ? `สาขา ${doc.customerBranch}` : ""}</div>
       <div data-print-fit className="iv-value" style={{ left: "29.5mm", top: "48mm", width: "113mm", height: "5.5mm" }}>{doc.customerPoNo}</div>
       <div data-print-fit className="iv-value" style={{ left: "27.5mm", top: "54mm", width: "115mm", height: "11mm" }}>{doc.remark}</div>
       <div data-print-fit className="iv-value" style={{ left: "153mm", top: "24.5mm", width: "45mm", height: "5.5mm" }}>{formatAccountingDate(doc.ivDate)}</div>
@@ -74,6 +74,7 @@ export function InvoiceDocument({ document: doc, onReady }: { document: Invoice;
 
 export function InvoicePrintStyles({ allowed = false }: { allowed?: boolean }) {
   return <style jsx global>{`
+    #iv-print-doc { font-size: 10pt; }
     #iv-print-doc .iv-value { position: absolute; white-space: pre-wrap; overflow-wrap: anywhere; }
     #iv-print-doc .iv-value.iv-single-line { white-space: nowrap; }
     #iv-print-doc .iv-items { position: absolute; left: 8.5mm; top: 68.5mm; width: 185mm; }

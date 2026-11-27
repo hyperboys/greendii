@@ -21,11 +21,10 @@ test("Accounting embeds the exact Sale font assets with regular and bold faces",
 test("All Accounting print roots share Sale body typography without changing screen body or stationery geometry", () => {
   const rule = css.match(/#po-print-doc,[\s\S]*?\{\s*font-family: var\(--font-body\) !important;\s*\}/)?.[0];
   assert.ok(rule);
-  for (const selector of ["#so-print-doc", "#bi-print-doc", "#rv-print-doc", "#cn-print-doc",
+  for (const selector of ["#so-print-doc", "#bi-print-doc", "#iv-print-doc", "#rv-print-doc", "#cn-print-doc",
     "#ps-print-doc", "#pv-print-doc", ".gr-paper", ".is-paper", ".cq-paper", ".opening-print", ".stock-card-print-only"]) {
     assert.ok(rule.includes(selector), selector);
   }
-  assert.match(css, /#iv-print-doc\s*\{\s*font-family: Calibri, Tahoma, var\(--font-noto-thai\), sans-serif !important;/);
   assert.ok(css.includes("font-family: var(--font-public-sans), var(--font-noto-thai), sans-serif;"));
   assert.equal(rule.includes("font-size"), false);
   assert.equal(rule.includes("height"), false);
@@ -35,14 +34,14 @@ test("All Accounting print roots share Sale body typography without changing scr
   }
 });
 
-test("Invoice uses Calibri with comparable Thai fallbacks without changing other documents or embedding system fonts", () => {
-  const invoiceRule = css.match(/#iv-print-doc\s*\{([^}]+)\}/)?.[1];
-  assert.ok(invoiceRule);
-  assert.doesNotMatch(invoiceRule, /Cordia|Century Gothic|--font-body|--font-en|font-size|line-height/);
-  assert.doesNotMatch(css, /url\([^)]*(?:calibri|tahoma)/i);
+test("Invoice uses the shared accounting print font and 10pt base size", () => {
   const invoice = fs.readFileSync(path.join(root, "src", "components", "invoice-document.tsx"), "utf8");
-  assert.ok(invoice.includes("text-[12pt]"));
+  assert.match(css, /#iv-print-doc,/);
+  assert.match(invoice, /#iv-print-doc \{ font-size: 10pt; \}/);
+  assert.ok(invoice.includes("text-[10pt]"));
   assert.ok(invoice.includes("document.fonts.ready"));
-  assert.ok(invoice.includes("let size = 12;"));
+  assert.ok(invoice.includes("let size = element.dataset.printSize ? Number(element.dataset.printSize) : 10;"));
+  assert.doesNotMatch(invoice, /10\.5pt|text-\[12pt\]/);
+  assert.doesNotMatch(css, /url\([^)]*(?:calibri|tahoma)/i);
   assert.ok(invoice.includes('top: "30mm"'));
 });

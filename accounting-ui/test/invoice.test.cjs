@@ -229,7 +229,7 @@ test("Invoice overlay prints data only, omits preprinted labels/payment/signatur
   assert.match(html, /TAX ID: 123/);
   assert.match(html, /0　วัน/);
   assert.match(html, /class="iv-items"/);
-  assert.match(html, /text-\[12pt\]/);
+  assert.match(html, /text-\[10pt\]/);
   assert.match(html, /TAX ID: 123/);
   assert.doesNotMatch(html, /<table|<img|<svg|RECEIPT|ผู้รับเงิน|Paid by|<h1|ใบเสร็จ/);
   assert.match(html, /หนึ่งร้อยสามสิบสองบาทเก้าสตางค์/);
@@ -269,10 +269,10 @@ test("Invoice data-only coordinates follow the reference PDF header, seven item 
   assert.match(html, /ห้าหมื่นแปดพันสามร้อยสิบห้าบาทถ้วน/);
   assert.doesNotMatch(html, /Reference Customer สำนักงานใหญ่|\(Lot\)|>0\.00<\/div>|1\/1/);
   const styles = invoicePrint.InvoicePrintStyles({ allowed: true }).props.children;
-  assert.match(html, /data-print-size="10\.5" class="iv-value iv-single-line" style="left:27\.5mm;top:30mm;width:105mm;height:5\.5mm;font-size:10\.5pt"/);
-  assert.match(html, /data-print-size="10\.5" class="iv-value" style="left:27\.5mm;top:35\.5mm;width:105mm;height:12mm;font-size:10\.5pt"/);
-  assert.match(html, /data-print-size="10\.5" class="iv-value iv-single-line" style="left:53mm;top:24\.5mm;width:39mm;height:5\.5mm;font-size:10\.5pt"/);
-  assert.match(html, /data-print-size="10\.5" class="iv-value iv-single-line" style="left:93mm;top:24\.5mm;width:39\.5mm;height:5\.5mm;font-size:10\.5pt"/);
+  assert.match(html, /data-print-size="10" class="iv-value iv-single-line" style="left:27\.5mm;top:30mm;width:105mm;height:5\.5mm;font-size:10pt"/);
+  assert.match(html, /data-print-size="10" class="iv-value" style="left:27\.5mm;top:35\.5mm;width:105mm;height:12mm;font-size:10pt"/);
+  assert.match(html, /data-print-size="10" class="iv-value iv-single-line" style="left:53mm;top:24\.5mm;width:39mm;height:5\.5mm;font-size:10pt"/);
+  assert.match(html, /data-print-size="10" class="iv-value iv-single-line" style="left:93mm;top:24\.5mm;width:39\.5mm;height:5\.5mm;font-size:10pt"/);
   assert.match(styles, /\.iv-value\.iv-single-line \{ white-space: nowrap; \}/);
   assert.match(styles, /left: 8\.5mm; top: 68\.5mm; width: 185mm/);
   assert.match(styles, /grid-template-columns: 22mm 74\.5mm 7mm 11\.5mm 25mm 22mm 23mm/);
@@ -313,7 +313,7 @@ test("Invoice fit starts customer fields smaller, shrinks long values and blocks
     scrollWidth: 100,
   });
   for (const overflow of [false, true]) {
-    const fields = [field(10.5, 10.5), field(10.5, 8), field(null, 12), field(10.5, overflow ? 5 : 6)];
+    const fields = [field(10, 10), field(10, 8), field(null, 10), field(10, overflow ? 5 : 6)];
     let effect, fitError;
     const ready = [];
     const { InvoiceDocument } = load(["components", "invoice-document.tsx"], {
@@ -326,7 +326,7 @@ test("Invoice fit starts customer fields smaller, shrinks long values and blocks
     InvoiceDocument({ document: { ...invoices.newInvoice(), netAmount: 0 }, onReady: value => ready.push(value) });
     effect();
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(fields.map(item => item.style.fontSize), ["10.5pt", "8pt", "12pt", "6pt"]);
+    assert.deepEqual(fields.map(item => item.style.fontSize), ["10pt", "8pt", "10pt", "6pt"]);
     assert.equal(fitError, overflow);
     assert.deepEqual(ready, [false, !overflow]);
   }
